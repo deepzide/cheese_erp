@@ -5,7 +5,7 @@
   vars:
     project_dir: /opt/erpnext
     repo_url: https://github.com/frappe/frappe_docker.git
-    target_image: dcorps/dermagroup:latest
+    target_image: dcorps/cheese:latest
     site_name: frontend
     admin_password: admin  # puedes cambiarla si quieres
 
