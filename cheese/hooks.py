@@ -148,23 +148,19 @@ app_license = "mit"
 # Scheduled Tasks
 # ---------------
 
-# scheduler_events = {
-# 	"all": [
-# 		"cheese.tasks.all"
-# 	],
-# 	"daily": [
-# 		"cheese.tasks.daily"
-# 	],
-# 	"hourly": [
-# 		"cheese.tasks.hourly"
-# 	],
-# 	"weekly": [
-# 		"cheese.tasks.weekly"
-# 	],
-# 	"monthly": [
-# 		"cheese.tasks.monthly"
-# 	],
-# }
+scheduler_events = {
+	"cron": {
+		"0/15 * * * *": [
+			"cheese.cheese.scheduler.expiration.expire_pending_tickets",
+		],
+	},
+	"hourly": [
+		"cheese.cheese.scheduler.no_show.process_no_shows",
+	],
+	"daily": [
+		"cheese.cheese.scheduler.survey.send_post_completion_surveys",
+	],
+}
 
 # Testing
 # -------

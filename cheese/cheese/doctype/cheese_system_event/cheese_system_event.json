@@ -1,0 +1,116 @@
+{
+ "actions": [],
+ "allow_import": 1,
+ "allow_rename": 1,
+ "autoname": "hash",
+ "creation": "2024-01-01 00:00:00",
+ "doctype": "DocType",
+ "name": "Cheese System Event",
+ "document_type": "Document",
+ "engine": "InnoDB",
+ "field_order": [
+  "event_info",
+  "entity_type",
+  "entity_id",
+  "event_type",
+  "payload_json",
+  "triggered_by",
+  "created_at"
+ ],
+ "fields": [
+  {
+   "fieldname": "event_info",
+   "fieldtype": "Section Break",
+   "label": "Event Information"
+  },
+  {
+   "fieldname": "entity_type",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Entity Type",
+   "reqd": 1
+  },
+  {
+   "fieldname": "entity_id",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Entity ID",
+   "reqd": 1
+  },
+  {
+   "fieldname": "event_type",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Event Type",
+   "reqd": 1
+  },
+  {
+   "fieldname": "payload_json",
+   "fieldtype": "JSON",
+   "label": "Payload (JSON)"
+  },
+  {
+   "fieldname": "triggered_by",
+   "fieldtype": "Link",
+   "label": "Triggered By",
+   "options": "User"
+  },
+  {
+   "fieldname": "created_at",
+   "fieldtype": "Datetime",
+   "label": "Created At"
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2024-01-01 00:00:00",
+ "modified_by": "Administrator",
+ "module": "Cheese",
+ "naming_rule": "By \"Naming Series\" field",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Cheese Booking Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "read": 1,
+   "report": 1,
+   "role": "Cheese Booking Agent",
+   "share": 1
+  },
+  {
+   "read": 1,
+   "report": 1,
+   "role": "Cheese Booking Operator",
+   "share": 1
+  }
+ ],
+ "sort_field": "created_at",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1
+}

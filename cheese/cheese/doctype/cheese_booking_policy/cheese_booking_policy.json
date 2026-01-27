@@ -1,0 +1,124 @@
+{
+ "actions": [],
+ "allow_import": 1,
+ "allow_rename": 1,
+ "autoname": "hash",
+ "creation": "2024-01-01 00:00:00",
+ "doctype": "DocType",
+ "name": "Cheese Booking Policy",
+ "document_type": "Document",
+ "engine": "InnoDB",
+ "field_order": [
+  "policy_info",
+  "experience",
+  "cancellation_section",
+  "cancel_until_hours_before",
+  "modification_section",
+  "modify_until_hours_before",
+  "booking_section",
+  "min_hours_before_booking"
+ ],
+ "fields": [
+  {
+   "fieldname": "policy_info",
+   "fieldtype": "Section Break",
+   "label": "Policy Information"
+  },
+  {
+   "fieldname": "experience",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Experience",
+   "options": "Cheese Experience",
+   "reqd": 1
+  },
+  {
+   "fieldname": "cancellation_section",
+   "fieldtype": "Section Break",
+   "label": "Cancellation Policy"
+  },
+  {
+   "fieldname": "cancel_until_hours_before",
+   "fieldtype": "Int",
+   "label": "Cancel Until Hours Before"
+  },
+  {
+   "fieldname": "modification_section",
+   "fieldtype": "Section Break",
+   "label": "Modification Policy"
+  },
+  {
+   "fieldname": "modify_until_hours_before",
+   "fieldtype": "Int",
+   "label": "Modify Until Hours Before"
+  },
+  {
+   "fieldname": "booking_section",
+   "fieldtype": "Section Break",
+   "label": "Booking Policy"
+  },
+  {
+   "fieldname": "min_hours_before_booking",
+   "fieldtype": "Int",
+   "label": "Min Hours Before Booking"
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2024-01-01 00:00:00",
+ "modified_by": "Administrator",
+ "module": "Cheese",
+ "naming_rule": "By \"Naming Series\" field",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Cheese Booking Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Cheese Booking Agent",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Cheese Booking Operator",
+   "share": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1
+}

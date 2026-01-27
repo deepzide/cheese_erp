@@ -1,0 +1,169 @@
+{
+ "actions": [],
+ "allow_import": 1,
+ "allow_rename": 1,
+ "autoname": "field:name",
+ "creation": "2024-01-01 00:00:00",
+ "doctype": "DocType",
+ "name": "Cheese Route",
+ "document_type": "Document",
+ "engine": "InnoDB",
+ "field_order": [
+  "route_info",
+  "name",
+  "description",
+  "status",
+  "pricing_section",
+  "price_mode",
+  "price",
+  "deposit_section",
+  "deposit_required",
+  "deposit_type",
+  "deposit_value",
+  "deposit_ttl_hours",
+  "experiences_section",
+  "experiences"
+ ],
+ "fields": [
+  {
+   "fieldname": "route_info",
+   "fieldtype": "Section Break",
+   "label": "Route Information"
+  },
+  {
+   "fieldname": "name",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Route Name",
+   "reqd": 1
+  },
+  {
+   "fieldname": "description",
+   "fieldtype": "Text Editor",
+   "label": "Description"
+  },
+  {
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Status",
+   "options": "ONLINE\nOFFLINE\nARCHIVED",
+   "reqd": 1
+  },
+  {
+   "fieldname": "pricing_section",
+   "fieldtype": "Section Break",
+   "label": "Pricing"
+  },
+  {
+   "fieldname": "price_mode",
+   "fieldtype": "Select",
+   "label": "Price Mode",
+   "options": "Manual\nSum"
+  },
+  {
+   "fieldname": "price",
+   "fieldtype": "Currency",
+   "label": "Price"
+  },
+  {
+   "fieldname": "deposit_section",
+   "fieldtype": "Section Break",
+   "label": "Deposit Settings"
+  },
+  {
+   "fieldname": "deposit_required",
+   "fieldtype": "Check",
+   "label": "Deposit Required"
+  },
+  {
+   "fieldname": "deposit_type",
+   "fieldtype": "Select",
+   "depends_on": "eval:doc.deposit_required",
+   "label": "Deposit Type",
+   "options": "Amount\n%"
+  },
+  {
+   "fieldname": "deposit_value",
+   "fieldtype": "Float",
+   "depends_on": "eval:doc.deposit_required",
+   "label": "Deposit Value"
+  },
+  {
+   "fieldname": "deposit_ttl_hours",
+   "fieldtype": "Int",
+   "depends_on": "eval:doc.deposit_required",
+   "label": "Deposit TTL (Hours)"
+  },
+  {
+   "fieldname": "experiences_section",
+   "fieldtype": "Section Break",
+   "label": "Route Experiences"
+  },
+  {
+   "fieldname": "experiences",
+   "fieldtype": "Table",
+   "label": "Experiences",
+   "options": "Cheese Route Experience"
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2024-01-01 00:00:00",
+ "modified_by": "Administrator",
+ "module": "Cheese",
+ "naming_rule": "By \"Naming Series\" field",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Cheese Booking Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Cheese Booking Agent",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Cheese Booking Operator",
+   "share": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1
+}

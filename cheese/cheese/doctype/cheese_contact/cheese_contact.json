@@ -1,0 +1,169 @@
+{
+ "actions": [],
+ "allow_import": 1,
+ "allow_rename": 1,
+ "autoname": "hash",
+ "creation": "2024-01-01 00:00:00",
+ "doctype": "DocType",
+ "name": "Cheese Contact",
+ "document_type": "Document",
+ "engine": "InnoDB",
+ "field_order": [
+  "contact_info_section",
+  "full_name",
+  "phone",
+  "email",
+  "column_break_1",
+  "preferences_section",
+  "preferred_language",
+  "preferred_channel",
+  "opt_in_status",
+  "do_not_contact",
+  "privacy_section",
+  "privacy_notes",
+  "integration_section",
+  "erpnext_contact"
+ ],
+ "fields": [
+  {
+   "fieldname": "contact_info_section",
+   "fieldtype": "Section Break",
+   "label": "Contact Information"
+  },
+  {
+   "fieldname": "full_name",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Full Name",
+   "reqd": 1
+  },
+  {
+   "fieldname": "phone",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Phone",
+   "options": "Phone"
+  },
+  {
+   "fieldname": "email",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Email",
+   "options": "Email"
+  },
+  {
+   "fieldname": "column_break_1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "preferences_section",
+   "fieldtype": "Section Break",
+   "label": "Preferences"
+  },
+  {
+   "fieldname": "preferred_language",
+   "fieldtype": "Select",
+   "label": "Preferred Language",
+   "options": "English\nSpanish\nFrench\nGerman\nItalian\nPortuguese\nOther"
+  },
+  {
+   "fieldname": "preferred_channel",
+   "fieldtype": "Select",
+   "label": "Preferred Channel",
+   "options": "WhatsApp\nEmail\nSMS\nPhone\nWeb"
+  },
+  {
+   "fieldname": "opt_in_status",
+   "fieldtype": "Select",
+   "label": "Opt-In Status",
+   "options": "OPT_IN\nOPT_OUT"
+  },
+  {
+   "fieldname": "do_not_contact",
+   "fieldtype": "Check",
+   "label": "Do Not Contact"
+  },
+  {
+   "fieldname": "privacy_section",
+   "fieldtype": "Section Break",
+   "label": "Privacy"
+  },
+  {
+   "fieldname": "privacy_notes",
+   "fieldtype": "Small Text",
+   "label": "Privacy Notes"
+  },
+  {
+   "fieldname": "integration_section",
+   "fieldtype": "Section Break",
+   "label": "Integration"
+  },
+  {
+   "fieldname": "erpnext_contact",
+   "fieldtype": "Link",
+   "label": "ERPNext Contact",
+   "options": "Contact"
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2024-01-01 00:00:00",
+ "modified_by": "Administrator",
+ "module": "Cheese",
+ "naming_rule": "By \"Naming Series\" field",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Cheese Booking Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Cheese Booking Agent",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Cheese Booking Operator",
+   "share": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "title_field": "full_name",
+ "track_changes": 1
+}
