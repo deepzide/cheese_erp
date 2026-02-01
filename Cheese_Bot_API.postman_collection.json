@@ -1,7 +1,7 @@
 {
 	"info": {
 		"name": "Cheese Bot API",
-		"description": "Bot API endpoints for Cheese booking system",
+		"description": "Bot API endpoints for Cheese booking system. Includes all endpoints from user stories US-01 through US-OPT-01. New endpoints: Establishment, Route, Lead, Quotation, Conversation, Document, Experience, Attendance, Dashboard, Opt-in controllers, plus enhancements to Contact, Ticket, Deposit, QR, and Survey controllers.",
 		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
 	},
 	"item": [
@@ -28,8 +28,14 @@
 						},
 						"url": {
 							"raw": "{{base_url}}/api/method/cheese.api.v1.contact_controller.find_or_create_contact",
-							"host": ["{{base_url}}"],
-							"path": ["api", "method", "cheese.api.v1.contact_controller.find_or_create_contact"]
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"method",
+								"cheese.api.v1.contact_controller.find_or_create_contact"
+							]
 						},
 						"description": "Find existing contact by phone or email, or create new one. Idempotent operation."
 					},
@@ -60,8 +66,14 @@
 						},
 						"url": {
 							"raw": "{{base_url}}/api/method/cheese.api.v1.availability_controller.get_available_slots",
-							"host": ["{{base_url}}"],
-							"path": ["api", "method", "cheese.api.v1.availability_controller.get_available_slots"]
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"method",
+								"cheese.api.v1.availability_controller.get_available_slots"
+							]
 						},
 						"description": "Get available slots for an experience on a specific date. Returns slots with capacity information."
 					},
@@ -92,8 +104,14 @@
 						},
 						"url": {
 							"raw": "{{base_url}}/api/method/cheese.api.v1.ticket_controller.create_pending_ticket",
-							"host": ["{{base_url}}"],
-							"path": ["api", "method", "cheese.api.v1.ticket_controller.create_pending_ticket"]
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"method",
+								"cheese.api.v1.ticket_controller.create_pending_ticket"
+							]
 						},
 						"description": "Create a PENDING ticket with TTL. Validates capacity and booking policy."
 					},
@@ -119,8 +137,14 @@
 						},
 						"url": {
 							"raw": "{{base_url}}/api/method/cheese.api.v1.ticket_controller.modify_ticket",
-							"host": ["{{base_url}}"],
-							"path": ["api", "method", "cheese.api.v1.ticket_controller.modify_ticket"]
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"method",
+								"cheese.api.v1.ticket_controller.modify_ticket"
+							]
 						},
 						"description": "Modify ticket slot or party size. Validates modification policy."
 					},
@@ -146,8 +170,14 @@
 						},
 						"url": {
 							"raw": "{{base_url}}/api/method/cheese.api.v1.ticket_controller.cancel_ticket",
-							"host": ["{{base_url}}"],
-							"path": ["api", "method", "cheese.api.v1.ticket_controller.cancel_ticket"]
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"method",
+								"cheese.api.v1.ticket_controller.cancel_ticket"
+							]
 						},
 						"description": "Cancel a PENDING or CONFIRMED ticket. Validates cancellation policy."
 					},
@@ -173,8 +203,14 @@
 						},
 						"url": {
 							"raw": "{{base_url}}/api/method/cheese.api.v1.ticket_controller.get_ticket_summary",
-							"host": ["{{base_url}}"],
-							"path": ["api", "method", "cheese.api.v1.ticket_controller.get_ticket_summary"]
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"method",
+								"cheese.api.v1.ticket_controller.get_ticket_summary"
+							]
 						},
 						"description": "Get detailed ticket information including contact, experience, slot, and deposit details."
 					},
@@ -205,8 +241,14 @@
 						},
 						"url": {
 							"raw": "{{base_url}}/api/method/cheese.api.v1.deposit_controller.get_deposit_instructions",
-							"host": ["{{base_url}}"],
-							"path": ["api", "method", "cheese.api.v1.deposit_controller.get_deposit_instructions"]
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"method",
+								"cheese.api.v1.deposit_controller.get_deposit_instructions"
+							]
 						},
 						"description": "Get deposit payment instructions for a ticket. Creates deposit record if needed."
 					},
@@ -232,8 +274,14 @@
 						},
 						"url": {
 							"raw": "{{base_url}}/api/method/cheese.api.v1.deposit_controller.record_deposit_payment",
-							"host": ["{{base_url}}"],
-							"path": ["api", "method", "cheese.api.v1.deposit_controller.record_deposit_payment"]
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"method",
+								"cheese.api.v1.deposit_controller.record_deposit_payment"
+							]
 						},
 						"description": "Record a deposit payment. Supports Manual and OCR verification methods."
 					},
@@ -264,8 +312,14 @@
 						},
 						"url": {
 							"raw": "{{base_url}}/api/method/cheese.api.v1.qr_controller.get_qr",
-							"host": ["{{base_url}}"],
-							"path": ["api", "method", "cheese.api.v1.qr_controller.get_qr"]
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"method",
+								"cheese.api.v1.qr_controller.get_qr"
+							]
 						},
 						"description": "Get or generate QR token for a CONFIRMED or CHECKED_IN ticket."
 					},
@@ -291,8 +345,14 @@
 						},
 						"url": {
 							"raw": "{{base_url}}/api/method/cheese.api.v1.qr_controller.validate_qr",
-							"host": ["{{base_url}}"],
-							"path": ["api", "method", "cheese.api.v1.qr_controller.validate_qr"]
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"method",
+								"cheese.api.v1.qr_controller.validate_qr"
+							]
 						},
 						"description": "Validate QR token and check in ticket. Creates attendance record."
 					},
@@ -323,8 +383,14 @@
 						},
 						"url": {
 							"raw": "{{base_url}}/api/method/cheese.api.v1.survey_controller.send_survey",
-							"host": ["{{base_url}}"],
-							"path": ["api", "method", "cheese.api.v1.survey_controller.send_survey"]
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"method",
+								"cheese.api.v1.survey_controller.send_survey"
+							]
 						},
 						"description": "Send survey for a COMPLETED ticket. Creates survey response record."
 					},
@@ -350,12 +416,124 @@
 						},
 						"url": {
 							"raw": "{{base_url}}/api/method/cheese.api.v1.survey_controller.submit_survey",
-							"host": ["{{base_url}}"],
-							"path": ["api", "method", "cheese.api.v1.survey_controller.submit_survey"]
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"method",
+								"cheese.api.v1.survey_controller.submit_survey"
+							]
 						},
 						"description": "Submit survey response with rating (1-5) and optional comment."
 					},
 					"response": []
+				}
+			]
+		},
+		{
+			"name": "Establishment",
+			"item": [
+				{
+					"name": "List Establishments",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\"page\": 1, \"page_size\": 20}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/method/cheese.api.v1.establishment_controller.list_establishments",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"method",
+								"cheese.api.v1.establishment_controller.list_establishments"
+							]
+						},
+						"description": "List establishments with pagination and filters"
+					}
+				},
+				{
+					"name": "Get Establishment Details",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\"company_id\": \"COMPANY-001\"}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/method/cheese.api.v1.establishment_controller.get_establishment_details",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"method",
+								"cheese.api.v1.establishment_controller.get_establishment_details"
+							]
+						},
+						"description": "Get full establishment profile"
+					}
+				}
+			]
+		},
+		{
+			"name": "Route",
+			"item": [
+				{
+					"name": "Create Route",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\"name\": \"Route Name\", \"status\": \"OFFLINE\", \"experiences\": []}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/method/cheese.api.v1.route_controller.create_route",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"method",
+								"cheese.api.v1.route_controller.create_route"
+							]
+						},
+						"description": "Create a new route"
+					}
 				}
 			]
 		}

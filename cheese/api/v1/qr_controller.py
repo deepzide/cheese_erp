@@ -170,3 +170,107 @@ def validate_qr(token):
 	except Exception as e:
 		frappe.log_error(f"Error in validate_qr: {str(e)}")
 		return error("Failed to validate QR token", "SERVER_ERROR", {"error": str(e)}, 500)
+
+
+@frappe.whitelist()
+def resend_qr(ticket_id):
+	"""
+	Resend QR code to customer (US-14, US-TK-07)
+	
+	Args:
+		ticket_id: Ticket ID
+		
+	Returns:
+		Success response with QR data
+	"""
+	try:
+		if not ticket_id:
+			return validation_error("ticket_id is required")
+		
+		if not frappe.db.exists("Cheese Ticket", ticket_id):
+			return not_found("Ticket", ticket_id)
+		
+		ticket = frappe.get_doc("Cheese Ticket", ticket_id)
+		
+		if ticket.status not in ["CONFIRMED", "CHECKED_IN"]:
+			return validation_error(
+				f"QR can only be resent for CONFIRMED or CHECKED_IN tickets. Current status: {ticket.status}",
+				{"current_status": ticket.status}
+			)
+		
+		# Get or create QR
+		qr_result = get_qr(ticket_id)
+		
+		if not qr_result.get("success"):
+			return qr_result
+		
+		qr_data = qr_result.get("data", {})
+		
+		return success(
+			"QR code ready to resend",
+			{
+				"ticket_id": ticket_id,
+				"qr_token": qr_data.get("token"),
+				"qr_token_id": qr_data.get("qr_token_id"),
+				"expires_at": qr_data.get("expires_at"),
+				"note": "QR should be sent to customer via bot/channel"
+			}
+		)
+	except Exception as e:
+		frappe.log_error(f"Error in resend_qr: {str(e)}")
+		return error("Failed to resend QR", "SERVER_ERROR", {"error": str(e)}, 500)
+
+
+@frappe.whitelist()
+def revoke_qr(ticket_id):
+	"""
+	Revoke QR token (US-14, US-TK-07)
+	
+	Args:
+		ticket_id: Ticket ID
+		
+	Returns:
+		Success response
+	"""
+	try:
+		if not ticket_id:
+			return validation_error("ticket_id is required")
+		
+		if not frappe.db.exists("Cheese Ticket", ticket_id):
+			return not_found("Ticket", ticket_id)
+		
+		# Get QR token
+		qr_token = frappe.db.get_value(
+			"Cheese QR Token",
+			{"ticket": ticket_id},
+			"name"
+		)
+		
+		if not qr_token:
+			return success(
+				"No QR token found to revoke",
+				{"ticket_id": ticket_id}
+			)
+		
+		qr = frappe.get_doc("Cheese QR Token", qr_token)
+		
+		if qr.status == "USED":
+			return validation_error("QR token is already used and cannot be revoked")
+		
+		qr.status = "REVOKED"
+		qr.save()
+		frappe.db.commit()
+		
+		return success(
+			"QR token revoked successfully",
+			{
+				"ticket_id": ticket_id,
+				"qr_token_id": qr.name,
+				"status": qr.status
+			}
+		)
+	except frappe.ValidationError as e:
+		return validation_error(str(e))
+	except Exception as e:
+		frappe.log_error(f"Error in revoke_qr: {str(e)}")
+		return error("Failed to revoke QR", "SERVER_ERROR", {"error": str(e)}, 500)

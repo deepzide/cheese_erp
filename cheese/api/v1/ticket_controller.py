@@ -301,3 +301,462 @@ def get_ticket_summary(ticket_id):
 	except Exception as e:
 		frappe.log_error(f"Error in get_ticket_summary: {str(e)}")
 		return error("Failed to get ticket summary", "SERVER_ERROR", {"error": str(e)}, 500)
+
+
+@frappe.whitelist()
+def confirm_ticket(ticket_id):
+	"""
+	Confirm a pending ticket (US-12)
+	
+	Args:
+		ticket_id: Ticket ID
+		
+	Returns:
+		Success response with confirmed ticket data
+	"""
+	try:
+		if not ticket_id:
+			return validation_error("ticket_id is required")
+		
+		if not frappe.db.exists("Cheese Ticket", ticket_id):
+			return not_found("Ticket", ticket_id)
+		
+		ticket = frappe.get_doc("Cheese Ticket", ticket_id)
+		
+		if ticket.status != "PENDING":
+			return validation_error(
+				f"Only PENDING tickets can be confirmed. Current status: {ticket.status}",
+				{"current_status": ticket.status}
+			)
+		
+		# Check if ticket has expired
+		if ticket.expires_at and ticket.expires_at < now_datetime():
+			return validation_error("Cannot confirm expired ticket")
+		
+		old_status = ticket.status
+		ticket.status = "CONFIRMED"
+		ticket.save()
+		
+		# Update slot capacity
+		update_slot_capacity(ticket.slot)
+		
+		frappe.db.commit()
+		
+		return success(
+			"Ticket confirmed successfully",
+			{
+				"ticket_id": ticket.name,
+				"old_status": old_status,
+				"new_status": ticket.status
+			}
+		)
+	except frappe.ValidationError as e:
+		return validation_error(str(e))
+	except Exception as e:
+		frappe.log_error(f"Error in confirm_ticket: {str(e)}")
+		return error("Failed to confirm ticket", "SERVER_ERROR", {"error": str(e)}, 500)
+
+
+@frappe.whitelist()
+def reject_ticket(ticket_id, reason=None):
+	"""
+	Reject a pending ticket (US-12)
+	
+	Args:
+		ticket_id: Ticket ID
+		reason: Rejection reason (optional)
+		
+	Returns:
+		Success response with rejected ticket data
+	"""
+	try:
+		if not ticket_id:
+			return validation_error("ticket_id is required")
+		
+		if not frappe.db.exists("Cheese Ticket", ticket_id):
+			return not_found("Ticket", ticket_id)
+		
+		ticket = frappe.get_doc("Cheese Ticket", ticket_id)
+		
+		if ticket.status != "PENDING":
+			return validation_error(
+				f"Only PENDING tickets can be rejected. Current status: {ticket.status}",
+				{"current_status": ticket.status}
+			)
+		
+		old_status = ticket.status
+		slot_id = ticket.slot
+		ticket.status = "REJECTED"
+		ticket.save()
+		
+		# Release capacity
+		update_slot_capacity(slot_id)
+		
+		frappe.db.commit()
+		
+		return success(
+			"Ticket rejected successfully",
+			{
+				"ticket_id": ticket.name,
+				"old_status": old_status,
+				"new_status": ticket.status,
+				"reason": reason
+			}
+		)
+	except frappe.ValidationError as e:
+		return validation_error(str(e))
+	except Exception as e:
+		frappe.log_error(f"Error in reject_ticket: {str(e)}")
+		return error("Failed to reject ticket", "SERVER_ERROR", {"error": str(e)}, 500)
+
+
+@frappe.whitelist()
+def list_tickets(page=1, page_size=20, status=None, route_id=None, establishment_id=None, experience_id=None, date=None):
+	"""
+	List tickets with filters (US-TK-01)
+	
+	Args:
+		page: Page number
+		page_size: Items per page
+		status: Filter by status
+		route_id: Filter by route
+		establishment_id: Filter by establishment (company)
+		experience_id: Filter by experience
+		date: Filter by date (YYYY-MM-DD)
+		
+	Returns:
+		Paginated response with tickets list
+	"""
+	try:
+		from frappe.utils import cint, getdate
+		from cheese.api.common.responses import paginated_response
+		
+		page = cint(page) or 1
+		page_size = cint(page_size) or 20
+		
+		filters = {}
+		if status:
+			filters["status"] = status
+		if route_id:
+			filters["route"] = route_id
+		if establishment_id:
+			filters["company"] = establishment_id
+		if experience_id:
+			filters["experience"] = experience_id
+		
+		# Date filter requires joining with slot
+		if date:
+			date_obj = getdate(date)
+			# Get slots for the date
+			slots = frappe.get_all(
+				"Cheese Experience Slot",
+				filters={"date": date_obj},
+				fields=["name"]
+			)
+			if slots:
+				filters["slot"] = ["in", [s.name for s in slots]]
+			else:
+				# No slots for this date, return empty
+				return paginated_response(
+					[],
+					"No tickets found for this date",
+					page=page,
+					page_size=page_size,
+					total=0
+				)
+		
+		tickets = frappe.get_all(
+			"Cheese Ticket",
+			filters=filters,
+			fields=["name", "contact", "company", "experience", "slot", "route", "party_size", "status", "created", "modified"],
+			limit_start=(page - 1) * page_size,
+			limit_page_length=page_size,
+			order_by="modified desc"
+		)
+		
+		# Enrich with slot date/time
+		for ticket in tickets:
+			if ticket.slot:
+				slot = frappe.db.get_value(
+					"Cheese Experience Slot",
+					ticket.slot,
+					["date", "time"],
+					as_dict=True
+				)
+				if slot:
+					ticket["slot_date"] = str(slot.date)
+					ticket["slot_time"] = str(slot.time)
+		
+		total = frappe.db.count("Cheese Ticket", filters=filters)
+		
+		return paginated_response(
+			tickets,
+			"Tickets retrieved successfully",
+			page=page,
+			page_size=page_size,
+			total=total
+		)
+	except Exception as e:
+		frappe.log_error(f"Error in list_tickets: {str(e)}")
+		return error("Failed to list tickets", "SERVER_ERROR", {"error": str(e)}, 500)
+
+
+@frappe.whitelist()
+def get_ticket_board(filters=None, status=None):
+	"""
+	Get ticket board grouped by status (kanban view) (US-TK-01)
+	
+	Args:
+		filters: JSON filters
+		status: Optional status filter
+		
+	Returns:
+		Success response with tickets grouped by status
+	"""
+	try:
+		import json
+		
+		filter_dict = {}
+		if filters:
+			try:
+				filter_dict = json.loads(filters) if isinstance(filters, str) else filters
+			except Exception:
+				pass
+		
+		if status:
+			filter_dict["status"] = status
+		
+		# Get all tickets matching filters
+		tickets = frappe.get_all(
+			"Cheese Ticket",
+			filters=filter_dict,
+			fields=["name", "status", "contact", "experience", "slot", "party_size", "created", "modified"]
+		)
+		
+		# Group by status
+		board = {}
+		statuses = ["PENDING", "CONFIRMED", "CHECKED_IN", "COMPLETED", "EXPIRED", "REJECTED", "CANCELLED", "NO_SHOW"]
+		
+		for status_val in statuses:
+			board[status_val] = {
+				"status": status_val,
+				"tickets": [],
+				"count": 0
+			}
+		
+		for ticket in tickets:
+			status_val = ticket.status
+			if status_val not in board:
+				board[status_val] = {"status": status_val, "tickets": [], "count": 0}
+			
+			board[status_val]["tickets"].append(ticket)
+			board[status_val]["count"] = len(board[status_val]["tickets"])
+		
+		return success(
+			"Ticket board retrieved successfully",
+			{
+				"board": board,
+				"total_tickets": len(tickets)
+			}
+		)
+	except Exception as e:
+		frappe.log_error(f"Error in get_ticket_board: {str(e)}")
+		return error("Failed to get ticket board", "SERVER_ERROR", {"error": str(e)}, 500)
+
+
+@frappe.whitelist()
+def update_ticket_status(ticket_id, new_status, reason=None):
+	"""
+	Update ticket status with validation (US-TK-01)
+	
+	Args:
+		ticket_id: Ticket ID
+		new_status: New status
+		reason: Reason for status change
+		
+	Returns:
+		Success response
+	"""
+	try:
+		if not ticket_id:
+			return validation_error("ticket_id is required")
+		if not new_status:
+			return validation_error("new_status is required")
+		
+		if not frappe.db.exists("Cheese Ticket", ticket_id):
+			return not_found("Ticket", ticket_id)
+		
+		ticket = frappe.get_doc("Cheese Ticket", ticket_id)
+		old_status = ticket.status
+		
+		# Validate status transition
+		allowed_transitions = {
+			"PENDING": ["CONFIRMED", "REJECTED", "EXPIRED", "CANCELLED"],
+			"CONFIRMED": ["CHECKED_IN", "CANCELLED", "NO_SHOW"],
+			"CHECKED_IN": ["COMPLETED", "NO_SHOW"],
+			"COMPLETED": [],
+			"EXPIRED": [],
+			"REJECTED": [],
+			"CANCELLED": [],
+			"NO_SHOW": []
+		}
+		
+		if new_status not in allowed_transitions.get(old_status, []):
+			return validation_error(
+				f"Invalid status transition from {old_status} to {new_status}",
+				{
+					"old_status": old_status,
+					"new_status": new_status,
+					"allowed_transitions": allowed_transitions.get(old_status, [])
+				}
+			)
+		
+		ticket.status = new_status
+		ticket.save()
+		
+		# Release capacity if cancelled/expired/rejected
+		if new_status in ["CANCELLED", "EXPIRED", "REJECTED"]:
+			update_slot_capacity(ticket.slot)
+		
+		frappe.db.commit()
+		
+		return success(
+			"Ticket status updated successfully",
+			{
+				"ticket_id": ticket.name,
+				"old_status": old_status,
+				"new_status": ticket.status,
+				"reason": reason
+			}
+		)
+	except frappe.ValidationError as e:
+		return validation_error(str(e))
+	except Exception as e:
+		frappe.log_error(f"Error in update_ticket_status: {str(e)}")
+		return error("Failed to update ticket status", "SERVER_ERROR", {"error": str(e)}, 500)
+
+
+@frappe.whitelist()
+def mark_no_show(ticket_id, reason=None):
+	"""
+	Mark ticket as no-show (US-TK-10)
+	
+	Args:
+		ticket_id: Ticket ID
+		reason: Reason for no-show
+		
+	Returns:
+		Success response
+	"""
+	try:
+		if not ticket_id:
+			return validation_error("ticket_id is required")
+		
+		if not frappe.db.exists("Cheese Ticket", ticket_id):
+			return not_found("Ticket", ticket_id)
+		
+		ticket = frappe.get_doc("Cheese Ticket", ticket_id)
+		
+		if ticket.status not in ["CONFIRMED", "CHECKED_IN"]:
+			return validation_error(
+				f"Cannot mark no-show for ticket with status: {ticket.status}",
+				{"current_status": ticket.status}
+			)
+		
+		old_status = ticket.status
+		ticket.status = "NO_SHOW"
+		ticket.save()
+		
+		frappe.db.commit()
+		
+		return success(
+			"Ticket marked as no-show",
+			{
+				"ticket_id": ticket.name,
+				"old_status": old_status,
+				"new_status": ticket.status,
+				"reason": reason
+			}
+		)
+	except frappe.ValidationError as e:
+		return validation_error(str(e))
+	except Exception as e:
+		frappe.log_error(f"Error in mark_no_show: {str(e)}")
+		return error("Failed to mark no-show", "SERVER_ERROR", {"error": str(e)}, 500)
+
+
+@frappe.whitelist()
+def get_establishment_ticket_board(establishment_id, date=None):
+	"""
+	Get establishment ticket board for today (US-TK-11)
+	
+	Args:
+		establishment_id: Establishment (company) ID
+		date: Date (YYYY-MM-DD), defaults to today
+		
+	Returns:
+		Success response with establishment ticket board
+	"""
+	try:
+		from frappe.utils import getdate, today
+		
+		if not establishment_id:
+			return validation_error("establishment_id is required")
+		
+		if not frappe.db.exists("Company", establishment_id):
+			return not_found("Company", establishment_id)
+		
+		# Use today if date not provided
+		target_date = getdate(date) if date else getdate(today())
+		
+		# Get slots for the date
+		slots = frappe.get_all(
+			"Cheese Experience Slot",
+			filters={"date": target_date},
+			fields=["name", "experience", "time"]
+		)
+		
+		if not slots:
+			return success(
+				"No slots found for this date",
+				{
+					"establishment_id": establishment_id,
+					"date": str(target_date),
+					"tickets": [],
+					"pending": [],
+					"today": []
+				}
+			)
+		
+		slot_ids = [s.name for s in slots]
+		
+		# Get tickets for this establishment and date
+		tickets = frappe.get_all(
+			"Cheese Ticket",
+			filters={
+				"company": establishment_id,
+				"slot": ["in", slot_ids]
+			},
+			fields=["name", "status", "experience", "slot", "party_size", "contact", "created"]
+		)
+		
+		# Group by status
+		pending = [t for t in tickets if t.status == "PENDING"]
+		today_tickets = [t for t in tickets if t.status in ["CONFIRMED", "CHECKED_IN"]]
+		
+		return success(
+			"Establishment ticket board retrieved successfully",
+			{
+				"establishment_id": establishment_id,
+				"date": str(target_date),
+				"tickets": tickets,
+				"pending": pending,
+				"pending_count": len(pending),
+				"today": today_tickets,
+				"today_count": len(today_tickets),
+				"total_count": len(tickets)
+			}
+		)
+	except Exception as e:
+		frappe.log_error(f"Error in get_establishment_ticket_board: {str(e)}")
+		return error("Failed to get establishment ticket board", "SERVER_ERROR", {"error": str(e)}, 500)

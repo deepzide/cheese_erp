@@ -85,3 +85,299 @@ def find_or_create_contact(phone=None, email=None, name=None):
 	except Exception as e:
 		frappe.log_error(f"Error in find_or_create_contact: {str(e)}")
 		return error("Failed to create contact", "SERVER_ERROR", {"error": str(e)}, 500)
+
+
+@frappe.whitelist()
+def update_contact(contact_id, name=None, phone=None, email=None, preferred_language=None, notes=None, preferred_channel=None):
+	"""
+	Update contact fields
+	
+	Args:
+		contact_id: Contact ID
+		name: Full name
+		phone: Phone number
+		email: Email address
+		preferred_language: Preferred language
+		notes: Notes (privacy_notes field)
+		preferred_channel: Preferred channel
+		
+	Returns:
+		Success response with updated contact data
+	"""
+	try:
+		if not contact_id:
+			return validation_error("contact_id is required")
+		
+		if not frappe.db.exists("Cheese Contact", contact_id):
+			return not_found("Contact", contact_id)
+		
+		contact = frappe.get_doc("Cheese Contact", contact_id)
+		
+		# Update fields if provided
+		if name is not None:
+			contact.full_name = name
+		if phone is not None:
+			contact.phone = phone
+		if email is not None:
+			contact.email = email
+		if preferred_language is not None:
+			contact.preferred_language = preferred_language
+		if notes is not None:
+			contact.privacy_notes = notes
+		if preferred_channel is not None:
+			contact.preferred_channel = preferred_channel
+		
+		contact.save()
+		frappe.db.commit()
+		
+		return success(
+			"Contact updated successfully",
+			{
+				"contact_id": contact.name,
+				"full_name": contact.full_name,
+				"phone": contact.phone,
+				"email": contact.email,
+				"preferred_language": contact.preferred_language,
+				"preferred_channel": contact.preferred_channel
+			}
+		)
+	except frappe.ValidationError as e:
+		return validation_error(str(e))
+	except Exception as e:
+		frappe.log_error(f"Error in update_contact: {str(e)}")
+		return error("Failed to update contact", "SERVER_ERROR", {"error": str(e)}, 500)
+
+
+@frappe.whitelist()
+def get_contact_profile(contact_id):
+	"""
+	Get contact profile with linked leads, conversations, and reservations
+	
+	Args:
+		contact_id: Contact ID
+		
+	Returns:
+		Success response with contact profile
+	"""
+	try:
+		if not contact_id:
+			return validation_error("contact_id is required")
+		
+		if not frappe.db.exists("Cheese Contact", contact_id):
+			return not_found("Contact", contact_id)
+		
+		contact = frappe.get_doc("Cheese Contact", contact_id)
+		
+		# Get leads
+		leads = frappe.get_all(
+			"Cheese Lead",
+			filters={"contact": contact_id},
+			fields=["name", "status", "interest_type", "last_interaction_at", "lost_reason"],
+			order_by="modified desc",
+			limit=10
+		)
+		
+		# Get conversations
+		conversations = frappe.get_all(
+			"Conversation",
+			filters={"contact": contact_id},
+			fields=["name", "channel", "status", "summary", "modified"],
+			order_by="modified desc",
+			limit=10
+		)
+		
+		# Get reservations/tickets
+		reservations = frappe.get_all(
+			"Cheese Ticket",
+			filters={"contact": contact_id},
+			fields=["name", "status", "experience", "slot", "party_size", "created", "modified"],
+			order_by="modified desc",
+			limit=10
+		)
+		
+		# Get quotations
+		quotations = frappe.get_all(
+			"Cheese Quotation",
+			filters={"lead": ["in", [lead.name for lead in leads]]},
+			fields=["name", "status", "total_price", "deposit_amount", "valid_until"],
+			order_by="modified desc",
+			limit=5
+		)
+		
+		return success(
+			"Contact profile retrieved successfully",
+			{
+				"contact_id": contact.name,
+				"full_name": contact.full_name,
+				"phone": contact.phone,
+				"email": contact.email,
+				"preferred_language": contact.preferred_language,
+				"preferred_channel": contact.preferred_channel,
+				"opt_in_status": contact.opt_in_status,
+				"do_not_contact": contact.do_not_contact,
+				"leads": leads,
+				"leads_count": len(leads),
+				"conversations": conversations,
+				"conversations_count": len(conversations),
+				"reservations": reservations,
+				"reservations_count": len(reservations),
+				"quotations": quotations,
+				"quotations_count": len(quotations)
+			}
+		)
+	except Exception as e:
+		frappe.log_error(f"Error in get_contact_profile: {str(e)}")
+		return error("Failed to get contact profile", "SERVER_ERROR", {"error": str(e)}, 500)
+
+
+@frappe.whitelist()
+def get_contact_leads(contact_id, page=1, page_size=20):
+	"""
+	Get all leads for a contact
+	
+	Args:
+		contact_id: Contact ID
+		page: Page number
+		page_size: Items per page
+		
+	Returns:
+		Paginated response with leads
+	"""
+	try:
+		from frappe.utils import cint
+		from cheese.api.common.responses import paginated_response
+		
+		if not contact_id:
+			return validation_error("contact_id is required")
+		
+		if not frappe.db.exists("Cheese Contact", contact_id):
+			return not_found("Contact", contact_id)
+		
+		page = cint(page) or 1
+		page_size = cint(page_size) or 20
+		
+		leads = frappe.get_all(
+			"Cheese Lead",
+			filters={"contact": contact_id},
+			fields=["name", "status", "interest_type", "last_interaction_at", "lost_reason", "conversation", "modified"],
+			limit_start=(page - 1) * page_size,
+			limit_page_length=page_size,
+			order_by="modified desc"
+		)
+		
+		total = frappe.db.count("Cheese Lead", {"contact": contact_id})
+		
+		return paginated_response(
+			leads,
+			"Contact leads retrieved successfully",
+			page=page,
+			page_size=page_size,
+			total=total
+		)
+	except Exception as e:
+		frappe.log_error(f"Error in get_contact_leads: {str(e)}")
+		return error("Failed to get contact leads", "SERVER_ERROR", {"error": str(e)}, 500)
+
+
+@frappe.whitelist()
+def get_contact_conversations(contact_id, page=1, page_size=20):
+	"""
+	Get all conversations for a contact
+	
+	Args:
+		contact_id: Contact ID
+		page: Page number
+		page_size: Items per page
+		
+	Returns:
+		Paginated response with conversations
+	"""
+	try:
+		from frappe.utils import cint
+		from cheese.api.common.responses import paginated_response
+		
+		if not contact_id:
+			return validation_error("contact_id is required")
+		
+		if not frappe.db.exists("Cheese Contact", contact_id):
+			return not_found("Contact", contact_id)
+		
+		page = cint(page) or 1
+		page_size = cint(page_size) or 20
+		
+		conversations = frappe.get_all(
+			"Conversation",
+			filters={"contact": contact_id},
+			fields=["name", "channel", "status", "summary", "lead", "ticket", "route_booking", "modified"],
+			limit_start=(page - 1) * page_size,
+			limit_page_length=page_size,
+			order_by="modified desc"
+		)
+		
+		total = frappe.db.count("Conversation", {"contact": contact_id})
+		
+		return paginated_response(
+			conversations,
+			"Contact conversations retrieved successfully",
+			page=page,
+			page_size=page_size,
+			total=total
+		)
+	except Exception as e:
+		frappe.log_error(f"Error in get_contact_conversations: {str(e)}")
+		return error("Failed to get contact conversations", "SERVER_ERROR", {"error": str(e)}, 500)
+
+
+@frappe.whitelist()
+def get_contact_reservations(contact_id, page=1, page_size=20):
+	"""
+	Get all reservations for a contact
+	
+	Args:
+		contact_id: Contact ID
+		page: Page number
+		page_size: Items per page
+		
+	Returns:
+		Paginated response with reservations
+	"""
+	try:
+		from frappe.utils import cint
+		from cheese.api.common.responses import paginated_response
+		
+		if not contact_id:
+			return validation_error("contact_id is required")
+		
+		if not frappe.db.exists("Cheese Contact", contact_id):
+			return not_found("Contact", contact_id)
+		
+		page = cint(page) or 1
+		page_size = cint(page_size) or 20
+		
+		reservations = frappe.get_all(
+			"Cheese Ticket",
+			filters={"contact": contact_id},
+			fields=["name", "status", "experience", "slot", "party_size", "company", "route", "created", "modified"],
+			limit_start=(page - 1) * page_size,
+			limit_page_length=page_size,
+			order_by="modified desc"
+		)
+		
+		# Enrich with experience names
+		for reservation in reservations:
+			if reservation.experience:
+				exp = frappe.db.get_value("Cheese Experience", reservation.experience, "name", as_dict=True)
+				reservation["experience_name"] = exp.name if exp else None
+		
+		total = frappe.db.count("Cheese Ticket", {"contact": contact_id})
+		
+		return paginated_response(
+			reservations,
+			"Contact reservations retrieved successfully",
+			page=page,
+			page_size=page_size,
+			total=total
+		)
+	except Exception as e:
+		frappe.log_error(f"Error in get_contact_reservations: {str(e)}")
+		return error("Failed to get contact reservations", "SERVER_ERROR", {"error": str(e)}, 500)
