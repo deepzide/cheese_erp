@@ -65,9 +65,17 @@ def create_pending_booking(contact_id, items, preferred_dates=None, conversation
 				if not route_id:
 					return validation_error("route_id is required for route items")
 				
+				# Get experiences_with_slots from item or preferred_dates
+				experiences_with_slots = item.get("experiences_with_slots")
+				if not experiences_with_slots and preferred_dates:
+					experiences_with_slots = preferred_dates
+				
+				if not experiences_with_slots:
+					return validation_error("experiences_with_slots is required for route items")
+				
 				# Create route reservation
 				route_result = create_route_reservation(
-					contact_id, route_id, party_size, preferred_dates, conversation_id
+					contact_id, route_id, experiences_with_slots, party_size, conversation_id
 				)
 				
 				if not route_result.get("success"):
@@ -133,10 +141,14 @@ def create_pending_booking(contact_id, items, preferred_dates=None, conversation
 			else:
 				return validation_error(f"Invalid item type: {item_type}. Must be 'route' or 'experience'")
 		
-		frappe.db.commit()
-		
-		# Generate booking ID
+		# Generate booking ID before commit
 		booking_id = f"BK-{contact_id}-{now_datetime().strftime('%Y%m%d%H%M%S')}"
+		
+		# Store booking_id in conversation if available, or track via creation time
+		# Since we can't add booking_id field, we'll use creation time window
+		booking_creation_time = now_datetime()
+		
+		frappe.db.commit()
 		
 		# Determine overall status
 		overall_status = "PENDING"
@@ -198,12 +210,30 @@ def get_booking_status(booking_id):
 			return validation_error("Invalid booking_id format")
 		
 		contact_id = parts[1]
+		timestamp_str = "-".join(parts[2:])  # Handle timestamp with dashes
 		
-		# Get all tickets for this contact (simplified - in production would use booking doctype)
+		# Parse timestamp to get creation time window
+		from frappe.utils import get_datetime, add_to_date
+		try:
+			booking_time = get_datetime(f"{timestamp_str[:4]}-{timestamp_str[4:6]}-{timestamp_str[6:8]} {timestamp_str[8:10]}:{timestamp_str[10:12]}:{timestamp_str[12:14]}")
+		except:
+			return validation_error("Invalid booking_id timestamp format")
+		
+		# Get tickets created within 2 minutes of booking creation time
+		# This ensures we only get tickets from the same booking
+		window_start = add_to_date(booking_time, minutes=-2, as_datetime=True)
+		window_end = add_to_date(booking_time, minutes=2, as_datetime=True)
+		
 		tickets = frappe.get_all(
 			"Cheese Ticket",
-			filters={"contact": contact_id},
-			fields=["name", "status", "route", "experience", "slot"]
+			filters=[
+				["contact", "=", contact_id],
+				["creation", ">=", window_start],
+				["creation", "<=", window_end],
+				["status", "!=", "CANCELLED"]
+			],
+			fields=["name", "status", "route", "experience", "slot", "creation"],
+			order_by="creation asc"
 		)
 		
 		# Group by route and individual

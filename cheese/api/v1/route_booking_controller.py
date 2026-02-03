@@ -12,7 +12,7 @@ import json
 
 
 @frappe.whitelist()
-def create_route_reservation(contact_id, route_id, party_size, preferred_dates=None, conversation_id=None):
+def create_route_reservation(contact_id, route_id, experiences_with_slots=None, party_size=1, conversation_id=None):
 	"""
 	Create pending route reservation
 	Creates RouteBooking = PENDING + internal reservations, locks capacity
@@ -20,8 +20,8 @@ def create_route_reservation(contact_id, route_id, party_size, preferred_dates=N
 	Args:
 		contact_id: Contact ID
 		route_id: Route ID
-		party_size: Party size
-		preferred_dates: JSON array of preferred dates/slots [{"experience_id": "EXP-001", "slot_id": "SLOT-001"}]
+		experiences_with_slots: JSON array of {"experience_id": "EXP-001", "slot_id": "SLOT-001"}
+		party_size: Party size (default: 1)
 		conversation_id: Conversation ID (optional)
 		
 	Returns:
@@ -32,7 +32,9 @@ def create_route_reservation(contact_id, route_id, party_size, preferred_dates=N
 			return validation_error("contact_id is required")
 		if not route_id:
 			return validation_error("route_id is required")
-		if not party_size or party_size < 1:
+		if not experiences_with_slots:
+			return validation_error("experiences_with_slots is required")
+		if party_size < 1:
 			return validation_error("party_size must be at least 1")
 		
 		if not frappe.db.exists("Cheese Contact", contact_id):
@@ -46,33 +48,41 @@ def create_route_reservation(contact_id, route_id, party_size, preferred_dates=N
 		if route.status != "ONLINE":
 			return validation_error(f"Route {route_id} is not ONLINE. Current status: {route.status}")
 		
-		# Parse preferred dates
-		preferred_slots = []
-		if preferred_dates:
+		# Parse experiences_with_slots
+		if isinstance(experiences_with_slots, str):
 			try:
-				if isinstance(preferred_dates, str):
-					preferred_slots = json.loads(preferred_dates)
-				else:
-					preferred_slots = preferred_dates
+				experiences_with_slots = json.loads(experiences_with_slots)
 			except Exception as e:
-				return validation_error(f"Invalid preferred_dates format: {str(e)}")
+				return validation_error(f"Invalid experiences_with_slots format: {str(e)}")
 		
-		# Create tickets for each experience in the route
-		tickets = []
+		if not isinstance(experiences_with_slots, list):
+			return validation_error("experiences_with_slots must be an array")
+		
+		# Validate all experiences and slots
+		slot_map = {}
+		for item in experiences_with_slots:
+			exp_id = item.get("experience_id")
+			slot_id = item.get("slot_id")
+			if not exp_id or not slot_id:
+				return validation_error("Each item must have 'experience_id' and 'slot_id'")
+			if not frappe.db.exists("Cheese Experience", exp_id):
+				return not_found("Experience", exp_id)
+			if not frappe.db.exists("Cheese Experience Slot", slot_id):
+				return not_found("Slot", slot_id)
+			slot_map[exp_id] = slot_id
+		
+		# Verify all route experiences have slots
 		route_experiences = route.experiences
-		
 		if not route_experiences or len(route_experiences) == 0:
 			return validation_error("Route has no experiences")
 		
-		for idx, exp_row in enumerate(route_experiences):
+		# Create tickets for each experience in the route
+		tickets = []
+		creation_times = []
+		
+		for exp_row in route.experiences:
 			experience_id = exp_row.experience
-			
-			# Find preferred slot for this experience
-			slot_id = None
-			for pref in preferred_slots:
-				if pref.get("experience_id") == experience_id:
-					slot_id = pref.get("slot_id")
-					break
+			slot_id = slot_map.get(experience_id)
 			
 			if not slot_id:
 				return validation_error(f"No slot provided for experience {experience_id} at sequence {exp_row.sequence}")
@@ -90,14 +100,17 @@ def create_route_reservation(contact_id, route_id, party_size, preferred_dates=N
 						update_slot_capacity(ticket_doc.slot)
 					except Exception:
 						pass
+				frappe.db.rollback()
 				return ticket_result
 			
 			ticket_id = ticket_result.get("data", {}).get("ticket_id")
+			ticket_doc = frappe.get_doc("Cheese Ticket", ticket_id)
+			creation_times.append(ticket_doc.creation)
 			
 			# Link ticket to route
-			ticket_doc = frappe.get_doc("Cheese Ticket", ticket_id)
 			ticket_doc.route = route_id
-			ticket_doc.conversation = conversation_id
+			if conversation_id:
+				ticket_doc.conversation = conversation_id
 			ticket_doc.save()
 			
 			tickets.append(ticket_id)
@@ -157,15 +170,24 @@ def get_route_status(route_booking_id):
 		if not route_id:
 			return validation_error("Ticket is not part of a route booking")
 		
-		# Get all tickets for this route and contact
+		# Get all tickets for this route and contact created within a time window (5 minutes)
+		# This ensures we only get tickets from the same route booking
+		from frappe.utils import add_to_date
+		creation_window_start = add_to_date(first_ticket.creation, minutes=-5, as_datetime=True)
+		creation_window_end = add_to_date(first_ticket.creation, minutes=5, as_datetime=True)
+		
+		# Get tickets created in the same time window
 		tickets = frappe.get_all(
 			"Cheese Ticket",
-			filters={
-				"route": route_id,
-				"contact": first_ticket.contact,
-				"status": ["!=", "CANCELLED"]
-			},
-			fields=["name", "status", "experience", "slot"]
+			filters=[
+				["route", "=", route_id],
+				["contact", "=", first_ticket.contact],
+				["status", "!=", "CANCELLED"],
+				["creation", ">=", creation_window_start],
+				["creation", "<=", creation_window_end]
+			],
+			fields=["name", "status", "experience", "slot", "creation"],
+			order_by="creation asc"
 		)
 		
 		if not tickets:

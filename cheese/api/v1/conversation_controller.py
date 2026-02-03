@@ -457,14 +457,20 @@ def append_conversation_event(conversation_id, event_type, event_data=None, meta
 				metadata = {"raw": metadata}
 		
 		# Create conversation event
+		# Combine event_data and metadata into payload_json
+		payload = {}
+		if event_data:
+			payload["event_data"] = event_data
+		if metadata:
+			payload["metadata"] = metadata
+		
 		event_doc = {
 			"doctype": "Cheese System Event",
 			"event_type": f"CONVERSATION_{event_type.upper()}",
 			"entity_type": "Conversation",
 			"entity_id": conversation_id,
-			"event_data": json.dumps(event_data) if event_data else None,
-			"metadata": json.dumps(metadata) if metadata else None,
-			"timestamp": now_datetime()
+			"payload_json": json.dumps(payload) if payload else None,
+			"created_at": now_datetime()
 		}
 		
 		event = frappe.get_doc(event_doc)

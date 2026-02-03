@@ -2,6 +2,7 @@
 # License: MIT
 
 import frappe
+import json
 from frappe import _
 from cheese.api.common.responses import success, created, validation_error, error, not_found
 
@@ -178,15 +179,21 @@ def update_contact(contact_id, name=None, phone=None, email=None, preferred_lang
 		try:
 			# Log change event
 			from frappe.utils import now_datetime
+			# Combine audit data into payload_json
+			payload = {
+				"changed_fields": changed_fields,
+				"old_values": old_values
+			}
+			if idempotency_key:
+				payload["idempotency_key"] = idempotency_key
+			
 			audit_data = {
 				"doctype": "Cheese System Event",
 				"event_type": "CONTACT_UPDATED",
 				"entity_type": "Cheese Contact",
 				"entity_id": contact_id,
-				"changed_fields": ", ".join(changed_fields),
-				"old_values": str(old_values),
-				"idempotency_key": idempotency_key,
-				"timestamp": now_datetime()
+				"payload_json": json.dumps(payload),
+				"created_at": now_datetime()
 			}
 			audit_event = frappe.get_doc(audit_data)
 			audit_event.insert(ignore_permissions=True)

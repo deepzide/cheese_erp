@@ -42,8 +42,7 @@ def create_complaint(contact_id, description, ticket_id=None, route_booking_id=N
 			"contact": contact_id,
 			"ticket": ticket_id,
 			"description": description,
-			"status": "OPEN",
-			"complaint_type": complaint_type or "General"
+			"status": "OPEN"
 		})
 		support_case.insert()
 		frappe.db.commit()
