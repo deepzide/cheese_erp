@@ -9,9 +9,92 @@ import json
 
 
 @frappe.whitelist()
+def open_or_resume_conversation(contact_id, channel, status="ACTIVE"):
+	"""
+	Open or resume a persistent conversation, returns conversation_id
+	Creates or resumes conversation (one active per channel+contact within time window)
+	
+	Args:
+		contact_id: Contact ID
+		channel: Channel (WhatsApp/Web/Agent)
+		status: Status (ACTIVE/PAUSED/CLOSED)
+		
+	Returns:
+		Success response with conversation_id
+	"""
+	try:
+		if not contact_id:
+			return validation_error("contact_id is required")
+		if not channel:
+			return validation_error("channel is required")
+		
+		if channel not in ["WhatsApp", "Web", "Agent"]:
+			return validation_error(f"Invalid channel: {channel}")
+		
+		if not frappe.db.exists("Cheese Contact", contact_id):
+			return not_found("Contact", contact_id)
+		
+		# Check for existing active conversation within time window (e.g., last 24 hours)
+		time_window = add_to_date(now_datetime(), hours=-24, as_string=False)
+		
+		existing = frappe.db.get_value(
+			"Conversation",
+			{
+				"contact": contact_id,
+				"channel": channel,
+				"status": "ACTIVE",
+				"modified": [">", time_window]
+			},
+			"name",
+			order_by="modified desc"
+		)
+		
+		if existing:
+			# Resume existing conversation
+			conversation = frappe.get_doc("Conversation", existing)
+			return success(
+				"Conversation resumed",
+				{
+					"conversation_id": conversation.name,
+					"contact_id": contact_id,
+					"channel": conversation.channel,
+					"status": conversation.status,
+					"is_new": False
+				}
+			)
+		
+		# Create new conversation
+		conversation = frappe.get_doc({
+			"doctype": "Conversation",
+			"contact": contact_id,
+			"channel": channel,
+			"status": status
+		})
+		conversation.insert()
+		frappe.db.commit()
+		
+		return created(
+			"Conversation opened successfully",
+			{
+				"conversation_id": conversation.name,
+				"contact_id": contact_id,
+				"channel": conversation.channel,
+				"status": conversation.status,
+				"is_new": True
+			}
+		)
+	except frappe.ValidationError as e:
+		return validation_error(str(e))
+	except Exception as e:
+		frappe.log_error(f"Error in open_or_resume_conversation: {str(e)}")
+		return error("Failed to open conversation", "SERVER_ERROR", {"error": str(e)}, 500)
+
+
+@frappe.whitelist()
 def create_conversation(contact_id, channel, status="ACTIVE"):
 	"""
 	Create or reuse conversation (one active per channel+contact within time window)
+	Legacy endpoint - use open_or_resume_conversation instead
 	
 	Args:
 		contact_id: Contact ID
@@ -21,6 +104,7 @@ def create_conversation(contact_id, channel, status="ACTIVE"):
 	Returns:
 		Success response with conversation data
 	"""
+	return open_or_resume_conversation(contact_id, channel, status)
 	try:
 		if not contact_id:
 			return validation_error("contact_id is required")
@@ -333,3 +417,71 @@ def link_conversation_entity(conversation_id, entity_type, entity_id):
 	except Exception as e:
 		frappe.log_error(f"Error in link_conversation_entity: {str(e)}")
 		return error("Failed to link conversation entity", "SERVER_ERROR", {"error": str(e)}, 500)
+
+
+@frappe.whitelist()
+def append_conversation_event(conversation_id, event_type, event_data=None, metadata=None):
+	"""
+	Log conversation events (technical/audit)
+	Persists events like intent, tool-calls, errors
+	
+	Args:
+		conversation_id: Conversation ID
+		event_type: Event type (intent, tool_call, error, message, etc.)
+		event_data: Event data (JSON string or dict)
+		metadata: Optional metadata (JSON string or dict)
+		
+	Returns:
+		Success response with event_id
+	"""
+	try:
+		if not conversation_id:
+			return validation_error("conversation_id is required")
+		if not event_type:
+			return validation_error("event_type is required")
+		
+		if not frappe.db.exists("Conversation", conversation_id):
+			return not_found("Conversation", conversation_id)
+		
+		# Parse event_data and metadata if strings
+		if isinstance(event_data, str):
+			try:
+				event_data = json.loads(event_data)
+			except Exception:
+				event_data = {"raw": event_data}
+		
+		if isinstance(metadata, str):
+			try:
+				metadata = json.loads(metadata)
+			except Exception:
+				metadata = {"raw": metadata}
+		
+		# Create conversation event
+		event_doc = {
+			"doctype": "Cheese System Event",
+			"event_type": f"CONVERSATION_{event_type.upper()}",
+			"entity_type": "Conversation",
+			"entity_id": conversation_id,
+			"event_data": json.dumps(event_data) if event_data else None,
+			"metadata": json.dumps(metadata) if metadata else None,
+			"timestamp": now_datetime()
+		}
+		
+		event = frappe.get_doc(event_doc)
+		event.insert(ignore_permissions=True)
+		frappe.db.commit()
+		
+		return created(
+			"Conversation event logged successfully",
+			{
+				"event_id": event.name,
+				"conversation_id": conversation_id,
+				"event_type": event_type,
+				"timestamp": str(event.timestamp)
+			}
+		)
+	except frappe.ValidationError as e:
+		return validation_error(str(e))
+	except Exception as e:
+		frappe.log_error(f"Error in append_conversation_event: {str(e)}")
+		return error("Failed to log conversation event", "SERVER_ERROR", {"error": str(e)}, 500)

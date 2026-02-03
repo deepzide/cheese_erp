@@ -8,6 +8,78 @@ from cheese.api.common.responses import success, created, error, not_found, vali
 
 
 @frappe.whitelist()
+def get_payment_link_or_instructions(ticket_id=None, deposit_id=None):
+	"""
+	Get payment link or instructions - enhanced version of get_deposit_instructions
+	Returns payment link if available, otherwise returns instructions
+	
+	Args:
+		ticket_id: Ticket ID (optional if deposit_id provided)
+		deposit_id: Deposit ID (optional if ticket_id provided)
+		
+	Returns:
+		Success response with payment link or instructions
+	"""
+	try:
+		if not ticket_id and not deposit_id:
+			return validation_error("Either ticket_id or deposit_id must be provided")
+		
+		deposit_doc = None
+		
+		if deposit_id:
+			if not frappe.db.exists("Cheese Deposit", deposit_id):
+				return not_found("Deposit", deposit_id)
+			deposit_doc = frappe.get_doc("Cheese Deposit", deposit_id)
+			ticket_id = deposit_doc.entity_id if deposit_doc.entity_type == "Ticket" else None
+		else:
+			# Get deposit from ticket
+			deposit_name = frappe.db.get_value(
+				"Cheese Deposit",
+				{"entity_type": "Ticket", "entity_id": ticket_id},
+				"name"
+			)
+			
+			if deposit_name:
+				deposit_doc = frappe.get_doc("Cheese Deposit", deposit_name)
+			else:
+				# Use get_deposit_instructions to create if needed
+				instructions_result = get_deposit_instructions(ticket_id)
+				if not instructions_result.get("success"):
+					return instructions_result
+				
+				deposit_id_from_result = instructions_result.get("data", {}).get("deposit_id")
+				if deposit_id_from_result:
+					deposit_doc = frappe.get_doc("Cheese Deposit", deposit_id_from_result)
+		
+		if not deposit_doc:
+			return not_found("Deposit", deposit_id or f"for ticket {ticket_id}")
+		
+		# Generate payment link (simplified - would integrate with payment gateway in production)
+		payment_link = None
+		if deposit_doc.status == "PENDING":
+			# In production, this would generate a real payment link
+			payment_link = f"/api/method/cheese.api.v1.deposit_controller.record_deposit_payment?ticket_id={ticket_id}&amount={deposit_doc.amount_required}"
+		
+		return success(
+			"Payment instructions retrieved successfully",
+			{
+				"deposit_id": deposit_doc.name,
+				"ticket_id": ticket_id,
+				"amount_required": deposit_doc.amount_required,
+				"amount_paid": deposit_doc.amount_paid or 0,
+				"amount_remaining": deposit_doc.amount_required - (deposit_doc.amount_paid or 0),
+				"due_at": str(deposit_doc.due_at) if deposit_doc.due_at else None,
+				"status": deposit_doc.status,
+				"payment_link": payment_link,
+				"instructions": "Please make payment to complete your booking" if not payment_link else "Use the payment link to complete payment"
+			}
+		)
+	except Exception as e:
+		frappe.log_error(f"Error in get_payment_link_or_instructions: {str(e)}")
+		return error("Failed to get payment link or instructions", "SERVER_ERROR", {"error": str(e)}, 500)
+
+
+@frappe.whitelist()
 def get_deposit_instructions(ticket_id):
 	"""
 	Get deposit payment instructions for a ticket

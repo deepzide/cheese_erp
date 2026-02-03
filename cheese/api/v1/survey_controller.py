@@ -8,6 +8,36 @@ from cheese.api.common.responses import success, created, error, not_found, vali
 
 
 @frappe.whitelist()
+def create_survey_request(ticket_id):
+	"""
+	Create survey request - refactored version of send_survey
+	
+	Args:
+		ticket_id: Ticket ID
+		
+	Returns:
+		Success response with survey request data
+	"""
+	return send_survey(ticket_id)
+
+
+@frappe.whitelist()
+def submit_survey_response(ticket_id, rating, comment=None):
+	"""
+	Submit survey response - alias for submit_survey
+	
+	Args:
+		ticket_id: Ticket ID
+		rating: Rating (1-5)
+		comment: Optional comment
+		
+	Returns:
+		Success response with survey submission data
+	"""
+	return submit_survey(ticket_id, rating, comment)
+
+
+@frappe.whitelist()
 def send_survey(ticket_id):
 	"""
 	Send survey for a completed ticket

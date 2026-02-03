@@ -8,6 +8,75 @@ from cheese.api.common.responses import success, created, error, not_found, vali
 
 
 @frappe.whitelist()
+def get_qr_for_reservation(reservation_id):
+	"""
+	Get QR for reservation - alias for get_qr
+	
+	Args:
+		reservation_id: Reservation ID (ticket_id)
+		
+	Returns:
+		Success response with QR token
+	"""
+	return get_qr(reservation_id)
+
+
+@frappe.whitelist()
+def get_checkin_status(reservation_id):
+	"""
+	Get check-in status for reservation
+	
+	Args:
+		reservation_id: Reservation ID (ticket_id)
+		
+	Returns:
+		Success response with check-in status
+	"""
+	try:
+		if not reservation_id:
+			return validation_error("reservation_id is required")
+		
+		if not frappe.db.exists("Cheese Ticket", reservation_id):
+			return not_found("Reservation", reservation_id)
+		
+		ticket = frappe.get_doc("Cheese Ticket", reservation_id)
+		
+		# Get attendance record
+		attendance = frappe.db.get_value(
+			"Cheese Attendance",
+			{"ticket": reservation_id},
+			["name", "checked_in_at", "status", "method"],
+			as_dict=True
+		)
+		
+		# Get QR token status
+		qr_token = frappe.db.get_value(
+			"Cheese QR Token",
+			{"ticket": reservation_id},
+			["name", "status", "expires_at"],
+			as_dict=True
+		)
+		
+		checked_in = attendance is not None and attendance.status == "PRESENT"
+		
+		return success(
+			"Check-in status retrieved successfully",
+			{
+				"reservation_id": reservation_id,
+				"ticket_status": ticket.status,
+				"checked_in": checked_in,
+				"checked_in_at": str(attendance.checked_in_at) if attendance else None,
+				"checkin_method": attendance.method if attendance else None,
+				"qr_token_status": qr_token.status if qr_token else None,
+				"qr_token_expires_at": str(qr_token.expires_at) if qr_token and qr_token.expires_at else None
+			}
+		)
+	except Exception as e:
+		frappe.log_error(f"Error in get_checkin_status: {str(e)}")
+		return error("Failed to get check-in status", "SERVER_ERROR", {"error": str(e)}, 500)
+
+
+@frappe.whitelist()
 def get_qr(ticket_id):
 	"""
 	Get or generate QR token for a ticket

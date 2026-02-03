@@ -8,9 +8,95 @@ from cheese.api.common.responses import success, created, error, not_found, vali
 
 
 @frappe.whitelist()
+def upsert_lead(contact_id, conversation_id=None, interest_type=None, status=None):
+	"""
+	Create or consolidate lead per contact; status "not converted/converted"
+	Detects intent and records it. Creates/consolidates lead per contact.
+	
+	Args:
+		contact_id: Contact ID (required)
+		conversation_id: Conversation ID (optional)
+		interest_type: Interest type (Route/Experience)
+		status: Status (if not provided, defaults to OPEN for new, keeps existing for update)
+		
+	Returns:
+		Success response with lead data
+	"""
+	try:
+		if not contact_id:
+			return validation_error("contact_id is required")
+		
+		if not frappe.db.exists("Cheese Contact", contact_id):
+			return not_found("Contact", contact_id)
+		
+		# Check for existing lead (any status except DISCARDED)
+		existing_lead = frappe.db.get_value(
+			"Cheese Lead",
+			{
+				"contact": contact_id,
+				"status": ["!=", "DISCARDED"]
+			},
+			"name",
+			order_by="modified desc"
+		)
+		
+		if existing_lead:
+			# Consolidate/update existing lead
+			lead = frappe.get_doc("Cheese Lead", existing_lead)
+			if conversation_id:
+				lead.conversation = conversation_id
+			if interest_type:
+				lead.interest_type = interest_type
+			if status:
+				lead.status = status
+			lead.last_interaction_at = now_datetime()
+			lead.save()
+			frappe.db.commit()
+			
+			return success(
+				"Lead consolidated successfully",
+				{
+					"lead_id": lead.name,
+					"contact_id": contact_id,
+					"status": lead.status,
+					"is_new": False
+				}
+			)
+		
+		# Create new lead
+		lead_status = status or "OPEN"
+		lead = frappe.get_doc({
+			"doctype": "Cheese Lead",
+			"contact": contact_id,
+			"conversation": conversation_id,
+			"interest_type": interest_type,
+			"status": lead_status,
+			"last_interaction_at": now_datetime()
+		})
+		lead.insert()
+		frappe.db.commit()
+		
+		return created(
+			"Lead created successfully",
+			{
+				"lead_id": lead.name,
+				"contact_id": contact_id,
+				"status": lead.status,
+				"is_new": True
+			}
+		)
+	except frappe.ValidationError as e:
+		return validation_error(str(e))
+	except Exception as e:
+		frappe.log_error(f"Error in upsert_lead: {str(e)}")
+		return error("Failed to upsert lead", "SERVER_ERROR", {"error": str(e)}, 500)
+
+
+@frappe.whitelist()
 def create_lead(contact_id, conversation_id=None, interest_type=None, status="OPEN"):
 	"""
 	Create or update a lead (idempotent - reuses existing active lead)
+	Legacy endpoint - use upsert_lead instead
 	
 	Args:
 		contact_id: Contact ID (required)
@@ -21,6 +107,7 @@ def create_lead(contact_id, conversation_id=None, interest_type=None, status="OP
 	Returns:
 		Success response with lead data
 	"""
+	return upsert_lead(contact_id, conversation_id, interest_type, status)
 	try:
 		if not contact_id:
 			return validation_error("contact_id is required")

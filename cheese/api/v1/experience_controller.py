@@ -9,6 +9,131 @@ from cheese.cheese.utils.capacity import get_available_capacity, update_slot_cap
 
 
 @frappe.whitelist()
+def list_experiences(page=1, page_size=20, status=None, company=None, package_mode=None, search=None):
+	"""
+	List experiences - canonical, filterable catalog
+	
+	Args:
+		page: Page number
+		page_size: Items per page
+		status: Filter by status (ONLINE/OFFLINE)
+		company: Filter by company
+		package_mode: Filter by package mode (Package/Public/Both)
+		search: Search term (searches name and description)
+		
+	Returns:
+		Paginated response with experiences list
+	"""
+	try:
+		page = cint(page) or 1
+		page_size = cint(page_size) or 20
+		
+		filters = {}
+		if status:
+			filters["status"] = status
+		if company:
+			filters["company"] = company
+		if package_mode:
+			filters["package_mode"] = package_mode
+		
+		or_filters = []
+		if search:
+			or_filters.append(["name", "like", f"%{search}%"])
+			or_filters.append(["description", "like", f"%{search}%"])
+		
+		experiences = frappe.get_all(
+			"Cheese Experience",
+			filters=filters,
+			or_filters=or_filters if or_filters else None,
+			fields=["name", "name as experience_name", "company", "description", "status", "package_mode", 
+				"individual_price", "route_price", "min_acts_for_route_price", "deposit_required"],
+			limit_start=(page - 1) * page_size,
+			limit_page_length=page_size,
+			order_by="name asc"
+		)
+		
+		total = frappe.db.count("Cheese Experience", filters=filters)
+		
+		return paginated_response(
+			experiences,
+			"Experiences retrieved successfully",
+			page=page,
+			page_size=page_size,
+			total=total
+		)
+	except Exception as e:
+		frappe.log_error(f"Error in list_experiences: {str(e)}")
+		return error("Failed to list experiences", "SERVER_ERROR", {"error": str(e)}, 500)
+
+
+@frappe.whitelist()
+def get_experience_detail(experience_id):
+	"""
+	Get experience details - full details + policies
+	
+	Args:
+		experience_id: Experience ID
+		
+	Returns:
+		Success response with experience details including policies
+	"""
+	try:
+		if not experience_id:
+			return validation_error("experience_id is required")
+		
+		if not frappe.db.exists("Cheese Experience", experience_id):
+			return not_found("Experience", experience_id)
+		
+		experience = frappe.get_doc("Cheese Experience", experience_id)
+		
+		# Get booking policy
+		policy = None
+		policy_name = frappe.db.get_value(
+			"Cheese Booking Policy",
+			{"experience": experience_id},
+			"name"
+		)
+		
+		if policy_name:
+			policy_doc = frappe.get_doc("Cheese Booking Policy", policy_name)
+			policy = {
+				"cancel_until_hours_before": policy_doc.cancel_until_hours_before,
+				"modify_until_hours_before": policy_doc.modify_until_hours_before,
+				"min_hours_before_booking": policy_doc.min_hours_before_booking
+			}
+		
+		return success(
+			"Experience details retrieved successfully",
+			{
+				"experience_id": experience.name,
+				"name": experience.name,
+				"company": experience.company,
+				"description": experience.description,
+				"status": experience.status,
+				"package_mode": experience.package_mode,
+				"pricing": {
+					"individual_price": experience.individual_price,
+					"route_price": experience.route_price,
+					"min_acts_for_route_price": experience.min_acts_for_route_price
+				},
+				"deposit": {
+					"deposit_required": experience.deposit_required,
+					"deposit_type": experience.deposit_type,
+					"deposit_value": experience.deposit_value,
+					"deposit_ttl_hours": experience.deposit_ttl_hours
+				},
+				"settings": {
+					"manual_confirmation": experience.manual_confirmation
+				},
+				"booking_policy": policy
+			}
+		)
+	except Exception as e:
+		frappe.log_error(f"Error in get_experience_detail: {str(e)}")
+		return error("Failed to get experience detail", "SERVER_ERROR", {"error": str(e)}, 500)
+
+
+@frappe.whitelist()
 def update_experience_pricing(experience_id, individual_price=None, route_price=None, min_acts_for_route_price=None, package_mode=None):
 	"""
 	Update experience pricing (US-09)

@@ -3,7 +3,7 @@
 
 import frappe
 from frappe import _
-from cheese.api.common.responses import success, created, validation_error, error
+from cheese.api.common.responses import success, created, validation_error, error, not_found
 
 
 @frappe.whitelist()
@@ -88,7 +88,24 @@ def find_or_create_contact(phone=None, email=None, name=None):
 
 
 @frappe.whitelist()
-def update_contact(contact_id, name=None, phone=None, email=None, preferred_language=None, notes=None, preferred_channel=None):
+def resolve_or_create_contact(phone=None, email=None, name=None):
+	"""
+	Resolve or create a unique contact (deduplication by phone/email)
+	Alias for find_or_create_contact to match ERP specification
+	
+	Args:
+		phone: Phone number (optional)
+		email: Email address (optional)
+		name: Full name (optional)
+		
+	Returns:
+		Success response with contact_id
+	"""
+	return find_or_create_contact(phone=phone, email=email, name=name)
+
+
+@frappe.whitelist()
+def update_contact(contact_id, name=None, phone=None, email=None, preferred_language=None, notes=None, preferred_channel=None, idempotency_key=None):
 	"""
 	Update contact fields
 	
@@ -113,19 +130,69 @@ def update_contact(contact_id, name=None, phone=None, email=None, preferred_lang
 		
 		contact = frappe.get_doc("Cheese Contact", contact_id)
 		
+		# Track changed fields
+		changed_fields = []
+		old_values = {}
+		
+		# Whitelist of allowed fields
+		allowed_fields = {
+			"name": "full_name",
+			"phone": "phone",
+			"email": "email",
+			"preferred_language": "preferred_language",
+			"notes": "privacy_notes",
+			"preferred_channel": "preferred_channel"
+		}
+		
 		# Update fields if provided
 		if name is not None:
+			old_values["full_name"] = contact.full_name
 			contact.full_name = name
+			changed_fields.append("full_name")
 		if phone is not None:
+			old_values["phone"] = contact.phone
 			contact.phone = phone
+			changed_fields.append("phone")
 		if email is not None:
+			old_values["email"] = contact.email
 			contact.email = email
+			changed_fields.append("email")
 		if preferred_language is not None:
+			old_values["preferred_language"] = contact.preferred_language
 			contact.preferred_language = preferred_language
+			changed_fields.append("preferred_language")
 		if notes is not None:
+			old_values["privacy_notes"] = contact.privacy_notes
 			contact.privacy_notes = notes
+			changed_fields.append("privacy_notes")
 		if preferred_channel is not None:
+			old_values["preferred_channel"] = contact.preferred_channel
 			contact.preferred_channel = preferred_channel
+			changed_fields.append("preferred_channel")
+		
+		if not changed_fields:
+			return validation_error("No fields to update provided")
+		
+		# Create audit event
+		audit_event_id = None
+		try:
+			# Log change event
+			from frappe.utils import now_datetime
+			audit_data = {
+				"doctype": "Cheese System Event",
+				"event_type": "CONTACT_UPDATED",
+				"entity_type": "Cheese Contact",
+				"entity_id": contact_id,
+				"changed_fields": ", ".join(changed_fields),
+				"old_values": str(old_values),
+				"idempotency_key": idempotency_key,
+				"timestamp": now_datetime()
+			}
+			audit_event = frappe.get_doc(audit_data)
+			audit_event.insert(ignore_permissions=True)
+			audit_event_id = audit_event.name
+		except Exception as audit_error:
+			frappe.log_error(f"Failed to create audit event: {str(audit_error)}")
 		
 		contact.save()
 		frappe.db.commit()
@@ -133,12 +200,16 @@ def update_contact(contact_id, name=None, phone=None, email=None, preferred_lang
 		return success(
 			"Contact updated successfully",
 			{
-				"contact_id": contact.name,
-				"full_name": contact.full_name,
-				"phone": contact.phone,
-				"email": contact.email,
-				"preferred_language": contact.preferred_language,
-				"preferred_channel": contact.preferred_channel
+				"contact": {
+					"contact_id": contact.name,
+					"full_name": contact.full_name,
+					"phone": contact.phone,
+					"email": contact.email,
+					"preferred_language": contact.preferred_language,
+					"preferred_channel": contact.preferred_channel
+				},
+				"changed_fields": changed_fields,
+				"audit_event_id": audit_event_id
 			}
 		)
 	except frappe.ValidationError as e:

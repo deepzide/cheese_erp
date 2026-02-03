@@ -12,6 +12,37 @@ import json
 
 
 @frappe.whitelist()
+def create_pending_reservation(contact_id, experience_id, slot_id, party_size):
+	"""
+	Create pending reservation (individual) - alias for create_pending_ticket
+	
+	Args:
+		contact_id: ID of the contact
+		experience_id: ID of the experience
+		slot_id: ID of the slot
+		party_size: Number of people
+		
+	Returns:
+		Success response with reservation data
+	"""
+	return create_pending_ticket(contact_id, experience_id, slot_id, party_size)
+
+
+@frappe.whitelist()
+def get_reservation_status(reservation_id):
+	"""
+	Get reservation status - alias for get_ticket_summary
+	
+	Args:
+		reservation_id: Reservation ID (ticket_id)
+		
+	Returns:
+		Success response with reservation status
+	"""
+	return get_ticket_summary(reservation_id)
+
+
+@frappe.whitelist()
 def create_pending_ticket(contact_id, experience_id, slot_id, party_size):
 	"""
 	Create a pending ticket with TTL
@@ -104,9 +135,114 @@ def create_pending_ticket(contact_id, experience_id, slot_id, party_size):
 
 
 @frappe.whitelist()
+def modify_reservation_preview(reservation_id, new_slot=None, party_size=None):
+	"""
+	Modify reservation preview - preview changes before applying
+	
+	Args:
+		reservation_id: Reservation ID (ticket_id)
+		new_slot: New slot ID (optional)
+		party_size: New party size (optional)
+		
+	Returns:
+		Success response with preview of changes
+	"""
+	try:
+		if not reservation_id:
+			return validation_error("reservation_id is required")
+		
+		if not frappe.db.exists("Cheese Ticket", reservation_id):
+			return not_found("Reservation", reservation_id)
+		
+		ticket = frappe.get_doc("Cheese Ticket", reservation_id)
+		
+		if ticket.status not in ["PENDING", "CONFIRMED"]:
+			return validation_error(
+				f"Only PENDING or CONFIRMED reservations can be modified. Current status: {ticket.status}",
+				{"current_status": ticket.status, "allowed_statuses": ["PENDING", "CONFIRMED"]}
+			)
+		
+		preview = {
+			"reservation_id": reservation_id,
+			"current_slot": ticket.slot,
+			"current_party_size": ticket.party_size
+		}
+		
+		# Preview slot change
+		if new_slot:
+			if not frappe.db.exists("Cheese Experience Slot", new_slot):
+				return not_found("Slot", new_slot)
+			
+			new_slot_doc = frappe.get_doc("Cheese Experience Slot", new_slot)
+			preview["new_slot"] = new_slot
+			preview["new_slot_date"] = str(new_slot_doc.date)
+			preview["new_slot_time"] = str(new_slot_doc.time)
+			
+			# Check modification policy
+			try:
+				slot_datetime = get_datetime(f"{new_slot_doc.date} {new_slot_doc.time}")
+				validate_booking_policy(ticket.experience, slot_datetime, action="modify")
+				preview["slot_change_allowed"] = True
+			except frappe.ValidationError as e:
+				preview["slot_change_allowed"] = False
+				preview["slot_change_error"] = str(e)
+		
+		# Preview party size change
+		if party_size:
+			if party_size < 1:
+				preview["party_size_change_allowed"] = False
+				preview["party_size_change_error"] = "party_size must be at least 1"
+			else:
+				preview["new_party_size"] = party_size
+				preview["party_size_change_allowed"] = True
+		
+		# Calculate price impact
+		if new_slot or party_size:
+			new_party_size = party_size if party_size else ticket.party_size
+			price_data = calculate_ticket_price(ticket.experience, new_party_size)
+			current_price_data = calculate_ticket_price(ticket.experience, ticket.party_size)
+			
+			preview["price_impact"] = {
+				"current_price": current_price_data.get("total_price", 0),
+				"new_price": price_data.get("total_price", 0),
+				"price_difference": price_data.get("total_price", 0) - current_price_data.get("total_price", 0)
+			}
+		
+		return success(
+			"Modification preview generated successfully",
+			{
+				"preview": preview,
+				"note": "Call confirm_modification to apply changes"
+			}
+		)
+	except frappe.ValidationError as e:
+		return validation_error(str(e))
+	except Exception as e:
+		frappe.log_error(f"Error in modify_reservation_preview: {str(e)}")
+		return error("Failed to preview modification", "SERVER_ERROR", {"error": str(e)}, 500)
+
+
+@frappe.whitelist()
+def confirm_modification(reservation_id, new_slot=None, party_size=None):
+	"""
+	Confirm modification - apply changes
+	
+	Args:
+		reservation_id: Reservation ID (ticket_id)
+		new_slot: New slot ID (optional)
+		party_size: New party size (optional)
+		
+	Returns:
+		Success response with updated reservation data
+	"""
+	return modify_ticket(reservation_id, new_slot=new_slot, party_size=party_size)
+
+
+@frappe.whitelist()
 def modify_ticket(ticket_id, new_slot=None, party_size=None):
 	"""
 	Modify a ticket (change slot or party size)
+	Legacy endpoint - use confirm_modification instead
 	
 	Args:
 		ticket_id: ID of the ticket
@@ -184,6 +320,20 @@ def modify_ticket(ticket_id, new_slot=None, party_size=None):
 	except Exception as e:
 		frappe.log_error(f"Error in modify_ticket: {str(e)}")
 		return error("Failed to modify ticket", "SERVER_ERROR", {"error": str(e)}, 500)
+
+
+@frappe.whitelist()
+def cancel_reservation(reservation_id):
+	"""
+	Cancel reservation - alias for cancel_ticket
+	
+	Args:
+		reservation_id: Reservation ID (ticket_id)
+		
+	Returns:
+		Success response with cancelled reservation data
+	"""
+	return cancel_ticket(reservation_id)
 
 
 @frappe.whitelist()

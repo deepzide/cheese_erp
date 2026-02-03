@@ -171,6 +171,21 @@ def update_route(route_id, name=None, description=None, status=None, experiences
 
 
 @frappe.whitelist()
+def get_route_detail(route_id):
+	"""
+	Get route details - composition, rules, conditions
+	Alias for get_route_details to match ERP specification
+	
+	Args:
+		route_id: Route ID
+		
+	Returns:
+		Success response with route details
+	"""
+	return get_route_details(route_id)
+
+
+@frappe.whitelist()
 def get_route_details(route_id):
 	"""
 	Get route details with experiences
