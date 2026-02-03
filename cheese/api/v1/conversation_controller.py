@@ -483,7 +483,7 @@ def append_conversation_event(conversation_id, event_type, event_data=None, meta
 				"event_id": event.name,
 				"conversation_id": conversation_id,
 				"event_type": event_type,
-				"timestamp": str(event.timestamp)
+				"created_at": str(event.created_at) if event.created_at else None
 			}
 		)
 	except frappe.ValidationError as e:
