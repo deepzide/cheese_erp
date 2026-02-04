@@ -1112,6 +1112,33 @@
 					"response": []
 				},
 				{
+					"name": "Get Deposit Status",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"deposit_id\": \"DEPOSIT-001\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/method/cheese.api.v1.deposit_controller.get_deposit_status",
+							"host": ["{{base_url}}"],
+							"path": ["api", "method", "cheese.api.v1.deposit_controller.get_deposit_status"]
+						},
+						"description": "Get deposit status and details including amount required, amount paid, and remaining balance."
+					},
+					"response": []
+				},
+				{
 					"name": "Get Payment Status for Booking",
 					"request": {
 						"method": "POST",
