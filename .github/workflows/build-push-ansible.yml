@@ -2,7 +2,7 @@ name:  Deploy to server
 
 on:
   push:
-    branches: [ main ]
+    branches: [ feature/hrms ]
   workflow_dispatch:
   workflow_call:
     inputs: {}

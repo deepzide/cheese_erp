@@ -174,6 +174,25 @@
 
 
     # ------------------------------------------------------------------------
+    # 🧩 Install apps BEFORE migration
+    # ------------------------------------------------------------------------
+    - name: Ensure all required apps (erpnext + custom) are installed
+      ansible.builtin.shell: |
+        all_apps="erpnext {{ custom_apps | join(' ') }}"
+        installed=$(docker compose -f pwd.yml exec -T backend bench --site {{ site_name }} list-apps)
+        for app in $all_apps; do
+          if ! echo "$installed" | grep -q "$app"; then
+            echo "⚙️ Instalando app faltante: $app"
+            docker compose -f pwd.yml exec -T -e CHEESE_INSERT_DEMO_DATA=1 backend bench --site {{ site_name }} install-app $app || true
+          else
+            echo "✅ App ya instalada: $app"
+          fi
+        done
+      args:
+        chdir: "{{ project_dir }}/frappe_docker"
+      when: site_check.rc == 0 or create_site_output.rc == 0
+
+    # ------------------------------------------------------------------------
     # 🔄 Migraciones - build - clear cache
     # ------------------------------------------------------------------------
     - name: Run migrations
@@ -204,25 +223,6 @@
         docker compose -f pwd.yml exec -T backend /bin/bash -lc "
           bench --site {{ site_name }} clear-website-cache
         "
-      args:
-        chdir: "{{ project_dir }}/frappe_docker"
-      when: site_check.rc == 0 or create_site_output.rc == 0
-
-    # ------------------------------------------------------------------------
-    # 🧩 Instalar apps adicionales (erpnext + custom)
-    # ------------------------------------------------------------------------
-    - name: Ensure all required apps (erpnext + custom) are installed
-      ansible.builtin.shell: |
-        all_apps="erpnext {{ custom_apps | join(' ') }}"
-        installed=$(docker compose -f pwd.yml exec -T backend bench --site {{ site_name }} list-apps)
-        for app in $all_apps; do
-          if ! echo "$installed" | grep -q "$app"; then
-            echo "⚙️ Instalando app faltante: $app"
-            docker compose -f pwd.yml exec -T -e CHEESE_INSERT_DEMO_DATA=1 backend bench --site {{ site_name }} install-app $app || true
-          else
-            echo "✅ App ya instalada: $app"
-          fi
-        done
       args:
         chdir: "{{ project_dir }}/frappe_docker"
       when: site_check.rc == 0 or create_site_output.rc == 0
