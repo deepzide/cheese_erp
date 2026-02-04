@@ -12,6 +12,10 @@
     "version": "15.52.0" 
   },
   {
+    "url": "https://github.com/frappe/payments",
+    "branch": "version-15"
+  },
+  {
     "url": "https://github.com/deepzide/cheese_erp",
     "branch": "main"
   }

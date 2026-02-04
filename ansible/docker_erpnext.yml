@@ -183,7 +183,7 @@
         for app in $all_apps; do
           if ! echo "$installed" | grep -q "$app"; then
             echo "⚙️ Instalando app faltante: $app"
-            docker compose -f pwd.yml exec -T -e CHEESE_INSERT_DEMO_DATA=1 backend bench --site {{ site_name }} install-app $app || true
+            docker compose -f pwd.yml exec -T -e CHEESE_INSERT_DEMO_DATA=1 backend bench --site {{ site_name }} install-app $app --force || true
           else
             echo "✅ App ya instalada: $app"
           fi
@@ -191,6 +191,15 @@
       args:
         chdir: "{{ project_dir }}/frappe_docker"
       when: site_check.rc == 0 or create_site_output.rc == 0
+    
+    # Force reinstall HRMS to ensure fixtures are loaded
+    - name: Reinstall HRMS with fixtures
+      ansible.builtin.shell: |
+        docker compose -f pwd.yml exec -T -e CHEESE_INSERT_DEMO_DATA=1 backend bench --site {{ site_name }} install-app hrms --force
+      args:
+        chdir: "{{ project_dir }}/frappe_docker"
+      when: site_check.rc == 0 or create_site_output.rc == 0
+      ignore_errors: yes
 
     # ------------------------------------------------------------------------
     # 🔄 Migraciones - build - clear cache
