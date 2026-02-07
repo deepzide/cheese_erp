@@ -18,6 +18,8 @@
   "highlights_section",
   "highlights_json",
   "references_section",
+  "transcript_url",
+  "transcript_reference",
   "lead",
   "ticket",
   "route_booking"
@@ -78,6 +80,16 @@
    "fieldname": "references_section",
    "fieldtype": "Section Break",
    "label": "References"
+  },
+  {
+   "fieldname": "transcript_url",
+   "fieldtype": "Data",
+   "label": "Transcript URL"
+  },
+  {
+   "fieldname": "transcript_reference",
+   "fieldtype": "Data",
+   "label": "Transcript Reference"
   },
   {
    "fieldname": "lead",

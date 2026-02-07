@@ -284,15 +284,163 @@ def get_dashboard_kpis(establishment_id=None, period="today"):
 		Success response with KPI data
 	"""
 	try:
-		# Similar logic to dashboard endpoints
-		# Calculate conversion rates, attendance rates, etc.
+		from frappe.utils import today, add_days, getdate
+		
+		# Calculate date range
+		if period == "today":
+			date_from = today()
+			date_to = today()
+		elif period == "yesterday":
+			date_from = add_days(today(), -1)
+			date_to = add_days(today(), -1)
+		elif period == "7":
+			date_from = add_days(today(), -7)
+			date_to = today()
+		elif period == "30":
+			date_from = add_days(today(), -30)
+			date_to = today()
+		else:
+			date_from = today()
+			date_to = today()
+		
+		date_from_obj = getdate(date_from)
+		date_to_obj = getdate(date_to)
+		
+		# Build filters
+		filters = {}
+		if establishment_id:
+			# Get experiences for this establishment
+			experiences = frappe.get_all(
+				"Cheese Experience",
+				filters={"company": establishment_id},
+				fields=["name"]
+			)
+			exp_ids = [e.name for e in experiences]
+			if exp_ids:
+				filters["experience"] = ["in", exp_ids]
+			else:
+				# No experiences, return empty KPIs
+				return success("KPIs retrieved successfully", {
+					"establishment_id": establishment_id,
+					"period": period,
+					"conversion_rates": {},
+					"attendance_rates": {},
+					"no_show_rates": {},
+					"deposit_collection_rates": {},
+					"average_satisfaction": 0
+				})
+		
+		# Get slots in date range
+		slots = frappe.get_all(
+			"Cheese Experience Slot",
+			filters={
+				"date": [">=", date_from_obj],
+				"date": ["<=", date_to_obj]
+			},
+			fields=["name", "experience"]
+		)
+		
+		if establishment_id and filters.get("experience"):
+			slots = [s for s in slots if s.experience in filters["experience"][1]]
+		
+		slot_ids = [s.name for s in slots] if slots else []
+		
+		# Get tickets
+		ticket_filters = {}
+		if slot_ids:
+			ticket_filters["slot"] = ["in", slot_ids]
+		if establishment_id and filters.get("experience"):
+			ticket_filters["experience"] = filters["experience"]
+		
+		tickets = frappe.get_all(
+			"Cheese Ticket",
+			filters=ticket_filters,
+			fields=["name", "status", "experience"]
+		) if ticket_filters else []
+		
+		# Calculate conversion rates (leads → tickets → confirmed)
+		leads = frappe.get_all(
+			"Cheese Lead",
+			filters={},
+			fields=["name", "status"]
+		)
+		
+		total_leads = len(leads)
+		converted_leads = len([l for l in leads if l.status == "CONVERTED"])
+		lead_conversion_rate = (converted_leads / total_leads * 100) if total_leads > 0 else 0
+		
+		total_tickets = len(tickets)
+		confirmed_tickets = len([t for t in tickets if t.status == "CONFIRMED"])
+		ticket_conversion_rate = (confirmed_tickets / total_tickets * 100) if total_tickets > 0 else 0
+		
+		# Calculate attendance rates
+		checked_in = len([t for t in tickets if t.status == "CHECKED_IN"])
+		completed = len([t for t in tickets if t.status == "COMPLETED"])
+		attendance_rate = (checked_in / confirmed_tickets * 100) if confirmed_tickets > 0 else 0
+		
+		# Calculate no-show rates
+		no_shows = len([t for t in tickets if t.status == "NO_SHOW"])
+		no_show_rate = (no_shows / confirmed_tickets * 100) if confirmed_tickets > 0 else 0
+		
+		# Calculate deposit collection rates
+		deposits = frappe.get_all(
+			"Cheese Deposit",
+			filters={},
+			fields=["name", "status", "amount_required", "amount_paid"]
+		)
+		
+		total_deposits = len(deposits)
+		paid_deposits = len([d for d in deposits if d.status == "PAID"])
+		deposit_collection_rate = (paid_deposits / total_deposits * 100) if total_deposits > 0 else 0
+		
+		total_deposit_amount = sum([d.amount_required for d in deposits])
+		collected_deposit_amount = sum([d.amount_paid or 0 for d in deposits])
+		
+		# Calculate average satisfaction rating
+		surveys = frappe.get_all(
+			"Cheese Survey Response",
+			filters={},
+			fields=["rating"]
+		)
+		
+		if surveys:
+			average_satisfaction = sum([s.rating for s in surveys]) / len(surveys)
+		else:
+			average_satisfaction = 0
 		
 		return success(
 			"KPIs retrieved successfully",
 			{
 				"establishment_id": establishment_id,
 				"period": period,
-				"note": "KPI calculation logic would be implemented here"
+				"date_from": str(date_from_obj),
+				"date_to": str(date_to_obj),
+				"conversion_rates": {
+					"lead_to_converted": lead_conversion_rate,
+					"ticket_to_confirmed": ticket_conversion_rate,
+					"total_leads": total_leads,
+					"converted_leads": converted_leads,
+					"total_tickets": total_tickets,
+					"confirmed_tickets": confirmed_tickets
+				},
+				"attendance_rates": {
+					"checked_in_rate": attendance_rate,
+					"checked_in_count": checked_in,
+					"completed_count": completed
+				},
+				"no_show_rates": {
+					"no_show_rate": no_show_rate,
+					"no_show_count": no_shows
+				},
+				"deposit_collection_rates": {
+					"collection_rate": deposit_collection_rate,
+					"total_deposits": total_deposits,
+					"paid_deposits": paid_deposits,
+					"total_amount_required": total_deposit_amount,
+					"collected_amount": collected_deposit_amount
+				},
+				"average_satisfaction": round(average_satisfaction, 2),
+				"total_surveys": len(surveys)
 			}
 		)
 	except Exception as e:

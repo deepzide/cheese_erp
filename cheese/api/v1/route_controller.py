@@ -489,41 +489,33 @@ def configure_route_bank_account(route_id, bank_account_data):
 			if field not in bank_data:
 				return validation_error(f"Missing required field: {field}")
 		
-		# Store bank account data (could be in a custom field or separate doctype)
-		# For now, we'll store as JSON in a custom field or create a Bank Account doctype
-		# This is a placeholder - actual implementation would depend on data model
-		route = frappe.get_doc("Cheese Route", route_id)
+		# Create or update bank account record using Cheese Bank Account doctype
+		bank_account_name = frappe.db.get_value(
+			"Cheese Bank Account",
+			{"route": route_id},
+			"name"
+		)
 		
-		# If there's a custom field for bank account, use it
-		# Otherwise, this would need a Cheese Bank Account doctype
-		if hasattr(route, "bank_account_json"):
-			route.bank_account_json = json.dumps(bank_data)
+		if bank_account_name:
+			bank_account = frappe.get_doc("Cheese Bank Account", bank_account_name)
 		else:
-			# Create or update bank account record if doctype exists
-			bank_account_name = frappe.db.get_value(
-				"Cheese Bank Account",
-				{"route": route_id},
-				"name"
-			)
-			
-			if bank_account_name:
-				bank_account = frappe.get_doc("Cheese Bank Account", bank_account_name)
-			else:
-				bank_account = frappe.get_doc({
-					"doctype": "Cheese Bank Account",
-					"route": route_id
-				})
-			
-			bank_account.holder = bank_data.get("holder")
-			bank_account.bank = bank_data.get("bank")
-			bank_account.account = bank_data.get("account")
-			bank_account.iban = bank_data.get("iban")
-			bank_account.currency = bank_data.get("currency")
-			
-			if bank_account_name:
-				bank_account.save()
-			else:
-				bank_account.insert()
+			bank_account = frappe.get_doc({
+				"doctype": "Cheese Bank Account",
+				"route": route_id,
+				"status": "ACTIVE"
+			})
+		
+		bank_account.holder = bank_data.get("holder")
+		bank_account.bank = bank_data.get("bank")
+		bank_account.account = bank_data.get("account")
+		bank_account.iban = bank_data.get("iban")
+		bank_account.currency = bank_data.get("currency")
+		bank_account.status = "ACTIVE"
+		
+		if bank_account_name:
+			bank_account.save()
+		else:
+			bank_account.insert()
 		
 		frappe.db.commit()
 		
@@ -547,7 +539,7 @@ def get_route_deposit_instructions(route_booking_id):
 	Get deposit payment instructions for a route booking (US-03)
 	
 	Args:
-		route_booking_id: Route booking ID (would need RouteBooking doctype)
+		route_booking_id: Route booking ID
 		
 	Returns:
 		Success response with deposit instructions
@@ -556,20 +548,83 @@ def get_route_deposit_instructions(route_booking_id):
 		if not route_booking_id:
 			return validation_error("route_booking_id is required")
 		
-		# This would work with a RouteBooking doctype
-		# For now, return a placeholder response
-		# In actual implementation, this would:
-		# 1. Get route booking
-		# 2. Get route deposit policy
-		# 3. Calculate deposit amount
-		# 4. Get bank account details
-		# 5. Return payment instructions
+		if not frappe.db.exists("Cheese Route Booking", route_booking_id):
+			return not_found("Route Booking", route_booking_id)
+		
+		route_booking = frappe.get_doc("Cheese Route Booking", route_booking_id)
+		route = frappe.get_doc("Cheese Route", route_booking.route)
+		
+		if not route_booking.deposit_required:
+			return success(
+				"No deposit required for this route booking",
+				{
+					"deposit_required": False,
+					"route_booking_id": route_booking_id
+				}
+			)
+		
+		# Get bank account for route
+		bank_account_name = frappe.db.get_value(
+			"Cheese Bank Account",
+			{"route": route.name, "status": "ACTIVE"},
+			"name"
+		)
+		
+		if not bank_account_name:
+			return error(
+				"Bank account not configured for this route",
+				"CONFIGURATION_ERROR",
+				{"route_id": route.name},
+				400
+			)
+		
+		bank_account = frappe.get_doc("Cheese Bank Account", bank_account_name)
+		
+		# Get or create deposit
+		deposit_name = frappe.db.get_value(
+			"Cheese Deposit",
+			{"entity_type": "Route Booking", "entity_id": route_booking_id},
+			"name"
+		)
+		
+		if not deposit_name:
+			# Create deposit
+			from frappe.utils import add_to_date, now_datetime
+			due_at = add_to_date(now_datetime(), hours=route.deposit_ttl_hours or 24, as_string=False)
+			
+			deposit = frappe.get_doc({
+				"doctype": "Cheese Deposit",
+				"entity_type": "Route Booking",
+				"entity_id": route_booking_id,
+				"amount_required": route_booking.deposit_amount,
+				"status": "PENDING",
+				"due_at": due_at
+			})
+			deposit.insert()
+			deposit_name = deposit.name
+			frappe.db.commit()
+		else:
+			deposit = frappe.get_doc("Cheese Deposit", deposit_name)
 		
 		return success(
 			"Deposit instructions retrieved successfully",
 			{
+				"deposit_required": True,
+				"deposit_id": deposit_name,
 				"route_booking_id": route_booking_id,
-				"note": "This endpoint requires RouteBooking doctype implementation"
+				"amount_required": deposit.amount_required,
+				"amount_paid": deposit.amount_paid or 0,
+				"amount_remaining": deposit.amount_required - (deposit.amount_paid or 0),
+				"due_at": str(deposit.due_at) if deposit.due_at else None,
+				"status": deposit.status,
+				"bank_account": {
+					"holder": bank_account.holder,
+					"bank": bank_account.bank,
+					"account": bank_account.account,
+					"iban": bank_account.iban,
+					"currency": bank_account.currency
+				},
+				"instructions": f"Please transfer {deposit.amount_required} {bank_account.currency} to account {bank_account.account} ({bank_account.bank})"
 			}
 		)
 	except Exception as e:
@@ -597,18 +652,91 @@ def record_route_deposit_payment(route_booking_id, amount, verification_method="
 		if not amount or amount <= 0:
 			return validation_error("amount must be greater than 0")
 		
-		# This would work with RouteBooking and Deposit doctypes
-		# Similar to record_deposit_payment in deposit_controller.py
+		if not frappe.db.exists("Cheese Route Booking", route_booking_id):
+			return not_found("Route Booking", route_booking_id)
+		
+		# Get deposit
+		deposit_name = frappe.db.get_value(
+			"Cheese Deposit",
+			{"entity_type": "Route Booking", "entity_id": route_booking_id},
+			"name"
+		)
+		
+		if not deposit_name:
+			return not_found("Deposit", f"for route booking {route_booking_id}")
+		
+		deposit = frappe.get_doc("Cheese Deposit", deposit_name)
+		old_status = deposit.status
+		old_amount_paid = deposit.amount_paid or 0
+		
+		deposit.record_payment(amount, verification_method, ocr_payload)
+		frappe.db.commit()
 		
 		return success(
 			"Route deposit payment recorded successfully",
 			{
+				"deposit_id": deposit.name,
 				"route_booking_id": route_booking_id,
-				"amount": amount,
+				"amount_paid": amount,
+				"total_amount_paid": deposit.amount_paid or 0,
+				"amount_required": deposit.amount_required,
+				"amount_remaining": deposit.amount_required - (deposit.amount_paid or 0),
+				"old_status": old_status,
+				"new_status": deposit.status,
 				"verification_method": verification_method,
-				"note": "This endpoint requires RouteBooking doctype implementation"
+				"is_complete": deposit.status == "PAID"
 			}
 		)
+	except frappe.ValidationError as e:
+		return validation_error(str(e))
 	except Exception as e:
 		frappe.log_error(f"Error in record_route_deposit_payment: {str(e)}")
 		return error("Failed to record route deposit payment", "SERVER_ERROR", {"error": str(e)}, 500)
+
+
+@frappe.whitelist()
+def get_route_bank_account(route_id):
+	"""
+	Get bank account details for a route (US-03)
+	
+	Args:
+		route_id: Route ID
+		
+	Returns:
+		Success response with bank account details
+	"""
+	try:
+		if not route_id:
+			return validation_error("route_id is required")
+		
+		if not frappe.db.exists("Cheese Route", route_id):
+			return not_found("Route", route_id)
+		
+		# Get bank account
+		bank_account_name = frappe.db.get_value(
+			"Cheese Bank Account",
+			{"route": route_id, "status": "ACTIVE"},
+			"name"
+		)
+		
+		if not bank_account_name:
+			return not_found("Bank Account", f"for route {route_id}")
+		
+		bank_account = frappe.get_doc("Cheese Bank Account", bank_account_name)
+		
+		return success(
+			"Bank account retrieved successfully",
+			{
+				"route_id": route_id,
+				"bank_account_id": bank_account.name,
+				"holder": bank_account.holder,
+				"bank": bank_account.bank,
+				"account": bank_account.account,
+				"iban": bank_account.iban,
+				"currency": bank_account.currency,
+				"status": bank_account.status
+			}
+		)
+	except Exception as e:
+		frappe.log_error(f"Error in get_route_bank_account: {str(e)}")
+		return error("Failed to get route bank account", "SERVER_ERROR", {"error": str(e)}, 500)

@@ -83,7 +83,7 @@ app_license = "mit"
 # ------------
 
 # before_install = "cheese.install.before_install"
-# after_install = "cheese.install.after_install"
+after_install = "cheese.install.after_install"
 
 # Uninstallation
 # ------------
@@ -137,13 +137,11 @@ app_license = "mit"
 # ---------------
 # Hook on document methods and events
 
-# doc_events = {
-# 	"*": {
-# 		"on_update": "method",
-# 		"on_cancel": "method",
-# 		"on_trash": "method"
-# 	}
-# }
+doc_events = {
+	"Cheese Ticket": {
+		"on_update": "cheese.cheese.utils.events.update_route_booking_status",
+	},
+}
 
 # Scheduled Tasks
 # ---------------
@@ -152,13 +150,16 @@ scheduler_events = {
 	"cron": {
 		"0/15 * * * *": [
 			"cheese.cheese.scheduler.expiration.expire_pending_tickets",
+			"cheese.cheese.scheduler.deposit_overdue.process_overdue_deposits",
 		],
 	},
 	"hourly": [
 		"cheese.cheese.scheduler.no_show.process_no_shows",
+		"cheese.cheese.scheduler.deposit_reminders.send_deposit_reminders",
 	],
 	"daily": [
 		"cheese.cheese.scheduler.survey.send_post_completion_surveys",
+		"cheese.cheese.scheduler.survey.create_support_cases_for_low_ratings",
 	],
 }
 

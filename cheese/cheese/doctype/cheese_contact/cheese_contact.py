@@ -4,6 +4,7 @@
 import frappe
 from frappe import _
 from frappe.model.document import Document
+from frappe.utils import now_datetime
 
 
 class CheeseContact(Document):
@@ -37,6 +38,9 @@ class CheeseContact(Document):
 		# Check for duplicates by phone OR email
 		self.check_duplicates()
 
+		# Update channel opt-in timestamps
+		self.update_channel_opt_in_timestamps()
+
 	def check_duplicates(self):
 		"""Check for duplicate contacts by phone or email"""
 		or_filters = []
@@ -68,3 +72,52 @@ class CheeseContact(Document):
 				),
 				frappe.DuplicateEntryError
 			)
+
+	def update_channel_opt_in_timestamps(self):
+		"""Update updated_at timestamp for channel opt-ins that changed"""
+		if hasattr(self, "channel_opt_ins") and self.channel_opt_ins:
+			for opt_in in self.channel_opt_ins:
+				if opt_in.has_value_changed("opt_in_status"):
+					opt_in.updated_at = now_datetime()
+
+	@frappe.whitelist()
+	def get_channel_opt_in_status(self, channel):
+		"""Get opt-in status for a specific channel"""
+		if hasattr(self, "channel_opt_ins") and self.channel_opt_ins:
+			for opt_in in self.channel_opt_ins:
+				if opt_in.channel == channel:
+					return opt_in.opt_in_status
+		
+		# Fallback to global opt_in_status if no channel-specific setting
+		return self.opt_in_status
+
+	@frappe.whitelist()
+	def set_channel_opt_in(self, channel, opt_in_status):
+		"""Set opt-in status for a specific channel"""
+		if opt_in_status not in ["OPT_IN", "OPT_OUT"]:
+			frappe.throw(_("Invalid opt_in_status. Must be OPT_IN or OPT_OUT"))
+
+		if not hasattr(self, "channel_opt_ins"):
+			self.channel_opt_ins = []
+
+		# Get old status
+		old_status = self.get_channel_opt_in_status(channel)
+
+		# Find existing opt-in for this channel
+		found = False
+		for opt_in in self.channel_opt_ins:
+			if opt_in.channel == channel:
+				opt_in.opt_in_status = opt_in_status
+				opt_in.updated_at = now_datetime()
+				found = True
+				break
+
+		# Create new if not found
+		if not found:
+			self.append("channel_opt_ins", {
+				"channel": channel,
+				"opt_in_status": opt_in_status,
+				"updated_at": now_datetime()
+			})
+
+		return old_status

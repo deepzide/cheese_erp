@@ -652,19 +652,24 @@ def list_tickets(page=1, page_size=20, status=None, route_id=None, establishment
 
 
 @frappe.whitelist()
-def get_ticket_board(filters=None, status=None):
+def get_ticket_board(filters=None, status=None, route_id=None, establishment_id=None, experience_id=None, date=None):
 	"""
 	Get ticket board grouped by status (kanban view) (US-TK-01)
 	
 	Args:
 		filters: JSON filters
 		status: Optional status filter
+		route_id: Filter by route
+		establishment_id: Filter by establishment (company)
+		experience_id: Filter by experience
+		date: Filter by date (YYYY-MM-DD)
 		
 	Returns:
 		Success response with tickets grouped by status
 	"""
 	try:
 		import json
+		from frappe.utils import getdate
 		
 		filter_dict = {}
 		if filters:
@@ -675,13 +680,62 @@ def get_ticket_board(filters=None, status=None):
 		
 		if status:
 			filter_dict["status"] = status
+		if route_id:
+			filter_dict["route"] = route_id
+		if establishment_id:
+			filter_dict["company"] = establishment_id
+		if experience_id:
+			filter_dict["experience"] = experience_id
+		
+		# Date filter requires joining with slot
+		if date:
+			date_obj = getdate(date)
+			slots = frappe.get_all(
+				"Cheese Experience Slot",
+				filters={"date": date_obj},
+				fields=["name"]
+			)
+			if slots:
+				filter_dict["slot"] = ["in", [s.name for s in slots]]
+			else:
+				# No slots for this date, return empty board
+				board = {}
+				statuses = ["PENDING", "CONFIRMED", "CHECKED_IN", "COMPLETED", "EXPIRED", "REJECTED", "CANCELLED", "NO_SHOW"]
+				for status_val in statuses:
+					board[status_val] = {"status": status_val, "tickets": [], "count": 0}
+				return success("Ticket board retrieved successfully", {"board": board, "total_tickets": 0})
 		
 		# Get all tickets matching filters
 		tickets = frappe.get_all(
 			"Cheese Ticket",
 			filters=filter_dict,
-			fields=["name", "status", "contact", "experience", "slot", "party_size", "created", "modified"]
+			fields=["name", "status", "contact", "experience", "slot", "route", "party_size", "company", "created", "modified"]
 		)
+		
+		# Enrich tickets with slot date/time and contact info
+		for ticket in tickets:
+			if ticket.slot:
+				slot = frappe.db.get_value(
+					"Cheese Experience Slot",
+					ticket.slot,
+					["date", "time"],
+					as_dict=True
+				)
+				if slot:
+					ticket["slot_date"] = str(slot.date)
+					ticket["slot_time"] = str(slot.time)
+			
+			if ticket.contact:
+				contact = frappe.db.get_value(
+					"Cheese Contact",
+					ticket.contact,
+					["full_name", "phone", "email"],
+					as_dict=True
+				)
+				if contact:
+					ticket["contact_name"] = contact.full_name
+					ticket["contact_phone"] = contact.phone
+					ticket["contact_email"] = contact.email
 		
 		# Group by status
 		board = {}
@@ -706,7 +760,14 @@ def get_ticket_board(filters=None, status=None):
 			"Ticket board retrieved successfully",
 			{
 				"board": board,
-				"total_tickets": len(tickets)
+				"total_tickets": len(tickets),
+				"filters_applied": {
+					"status": status,
+					"route_id": route_id,
+					"establishment_id": establishment_id,
+					"experience_id": experience_id,
+					"date": date
+				}
 			}
 		)
 	except Exception as e:

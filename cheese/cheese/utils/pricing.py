@@ -83,3 +83,37 @@ def calculate_deposit_amount(experience_id, total_price, route_id=None):
 			return (total_price * experience.deposit_value) / 100
 	
 	return 0
+
+
+def calculate_route_price(route_id, party_size):
+	"""
+	Calculate total price for a route booking
+	
+	Args:
+		route_id: ID of the route
+		party_size: Number of people
+		
+	Returns:
+		Total price for the route
+	"""
+	route = frappe.get_doc("Cheese Route", route_id)
+	
+	if route.price_mode == "Manual" and route.price:
+		return route.price * party_size
+	elif route.price_mode == "Sum":
+		total = 0
+		for exp_row in route.experiences:
+			experience = frappe.get_doc("Cheese Experience", exp_row.experience)
+			if experience.route_price:
+				total += experience.route_price * party_size
+			elif experience.individual_price:
+				total += experience.individual_price * party_size
+		return total
+	else:
+		# Default: sum individual prices
+		total = 0
+		for exp_row in route.experiences:
+			experience = frappe.get_doc("Cheese Experience", exp_row.experience)
+			if experience.individual_price:
+				total += experience.individual_price * party_size
+		return total

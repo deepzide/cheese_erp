@@ -168,6 +168,26 @@ def submit_survey(ticket_id, rating, comment=None):
 			frappe.db.commit()
 			is_new = False
 
+		# Create support case if rating <= 2
+		support_case_id = None
+		if rating <= 2:
+			try:
+				ticket = frappe.get_doc("Cheese Ticket", ticket_id)
+				support_case = frappe.get_doc({
+					"doctype": "Cheese Support Case",
+					"contact": ticket.contact,
+					"ticket": ticket_id,
+					"survey_response": survey.name,
+					"description": f"Low rating survey response (Rating: {rating}). Comment: {comment or 'No comment'}",
+					"status": "OPEN",
+					"priority": "High" if rating == 1 else "Medium"
+				})
+				support_case.insert(ignore_permissions=True)
+				support_case_id = support_case.name
+				frappe.db.commit()
+			except Exception as e:
+				frappe.log_error(f"Failed to create support case for survey {survey.name}: {e}")
+
 		return success(
 			"Survey submitted successfully",
 			{
@@ -176,7 +196,9 @@ def submit_survey(ticket_id, rating, comment=None):
 				"rating": survey.rating,
 				"comment": survey.comment,
 				"answered_at": str(survey.answered_at),
-				"is_new": is_new
+				"is_new": is_new,
+				"support_case_created": support_case_id is not None,
+				"support_case_id": support_case_id
 			}
 		)
 	except frappe.ValidationError as e:

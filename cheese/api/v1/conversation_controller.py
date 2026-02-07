@@ -174,14 +174,16 @@ def create_conversation(contact_id, channel, status="ACTIVE"):
 
 
 @frappe.whitelist()
-def update_conversation_summary(conversation_id, summary=None, highlights_json=None):
+def update_conversation_summary(conversation_id, summary=None, highlights_json=None, transcript_url=None, transcript_reference=None):
 	"""
-	Update conversation summary and highlights
+	Update conversation summary, highlights, and transcript references
 	
 	Args:
 		conversation_id: Conversation ID
 		summary: Summary text
 		highlights_json: JSON object with highlights
+		transcript_url: URL to external transcript (optional)
+		transcript_reference: Channel-specific transcript reference (optional)
 		
 	Returns:
 		Success response
@@ -207,6 +209,12 @@ def update_conversation_summary(conversation_id, summary=None, highlights_json=N
 					return validation_error(f"Invalid highlights_json format: {str(e)}")
 			conversation.highlights_json = highlights_json
 		
+		if transcript_url is not None:
+			conversation.transcript_url = transcript_url
+		
+		if transcript_reference is not None:
+			conversation.transcript_reference = transcript_reference
+		
 		conversation.save()
 		frappe.db.commit()
 		
@@ -214,7 +222,9 @@ def update_conversation_summary(conversation_id, summary=None, highlights_json=N
 			"Conversation summary updated successfully",
 			{
 				"conversation_id": conversation.name,
-				"summary": conversation.summary
+				"summary": conversation.summary,
+				"transcript_url": conversation.transcript_url,
+				"transcript_reference": conversation.transcript_reference
 			}
 		)
 	except frappe.ValidationError as e:

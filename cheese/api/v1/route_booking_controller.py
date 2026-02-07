@@ -76,6 +76,32 @@ def create_route_reservation(contact_id, route_id, experiences_with_slots=None, 
 		if not route_experiences or len(route_experiences) == 0:
 			return validation_error("Route has no experiences")
 		
+		# Calculate total price and deposit
+		from cheese.cheese.utils.pricing import calculate_route_price
+		total_price = calculate_route_price(route_id, party_size)
+		deposit_amount = 0
+		deposit_required = False
+		
+		if route.deposit_required:
+			deposit_required = True
+			if route.deposit_type == "Amount":
+				deposit_amount = route.deposit_value
+			elif route.deposit_type == "%":
+				deposit_amount = (total_price * route.deposit_value) / 100
+		
+		# Create RouteBooking doctype
+		route_booking = frappe.get_doc({
+			"doctype": "Cheese Route Booking",
+			"contact": contact_id,
+			"route": route_id,
+			"status": "PENDING",
+			"total_price": total_price,
+			"deposit_required": deposit_required,
+			"deposit_amount": deposit_amount,
+			"conversation": conversation_id
+		})
+		route_booking.insert()
+		
 		# Create tickets for each experience in the route
 		tickets = []
 		creation_times = []
@@ -85,13 +111,16 @@ def create_route_reservation(contact_id, route_id, experiences_with_slots=None, 
 			slot_id = slot_map.get(experience_id)
 			
 			if not slot_id:
+				# Rollback route booking
+				route_booking.delete()
+				frappe.db.rollback()
 				return validation_error(f"No slot provided for experience {experience_id} at sequence {exp_row.sequence}")
 			
 			# Create pending ticket
 			ticket_result = create_pending_ticket(contact_id, experience_id, slot_id, party_size)
 			
 			if not ticket_result.get("success"):
-				# Rollback created tickets
+				# Rollback created tickets and route booking
 				for ticket in tickets:
 					try:
 						ticket_doc = frappe.get_doc("Cheese Ticket", ticket)
@@ -100,6 +129,7 @@ def create_route_reservation(contact_id, route_id, experiences_with_slots=None, 
 						update_slot_capacity(ticket_doc.slot)
 					except Exception:
 						pass
+				route_booking.delete()
 				frappe.db.rollback()
 				return ticket_result
 			
@@ -107,27 +137,53 @@ def create_route_reservation(contact_id, route_id, experiences_with_slots=None, 
 			ticket_doc = frappe.get_doc("Cheese Ticket", ticket_id)
 			creation_times.append(ticket_doc.creation)
 			
-			# Link ticket to route
+			# Link ticket to route and route booking
 			ticket_doc.route = route_id
 			if conversation_id:
 				ticket_doc.conversation = conversation_id
 			ticket_doc.save()
 			
+			# Add ticket to route booking child table
+			route_booking.append("tickets", {
+				"ticket": ticket_id,
+				"experience": experience_id,
+				"slot": slot_id,
+				"party_size": party_size,
+				"status": ticket_doc.status
+			})
+			
 			tickets.append(ticket_id)
 		
-		frappe.db.commit()
+		# Calculate status and save route booking
+		route_booking.calculate_status()
+		route_booking.save()
 		
-		# Generate route booking ID (using first ticket as reference)
-		route_booking_id = f"RB-{tickets[0]}"
+		# Create deposit if required
+		if deposit_required and deposit_amount > 0:
+			due_at = add_to_date(now_datetime(), hours=route.deposit_ttl_hours or 24, as_string=False)
+			deposit = frappe.get_doc({
+				"doctype": "Cheese Deposit",
+				"entity_type": "Route Booking",
+				"entity_id": route_booking.name,
+				"amount_required": deposit_amount,
+				"status": "PENDING",
+				"due_at": due_at
+			})
+			deposit.insert()
+		
+		frappe.db.commit()
 		
 		return created(
 			"Route reservation created successfully",
 			{
-				"route_booking_id": route_booking_id,
+				"route_booking_id": route_booking.name,
 				"route_id": route_id,
 				"contact_id": contact_id,
 				"party_size": party_size,
-				"status": "PENDING",
+				"status": route_booking.status,
+				"total_price": total_price,
+				"deposit_required": deposit_required,
+				"deposit_amount": deposit_amount,
 				"tickets": tickets,
 				"tickets_count": len(tickets),
 				"conversation_id": conversation_id
@@ -146,7 +202,7 @@ def get_route_status(route_booking_id):
 	Get route status - returns PENDING / PARTIALLY_CONFIRMED / CONFIRMED
 	
 	Args:
-		route_booking_id: Route booking ID (or first ticket ID in route booking)
+		route_booking_id: Route booking ID
 		
 	Returns:
 		Success response with route status
@@ -155,63 +211,57 @@ def get_route_status(route_booking_id):
 		if not route_booking_id:
 			return validation_error("route_booking_id is required")
 		
-		# Extract ticket ID from route booking ID if needed
-		ticket_id = route_booking_id
-		if route_booking_id.startswith("RB-"):
-			ticket_id = route_booking_id.replace("RB-", "")
+		# Check if it's a RouteBooking doctype name
+		if not frappe.db.exists("Cheese Route Booking", route_booking_id):
+			# Try legacy format (RB-ticket_id)
+			if route_booking_id.startswith("RB-"):
+				ticket_id = route_booking_id.replace("RB-", "")
+				# Try to find route booking by ticket
+				route_booking_name = frappe.db.get_value(
+					"Cheese Route Booking Ticket",
+					{"ticket": ticket_id},
+					"parent"
+				)
+				if route_booking_name:
+					route_booking_id = route_booking_name
+				else:
+					return not_found("Route Booking", route_booking_id)
+			else:
+				return not_found("Route Booking", route_booking_id)
 		
-		if not frappe.db.exists("Cheese Ticket", ticket_id):
-			return not_found("Route Booking", route_booking_id)
+		route_booking = frappe.get_doc("Cheese Route Booking", route_booking_id)
 		
-		# Get first ticket to find route
-		first_ticket = frappe.get_doc("Cheese Ticket", ticket_id)
-		route_id = first_ticket.route
+		# Refresh status from tickets
+		route_booking.calculate_status()
+		if route_booking.has_value_changed("status"):
+			route_booking.save()
 		
-		if not route_id:
-			return validation_error("Ticket is not part of a route booking")
-		
-		# Get all tickets for this route and contact created within a time window (5 minutes)
-		# This ensures we only get tickets from the same route booking
-		from frappe.utils import add_to_date
-		creation_window_start = add_to_date(first_ticket.creation, minutes=-5, as_datetime=True)
-		creation_window_end = add_to_date(first_ticket.creation, minutes=5, as_datetime=True)
-		
-		# Get tickets created in the same time window
-		tickets = frappe.get_all(
-			"Cheese Ticket",
-			filters=[
-				["route", "=", route_id],
-				["contact", "=", first_ticket.contact],
-				["status", "!=", "CANCELLED"],
-				["creation", ">=", creation_window_start],
-				["creation", "<=", creation_window_end]
-			],
-			fields=["name", "status", "experience", "slot", "creation"],
-			order_by="creation asc"
-		)
-		
-		if not tickets:
-			return not_found("Route Booking", route_booking_id)
-		
-		# Determine overall status
-		statuses = [t.status for t in tickets]
-		overall_status = "PENDING"
-		
-		if all(s == "CONFIRMED" for s in statuses):
-			overall_status = "CONFIRMED"
-		elif any(s == "CONFIRMED" for s in statuses):
-			overall_status = "PARTIALLY_CONFIRMED"
+		# Get ticket details
+		tickets = []
+		for ticket_row in route_booking.tickets:
+			if ticket_row.ticket:
+				ticket = frappe.get_doc("Cheese Ticket", ticket_row.ticket)
+				tickets.append({
+					"ticket_id": ticket.name,
+					"status": ticket.status,
+					"experience": ticket.experience,
+					"slot": ticket.slot,
+					"party_size": ticket.party_size
+				})
 		
 		return success(
 			"Route status retrieved successfully",
 			{
-				"route_booking_id": route_booking_id,
-				"route_id": route_id,
-				"status": overall_status,
+				"route_booking_id": route_booking.name,
+				"route_id": route_booking.route,
+				"status": route_booking.status,
 				"tickets": tickets,
 				"tickets_count": len(tickets),
-				"confirmed_count": len([t for t in tickets if t.status == "CONFIRMED"]),
-				"pending_count": len([t for t in tickets if t.status == "PENDING"])
+				"confirmed_count": len([t for t in tickets if t["status"] == "CONFIRMED"]),
+				"pending_count": len([t for t in tickets if t["status"] == "PENDING"]),
+				"total_price": route_booking.total_price,
+				"deposit_required": route_booking.deposit_required,
+				"deposit_amount": route_booking.deposit_amount
 			}
 		)
 	except Exception as e:
@@ -234,36 +284,42 @@ def get_route_summary(route_booking_id):
 		if not route_booking_id:
 			return validation_error("route_booking_id is required")
 		
-		# Get route status first
-		status_result = get_route_status(route_booking_id)
-		if not status_result.get("success"):
-			return status_result
+		if not frappe.db.exists("Cheese Route Booking", route_booking_id):
+			# Try legacy format
+			if route_booking_id.startswith("RB-"):
+				ticket_id = route_booking_id.replace("RB-", "")
+				route_booking_name = frappe.db.get_value(
+					"Cheese Route Booking Ticket",
+					{"ticket": ticket_id},
+					"parent"
+				)
+				if route_booking_name:
+					route_booking_id = route_booking_name
+				else:
+					return not_found("Route Booking", route_booking_id)
+			else:
+				return not_found("Route Booking", route_booking_id)
 		
-		status_data = status_result.get("data", {})
-		route_id = status_data.get("route_id")
-		tickets = status_data.get("tickets", [])
+		route_booking = frappe.get_doc("Cheese Route Booking", route_booking_id)
+		route = frappe.get_doc("Cheese Route", route_booking.route)
 		
-		if not route_id:
-			return not_found("Route Booking", route_booking_id)
-		
-		route = frappe.get_doc("Cheese Route", route_id)
-		
-		# Build itinerary
+		# Build itinerary from tickets
 		itinerary = []
-		for ticket_info in tickets:
-			ticket = frappe.get_doc("Cheese Ticket", ticket_info.name)
-			slot = frappe.get_doc("Cheese Experience Slot", ticket.slot)
-			experience = frappe.get_doc("Cheese Experience", ticket.experience)
-			
-			itinerary.append({
-				"ticket_id": ticket.name,
-				"experience_id": experience.name,
-				"experience_name": experience.name,
-				"date": str(slot.date),
-				"time": str(slot.time),
-				"status": ticket.status,
-				"party_size": ticket.party_size
-			})
+		for ticket_row in route_booking.tickets:
+			if ticket_row.ticket:
+				ticket = frappe.get_doc("Cheese Ticket", ticket_row.ticket)
+				slot = frappe.get_doc("Cheese Experience Slot", ticket.slot)
+				experience = frappe.get_doc("Cheese Experience", ticket.experience)
+				
+				itinerary.append({
+					"ticket_id": ticket.name,
+					"experience_id": experience.name,
+					"experience_name": experience.name,
+					"date": str(slot.date),
+					"time": str(slot.time),
+					"status": ticket.status,
+					"party_size": ticket.party_size
+				})
 		
 		# Sort by date/time
 		itinerary.sort(key=lambda x: (x["date"], x["time"]))
@@ -271,11 +327,14 @@ def get_route_summary(route_booking_id):
 		return success(
 			"Route summary retrieved successfully",
 			{
-				"route_booking_id": route_booking_id,
-				"route_id": route_id,
+				"route_booking_id": route_booking.name,
+				"route_id": route_booking.route,
 				"route_name": route.name,
-				"status": status_data.get("status"),
-				"party_size": tickets[0].party_size if tickets else 0,
+				"status": route_booking.status,
+				"party_size": itinerary[0]["party_size"] if itinerary else 0,
+				"total_price": route_booking.total_price,
+				"deposit_required": route_booking.deposit_required,
+				"deposit_amount": route_booking.deposit_amount,
 				"itinerary": itinerary,
 				"total_experiences": len(itinerary)
 			}
@@ -525,20 +584,30 @@ def confirm_add_activities_to_route(route_booking_id, activities):
 			except Exception as e:
 				return validation_error(f"Invalid activities format: {str(e)}")
 		
-		# Get route status to get contact and route
-		status_result = get_route_status(route_booking_id)
-		if not status_result.get("success"):
-			return status_result
+		# Get route booking
+		if not frappe.db.exists("Cheese Route Booking", route_booking_id):
+			if route_booking_id.startswith("RB-"):
+				ticket_id = route_booking_id.replace("RB-", "")
+				route_booking_name = frappe.db.get_value(
+					"Cheese Route Booking Ticket",
+					{"ticket": ticket_id},
+					"parent"
+				)
+				if route_booking_name:
+					route_booking_id = route_booking_name
+				else:
+					return not_found("Route Booking", route_booking_id)
+			else:
+				return not_found("Route Booking", route_booking_id)
 		
-		status_data = status_result.get("data", {})
-		tickets = status_data.get("tickets", [])
+		route_booking = frappe.get_doc("Cheese Route Booking", route_booking_id)
 		
-		if not tickets:
+		if not route_booking.tickets or len(route_booking.tickets) == 0:
 			return not_found("Route Booking", route_booking_id)
 		
-		first_ticket = frappe.get_doc("Cheese Ticket", tickets[0].name)
-		contact_id = first_ticket.contact
-		route_id = first_ticket.route
+		first_ticket = frappe.get_doc("Cheese Ticket", route_booking.tickets[0].ticket)
+		contact_id = route_booking.contact
+		route_id = route_booking.route
 		party_size = first_ticket.party_size
 		
 		# Create tickets for new activities
@@ -562,24 +631,35 @@ def confirm_add_activities_to_route(route_booking_id, activities):
 			
 			ticket_id = ticket_result.get("data", {}).get("ticket_id")
 			
-			# Link to route
+			# Link to route and route booking
 			ticket_doc = frappe.get_doc("Cheese Ticket", ticket_id)
 			ticket_doc.route = route_id
 			ticket_doc.save()
 			
+			# Add to route booking
+			route_booking.append("tickets", {
+				"ticket": ticket_id,
+				"experience": experience_id,
+				"slot": slot_id,
+				"party_size": party_size,
+				"status": ticket_doc.status
+			})
+			
 			new_tickets.append(ticket_id)
 		
-		frappe.db.commit()
+		# Recalculate status and save
+		route_booking.calculate_status()
+		route_booking.save()
 		
-		# Get updated route status
-		updated_status = get_route_status(route_booking_id)
+		frappe.db.commit()
 		
 		return success(
 			"Activities added to route successfully",
 			{
-				"route_booking_id": route_booking_id,
+				"route_booking_id": route_booking.name,
 				"new_tickets": new_tickets,
-				"updated_status": updated_status.get("data", {}) if updated_status.get("success") else None
+				"status": route_booking.status,
+				"tickets_count": len(route_booking.tickets)
 			}
 		)
 	except Exception as e:
@@ -603,35 +683,56 @@ def cancel_route_booking(route_booking_id, reason=None):
 		if not route_booking_id:
 			return validation_error("route_booking_id is required")
 		
-		# Get route status
-		status_result = get_route_status(route_booking_id)
-		if not status_result.get("success"):
-			return status_result
+		# Handle legacy format
+		if not frappe.db.exists("Cheese Route Booking", route_booking_id):
+			if route_booking_id.startswith("RB-"):
+				ticket_id = route_booking_id.replace("RB-", "")
+				route_booking_name = frappe.db.get_value(
+					"Cheese Route Booking Ticket",
+					{"ticket": ticket_id},
+					"parent"
+				)
+				if route_booking_name:
+					route_booking_id = route_booking_name
+				else:
+					return not_found("Route Booking", route_booking_id)
+			else:
+				return not_found("Route Booking", route_booking_id)
 		
-		tickets = status_result.get("data", {}).get("tickets", [])
+		route_booking = frappe.get_doc("Cheese Route Booking", route_booking_id)
 		
-		if not tickets:
-			return not_found("Route Booking", route_booking_id)
+		if route_booking.status == "CANCELLED":
+			return success(
+				"Route booking is already cancelled",
+				{"route_booking_id": route_booking_id, "status": route_booking.status}
+			)
 		
 		# Cancel all tickets
 		from cheese.api.v1.ticket_controller import cancel_ticket
 		
 		cancelled_tickets = []
-		for ticket_info in tickets:
-			if ticket_info.status in ["PENDING", "CONFIRMED"]:
-				result = cancel_ticket(ticket_info.name)
-				if result.get("success"):
-					cancelled_tickets.append(ticket_info.name)
-				else:
-					return result
+		for ticket_row in route_booking.tickets:
+			if ticket_row.ticket:
+				ticket = frappe.get_doc("Cheese Ticket", ticket_row.ticket)
+				if ticket.status in ["PENDING", "CONFIRMED"]:
+					result = cancel_ticket(ticket.name)
+					if result.get("success"):
+						cancelled_tickets.append(ticket.name)
+					else:
+						return result
+		
+		# Update route booking status
+		route_booking.calculate_status()
+		route_booking.save()
 		
 		frappe.db.commit()
 		
 		return success(
 			"Route booking cancelled successfully",
 			{
-				"route_booking_id": route_booking_id,
+				"route_booking_id": route_booking.name,
 				"cancelled_tickets": cancelled_tickets,
+				"status": route_booking.status,
 				"reason": reason
 			}
 		)

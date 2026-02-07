@@ -48,3 +48,55 @@ def send_post_completion_surveys():
 		frappe.logger().info(f"Sent {survey_count} post-completion surveys")
 
 	return survey_count
+
+
+def create_support_cases_for_low_ratings():
+	"""
+	Create support cases for survey responses with rating <= 2
+	Run daily
+	"""
+	# Get survey responses with rating <= 2 that don't have a support case
+	from frappe.query_builder import functions as fn
+	from frappe.query_builder import DocType
+
+	survey = DocType("Cheese Survey Response")
+	support_case = DocType("Cheese Support Case")
+
+	low_rating_surveys = (
+		frappe.qb.from_(survey)
+		.select(survey.name, survey.ticket, survey.contact, survey.rating, survey.comment)
+		.where(survey.rating <= 2)
+		.where(
+			~fn.Exists(
+				frappe.qb.from_(support_case)
+				.select("*")
+				.where(support_case.survey_response == survey.name)
+			)
+		)
+	).run(as_dict=True)
+
+	case_count = 0
+
+	for survey_data in low_rating_surveys:
+		try:
+			# Create support case
+			support_case_doc = frappe.get_doc({
+				"doctype": "Cheese Support Case",
+				"contact": survey_data.contact,
+				"ticket": survey_data.ticket,
+				"survey_response": survey_data.name,
+				"description": f"Low rating survey response (Rating: {survey_data.rating}). Comment: {survey_data.comment or 'No comment'}",
+				"status": "OPEN",
+				"priority": "High" if survey_data.rating == 1 else "Medium"
+			})
+			support_case_doc.insert(ignore_permissions=True)
+			case_count += 1
+		except Exception as e:
+			frappe.log_error(f"Failed to create support case for survey {survey_data.name}: {e}")
+
+	frappe.db.commit()
+
+	if case_count > 0:
+		frappe.logger().info(f"Created {case_count} support cases for low ratings")
+
+	return case_count

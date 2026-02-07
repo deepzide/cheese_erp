@@ -5,51 +5,35 @@
  "autoname": "hash",
  "creation": "2024-01-01 00:00:00",
  "doctype": "DocType",
- "name": "Cheese Support Case",
+ "name": "Cheese Bank Account",
  "document_type": "Document",
  "engine": "InnoDB",
  "field_order": [
-  "support_info",
-  "contact",
-  "ticket",
-  "survey_response",
-  "description",
+  "bank_account_info",
+  "route",
   "status",
-  "priority",
-  "assigned_to"
+  "account_details_section",
+  "holder",
+  "bank",
+  "account",
+  "iban",
+  "currency"
  ],
  "fields": [
   {
-   "fieldname": "support_info",
+   "fieldname": "bank_account_info",
    "fieldtype": "Section Break",
-   "label": "Support Case Information"
+   "label": "Bank Account Information"
   },
   {
-   "fieldname": "contact",
+   "fieldname": "route",
    "fieldtype": "Link",
    "in_list_view": 1,
    "in_standard_filter": 1,
-   "label": "Contact",
-   "options": "Cheese Contact",
-   "reqd": 1
-  },
-  {
-   "fieldname": "ticket",
-   "fieldtype": "Link",
-   "label": "Ticket",
-   "options": "Cheese Ticket"
-  },
-  {
-   "fieldname": "survey_response",
-   "fieldtype": "Link",
-   "label": "Survey Response",
-   "options": "Cheese Survey Response"
-  },
-  {
-   "fieldname": "description",
-   "fieldtype": "Text Editor",
-   "label": "Description",
-   "reqd": 1
+   "label": "Route",
+   "options": "Cheese Route",
+   "reqd": 1,
+   "unique": 1
   },
   {
    "fieldname": "status",
@@ -57,20 +41,46 @@
    "in_list_view": 1,
    "in_standard_filter": 1,
    "label": "Status",
-   "options": "OPEN\nIN_PROGRESS\nRESOLVED\nCLOSED",
+   "options": "ACTIVE\nINACTIVE",
    "reqd": 1
   },
   {
-   "fieldname": "priority",
-   "fieldtype": "Select",
-   "label": "Priority",
-   "options": "Low\nMedium\nHigh\nUrgent"
+   "fieldname": "account_details_section",
+   "fieldtype": "Section Break",
+   "label": "Account Details"
   },
   {
-   "fieldname": "assigned_to",
+   "fieldname": "holder",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Account Holder",
+   "reqd": 1
+  },
+  {
+   "fieldname": "bank",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Bank Name",
+   "reqd": 1
+  },
+  {
+   "fieldname": "account",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Account Number",
+   "reqd": 1
+  },
+  {
+   "fieldname": "iban",
+   "fieldtype": "Data",
+   "label": "IBAN"
+  },
+  {
+   "fieldname": "currency",
    "fieldtype": "Link",
-   "label": "Assigned To",
-   "options": "User"
+   "label": "Currency",
+   "options": "Currency",
+   "reqd": 1
   }
  ],
  "index_web_pages_for_search": 1,
@@ -115,15 +125,6 @@
    "role": "Cheese Booking Agent",
    "share": 1,
    "write": 1
-  },
-  {
-   "email": 1,
-   "export": 1,
-   "print": 1,
-   "read": 1,
-   "report": 1,
-   "role": "Cheese Booking Operator",
-   "share": 1
   }
  ],
  "sort_field": "modified",

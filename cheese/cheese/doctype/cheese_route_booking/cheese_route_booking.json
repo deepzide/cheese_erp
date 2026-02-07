@@ -5,24 +5,30 @@
  "autoname": "hash",
  "creation": "2024-01-01 00:00:00",
  "doctype": "DocType",
- "name": "Cheese Support Case",
+ "name": "Cheese Route Booking",
  "document_type": "Document",
  "engine": "InnoDB",
  "field_order": [
-  "support_info",
+  "route_booking_info",
   "contact",
-  "ticket",
-  "survey_response",
-  "description",
+  "route",
   "status",
-  "priority",
-  "assigned_to"
+  "conversation",
+  "pricing_section",
+  "total_price",
+  "deposit_section",
+  "deposit_required",
+  "deposit_amount",
+  "timing_section",
+  "expires_at",
+  "tickets_section",
+  "tickets"
  ],
  "fields": [
   {
-   "fieldname": "support_info",
+   "fieldname": "route_booking_info",
    "fieldtype": "Section Break",
-   "label": "Support Case Information"
+   "label": "Route Booking Information"
   },
   {
    "fieldname": "contact",
@@ -34,21 +40,12 @@
    "reqd": 1
   },
   {
-   "fieldname": "ticket",
+   "fieldname": "route",
    "fieldtype": "Link",
-   "label": "Ticket",
-   "options": "Cheese Ticket"
-  },
-  {
-   "fieldname": "survey_response",
-   "fieldtype": "Link",
-   "label": "Survey Response",
-   "options": "Cheese Survey Response"
-  },
-  {
-   "fieldname": "description",
-   "fieldtype": "Text Editor",
-   "label": "Description",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Route",
+   "options": "Cheese Route",
    "reqd": 1
   },
   {
@@ -57,20 +54,60 @@
    "in_list_view": 1,
    "in_standard_filter": 1,
    "label": "Status",
-   "options": "OPEN\nIN_PROGRESS\nRESOLVED\nCLOSED",
+   "options": "PENDING\nPARTIALLY_CONFIRMED\nCONFIRMED\nCANCELLED",
    "reqd": 1
   },
   {
-   "fieldname": "priority",
-   "fieldtype": "Select",
-   "label": "Priority",
-   "options": "Low\nMedium\nHigh\nUrgent"
+   "fieldname": "conversation",
+   "fieldtype": "Link",
+   "label": "Conversation",
+   "options": "Conversation"
   },
   {
-   "fieldname": "assigned_to",
-   "fieldtype": "Link",
-   "label": "Assigned To",
-   "options": "User"
+   "fieldname": "pricing_section",
+   "fieldtype": "Section Break",
+   "label": "Pricing"
+  },
+  {
+   "fieldname": "total_price",
+   "fieldtype": "Currency",
+   "label": "Total Price"
+  },
+  {
+   "fieldname": "deposit_section",
+   "fieldtype": "Section Break",
+   "label": "Deposit"
+  },
+  {
+   "fieldname": "deposit_required",
+   "fieldtype": "Check",
+   "label": "Deposit Required"
+  },
+  {
+   "fieldname": "deposit_amount",
+   "fieldtype": "Currency",
+   "label": "Deposit Amount"
+  },
+  {
+   "fieldname": "timing_section",
+   "fieldtype": "Section Break",
+   "label": "Timing"
+  },
+  {
+   "fieldname": "expires_at",
+   "fieldtype": "Datetime",
+   "label": "Expires At"
+  },
+  {
+   "fieldname": "tickets_section",
+   "fieldtype": "Section Break",
+   "label": "Tickets"
+  },
+  {
+   "fieldname": "tickets",
+   "fieldtype": "Table",
+   "label": "Tickets",
+   "options": "Cheese Route Booking Ticket"
   }
  ],
  "index_web_pages_for_search": 1,

@@ -153,6 +153,15 @@ class CheeseTicket(Document):
 		# Log status changes to System Event
 		if self.has_value_changed("status"):
 			self.log_status_change()
+			# Auto-convert lead when ticket becomes CONFIRMED
+			if self.status == "CONFIRMED":
+				self.convert_associated_lead()
+				# Send confirmation notification
+				self.send_status_notification("confirmed")
+			elif self.status == "REJECTED":
+				self.send_status_notification("rejected")
+			elif self.status == "EXPIRED":
+				self.send_status_notification("expired")
 
 	def log_status_change(self):
 		"""Log status change to System Event"""
@@ -212,3 +221,40 @@ class CheeseTicket(Document):
 
 		self.status = "COMPLETED"
 		self.save()
+
+	def convert_associated_lead(self):
+		"""Automatically convert associated lead to CONVERTED when ticket is confirmed"""
+		try:
+			if not self.contact:
+				return
+			
+			# Find active lead for this contact (OPEN or IN_PROGRESS)
+			active_lead = frappe.db.get_value(
+				"Cheese Lead",
+				{
+					"contact": self.contact,
+					"status": ["in", ["OPEN", "IN_PROGRESS"]]
+				},
+				"name",
+				order_by="modified desc"
+			)
+			
+			if active_lead:
+				lead = frappe.get_doc("Cheese Lead", active_lead)
+				if lead.status != "CONVERTED":
+					lead.status = "CONVERTED"
+					lead.last_interaction_at = now_datetime()
+					lead.save(ignore_permissions=True)
+					frappe.db.commit()
+		except Exception as e:
+			# Silently fail if lead conversion fails
+			frappe.log_error(f"Failed to auto-convert lead for ticket {self.name}: {e}", "Lead Conversion Error")
+
+	def send_status_notification(self, notification_type):
+		"""Send notification about status change"""
+		try:
+			from cheese.cheese.utils.notifications import send_ticket_notification
+			send_ticket_notification(self.name, notification_type)
+		except Exception as e:
+			# Silently fail if notification fails
+			frappe.log_error(f"Failed to send notification for ticket {self.name}: {e}", "Notification Error")

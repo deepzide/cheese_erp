@@ -19,6 +19,8 @@
   "preferred_channel",
   "opt_in_status",
   "do_not_contact",
+  "channel_opt_ins_section",
+  "channel_opt_ins",
   "privacy_section",
   "privacy_notes",
   "integration_section",
@@ -85,6 +87,17 @@
    "fieldname": "do_not_contact",
    "fieldtype": "Check",
    "label": "Do Not Contact"
+  },
+  {
+   "fieldname": "channel_opt_ins_section",
+   "fieldtype": "Section Break",
+   "label": "Channel Opt-In Preferences"
+  },
+  {
+   "fieldname": "channel_opt_ins",
+   "fieldtype": "Table",
+   "label": "Channel Opt-Ins",
+   "options": "Cheese Contact Channel Opt In"
   },
   {
    "fieldname": "privacy_section",

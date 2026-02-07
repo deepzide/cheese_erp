@@ -9,18 +9,20 @@ import json
 
 
 @frappe.whitelist()
-def upload_document(entity_type, entity_id, file_url, title, tags=None, language=None, status="DRAFT"):
+def upload_document(entity_type, entity_id, file_url, title, document_type="PDF", tags=None, language=None, status="DRAFT", version=None):
 	"""
-	Upload a document (PDF) for an entity
+	Upload a document (PDF/Image/Link) for an entity (US-08)
 	
 	Args:
 		entity_type: Entity type (Experience/Route/Company)
 		entity_id: Entity ID
-		file_url: File URL (from Frappe file upload)
+		file_url: File URL (from Frappe file upload) or external link
 		title: Document title
+		document_type: Document type (PDF/Image/Link)
 		tags: Comma-separated tags
 		language: Language code
 		status: Status (DRAFT/PUBLISHED/ARCHIVED)
+		version: Document version (optional)
 		
 	Returns:
 		Created response with document data
@@ -75,9 +77,11 @@ def upload_document(entity_type, entity_id, file_url, title, tags=None, language
 				"entity_id": entity_id,
 				"file_url": file_url,
 				"title": title,
+				"document_type": document_type,
 				"tags": tags,
 				"language": language,
-				"status": status
+				"status": status,
+				"version": version
 			})
 			doc.insert()
 			frappe.db.commit()
@@ -122,14 +126,17 @@ def upload_document(entity_type, entity_id, file_url, title, tags=None, language
 
 
 @frappe.whitelist()
-def list_documents(entity_type=None, entity_id=None, status=None, page=1, page_size=20):
+def list_documents(entity_type=None, entity_id=None, status=None, document_type=None, tags=None, language=None, page=1, page_size=20):
 	"""
-	List documents with filters
+	List documents with filters (US-08)
 	
 	Args:
 		entity_type: Filter by entity type
 		entity_id: Filter by entity ID
 		status: Filter by status
+		document_type: Filter by document type (PDF/Image/Link)
+		tags: Filter by tags (comma-separated, matches any)
+		language: Filter by language
 		page: Page number
 		page_size: Items per page
 		
@@ -149,15 +156,30 @@ def list_documents(entity_type=None, entity_id=None, status=None, page=1, page_s
 				filters["entity_id"] = entity_id
 			if status:
 				filters["status"] = status
+			if document_type:
+				filters["document_type"] = document_type
+			if language:
+				filters["language"] = language
 			
 			documents = frappe.get_all(
 				"Cheese Document",
 				filters=filters,
-				fields=["name", "entity_type", "entity_id", "file_url", "title", "tags", "language", "status", "modified"],
+				fields=["name", "entity_type", "entity_id", "file_url", "title", "document_type", "tags", "language", "status", "version", "modified"],
 				limit_start=(page - 1) * page_size,
 				limit_page_length=page_size,
 				order_by="modified desc"
 			)
+			
+			# Filter by tags if provided (tags are stored as comma-separated string)
+			if tags:
+				tag_list = [t.strip().lower() for t in tags.split(",")] if isinstance(tags, str) else [t.strip().lower() for t in tags]
+				filtered_docs = []
+				for doc in documents:
+					if doc.tags:
+						doc_tags = [t.strip().lower() for t in doc.tags.split(",")]
+						if any(tag in doc_tags for tag in tag_list):
+							filtered_docs.append(doc)
+					documents = filtered_docs
 			
 			total = frappe.db.count("Cheese Document", filters=filters)
 			

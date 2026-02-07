@@ -57,3 +57,34 @@ def get_events(entity_type, entity_id, event_type=None):
 		filters=filters,
 		order_by="created_at desc"
 	)
+
+
+def update_route_booking_status(doc, method):
+	"""
+	Update RouteBooking status when ticket status changes
+	
+	Args:
+		doc: Cheese Ticket document
+		method: Method name (on_update)
+	"""
+	try:
+		# Only update if status changed
+		if not doc.has_value_changed("status"):
+			return
+		
+		# Find route booking that contains this ticket
+		route_booking_name = frappe.db.get_value(
+			"Cheese Route Booking Ticket",
+			{"ticket": doc.name},
+			"parent"
+		)
+		
+		if route_booking_name:
+			route_booking = frappe.get_doc("Cheese Route Booking", route_booking_name)
+			route_booking.calculate_status()
+			if route_booking.has_value_changed("status"):
+				route_booking.save(ignore_permissions=True)
+				frappe.db.commit()
+	except Exception as e:
+		# Silently fail to avoid breaking ticket updates
+		frappe.log_error(f"Failed to update route booking status: {e}", "Route Booking Update Error")

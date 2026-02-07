@@ -138,6 +138,14 @@ def get_qr(ticket_id):
 		qr.insert()
 		frappe.db.commit()
 
+		# Send notification about QR generation
+		try:
+			from cheese.cheese.utils.notifications import send_ticket_notification
+			send_ticket_notification(ticket_id, "qr_generated")
+		except Exception as e:
+			# Silently fail if notification fails
+			frappe.log_error(f"Failed to send QR notification for ticket {ticket_id}: {e}", "QR Notification Error")
+
 		return created(
 			"QR token generated successfully",
 			{
