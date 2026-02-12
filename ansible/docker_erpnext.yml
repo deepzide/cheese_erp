@@ -237,6 +237,22 @@
       when: site_check.rc == 0 or create_site_output.rc == 0
 
     # ------------------------------------------------------------------------
+    # 📦 Setup Demo Data
+    # ------------------------------------------------------------------------
+    - name: Setup demo data for Cheese app
+      ansible.builtin.shell: |
+        docker compose -f pwd.yml exec -T backend bench --site {{ site_name }} execute cheese.demo.setup_demo_data
+      args:
+        chdir: "{{ project_dir }}/frappe_docker"
+      when: site_check.rc == 0 or create_site_output.rc == 0
+      ignore_errors: yes
+      register: demo_data_output
+
+    - name: Display demo data setup result
+      ansible.builtin.debug:
+        msg: "{{ demo_data_output.stdout_lines | default(['Demo data setup completed or skipped']) }}"
+
+    # ------------------------------------------------------------------------
     # �🔁 Reinicio final
     # ------------------------------------------------------------------------
     - name: Compose down

@@ -1,0 +1,16 @@
+[
+    {
+        "doctype": "Cheese Deposit",
+        "entity_type": "Ticket",
+        "amount_required": 30.00,
+        "amount_paid": 0,
+        "status": "PENDING"
+    },
+    {
+        "doctype": "Cheese Deposit",
+        "entity_type": "Ticket",
+        "amount_required": 50.00,
+        "amount_paid": 50.00,
+        "status": "PAID"
+    }
+]

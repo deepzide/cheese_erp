@@ -1,0 +1,23 @@
+[
+	{
+		"doctype": "Conversation",
+		"contact": "_Test Contact 1",
+		"channel": "WhatsApp",
+		"status": "ACTIVE",
+		"summary": "Conversation with customer via WhatsApp"
+	},
+	{
+		"doctype": "Conversation",
+		"contact": "_Test Contact 2",
+		"channel": "Email",
+		"status": "ACTIVE",
+		"summary": "Conversation with customer via Email"
+	},
+	{
+		"doctype": "Conversation",
+		"contact": "_Test Contact 3",
+		"channel": "Web",
+		"status": "ACTIVE",
+		"summary": "Conversation with customer via Web"
+	}
+]

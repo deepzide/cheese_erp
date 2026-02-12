@@ -1,0 +1,69 @@
+[
+    {
+        "doctype": "Cheese Experience",
+        "name": "Desert Safari Adventure",
+        "description": "Experience the thrill of dune bashing and camel riding in the desert",
+        "individual_price": 150.00,
+        "route_price": 120.00,
+        "min_acts_for_route_price": 3,
+        "package_mode": "Both",
+        "deposit_required": 1,
+        "deposit_type": "%",
+        "deposit_value": 20.0,
+        "deposit_ttl_hours": 24,
+        "status": "ONLINE"
+    },
+    {
+        "doctype": "Cheese Experience",
+        "name": "City Tour Experience",
+        "description": "Explore the city's landmarks and cultural sites",
+        "individual_price": 80.00,
+        "route_price": 65.00,
+        "min_acts_for_route_price": 2,
+        "package_mode": "Both",
+        "deposit_required": 1,
+        "deposit_type": "Amount",
+        "deposit_value": 15.0,
+        "deposit_ttl_hours": 48,
+        "status": "ONLINE"
+    },
+    {
+        "doctype": "Cheese Experience",
+        "name": "Water Sports Package",
+        "description": "Jet skiing, parasailing, and water activities",
+        "individual_price": 200.00,
+        "route_price": 170.00,
+        "min_acts_for_route_price": 3,
+        "package_mode": "Package",
+        "deposit_required": 1,
+        "deposit_type": "%",
+        "deposit_value": 25.0,
+        "deposit_ttl_hours": 24,
+        "status": "ONLINE"
+    },
+    {
+        "doctype": "Cheese Experience",
+        "name": "Cultural Heritage Walk",
+        "description": "Guided walking tour through historical sites",
+        "individual_price": 60.00,
+        "route_price": 50.00,
+        "min_acts_for_route_price": 2,
+        "package_mode": "Public",
+        "deposit_required": 0,
+        "status": "ONLINE"
+    },
+    {
+        "doctype": "Cheese Experience",
+        "name": "Sunset Cruise",
+        "description": "Evening cruise with dinner and entertainment",
+        "individual_price": 120.00,
+        "route_price": 100.00,
+        "min_acts_for_route_price": 2,
+        "package_mode": "Both",
+        "deposit_required": 1,
+        "deposit_type": "Amount",
+        "deposit_value": 30.0,
+        "deposit_ttl_hours": 36,
+        "status": "ONLINE"
+    }
+]

@@ -1,0 +1,22 @@
+[
+	{
+		"doctype": "Cheese Bank Account",
+		"route": "Adventure Combo",
+		"status": "ACTIVE",
+		"holder": "Test Account Holder",
+		"bank": "Test Bank",
+		"account": "1234567890",
+		"iban": "AE123456789012345678901",
+		"currency": "USD"
+	},
+	{
+		"doctype": "Cheese Bank Account",
+		"route": "City Explorer Route",
+		"status": "ACTIVE",
+		"holder": "Test Account Holder 2",
+		"bank": "Test Bank 2",
+		"account": "0987654321",
+		"iban": "AE098765432109876543210",
+		"currency": "USD"
+	}
+]

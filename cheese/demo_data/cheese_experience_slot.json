@@ -1,0 +1,58 @@
+[
+    {
+        "doctype": "Cheese Experience Slot",
+        "experience": "Desert Safari Adventure",
+        "time": "09:00:00",
+        "max_capacity": 20,
+        "reserved_capacity": 0,
+        "slot_status": "OPEN"
+    },
+    {
+        "doctype": "Cheese Experience Slot",
+        "experience": "Desert Safari Adventure",
+        "time": "14:00:00",
+        "max_capacity": 20,
+        "reserved_capacity": 0,
+        "slot_status": "OPEN"
+    },
+    {
+        "doctype": "Cheese Experience Slot",
+        "experience": "City Tour Experience",
+        "time": "10:00:00",
+        "max_capacity": 15,
+        "reserved_capacity": 0,
+        "slot_status": "OPEN"
+    },
+    {
+        "doctype": "Cheese Experience Slot",
+        "experience": "City Tour Experience",
+        "time": "15:00:00",
+        "max_capacity": 15,
+        "reserved_capacity": 0,
+        "slot_status": "OPEN"
+    },
+    {
+        "doctype": "Cheese Experience Slot",
+        "experience": "Water Sports Package",
+        "time": "08:00:00",
+        "max_capacity": 10,
+        "reserved_capacity": 0,
+        "slot_status": "OPEN"
+    },
+    {
+        "doctype": "Cheese Experience Slot",
+        "experience": "Cultural Heritage Walk",
+        "time": "11:00:00",
+        "max_capacity": 25,
+        "reserved_capacity": 0,
+        "slot_status": "OPEN"
+    },
+    {
+        "doctype": "Cheese Experience Slot",
+        "experience": "Sunset Cruise",
+        "time": "18:00:00",
+        "max_capacity": 30,
+        "reserved_capacity": 0,
+        "slot_status": "OPEN"
+    }
+]

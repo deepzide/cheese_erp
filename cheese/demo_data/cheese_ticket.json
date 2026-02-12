@@ -1,0 +1,37 @@
+[
+    {
+        "doctype": "Cheese Ticket",
+        "contact": "John Doe",
+        "experience": "Desert Safari Adventure",
+        "party_size": 2,
+        "status": "PENDING"
+    },
+    {
+        "doctype": "Cheese Ticket",
+        "contact": "Jane Smith",
+        "experience": "City Tour Experience",
+        "party_size": 3,
+        "status": "CONFIRMED"
+    },
+    {
+        "doctype": "Cheese Ticket",
+        "contact": "Carlos Rodriguez",
+        "experience": "Water Sports Package",
+        "party_size": 1,
+        "status": "PENDING"
+    },
+    {
+        "doctype": "Cheese Ticket",
+        "contact": "Marie Dubois",
+        "experience": "Cultural Heritage Walk",
+        "party_size": 4,
+        "status": "CONFIRMED"
+    },
+    {
+        "doctype": "Cheese Ticket",
+        "contact": "Ahmed Hassan",
+        "experience": "Sunset Cruise",
+        "party_size": 2,
+        "status": "CHECKED_IN"
+    }
+]

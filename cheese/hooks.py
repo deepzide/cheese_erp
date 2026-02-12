@@ -239,3 +239,26 @@ scheduler_events = {
 # 	"Logging DocType Name": 30  # days to retain logs
 # }
 
+# Demo Data
+# ----------
+# Define which doctypes are master data and which are transactions for demo data setup
+
+demo_master_doctypes = [
+	"cheese_contact",
+	"cheese_experience",
+	"cheese_experience_slot",
+	"cheese_route",
+	"cheese_booking_policy",
+]
+
+demo_transaction_doctypes = [
+	"cheese_ticket",
+	"cheese_quotation",
+	"cheese_lead",
+	"cheese_deposit",
+]
+
+# Setup Wizard Integration
+# ------------------------
+# Uncomment the line below to enable demo data creation during setup wizard
+# setup_wizard_complete = "cheese.setup_wizard.setup_wizard.setup_demo"

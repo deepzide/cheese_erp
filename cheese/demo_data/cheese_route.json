@@ -1,0 +1,84 @@
+[
+    {
+        "doctype": "Cheese Route",
+        "name": "Adventure Combo",
+        "description": "Combine desert safari and water sports for an action-packed day",
+        "status": "ONLINE",
+        "price_mode": "Sum",
+        "deposit_required": 1,
+        "deposit_type": "%",
+        "deposit_value": 20.0,
+        "deposit_ttl_hours": 24,
+        "experiences": [
+            {
+                "doctype": "Cheese Route Experience",
+                "experience": "Desert Safari Adventure",
+                "sequence": 1,
+                "parentfield": "experiences"
+            },
+            {
+                "doctype": "Cheese Route Experience",
+                "experience": "Water Sports Package",
+                "sequence": 2,
+                "parentfield": "experiences"
+            }
+        ]
+    },
+    {
+        "doctype": "Cheese Route",
+        "name": "City Explorer Route",
+        "description": "City tour and cultural heritage walk",
+        "status": "ONLINE",
+        "price_mode": "Sum",
+        "deposit_required": 1,
+        "deposit_type": "Amount",
+        "deposit_value": 20.0,
+        "deposit_ttl_hours": 48,
+        "experiences": [
+            {
+                "doctype": "Cheese Route Experience",
+                "experience": "City Tour Experience",
+                "sequence": 1,
+                "parentfield": "experiences"
+            },
+            {
+                "doctype": "Cheese Route Experience",
+                "experience": "Cultural Heritage Walk",
+                "sequence": 2,
+                "parentfield": "experiences"
+            }
+        ]
+    },
+    {
+        "doctype": "Cheese Route",
+        "name": "Complete Experience",
+        "description": "Full day experience with all activities",
+        "status": "ONLINE",
+        "price_mode": "Manual",
+        "price": 400.00,
+        "deposit_required": 1,
+        "deposit_type": "%",
+        "deposit_value": 25.0,
+        "deposit_ttl_hours": 24,
+        "experiences": [
+            {
+                "doctype": "Cheese Route Experience",
+                "experience": "Desert Safari Adventure",
+                "sequence": 1,
+                "parentfield": "experiences"
+            },
+            {
+                "doctype": "Cheese Route Experience",
+                "experience": "City Tour Experience",
+                "sequence": 2,
+                "parentfield": "experiences"
+            },
+            {
+                "doctype": "Cheese Route Experience",
+                "experience": "Sunset Cruise",
+                "sequence": 3,
+                "parentfield": "experiences"
+            }
+        ]
+    }
+]

@@ -1,0 +1,30 @@
+[
+	{
+		"doctype": "Cheese Lead",
+		"contact": "_Test Contact 1",
+		"status": "OPEN",
+		"interest_type": "Experience",
+		"last_interaction_at": "2024-12-31 10:00:00"
+	},
+	{
+		"doctype": "Cheese Lead",
+		"contact": "_Test Contact 2",
+		"status": "IN_PROGRESS",
+		"interest_type": "Route",
+		"last_interaction_at": "2024-12-31 11:00:00"
+	},
+	{
+		"doctype": "Cheese Lead",
+		"contact": "_Test Contact 3",
+		"status": "CONVERTED",
+		"interest_type": "Experience",
+		"last_interaction_at": "2024-12-31 12:00:00"
+	},
+	{
+		"doctype": "Cheese Lead",
+		"contact": "_Test Contact 4",
+		"status": "OPEN",
+		"interest_type": "Route",
+		"last_interaction_at": "2024-12-31 13:00:00"
+	}
+]

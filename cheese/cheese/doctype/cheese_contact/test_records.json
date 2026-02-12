@@ -1,0 +1,62 @@
+[
+	{
+		"doctype": "Cheese Contact",
+		"name": "_Test Contact 1",
+		"full_name": "John Doe",
+		"phone": "+1234567890",
+		"email": "customer@example.com",
+		"preferred_language": "English",
+		"preferred_channel": "WhatsApp",
+		"opt_in_status": "OPT_IN"
+	},
+	{
+		"doctype": "Cheese Contact",
+		"name": "_Test Contact 2",
+		"full_name": "Jane Smith",
+		"phone": "+1234567891",
+		"email": "jane.smith@example.com",
+		"preferred_language": "English",
+		"preferred_channel": "Email",
+		"opt_in_status": "OPT_IN"
+	},
+	{
+		"doctype": "Cheese Contact",
+		"name": "_Test Contact 3",
+		"full_name": "Carlos Rodriguez",
+		"phone": "+1234567892",
+		"email": "carlos.r@example.com",
+		"preferred_language": "Spanish",
+		"preferred_channel": "WhatsApp",
+		"opt_in_status": "OPT_IN"
+	},
+	{
+		"doctype": "Cheese Contact",
+		"name": "_Test Contact 4",
+		"full_name": "Marie Dubois",
+		"phone": "+1234567893",
+		"email": "marie.d@example.com",
+		"preferred_language": "French",
+		"preferred_channel": "Email",
+		"opt_in_status": "OPT_IN"
+	},
+	{
+		"doctype": "Cheese Contact",
+		"name": "_Test Contact 5",
+		"full_name": "Ahmed Hassan",
+		"phone": "+1234567894",
+		"email": "ahmed.h@example.com",
+		"preferred_language": "English",
+		"preferred_channel": "Web",
+		"opt_in_status": "OPT_IN"
+	},
+	{
+		"doctype": "Cheese Contact",
+		"name": "_Test Contact 6",
+		"full_name": "Test Customer",
+		"phone": "+9876543210",
+		"email": "test@example.com",
+		"preferred_language": "English",
+		"preferred_channel": "Web",
+		"opt_in_status": "OPT_IN"
+	}
+]

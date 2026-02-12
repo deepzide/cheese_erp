@@ -1,0 +1,46 @@
+[
+	{
+		"doctype": "Cheese Document",
+		"entity_type": "Experience",
+		"entity_id": "Desert Safari Adventure",
+		"title": "Brochure - Desert Safari Adventure",
+		"document_type": "PDF",
+		"file_url": "https://example.com/documents/desert_safari.pdf",
+		"status": "PUBLISHED",
+		"tags": "brochure,marketing",
+		"language": "English"
+	},
+	{
+		"doctype": "Cheese Document",
+		"entity_type": "Experience",
+		"entity_id": "City Tour Experience",
+		"title": "Brochure - City Tour Experience",
+		"document_type": "PDF",
+		"file_url": "https://example.com/documents/city_tour.pdf",
+		"status": "PUBLISHED",
+		"tags": "brochure,marketing",
+		"language": "English"
+	},
+	{
+		"doctype": "Cheese Document",
+		"entity_type": "Route",
+		"entity_id": "Adventure Combo",
+		"title": "Route Guide - Adventure Combo",
+		"document_type": "PDF",
+		"file_url": "https://example.com/documents/adventure_combo.pdf",
+		"status": "PUBLISHED",
+		"tags": "guide,route",
+		"language": "English"
+	},
+	{
+		"doctype": "Cheese Document",
+		"entity_type": "Company",
+		"entity_id": "_Test Company",
+		"title": "Company Terms and Conditions",
+		"document_type": "PDF",
+		"file_url": "https://example.com/documents/company_terms.pdf",
+		"status": "PUBLISHED",
+		"tags": "terms,legal",
+		"language": "English"
+	}
+]

@@ -1,0 +1,23 @@
+[
+    {
+        "doctype": "Cheese Booking Policy",
+        "experience": "Desert Safari Adventure",
+        "modify_until_hours_before": 24,
+        "cancel_until_hours_before": 48,
+        "min_hours_before_booking": 2
+    },
+    {
+        "doctype": "Cheese Booking Policy",
+        "experience": "City Tour Experience",
+        "modify_until_hours_before": 12,
+        "cancel_until_hours_before": 24,
+        "min_hours_before_booking": 1
+    },
+    {
+        "doctype": "Cheese Booking Policy",
+        "experience": "Water Sports Package",
+        "modify_until_hours_before": 48,
+        "cancel_until_hours_before": 72,
+        "min_hours_before_booking": 4
+    }
+]

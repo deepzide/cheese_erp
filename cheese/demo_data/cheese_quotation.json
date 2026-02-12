@@ -1,0 +1,14 @@
+[
+    {
+        "doctype": "Cheese Quotation",
+        "status": "DRAFT",
+        "total_price": 300.00,
+        "deposit_amount": 60.00
+    },
+    {
+        "doctype": "Cheese Quotation",
+        "status": "SENT",
+        "total_price": 140.00,
+        "deposit_amount": 20.00
+    }
+]

@@ -1,0 +1,20 @@
+[
+    {
+        "doctype": "Cheese Lead",
+        "contact": "John Doe",
+        "status": "OPEN",
+        "interest_type": "Experience"
+    },
+    {
+        "doctype": "Cheese Lead",
+        "contact": "Jane Smith",
+        "status": "OPEN",
+        "interest_type": "Route"
+    },
+    {
+        "doctype": "Cheese Lead",
+        "contact": "Carlos Rodriguez",
+        "status": "OPEN",
+        "interest_type": "Experience"
+    }
+]

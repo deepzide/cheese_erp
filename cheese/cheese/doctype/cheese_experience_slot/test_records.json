@@ -1,0 +1,92 @@
+[
+	{
+		"doctype": "Cheese Experience Slot",
+		"experience": "Desert Safari Adventure",
+		"date": "2024-12-31",
+		"time": "09:00:00",
+		"max_capacity": 20,
+		"reserved_capacity": 0,
+		"slot_status": "OPEN"
+	},
+	{
+		"doctype": "Cheese Experience Slot",
+		"experience": "Desert Safari Adventure",
+		"date": "2024-12-31",
+		"time": "14:00:00",
+		"max_capacity": 25,
+		"reserved_capacity": 0,
+		"slot_status": "OPEN"
+	},
+	{
+		"doctype": "Cheese Experience Slot",
+		"experience": "Desert Safari Adventure",
+		"date": "2025-01-01",
+		"time": "09:00:00",
+		"max_capacity": 20,
+		"reserved_capacity": 0,
+		"slot_status": "OPEN"
+	},
+	{
+		"doctype": "Cheese Experience Slot",
+		"experience": "City Tour Experience",
+		"date": "2024-12-31",
+		"time": "10:00:00",
+		"max_capacity": 15,
+		"reserved_capacity": 0,
+		"slot_status": "OPEN"
+	},
+	{
+		"doctype": "Cheese Experience Slot",
+		"experience": "City Tour Experience",
+		"date": "2024-12-31",
+		"time": "15:00:00",
+		"max_capacity": 15,
+		"reserved_capacity": 0,
+		"slot_status": "OPEN"
+	},
+	{
+		"doctype": "Cheese Experience Slot",
+		"experience": "Water Sports Package",
+		"date": "2024-12-31",
+		"time": "11:00:00",
+		"max_capacity": 10,
+		"reserved_capacity": 0,
+		"slot_status": "OPEN"
+	},
+	{
+		"doctype": "Cheese Experience Slot",
+		"experience": "Cultural Heritage Walk",
+		"date": "2024-12-31",
+		"time": "08:00:00",
+		"max_capacity": 30,
+		"reserved_capacity": 0,
+		"slot_status": "OPEN"
+	},
+	{
+		"doctype": "Cheese Experience Slot",
+		"experience": "Sunset Cruise",
+		"date": "2024-12-31",
+		"time": "18:00:00",
+		"max_capacity": 40,
+		"reserved_capacity": 0,
+		"slot_status": "OPEN"
+	},
+	{
+		"doctype": "Cheese Experience Slot",
+		"experience": "Desert Safari Adventure",
+		"date": "2025-01-01",
+		"time": "14:00:00",
+		"max_capacity": 25,
+		"reserved_capacity": 0,
+		"slot_status": "OPEN"
+	},
+	{
+		"doctype": "Cheese Experience Slot",
+		"experience": "City Tour Experience",
+		"date": "2025-01-01",
+		"time": "10:00:00",
+		"max_capacity": 15,
+		"reserved_capacity": 0,
+		"slot_status": "OPEN"
+	}
+]

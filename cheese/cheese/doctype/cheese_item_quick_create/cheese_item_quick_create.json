@@ -1,0 +1,145 @@
+{
+ "actions": [],
+ "allow_import": 1,
+ "allow_rename": 1,
+ "autoname": "field:barcode",
+ "creation": "2024-01-01 00:00:00",
+ "doctype": "DocType",
+ "document_type": "Document",
+ "engine": "InnoDB",
+ "field_order": [
+  "item_info_section",
+  "barcode",
+  "item_name",
+  "item_group",
+  "condition",
+  "brand",
+  "created_info_section",
+  "item_code",
+  "created_item"
+ ],
+ "fields": [
+  {
+   "fieldname": "item_info_section",
+   "fieldtype": "Section Break",
+   "label": "Item Information"
+  },
+  {
+   "description": "Scan or enter the barcode",
+   "fieldname": "barcode",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Barcode",
+   "reqd": 1,
+   "unique": 1
+  },
+  {
+   "description": "Short description of the item",
+   "fieldname": "item_name",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Item Name / Description",
+   "reqd": 1
+  },
+  {
+   "fieldname": "item_group",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Category (Item Group)",
+   "options": "Item Group",
+   "reqd": 1
+  },
+  {
+   "default": "NEW",
+   "fieldname": "condition",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Condition",
+   "options": "NEW\nUSED\nREFURBISHED\nDAMAGED\nFOR_PARTS",
+   "reqd": 1
+  },
+  {
+   "fieldname": "brand",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Brand",
+   "options": "Brand"
+  },
+  {
+   "fieldname": "created_info_section",
+   "fieldtype": "Section Break",
+   "label": "Created Item Information",
+   "read_only": 1
+  },
+  {
+   "description": "Auto-generated item code",
+   "fieldname": "item_code",
+   "fieldtype": "Data",
+   "label": "Item Code",
+   "read_only": 1
+  },
+  {
+   "description": "Reference to the created ERPNext Item",
+   "fieldname": "created_item",
+   "fieldtype": "Link",
+   "label": "Created Item",
+   "options": "Item",
+   "read_only": 1
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2026-02-11 12:21:08.544500",
+ "modified_by": "Administrator",
+ "module": "Cheese",
+ "name": "Cheese Item Quick Create",
+ "naming_rule": "By fieldname",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Workshop Operator",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Administrator",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "row_format": "Dynamic",
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1
+}
