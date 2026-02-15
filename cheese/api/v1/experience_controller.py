@@ -45,7 +45,7 @@ def list_experiences(page=1, page_size=20, status=None, company=None, package_mo
 			"Cheese Experience",
 			filters=filters,
 			or_filters=or_filters if or_filters else None,
-			fields=["name", "name as experience_name", "company", "description", "status", "package_mode", 
+			fields=["name", "name as id", "name as experience_name", "company", "company as establishment", "description", "status", "package_mode", 
 				"individual_price", "route_price", "min_acts_for_route_price", "deposit_required"],
 			limit_start=(page - 1) * page_size,
 			limit_page_length=page_size,

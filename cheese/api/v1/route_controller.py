@@ -276,12 +276,32 @@ def list_routes(page=1, page_size=20, status=None, search=None):
 			order_by="name asc"
 		)
 		
-		# Get experiences count for each route
+		# Get experiences for each route
 		for route in routes:
-			route["experiences_count"] = frappe.db.count(
+			experiences = frappe.get_all(
 				"Cheese Route Experience",
-				{"parent": route.name}
+				filters={"parent": route.name},
+				fields=["experience"],
+				order_by="sequence asc"
 			)
+			
+			route["experiences"] = []
+			for exp in experiences:
+				# Get establishment and ID
+				exp_details = frappe.get_value(
+					"Cheese Experience", 
+					exp.experience, 
+					["name", "company"], 
+					as_dict=True
+				)
+				if exp_details:
+					route["experiences"].append({
+						"id": exp_details.name,
+						"experience": exp_details.name,
+						"establishment": exp_details.company
+					})
+			
+			route["experiences_count"] = len(route["experiences"])
 		
 		total = frappe.db.count("Cheese Route", filters=filters)
 		
