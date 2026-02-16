@@ -33,10 +33,12 @@ def list_establishments(page=1, page_size=20, search=None, status=None, locality
 		
 		if status:
 			# Map status to company disabled field
-			if status.upper() == "INACTIVE":
-				filters["disabled"] = 1
-			elif status.upper() == "ACTIVE":
-				filters["disabled"] = 0
+			# NOTE: Company doctype does not have disabled field, ignoring filter to prevent error
+			pass
+			# if status.upper() == "INACTIVE":
+			# 	filters["disabled"] = 1
+			# elif status.upper() == "ACTIVE":
+			# 	filters["disabled"] = 0
 		
 		# Build search query
 		search_fields = ["company_name"]
@@ -80,7 +82,7 @@ def list_establishments(page=1, page_size=20, search=None, status=None, locality
 			"Company",
 			filters=filters,
 			or_filters=or_filters if or_filters else None,
-			fields=["name", "company_name", "disabled", "email", "phone_no", "website", "company_description"],
+			fields=["name", "company_name", "email", "phone_no", "website", "company_description"],
 			limit_start=(page - 1) * page_size,
 			limit_page_length=page_size,
 			order_by="company_name asc"
@@ -104,7 +106,7 @@ def list_establishments(page=1, page_size=20, search=None, status=None, locality
 			result.append({
 				"company_id": company.name,
 				"company_name": company.company_name,
-				"status": "INACTIVE" if company.disabled else "ACTIVE",
+				"status": "ACTIVE", # "INACTIVE" if company.disabled else "ACTIVE",
 				"email": company.email,
 				"phone": company.phone_no,
 				"website": company.website,
@@ -236,7 +238,7 @@ def get_establishment_details(company_id):
 			{
 				"company_id": company.name,
 				"company_name": company.company_name,
-				"status": "INACTIVE" if company.disabled else "ACTIVE",
+				"status": "ACTIVE", # "INACTIVE" if company.disabled else "ACTIVE",
 				"email": company.email,
 				"phone": company.phone_no,
 				"website": company.website,
@@ -281,7 +283,7 @@ def update_establishment(company_id, **kwargs):
 		# Allowed fields for update (restrict operational fields)
 		allowed_fields = [
 			"company_name", "email", "phone_no", "website", 
-			"company_description", "company_logo", "disabled"
+			"company_description", "company_logo"
 		]
 		
 		changes = []
@@ -315,7 +317,7 @@ def update_establishment(company_id, **kwargs):
 			{
 				"company_id": company.name,
 				"company_name": company.company_name,
-				"status": "INACTIVE" if company.disabled else "ACTIVE",
+				"status": "ACTIVE", # "INACTIVE" if company.	 else "ACTIVE",
 				"changes": changes
 			}
 		)
@@ -351,7 +353,7 @@ def export_establishments(format="CSV", filters=None):
 		companies = frappe.get_all(
 			"Company",
 			filters=filter_dict,
-			fields=["name", "company_name", "disabled", "email", "phone_no", "website"],
+			fields=["name", "company_name", "email", "phone_no", "website"],
 			order_by="company_name asc"
 		)
 		
@@ -366,7 +368,7 @@ def export_establishments(format="CSV", filters=None):
 			result.append({
 				"Company ID": company.name,
 				"Company Name": company.company_name,
-				"Status": "INACTIVE" if company.disabled else "ACTIVE",
+				"Status": "ACTIVE", # "INACTIVE" if company.disabled else "ACTIVE",
 				"Email": company.email,
 				"Phone": company.phone_no,
 				"Website": company.website,

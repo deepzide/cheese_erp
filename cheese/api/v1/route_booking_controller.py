@@ -12,7 +12,7 @@ import json
 
 
 @frappe.whitelist()
-def create_route_reservation(contact_id, route_id, experiences_with_slots=None, party_size=1, conversation_id=None):
+def create_route_reservation(contact_id=None, route_id=None, experiences_with_slots=None, preferred_dates=None, party_size=1, conversation_id=None):
 	"""
 	Create pending route reservation
 	Creates RouteBooking = PENDING + internal reservations, locks capacity
@@ -21,6 +21,7 @@ def create_route_reservation(contact_id, route_id, experiences_with_slots=None, 
 		contact_id: Contact ID
 		route_id: Route ID
 		experiences_with_slots: JSON array of {"experience_id": "EXP-001", "slot_id": "SLOT-001"}
+		preferred_dates: Alias for experiences_with_slots
 		party_size: Party size (default: 1)
 		conversation_id: Conversation ID (optional)
 		
@@ -28,12 +29,21 @@ def create_route_reservation(contact_id, route_id, experiences_with_slots=None, 
 		Success response with route booking data
 	"""
 	try:
+		if preferred_dates and not experiences_with_slots:
+			experiences_with_slots = preferred_dates
+
 		if not contact_id:
 			return validation_error("contact_id is required")
 		if not route_id:
 			return validation_error("route_id is required")
 		if not experiences_with_slots:
 			return validation_error("experiences_with_slots is required")
+			
+		try:
+			party_size = int(party_size)
+		except (ValueError, TypeError):
+			return validation_error("party_size must be a number")
+
 		if party_size < 1:
 			return validation_error("party_size must be at least 1")
 		

@@ -67,6 +67,9 @@ def create_pending_booking(contact_id, items, preferred_dates=None, conversation
 				
 				# Get experiences_with_slots from item or preferred_dates
 				experiences_with_slots = item.get("experiences_with_slots")
+				if not experiences_with_slots:
+					experiences_with_slots = item.get("preferred_dates")
+
 				if not experiences_with_slots and preferred_dates:
 					experiences_with_slots = preferred_dates
 				
