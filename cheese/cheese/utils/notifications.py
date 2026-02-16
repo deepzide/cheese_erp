@@ -92,10 +92,10 @@ def send_deposit_notification(deposit_id, notification_type, **kwargs):
 		
 		# Get contact from entity
 		contact_id = None
-		if deposit.entity_type == "Ticket":
+		if deposit.entity_type == "Cheese Ticket":
 			ticket = frappe.get_doc("Cheese Ticket", deposit.entity_id)
 			contact_id = ticket.contact
-		elif deposit.entity_type == "Route Booking":
+		elif deposit.entity_type == "Cheese Route Booking":
 			route_booking = frappe.get_doc("Cheese Route Booking", deposit.entity_id)
 			contact_id = route_booking.contact
 		

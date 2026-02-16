@@ -31,8 +31,8 @@ def get_customer_itinerary(contact_id):
 				"contact": contact_id,
 				"status": ["not in", ["CANCELLED", "EXPIRED", "REJECTED"]]
 			},
-			fields=["name", "status", "experience", "route", "slot", "party_size", "created", "modified"],
-			order_by="created desc"
+			fields=["name", "status", "experience", "route", "slot", "party_size", "creation", "modified"],
+			order_by="creation desc"
 		)
 		
 		# Build itinerary

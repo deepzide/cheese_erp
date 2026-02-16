@@ -13,6 +13,7 @@
   "company",
   "name",
   "description",
+  "event_duration",
   "pricing_section",
   "individual_price",
   "route_price",
@@ -54,6 +55,11 @@
    "fieldname": "description",
    "fieldtype": "Text Editor",
    "label": "Description"
+  },
+  {
+   "fieldname": "event_duration",
+   "fieldtype": "Duration",
+   "label": "Event Duration"
   },
   {
    "fieldname": "pricing_section",

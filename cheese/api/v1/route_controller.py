@@ -44,6 +44,21 @@ def create_route(name, description=None, status="OFFLINE", experiences=None, pri
 				return validation_error(f"Invalid experiences format: {str(e)}")
 		
 		# Validate experiences exist and are eligible
+		# If simple list of strings, convert to proper format
+		normalized_experiences = []
+		for idx, exp in enumerate(experiences_list):
+			if isinstance(exp, str):
+				normalized_experiences.append({
+					"experience": exp,
+					"sequence": idx + 1
+				})
+			elif isinstance(exp, dict):
+				normalized_experiences.append(exp)
+			else:
+				return validation_error(f"Invalid experience format at index {idx}")
+				
+		experiences_list = normalized_experiences
+
 		for exp in experiences_list:
 			if not frappe.db.exists("Cheese Experience", exp.get("experience")):
 				return not_found("Experience", exp.get("experience"))
@@ -270,7 +285,7 @@ def list_routes(page=1, page_size=20, status=None, search=None):
 			"Cheese Route",
 			filters=filters,
 			or_filters=or_filters if or_filters else None,
-			fields=["name", "name as route_name", "description", "status", "price_mode", "price"],
+			fields=["name", "name as route_id", "name as route_name", "description", "status", "price_mode", "price"],
 			limit_start=(page - 1) * page_size,
 			limit_page_length=page_size,
 			order_by="name asc"

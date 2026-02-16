@@ -3,7 +3,7 @@
 
 import frappe
 from frappe import _
-from frappe.utils import getdate, get_time, cint, get_datetime
+from frappe.utils import getdate, get_time, cint, get_datetime, get_url
 from cheese.api.common.responses import success, created, error, not_found, validation_error, paginated_response
 from cheese.cheese.utils.capacity import get_available_capacity, update_slot_capacity
 
@@ -102,12 +102,32 @@ def get_experience_detail(experience_id):
 				"min_hours_before_booking": policy_doc.min_hours_before_booking
 			}
 		
+		# Get establishment image and details
+		establishment_image = None
+		establishment_name = None
+		if experience.company:
+			company_details = frappe.db.get_value("Company", experience.company, ["company_name", "company_logo"], as_dict=True)
+			if company_details:
+				establishment_name = company_details.company_name
+				logo = company_details.company_logo
+				if logo:
+					if logo.startswith("http"):
+						establishment_image = logo
+					else:
+						establishment_image = get_url(logo)
+
 		return success(
 			"Experience details retrieved successfully",
 			{
 				"experience_id": experience.name,
 				"name": experience.name,
+				"event_duration": experience.event_duration if hasattr(experience, "event_duration") else None,
 				"company": experience.company,
+				"establishment": {
+					"id": experience.company,
+					"name": establishment_name
+				},
+				"establishment_image": establishment_image,
 				"description": experience.description,
 				"status": experience.status,
 				"package_mode": experience.package_mode,

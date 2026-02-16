@@ -30,12 +30,12 @@ def get_payment_link_or_instructions(ticket_id=None, deposit_id=None):
 			if not frappe.db.exists("Cheese Deposit", deposit_id):
 				return not_found("Deposit", deposit_id)
 			deposit_doc = frappe.get_doc("Cheese Deposit", deposit_id)
-			ticket_id = deposit_doc.entity_id if deposit_doc.entity_type == "Ticket" else None
+			ticket_id = deposit_doc.entity_id if deposit_doc.entity_type == "Cheese Ticket" else None
 		else:
 			# Get deposit from ticket
 			deposit_name = frappe.db.get_value(
 				"Cheese Deposit",
-				{"entity_type": "Ticket", "entity_id": ticket_id},
+				{"entity_type": "Cheese Ticket", "entity_id": ticket_id},
 				"name"
 			)
 			
@@ -111,7 +111,7 @@ def get_deposit_instructions(ticket_id):
 		# Get or create deposit
 		deposit = frappe.db.get_value(
 			"Cheese Deposit",
-			{"entity_type": "Ticket", "entity_id": ticket_id},
+			{"entity_type": "Cheese Ticket", "entity_id": ticket_id},
 			"name"
 		)
 
@@ -122,7 +122,7 @@ def get_deposit_instructions(ticket_id):
 			
 			deposit_doc = frappe.get_doc({
 				"doctype": "Cheese Deposit",
-				"entity_type": "Ticket",
+				"entity_type": "Cheese Ticket",
 				"entity_id": ticket_id,
 				"amount_required": ticket.deposit_amount,
 				"status": "PENDING",
@@ -179,7 +179,7 @@ def record_deposit_payment(ticket_id, amount, verification_method="Manual", ocr_
 		# Get deposit
 		deposit_name = frappe.db.get_value(
 			"Cheese Deposit",
-			{"entity_type": "Ticket", "entity_id": ticket_id},
+			{"entity_type": "Cheese Ticket", "entity_id": ticket_id},
 			"name"
 		)
 
@@ -293,7 +293,7 @@ def mark_deposit_overdue(deposit_id):
 		deposit.save()
 		
 		# Cancel associated ticket/route booking for non-payment
-		if deposit.entity_type == "Ticket" and deposit.entity_id:
+		if deposit.entity_type == "Cheese Ticket" and deposit.entity_id:
 			if frappe.db.exists("Cheese Ticket", deposit.entity_id):
 				ticket = frappe.get_doc("Cheese Ticket", deposit.entity_id)
 				if ticket.status in ["PENDING", "CONFIRMED"]:

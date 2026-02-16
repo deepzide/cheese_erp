@@ -499,7 +499,7 @@ def get_payment_status_for_booking(booking_id):
 		for ticket_id in individual_reservations:
 			deposit_name = frappe.db.get_value(
 				"Cheese Deposit",
-				{"entity_type": "Ticket", "entity_id": ticket_id},
+				{"entity_type": "Cheese Ticket", "entity_id": ticket_id},
 				"name"
 			)
 			if deposit_name:

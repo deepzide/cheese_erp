@@ -486,8 +486,8 @@ def get_pending_actions(establishment_id):
 					"slot": ["in", slot_ids],
 					"status": "PENDING"
 				},
-				fields=["name", "experience", "slot", "party_size", "created"],
-				order_by="created asc",
+				fields=["name", "experience", "slot", "party_size", "creation"],
+				order_by="creation asc",
 				limit=20
 			)
 		
@@ -498,7 +498,7 @@ def get_pending_actions(establishment_id):
 			pending_deposits = frappe.get_all(
 				"Cheese Deposit",
 				filters={
-					"entity_type": "Ticket",
+					"entity_type": "Cheese Ticket",
 					"entity_id": ["in", ticket_ids],
 					"status": "PENDING"
 				},
