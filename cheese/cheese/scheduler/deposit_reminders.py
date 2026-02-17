@@ -29,9 +29,9 @@ def send_deposit_reminders():
 		try:
 			# Get contact from entity
 			contact_id = None
-			if deposit_data.entity_type == "Ticket":
+			if deposit_data.entity_type == "Cheese Ticket":
 				contact_id = frappe.db.get_value("Cheese Ticket", deposit_data.entity_id, "contact")
-			elif deposit_data.entity_type == "Route Booking":
+			elif deposit_data.entity_type == "Cheese Route Booking":
 				contact_id = frappe.db.get_value("Cheese Route Booking", deposit_data.entity_id, "contact")
 			
 			if not contact_id:

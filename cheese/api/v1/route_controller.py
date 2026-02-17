@@ -618,7 +618,7 @@ def get_route_deposit_instructions(route_booking_id):
 		# Get or create deposit
 		deposit_name = frappe.db.get_value(
 			"Cheese Deposit",
-			{"entity_type": "Route Booking", "entity_id": route_booking_id},
+			{"entity_type": "Cheese Route Booking", "entity_id": route_booking_id},
 			"name"
 		)
 		
@@ -629,7 +629,7 @@ def get_route_deposit_instructions(route_booking_id):
 			
 			deposit = frappe.get_doc({
 				"doctype": "Cheese Deposit",
-				"entity_type": "Route Booking",
+				"entity_type": "Cheese Route Booking",
 				"entity_id": route_booking_id,
 				"amount_required": route_booking.deposit_amount,
 				"status": "PENDING",
@@ -693,7 +693,7 @@ def record_route_deposit_payment(route_booking_id, amount, verification_method="
 		# Get deposit
 		deposit_name = frappe.db.get_value(
 			"Cheese Deposit",
-			{"entity_type": "Route Booking", "entity_id": route_booking_id},
+			{"entity_type": "Cheese Route Booking", "entity_id": route_booking_id},
 			"name"
 		)
 		

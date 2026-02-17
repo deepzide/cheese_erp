@@ -35,7 +35,7 @@ def process_overdue_deposits():
 			deposit.save(ignore_permissions=True)
 			
 			# Cancel associated entity
-			if deposit_data.entity_type == "Ticket":
+			if deposit_data.entity_type == "Cheese Ticket":
 				ticket = frappe.get_doc("Cheese Ticket", deposit_data.entity_id)
 				if ticket.status in ["PENDING", "CONFIRMED"]:
 					ticket.status = "CANCELLED"
@@ -49,7 +49,7 @@ def process_overdue_deposits():
 					if ticket.route_booking:
 						route_bookings_to_cancel.add(ticket.route_booking)
 			
-			elif deposit_data.entity_type == "Route Booking":
+			elif deposit_data.entity_type == "Cheese Route Booking":
 				route_booking = frappe.get_doc("Cheese Route Booking", deposit_data.entity_id)
 				if route_booking.status in ["PENDING", "PARTIALLY_CONFIRMED"]:
 					route_booking.status = "CANCELLED"

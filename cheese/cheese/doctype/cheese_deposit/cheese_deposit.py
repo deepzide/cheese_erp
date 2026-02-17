@@ -143,7 +143,7 @@ class CheeseDeposit(Document):
 			ocr_data = self.ocr_payload
 
 		# Get expected bank account if entity is Route Booking
-		if self.entity_type == "Route Booking":
+		if self.entity_type == "Cheese Route Booking":
 			route_booking = frappe.get_doc("Cheese Route Booking", self.entity_id)
 			route = frappe.get_doc("Cheese Route", route_booking.route)
 			

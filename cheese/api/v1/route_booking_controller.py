@@ -173,7 +173,7 @@ def create_route_reservation(contact_id=None, route_id=None, experiences_with_sl
 			due_at = add_to_date(now_datetime(), hours=route.deposit_ttl_hours or 24, as_string=False)
 			deposit = frappe.get_doc({
 				"doctype": "Cheese Deposit",
-				"entity_type": "Route Booking",
+				"entity_type": "Cheese Route Booking",
 				"entity_id": route_booking.name,
 				"amount_required": deposit_amount,
 				"status": "PENDING",
