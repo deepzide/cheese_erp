@@ -1,0 +1,19 @@
+{
+ "doctype": "Dashboard Chart",
+ "name": "Cheese Deposits by Status",
+ "chart_name": "Cheese Deposits by Status",
+ "chart_type": "Group By",
+ "type": "Donut",
+ "document_type": "Cheese Deposit",
+ "group_by_based_on": "status",
+ "group_by_type": "Count",
+ "timeseries": 0,
+ "filters_json": "[]",
+ "dynamic_filters_json": "[]",
+ "custom_options": "{\"height\": 300}",
+ "number_of_groups": 0,
+ "y_axis": [],
+ "module": "Cheese",
+ "is_public": 1,
+ "is_standard": 1
+}

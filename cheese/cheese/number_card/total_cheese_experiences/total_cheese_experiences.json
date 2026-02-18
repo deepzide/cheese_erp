@@ -1,0 +1,14 @@
+{
+ "doctype": "Number Card",
+ "name": "Total Cheese Experiences",
+ "label": "Total Cheese Experiences",
+ "module": "Cheese",
+ "document_type": "Cheese Experience",
+ "function": "Count",
+ "filters_json": "[]",
+ "is_public": 1,
+ "is_standard": 1,
+ "type": "Document Type",
+ "show_percentage_stats": 1,
+ "stats_time_interval": "Monthly"
+}

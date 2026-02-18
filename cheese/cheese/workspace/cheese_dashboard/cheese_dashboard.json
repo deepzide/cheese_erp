@@ -1,0 +1,135 @@
+{
+ "charts": [
+  {
+   "chart_name": "Incoming Cheese Tickets",
+   "label": "Incoming Cheese Tickets"
+  },
+  {
+   "chart_name": "Cheese Deposits by Status",
+   "label": "Cheese Deposits by Status"
+  }
+ ],
+ "content": "[{\"id\":\"overview_header\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Overview</b></span>\",\"col\":12}},{\"id\":\"card_contacts\",\"type\":\"number_card\",\"data\":{\"number_card_name\":\"Total Cheese Contacts\",\"col\":3}},{\"id\":\"card_experiences\",\"type\":\"number_card\",\"data\":{\"number_card_name\":\"Total Cheese Experiences\",\"col\":3}},{\"id\":\"card_routes\",\"type\":\"number_card\",\"data\":{\"number_card_name\":\"Total Cheese Routes\",\"col\":3}},{\"id\":\"card_route_bookings\",\"type\":\"number_card\",\"data\":{\"number_card_name\":\"Total Route Bookings\",\"col\":3}},{\"id\":\"card_tickets\",\"type\":\"number_card\",\"data\":{\"number_card_name\":\"Total Cheese Tickets\",\"col\":3}},{\"id\":\"card_pending_tickets\",\"type\":\"number_card\",\"data\":{\"number_card_name\":\"Pending Cheese Tickets\",\"col\":3}},{\"id\":\"card_open_leads\",\"type\":\"number_card\",\"data\":{\"number_card_name\":\"Open Cheese Leads\",\"col\":3}},{\"id\":\"card_pending_deposits\",\"type\":\"number_card\",\"data\":{\"number_card_name\":\"Pending Cheese Deposits\",\"col\":3}},{\"id\":\"card_quotations\",\"type\":\"number_card\",\"data\":{\"number_card_name\":\"Total Cheese Quotations\",\"col\":3}},{\"id\":\"overview_spacer\",\"type\":\"spacer\",\"data\":{\"col\":12}},{\"id\":\"trends_header\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Trends</b></span>\",\"col\":12}},{\"id\":\"chart_incoming_tickets\",\"type\":\"chart\",\"data\":{\"chart_name\":\"Incoming Cheese Tickets\",\"col\":6}},{\"id\":\"chart_deposit_status\",\"type\":\"chart\",\"data\":{\"chart_name\":\"Cheese Deposits by Status\",\"col\":6}},{\"id\":\"trends_spacer\",\"type\":\"spacer\",\"data\":{\"col\":12}},{\"id\":\"docs_header\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Core Docs</b></span>\",\"col\":12}},{\"id\":\"shortcut_contact\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Cheese Contact\",\"col\":3}},{\"id\":\"shortcut_experience\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Cheese Experience\",\"col\":3}},{\"id\":\"shortcut_experience_slot\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Cheese Experience Slot\",\"col\":3}},{\"id\":\"shortcut_route\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Cheese Route\",\"col\":3}},{\"id\":\"shortcut_route_booking\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Cheese Route Booking\",\"col\":3}},{\"id\":\"shortcut_ticket\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Cheese Ticket\",\"col\":3}},{\"id\":\"shortcut_lead\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Cheese Lead\",\"col\":3}},{\"id\":\"shortcut_deposit\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Cheese Deposit\",\"col\":3}},{\"id\":\"shortcut_quotation\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Cheese Quotation\",\"col\":3}}]",
+ "creation": "2026-02-18 00:00:00.000000",
+ "custom_blocks": [],
+ "docstatus": 0,
+ "doctype": "Workspace",
+ "for_user": "",
+ "hide_custom": 0,
+ "icon": "dashboard",
+ "idx": 0,
+ "indicator_color": "",
+ "is_hidden": 0,
+ "label": "Cheese Dashboard",
+ "links": [],
+ "modified": "2026-02-18 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Cheese",
+ "name": "Cheese Dashboard",
+ "number_cards": [
+  {
+   "label": "Total Cheese Contacts",
+   "number_card_name": "Total Cheese Contacts"
+  },
+  {
+   "label": "Total Cheese Experiences",
+   "number_card_name": "Total Cheese Experiences"
+  },
+  {
+   "label": "Total Cheese Routes",
+   "number_card_name": "Total Cheese Routes"
+  },
+  {
+   "label": "Total Route Bookings",
+   "number_card_name": "Total Route Bookings"
+  },
+  {
+   "label": "Total Cheese Tickets",
+   "number_card_name": "Total Cheese Tickets"
+  },
+  {
+   "label": "Pending Cheese Tickets",
+   "number_card_name": "Pending Cheese Tickets"
+  },
+  {
+   "label": "Open Cheese Leads",
+   "number_card_name": "Open Cheese Leads"
+  },
+  {
+   "label": "Pending Cheese Deposits",
+   "number_card_name": "Pending Cheese Deposits"
+  },
+  {
+   "label": "Total Cheese Quotations",
+   "number_card_name": "Total Cheese Quotations"
+  }
+ ],
+ "owner": "Administrator",
+ "parent_page": "",
+ "public": 1,
+ "quick_lists": [],
+ "restrict_to_domain": "",
+ "roles": [
+  {
+   "role": "Workshop Operator"
+  },
+  {
+   "role": "Workshop Manager"
+  },
+  {
+   "role": "Central Admin"
+  },
+  {
+   "role": "System Manager"
+  }
+ ],
+ "sequence_id": 1.0,
+ "shortcuts": [
+  {
+   "label": "Cheese Contact",
+   "link_to": "Cheese Contact",
+   "type": "DocType"
+  },
+  {
+   "label": "Cheese Experience",
+   "link_to": "Cheese Experience",
+   "type": "DocType"
+  },
+  {
+   "label": "Cheese Experience Slot",
+   "link_to": "Cheese Experience Slot",
+   "type": "DocType"
+  },
+  {
+   "label": "Cheese Route",
+   "link_to": "Cheese Route",
+   "type": "DocType"
+  },
+  {
+   "label": "Cheese Route Booking",
+   "link_to": "Cheese Route Booking",
+   "type": "DocType"
+  },
+  {
+   "label": "Cheese Ticket",
+   "link_to": "Cheese Ticket",
+   "type": "DocType"
+  },
+  {
+   "label": "Cheese Lead",
+   "link_to": "Cheese Lead",
+   "type": "DocType"
+  },
+  {
+   "label": "Cheese Deposit",
+   "link_to": "Cheese Deposit",
+   "type": "DocType"
+  },
+  {
+   "label": "Cheese Quotation",
+   "link_to": "Cheese Quotation",
+   "type": "DocType"
+  }
+ ],
+ "title": "Cheese Dashboard"
+}

@@ -1,0 +1,14 @@
+{
+ "doctype": "Number Card",
+ "name": "Pending Cheese Deposits",
+ "label": "Pending Cheese Deposits",
+ "module": "Cheese",
+ "document_type": "Cheese Deposit",
+ "function": "Count",
+ "filters_json": "[[\"Cheese Deposit\",\"status\",\"=\",\"PENDING\",false]]",
+ "is_public": 1,
+ "is_standard": 1,
+ "type": "Document Type",
+ "show_percentage_stats": 1,
+ "stats_time_interval": "Weekly"
+}

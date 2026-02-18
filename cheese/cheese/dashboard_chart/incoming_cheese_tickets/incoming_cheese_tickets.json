@@ -1,0 +1,20 @@
+{
+ "doctype": "Dashboard Chart",
+ "name": "Incoming Cheese Tickets",
+ "chart_name": "Incoming Cheese Tickets",
+ "chart_type": "Count",
+ "type": "Line",
+ "document_type": "Cheese Ticket",
+ "based_on": "creation",
+ "timeseries": 1,
+ "time_interval": "Weekly",
+ "timespan": "Last Quarter",
+ "filters_json": "[]",
+ "dynamic_filters_json": "[]",
+ "custom_options": "{\"type\": \"line\", \"axisOptions\": {\"shortenYAxisNumbers\": 1}, \"tooltipOptions\": {}, \"lineOptions\": {\"regionFill\": 1}}",
+ "number_of_groups": 0,
+ "y_axis": [],
+ "module": "Cheese",
+ "is_public": 1,
+ "is_standard": 1
+}
