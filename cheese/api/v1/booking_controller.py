@@ -73,11 +73,20 @@ def create_pending_booking(contact_id, items, preferred_dates=None, conversation
 				
 				# Get experiences_with_slots from item or preferred_dates
 				experiences_with_slots = item.get("experiences_with_slots")
+				route_date = item.get("date")
+
 				if not experiences_with_slots:
 					experiences_with_slots = item.get("preferred_dates")
+					# If preferred_dates is actually a date string, treat it as route_date
+					if isinstance(experiences_with_slots, str) and not route_date:
+						route_date = experiences_with_slots
+						experiences_with_slots = None
 
 				if not experiences_with_slots and preferred_dates:
-					experiences_with_slots = preferred_dates
+					if isinstance(preferred_dates, str) and not route_date:
+						route_date = preferred_dates
+					elif isinstance(preferred_dates, list):
+						experiences_with_slots = preferred_dates
 
 				# If still no slots, try to construct from available experience items
 				if not experiences_with_slots and available_experience_slots:
@@ -95,13 +104,28 @@ def create_pending_booking(contact_id, items, preferred_dates=None, conversation
 					if constructed_slots:
 						experiences_with_slots = constructed_slots
 				
-				if not experiences_with_slots:
-					return validation_error("experiences_with_slots is required for route items")
+				if not experiences_with_slots and not route_date:
+					return validation_error("experiences_with_slots (or date) is required for route items")
 				
 				# Create route reservation
 				route_result = create_route_reservation(
-					contact_id, route_id, experiences_with_slots, party_size, conversation_id
+					contact_id=contact_id,
+					route_id=route_id,
+					experiences_with_slots=experiences_with_slots,
+					party_size=party_size,
+					conversation_id=conversation_id,
+					date=route_date
 				)
+				
+				if not route_result.get("success"):
+					return route_result
+				
+				route_booking_id = route_result.get("data", {}).get("route_booking_id")
+				# Update experiences_with_slots with what was actually booked if we auto-selected
+				if not experiences_with_slots:
+					# We need to fetch the booked slots to correctly price manual routes if needed? 
+					# For now, route price calculation below relies on route definition, not booked slots unless route.price_mode is Sum.
+					pass
 				
 				if not route_result.get("success"):
 					return route_result

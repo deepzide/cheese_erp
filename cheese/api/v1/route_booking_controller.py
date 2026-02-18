@@ -3,16 +3,16 @@
 
 import frappe
 from frappe import _
-from frappe.utils import now_datetime, get_datetime, add_to_date
+from frappe.utils import now_datetime, get_datetime, add_to_date, getdate
 from cheese.api.common.responses import success, created, error, not_found, validation_error
 from cheese.cheese.utils.pricing import calculate_ticket_price, calculate_deposit_amount
-from cheese.cheese.utils.capacity import update_slot_capacity
+from cheese.cheese.utils.capacity import update_slot_capacity, get_available_capacity
 from cheese.api.v1.ticket_controller import create_pending_ticket
 import json
 
 
 @frappe.whitelist()
-def create_route_reservation(contact_id=None, route_id=None, experiences_with_slots=None, preferred_dates=None, party_size=1, conversation_id=None):
+def create_route_reservation(contact_id=None, route_id=None, experiences_with_slots=None, preferred_dates=None, party_size=1, conversation_id=None, date=None):
 	"""
 	Create pending route reservation
 	Creates RouteBooking = PENDING + internal reservations, locks capacity
@@ -24,6 +24,7 @@ def create_route_reservation(contact_id=None, route_id=None, experiences_with_sl
 		preferred_dates: Alias for experiences_with_slots
 		party_size: Party size (default: 1)
 		conversation_id: Conversation ID (optional)
+		date: Date to auto-select slots (optional)
 		
 	Returns:
 		Success response with route booking data
@@ -36,8 +37,6 @@ def create_route_reservation(contact_id=None, route_id=None, experiences_with_sl
 			return validation_error("contact_id is required")
 		if not route_id:
 			return validation_error("route_id is required")
-		if not experiences_with_slots:
-			return validation_error("experiences_with_slots is required")
 			
 		try:
 			party_size = int(party_size)
@@ -57,6 +56,45 @@ def create_route_reservation(contact_id=None, route_id=None, experiences_with_sl
 		
 		if route.status != "ONLINE":
 			return validation_error(f"Route {route_id} is not ONLINE. Current status: {route.status}")
+
+		# Auto-select slots if date is provided and explicit slots are missing
+		if not experiences_with_slots and date:
+			try:
+				target_date = getdate(date)
+			except Exception:
+				return validation_error("Invalid date format")
+
+			experiences_with_slots = []
+			for exp_row in route.experiences:
+				# Find available slots for this experience on the date
+				slots = frappe.get_all(
+					"Cheese Experience Slot",
+					filters={
+						"experience": exp_row.experience,
+						"date": target_date,
+						"slot_status": "OPEN"
+					},
+					fields=["name", "time", "max_capacity"],
+					order_by="time asc"
+				)
+				
+				selected_slot = None
+				for slot in slots:
+					available = get_available_capacity(slot.name)
+					if available >= party_size:
+						selected_slot = slot.name
+						break
+				
+				if selected_slot:
+					experiences_with_slots.append({
+						"experience_id": exp_row.experience,
+						"slot_id": selected_slot
+					})
+				else:
+					return validation_error(f"No available slot found for experience {exp_row.experience} on {date}")
+
+		if not experiences_with_slots:
+			return validation_error("experiences_with_slots (or date) is required")
 		
 		# Parse experiences_with_slots
 		if isinstance(experiences_with_slots, str):

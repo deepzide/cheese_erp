@@ -685,7 +685,7 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n  \"contact_id\": \"CONTACT-001\",\n  \"route_id\": \"ROUTE-001\",\n  \"party_size\": 2,\n  \"preferred_dates\": [\n    {\"experience_id\": \"EXP-001\", \"slot_id\": \"SLOT-001\"},\n    {\"experience_id\": \"EXP-002\", \"slot_id\": \"SLOT-002\"}\n  ],\n  \"conversation_id\": \"CONV-001\"\n}"
+							"raw": "{\n  \"contact_id\": \"CONTACT-001\",\n  \"route_id\": \"ROUTE-001\",\n  \"party_size\": 2,\n  \"date\": \"2024-12-31\",\n  \"conversation_id\": \"CONV-001\"\n}"
 						},
 						"url": {
 							"raw": "{{base_url}}/api/method/cheese.api.v1.route_booking_controller.create_route_reservation",
@@ -906,7 +906,7 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n  \"contact_id\": \"CONTACT-001\",\n  \"items\": [\n    {\"type\": \"route\", \"route_id\": \"ROUTE-001\", \"party_size\": 2},\n    {\"type\": \"experience\", \"experience_id\": \"EXP-001\", \"slot_id\": \"SLOT-001\", \"party_size\": 2}\n  ],\n  \"preferred_dates\": null,\n  \"conversation_id\": \"CONV-001\"\n}"
+							"raw": "{\n  \"contact_id\": \"CONTACT-001\",\n  \"items\": [\n    {\"type\": \"route\", \"route_id\": \"ROUTE-001\", \"date\": \"2024-12-31\", \"party_size\": 2},\n    {\"type\": \"experience\", \"experience_id\": \"EXP-001\", \"slot_id\": \"SLOT-001\", \"party_size\": 2}\n  ],\n  \"conversation_id\": \"CONV-001\"\n}"
 						},
 						"url": {
 							"raw": "{{base_url}}/api/method/cheese.api.v1.booking_controller.create_pending_booking",
