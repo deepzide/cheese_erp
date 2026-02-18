@@ -11,7 +11,8 @@
         "deposit_type": "%",
         "deposit_value": 20.0,
         "deposit_ttl_hours": 24,
-        "status": "ONLINE"
+        "status": "ONLINE",
+        "google_maps_link": "https://goo.gl/maps/example1"
     },
     {
         "doctype": "Cheese Experience",
@@ -25,7 +26,8 @@
         "deposit_type": "Amount",
         "deposit_value": 15.0,
         "deposit_ttl_hours": 48,
-        "status": "ONLINE"
+        "status": "ONLINE",
+        "google_maps_link": "https://goo.gl/maps/example2"
     },
     {
         "doctype": "Cheese Experience",
@@ -39,7 +41,8 @@
         "deposit_type": "%",
         "deposit_value": 25.0,
         "deposit_ttl_hours": 24,
-        "status": "ONLINE"
+        "status": "ONLINE",
+        "google_maps_link": "https://goo.gl/maps/example3"
     },
     {
         "doctype": "Cheese Experience",

@@ -103,31 +103,28 @@ def get_experience_detail(experience_id):
 			}
 		
 		# Get establishment image and details
-		establishment_image = None
+		establishment_google_maps_link = None
 		establishment_name = None
 		if experience.company:
-			company_details = frappe.db.get_value("Company", experience.company, ["company_name", "company_logo"], as_dict=True)
+			company_details = frappe.db.get_value("Company", experience.company, ["company_name"], as_dict=True)
 			if company_details:
 				establishment_name = company_details.company_name
-				logo = company_details.company_logo
-				if logo:
-					if logo.startswith("http"):
-						establishment_image = logo
-					else:
-						establishment_image = get_url(logo)
+				# Use custom google_maps_link field from Experience if available
+				if hasattr(experience, "google_maps_link") and experience.google_maps_link:
+					establishment_google_maps_link = experience.google_maps_link
 
 		return success(
 			"Experience details retrieved successfully",
 			{
 				"experience_id": experience.name,
 				"name": experience.name,
-				"event_duration": experience.event_duration if hasattr(experience, "event_duration") else None,
+				"event_duration": experience.event_duration,
 				"company": experience.company,
 				"establishment": {
 					"id": experience.company,
 					"name": establishment_name
 				},
-				"establishment_image": establishment_image,
+				"establishment_google_maps_link": establishment_google_maps_link,
 				"description": experience.description,
 				"status": experience.status,
 				"package_mode": experience.package_mode,

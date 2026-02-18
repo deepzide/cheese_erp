@@ -44,6 +44,11 @@
    "reqd": 1
   },
   {
+   "fieldname": "google_maps_link",
+   "fieldtype": "Data",
+   "label": "Google Maps Link"
+  },
+  {
    "fieldname": "name",
    "fieldtype": "Data",
    "in_list_view": 1,

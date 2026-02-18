@@ -55,6 +55,12 @@ def create_pending_booking(contact_id, items, preferred_dates=None, conversation
 		total_price = 0
 		total_deposit = 0
 		
+		# Pre-process items to gather available slots from experience items
+		available_experience_slots = {}
+		for item in items:
+			if item.get("type") == "experience" and item.get("experience_id") and item.get("slot_id"):
+				available_experience_slots[item.get("experience_id")] = item.get("slot_id")
+
 		# Process items
 		for item in items:
 			item_type = item.get("type")
@@ -72,6 +78,22 @@ def create_pending_booking(contact_id, items, preferred_dates=None, conversation
 
 				if not experiences_with_slots and preferred_dates:
 					experiences_with_slots = preferred_dates
+
+				# If still no slots, try to construct from available experience items
+				if not experiences_with_slots and available_experience_slots:
+					# Check if route requires specific experiences
+					route_doc = frappe.get_doc("Cheese Route", route_id)
+					constructed_slots = []
+					for exp_row in route_doc.experiences:
+						if exp_row.experience in available_experience_slots:
+							# Format must match what create_route_reservation expects
+							constructed_slots.append({
+								"experience_id": exp_row.experience,
+								"slot_id": available_experience_slots[exp_row.experience]
+							})
+					
+					if constructed_slots:
+						experiences_with_slots = constructed_slots
 				
 				if not experiences_with_slots:
 					return validation_error("experiences_with_slots is required for route items")
