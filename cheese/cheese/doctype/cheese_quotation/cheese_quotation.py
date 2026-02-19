@@ -4,7 +4,7 @@
 import frappe
 from frappe import _
 from frappe.model.document import Document
-from frappe.utils import now_datetime
+from frappe.utils import get_datetime, now_datetime
 
 
 class CheeseQuotation(Document):
@@ -28,6 +28,6 @@ class CheeseQuotation(Document):
 	def validate(self):
 		"""Validate quotation data"""
 		# Check expiration
-		if self.valid_until and self.valid_until < now_datetime():
+		if self.valid_until and get_datetime(self.valid_until) < now_datetime():
 			if self.status != "EXPIRED":
 				self.status = "EXPIRED"
