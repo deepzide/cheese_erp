@@ -3,7 +3,7 @@
 
 import frappe
 from frappe import _
-from frappe.utils import add_to_date, now_datetime, get_datetime
+from frappe.utils import add_to_date, now_datetime, get_datetime, cint
 from cheese.cheese.utils.pricing import calculate_ticket_price, calculate_deposit_amount
 from cheese.cheese.utils.validation import validate_booking_policy
 from cheese.cheese.utils.capacity import update_slot_capacity
@@ -373,7 +373,8 @@ def cancel_ticket(ticket_id):
 
 		slot_id = ticket.slot
 		old_status = ticket.status
-		ticket.cancel()
+		ticket.status = "CANCELLED"
+		ticket.save()
 		
 		# Update slot capacity
 		update_slot_capacity(slot_id)
@@ -649,6 +650,104 @@ def list_tickets(page=1, page_size=20, status=None, route_id=None, establishment
 	except Exception as e:
 		frappe.log_error(f"Error in list_tickets: {str(e)}")
 		return error("Failed to list tickets", "SERVER_ERROR", {"error": str(e)}, 500)
+
+
+@frappe.whitelist()
+def get_reservations_by_phone(phone, page=1, page_size=20, status=None):
+	"""
+	Get reservations by contact phone number
+	
+	Args:
+		phone: Contact phone number
+		page: Page number
+		page_size: Items per page
+		status: Optional status filter
+		
+	Returns:
+		Success response with reservations list
+	"""
+	try:
+		if not phone:
+			return validation_error("phone is required")
+
+		phone = phone.strip()
+		page = cint(page) or 1
+		page_size = cint(page_size) or 20
+
+		contact = frappe.get_all(
+			"Cheese Contact",
+			filters={"phone": phone},
+			fields=["name", "full_name", "phone", "email"],
+			limit=1
+		)
+
+		if not contact:
+			return success(
+				"No contact found for this phone",
+				{
+					"phone": phone,
+					"contact": None,
+					"tickets": [],
+					"page": page,
+					"page_size": page_size,
+					"total": 0
+				}
+			)
+
+		contact = contact[0]
+		filters = {"contact": contact.name}
+		if status:
+			filters["status"] = status
+
+		tickets = frappe.get_all(
+			"Cheese Ticket",
+			filters=filters,
+			fields=["name", "company", "experience", "slot", "route", "party_size", "status", "created", "modified"],
+			limit_start=(page - 1) * page_size,
+			limit_page_length=page_size,
+			order_by="modified desc"
+		)
+
+		for ticket in tickets:
+			if ticket.experience:
+				exp = frappe.db.get_value(
+					"Cheese Experience",
+					ticket.experience,
+					"name",
+					as_dict=True
+				)
+				ticket["experience_name"] = exp.name if exp else None
+			if ticket.slot:
+				slot = frappe.db.get_value(
+					"Cheese Experience Slot",
+					ticket.slot,
+					["date", "time"],
+					as_dict=True
+				)
+				if slot:
+					ticket["slot_date"] = str(slot.date)
+					ticket["slot_time"] = str(slot.time)
+
+		total = frappe.db.count("Cheese Ticket", filters=filters)
+
+		return success(
+			"Reservations retrieved successfully",
+			{
+				"contact": {
+					"contact_id": contact.name,
+					"full_name": contact.full_name,
+					"phone": contact.phone,
+					"email": contact.email
+				},
+				"tickets": tickets,
+				"page": page,
+				"page_size": page_size,
+				"total": total
+			}
+		)
+	except Exception as e:
+		frappe.log_error(f"Error in get_reservations_by_phone: {str(e)}")
+		return error("Failed to get reservations", "SERVER_ERROR", {"error": str(e)}, 500)
 
 
 @frappe.whitelist()

@@ -201,7 +201,7 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n  \"page\": 1,\n  \"page_size\": 20,\n  \"status\": \"ONLINE\",\n  \"company\": \"COMPANY-001\",\n  \"package_mode\": \"Both\",\n  \"search\": \"adventure\"\n}"
+							"raw": "{\n  \"page\": 1,\n  \"page_size\": 20,\n  \"status\": \"ONLINE\",\n  \"company\": \"COMPANY-001\",\n  \"establishment_id\": \"COMPANY-001\",\n  \"package_mode\": \"Both\",\n  \"search\": \"adventure\",\n  \"date\": \"2024-12-31\"\n}"
 						},
 						"url": {
 							"raw": "{{base_url}}/api/method/cheese.api.v1.experience_controller.list_experiences",
@@ -228,7 +228,7 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n  \"experience_id\": \"EXP-001\"\n}"
+							"raw": "{\n  \"experience_id\": \"EXP-001\",\n  \"include_next_availability\": true\n}"
 						},
 						"url": {
 							"raw": "{{base_url}}/api/method/cheese.api.v1.experience_controller.get_experience_detail",
@@ -260,7 +260,7 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n  \"page\": 1,\n  \"page_size\": 20,\n  \"status\": \"ONLINE\",\n  \"search\": \"adventure\"\n}"
+							"raw": "{\n  \"page\": 1,\n  \"page_size\": 20,\n  \"status\": \"ONLINE\",\n  \"search\": \"adventure\",\n  \"experiences\": [\"EXP-001\", \"EXP-002\"]\n}"
 						},
 						"url": {
 							"raw": "{{base_url}}/api/method/cheese.api.v1.route_controller.list_routes",
@@ -526,6 +526,33 @@
 							"path": ["api", "method", "cheese.api.v1.ticket_controller.get_reservation_status"]
 						},
 						"description": "ERP: Returns canonical status and next steps. Bot: Communicates current state."
+					},
+					"response": []
+				},
+				{
+					"name": "Get Reservations by Phone",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "token {{token}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"phone\": \"+1234567890\",\n  \"page\": 1,\n  \"page_size\": 20,\n  \"status\": \"PENDING\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/method/cheese.api.v1.ticket_controller.get_reservations_by_phone",
+							"host": ["{{base_url}}"],
+							"path": ["api", "method", "cheese.api.v1.ticket_controller.get_reservations_by_phone"]
+						},
+						"description": "ERP: Finds contact by phone and returns their reservations. Bot: Reports current ticket statuses."
 					},
 					"response": []
 				},

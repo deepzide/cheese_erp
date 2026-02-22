@@ -9,7 +9,7 @@ from cheese.cheese.utils.capacity import get_available_capacity, update_slot_cap
 
 
 @frappe.whitelist()
-def list_experiences(page=1, page_size=20, status=None, company=None, package_mode=None, search=None):
+def list_experiences(page=1, page_size=20, status=None, company=None, establishment_id=None, package_mode=None, search=None, date=None):
 	"""
 	List experiences - canonical, filterable catalog
 	
@@ -18,8 +18,10 @@ def list_experiences(page=1, page_size=20, status=None, company=None, package_mo
 		page_size: Items per page
 		status: Filter by status (ONLINE/OFFLINE)
 		company: Filter by company
+		establishment_id: Filter by establishment (alias for company)
 		package_mode: Filter by package mode (Package/Public/Both)
 		search: Search term (searches name and description)
+		date: Filter by availability date (YYYY-MM-DD)
 		
 	Returns:
 		Paginated response with experiences list
@@ -31,8 +33,8 @@ def list_experiences(page=1, page_size=20, status=None, company=None, package_mo
 		filters = {}
 		if status:
 			filters["status"] = status
-		if company:
-			filters["company"] = company
+		if company or establishment_id:
+			filters["company"] = company or establishment_id
 		if package_mode:
 			filters["package_mode"] = package_mode
 		
@@ -40,6 +42,31 @@ def list_experiences(page=1, page_size=20, status=None, company=None, package_mo
 		if search:
 			or_filters.append(["name", "like", f"%{search}%"])
 			or_filters.append(["description", "like", f"%{search}%"])
+
+		if date:
+			date_obj = getdate(date)
+			slots = frappe.get_all(
+				"Cheese Experience Slot",
+				filters={"date": date_obj, "slot_status": "OPEN"},
+				fields=["name", "experience"]
+			)
+
+			available_experiences = set()
+			for slot in slots:
+				available = get_available_capacity(slot.name)
+				if available > 0:
+					available_experiences.add(slot.experience)
+
+			if not available_experiences:
+				return paginated_response(
+					[],
+					"No experiences available for this date",
+					page=page,
+					page_size=page_size,
+					total=0
+				)
+
+			filters["name"] = ["in", list(available_experiences)]
 		
 		experiences = frappe.get_all(
 			"Cheese Experience",
@@ -67,12 +94,13 @@ def list_experiences(page=1, page_size=20, status=None, company=None, package_mo
 
 
 @frappe.whitelist()
-def get_experience_detail(experience_id):
+def get_experience_detail(experience_id, include_next_availability=True):
 	"""
 	Get experience details - full details + policies
 	
 	Args:
 		experience_id: Experience ID
+		include_next_availability: Include next available slot info
 		
 	Returns:
 		Success response with experience details including policies
@@ -113,6 +141,39 @@ def get_experience_detail(experience_id):
 				if hasattr(experience, "google_maps_link") and experience.google_maps_link:
 					establishment_google_maps_link = experience.google_maps_link
 
+		next_availability = None
+		include_next = True
+		if include_next_availability is not None:
+			if isinstance(include_next_availability, str):
+				include_next = include_next_availability.lower() in ["1", "true", "yes"]
+			else:
+				include_next = bool(include_next_availability)
+
+		if include_next:
+			today = getdate()
+			slots = frappe.get_all(
+				"Cheese Experience Slot",
+				filters={
+					"experience": experience_id,
+					"date": [">=", today],
+					"slot_status": "OPEN"
+				},
+				fields=["name", "date", "time"],
+				order_by="date asc, time asc",
+				limit=50
+			)
+
+			for slot in slots:
+				available = get_available_capacity(slot.name)
+				if available > 0:
+					next_availability = {
+						"slot_id": slot.name,
+						"date": str(slot.date),
+						"time": str(slot.time),
+						"available_capacity": available
+					}
+					break
+
 		return success(
 			"Experience details retrieved successfully",
 			{
@@ -128,6 +189,7 @@ def get_experience_detail(experience_id):
 				"description": experience.description,
 				"status": experience.status,
 				"package_mode": experience.package_mode,
+				"next_availability": next_availability,
 				"pricing": {
 					"individual_price": experience.individual_price,
 					"route_price": experience.route_price,

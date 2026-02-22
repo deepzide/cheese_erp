@@ -256,7 +256,7 @@ def get_route_details(route_id):
 
 
 @frappe.whitelist()
-def list_routes(page=1, page_size=20, status=None, search=None):
+def list_routes(page=1, page_size=20, status=None, search=None, experiences=None):
 	"""
 	List routes with filters
 	
@@ -265,6 +265,7 @@ def list_routes(page=1, page_size=20, status=None, search=None):
 		page_size: Items per page
 		status: Filter by status
 		search: Search term
+		experiences: JSON array or comma-separated list of experience IDs (must include all)
 		
 	Returns:
 		Paginated response with routes list
@@ -276,6 +277,47 @@ def list_routes(page=1, page_size=20, status=None, search=None):
 		filters = {}
 		if status:
 			filters["status"] = status
+
+		if experiences:
+			try:
+				if isinstance(experiences, str):
+					try:
+						experience_ids = json.loads(experiences)
+					except Exception:
+						experience_ids = [e.strip() for e in experiences.split(",") if e.strip()]
+				else:
+					experience_ids = experiences
+			except Exception as e:
+				return validation_error(f"Invalid experiences format: {str(e)}")
+
+			if not isinstance(experience_ids, list) or not experience_ids:
+				return validation_error("experiences must be a non-empty list")
+
+			route_rows = frappe.db.sql(
+				"""
+				SELECT parent
+				FROM `tabCheese Route Experience`
+				WHERE experience IN %(experience_ids)s
+				GROUP BY parent
+				HAVING COUNT(DISTINCT experience) = %(experience_count)s
+				""",
+				{
+					"experience_ids": tuple(experience_ids),
+					"experience_count": len(set(experience_ids))
+				},
+				as_dict=True
+			)
+
+			if not route_rows:
+				return paginated_response(
+					[],
+					"No routes found for these experiences",
+					page=page,
+					page_size=page_size,
+					total=0
+				)
+
+			filters["name"] = ["in", [row.parent for row in route_rows]]
 		
 		or_filters = []
 		if search:
