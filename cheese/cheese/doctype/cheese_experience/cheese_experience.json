@@ -17,7 +17,6 @@
   "pricing_section",
   "individual_price",
   "route_price",
-  "min_acts_for_route_price",
   "package_mode",
   "deposit_section",
   "deposit_required",
@@ -82,15 +81,10 @@
    "label": "Route Price"
   },
   {
-   "fieldname": "min_acts_for_route_price",
-   "fieldtype": "Int",
-   "label": "Min Acts for Route Price"
-  },
-  {
    "fieldname": "package_mode",
    "fieldtype": "Select",
    "label": "Package Mode",
-   "options": "Package\nPublic\nBoth"
+   "options": "Establishment\nRoute\nBoth"
   },
   {
    "fieldname": "deposit_section",

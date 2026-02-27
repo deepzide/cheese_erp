@@ -121,7 +121,6 @@ class CheeseTicket(Document):
 		price_data = {
 			"individual_price": experience.individual_price,
 			"route_price": experience.route_price,
-			"min_acts_for_route_price": experience.min_acts_for_route_price,
 		}
 		self.price_snapshot = json.dumps(price_data)
 

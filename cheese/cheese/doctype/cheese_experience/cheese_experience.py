@@ -23,9 +23,8 @@ class CheeseExperience(Document):
 		description: DF.TextEditor | None
 		individual_price: DF.Currency | None
 		manual_confirmation: DF.Check
-		min_acts_for_route_price: DF.Int | None
 		name: DF.Data
-		package_mode: DF.Literal["", "Package", "Public", "Both"]
+		package_mode: DF.Literal["", "Establishment", "Route", "Both"]
 		route_price: DF.Currency | None
 		status: DF.Literal["ONLINE", "OFFLINE"]
 	# end: auto-generated types
@@ -46,5 +45,5 @@ class CheeseExperience(Document):
 				frappe.throw(_("Deposit TTL Hours is required when Deposit Required is checked"))
 
 		# Validate pricing
-		if self.package_mode == "Package" and not self.route_price:
-			frappe.throw(_("Route Price is required when Package Mode is Package"))
+		if self.package_mode == "Route" and not self.route_price:
+			frappe.throw(_("Route Price is required when Package Mode is Route"))

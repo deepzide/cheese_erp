@@ -2,7 +2,7 @@
  "actions": [],
  "allow_import": 1,
  "allow_rename": 1,
- "autoname": "hash",
+ "autoname": "format:QUO-.YYYY.-.MM.-.#####",
  "creation": "2024-01-01 00:00:00",
  "doctype": "DocType",
  "name": "Cheese Quotation",
@@ -11,8 +11,12 @@
  "field_order": [
   "quotation_info",
   "lead",
+  "establishment",
+  "route",
   "conversation",
   "valid_until",
+  "experiences_section",
+  "experiences",
   "pricing_section",
   "total_price",
   "deposit_amount",
@@ -33,6 +37,22 @@
    "options": "Cheese Lead"
   },
   {
+   "fieldname": "establishment",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Establishment",
+   "options": "Company"
+  },
+  {
+   "fieldname": "route",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Route",
+   "options": "Cheese Route"
+  },
+  {
    "fieldname": "conversation",
    "fieldtype": "Link",
    "label": "Conversation",
@@ -42,6 +62,17 @@
    "fieldname": "valid_until",
    "fieldtype": "Datetime",
    "label": "Valid Until"
+  },
+  {
+   "fieldname": "experiences_section",
+   "fieldtype": "Section Break",
+   "label": "Experiences"
+  },
+  {
+   "fieldname": "experiences",
+   "fieldtype": "Table",
+   "label": "Experiences",
+   "options": "Cheese Quotation Experience"
   },
   {
    "fieldname": "pricing_section",

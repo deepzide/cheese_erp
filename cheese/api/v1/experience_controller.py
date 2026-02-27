@@ -19,7 +19,7 @@ def list_experiences(page=1, page_size=20, status=None, company=None, establishm
 		status: Filter by status (ONLINE/OFFLINE)
 		company: Filter by company
 		establishment_id: Filter by establishment (alias for company)
-		package_mode: Filter by package mode (Package/Public/Both)
+		package_mode: Filter by package mode (Establishment/Route/Both)
 		search: Search term (searches name and description)
 		date: Filter by availability date (YYYY-MM-DD)
 		
@@ -73,7 +73,7 @@ def list_experiences(page=1, page_size=20, status=None, company=None, establishm
 			filters=filters,
 			or_filters=or_filters if or_filters else None,
 			fields=["name", "name as id", "name as experience_name", "company", "company as establishment", "description", "status", "package_mode", 
-				"individual_price", "route_price", "min_acts_for_route_price", "deposit_required"],
+				"individual_price", "route_price", "deposit_required"],
 			limit_start=(page - 1) * page_size,
 			limit_page_length=page_size,
 			order_by="name asc"
@@ -192,8 +192,7 @@ def get_experience_detail(experience_id, include_next_availability=True):
 				"next_availability": next_availability,
 				"pricing": {
 					"individual_price": experience.individual_price,
-					"route_price": experience.route_price,
-					"min_acts_for_route_price": experience.min_acts_for_route_price
+					"route_price": experience.route_price
 				},
 				"deposit": {
 					"deposit_required": experience.deposit_required,
@@ -213,7 +212,7 @@ def get_experience_detail(experience_id, include_next_availability=True):
 
 
 @frappe.whitelist()
-def update_experience_pricing(experience_id, individual_price=None, route_price=None, min_acts_for_route_price=None, package_mode=None):
+def update_experience_pricing(experience_id, individual_price=None, route_price=None, package_mode=None):
 	"""
 	Update experience pricing (US-09)
 	
@@ -221,8 +220,7 @@ def update_experience_pricing(experience_id, individual_price=None, route_price=
 		experience_id: Experience ID
 		individual_price: Individual price
 		route_price: Route price
-		min_acts_for_route_price: Minimum activities for route price
-		package_mode: Package mode (Package/Public/Both)
+		package_mode: Package mode (Establishment/Route/Both)
 		
 	Returns:
 		Success response
@@ -246,19 +244,14 @@ def update_experience_pricing(experience_id, individual_price=None, route_price=
 				return validation_error("route_price must be >= 0")
 			experience.route_price = route_price
 		
-		if min_acts_for_route_price is not None:
-			if min_acts_for_route_price < 0:
-				return validation_error("min_acts_for_route_price must be >= 0")
-			experience.min_acts_for_route_price = min_acts_for_route_price
-		
 		if package_mode is not None:
-			if package_mode not in ["Package", "Public", "Both"]:
+			if package_mode not in ["Establishment", "Route", "Both"]:
 				return validation_error(f"Invalid package_mode: {package_mode}")
 			experience.package_mode = package_mode
 			
-			# Validate route_price if package_mode is Package
-			if package_mode == "Package" and not experience.route_price:
-				return validation_error("route_price is required when package_mode is Package")
+			# Validate route_price if package_mode is Route
+			if package_mode == "Route" and not experience.route_price:
+				return validation_error("route_price is required when package_mode is Route")
 		
 		experience.save()
 		frappe.db.commit()
@@ -269,7 +262,6 @@ def update_experience_pricing(experience_id, individual_price=None, route_price=
 				"experience_id": experience.name,
 				"individual_price": experience.individual_price,
 				"route_price": experience.route_price,
-				"min_acts_for_route_price": experience.min_acts_for_route_price,
 				"package_mode": experience.package_mode
 			}
 		)

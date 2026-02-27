@@ -35,17 +35,7 @@ def calculate_ticket_price(experience_id, party_size, route_id=None):
 			"route_price": None
 		}
 	
-	# Individual pricing
-	if experience.min_acts_for_route_price and party_size >= experience.min_acts_for_route_price:
-		# Use route price if applicable
-		if experience.route_price:
-			return {
-				"total_price": experience.route_price,
-				"individual_price": experience.individual_price,
-				"route_price": experience.route_price
-			}
-	
-	# Default: individual price
+	# Individual pricing - use individual price
 	return {
 		"total_price": (experience.individual_price or 0) * party_size,
 		"individual_price": experience.individual_price,

@@ -63,11 +63,11 @@ def create_route(name, description=None, status="OFFLINE", experiences=None, pri
 			if not frappe.db.exists("Cheese Experience", exp.get("experience")):
 				return not_found("Experience", exp.get("experience"))
 			
-			# Check if experience is eligible for packages
+			# Check if experience is eligible for routes
 			exp_doc = frappe.get_doc("Cheese Experience", exp.get("experience"))
-			if exp_doc.package_mode not in ["Package", "Both"]:
+			if exp_doc.package_mode not in ["Route", "Both"]:
 				return validation_error(
-					f"Experience {exp.get('experience')} is not eligible for packages. "
+					f"Experience {exp.get('experience')} is not eligible for routes. "
 					f"Package mode: {exp_doc.package_mode}"
 				)
 		

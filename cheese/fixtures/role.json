@@ -37,5 +37,31 @@
   "restrict_to_domain": null,
   "role_name": "Central Admin",
   "two_factor_auth": 0
+ },
+ {
+  "desk_access": 1,
+  "disabled": 0,
+  "docstatus": 0,
+  "doctype": "Role",
+  "home_page": null,
+  "is_custom": 0,
+  "modified": "2024-01-01 00:00:00",
+  "name": "Route Administrator",
+  "restrict_to_domain": null,
+  "role_name": "Route Administrator",
+  "two_factor_auth": 0
+ },
+ {
+  "desk_access": 1,
+  "disabled": 0,
+  "docstatus": 0,
+  "doctype": "Role",
+  "home_page": null,
+  "is_custom": 0,
+  "modified": "2024-01-01 00:00:00",
+  "name": "Establishment User",
+  "restrict_to_domain": null,
+  "role_name": "Establishment User",
+  "two_factor_auth": 0
  }
 ]
