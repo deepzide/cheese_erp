@@ -2,7 +2,7 @@
  "actions": [],
  "allow_import": 1,
  "allow_rename": 1,
- "autoname": "format:{experience}-{date}-{time}",
+ "autoname": "format:{experience}-{date}",
  "creation": "2024-01-01 00:00:00",
  "doctype": "DocType",
  "name": "Cheese Experience Slot",
@@ -11,8 +11,11 @@
  "field_order": [
   "slot_info",
   "experience",
+  "calendar_section",
   "date",
-  "time",
+  "time_from",
+  "time_to",
+  "time_range",
   "capacity_section",
   "max_capacity",
   "reserved_capacity",
@@ -34,6 +37,11 @@
    "reqd": 1
   },
   {
+   "fieldname": "calendar_section",
+   "fieldtype": "Section Break",
+   "label": "Calendar Range"
+  },
+  {
    "fieldname": "date",
    "fieldtype": "Date",
    "in_list_view": 1,
@@ -42,11 +50,21 @@
    "reqd": 1
   },
   {
-   "fieldname": "time",
+   "fieldname": "time_from",
    "fieldtype": "Time",
-   "in_list_view": 1,
-   "label": "Time",
-   "reqd": 1
+   "label": "Time From"
+  },
+  {
+   "fieldname": "time_to",
+   "fieldtype": "Time",
+   "label": "Time To"
+  },
+  {
+   "fieldname": "time_range",
+   "fieldtype": "Data",
+   "label": "Time Range",
+   "read_only": 1,
+   "depends_on": "eval:doc.time_from || doc.time_to"
   },
   {
    "fieldname": "capacity_section",
@@ -131,5 +149,10 @@
  "sort_field": "date",
  "sort_order": "ASC",
  "states": [],
- "track_changes": 1
+ "track_changes": 1,
+ "calendar_view": {
+  "start_date_field": "date",
+  "title_field": "experience",
+  "color_field": "slot_status"
+ }
 }

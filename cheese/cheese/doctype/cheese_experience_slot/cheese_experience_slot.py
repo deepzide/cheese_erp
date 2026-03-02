@@ -29,12 +29,49 @@ class CheeseExperienceSlot(Document):
 		# Validate max capacity
 		if self.max_capacity <= 0:
 			frappe.throw(_("Max Capacity must be greater than 0"))
+		
+		# Validate date is provided
+		if not self.date:
+			frappe.throw(_("Date is required"))
+		
+		# Get time range fields (optional)
+		time_from = getattr(self, 'time_from', None)
+		time_to = getattr(self, 'time_to', None)
+		
+		# Validate time range (only if both time fields are provided)
+		if time_from and time_to:
+			if time_from > time_to:
+				frappe.throw(_("Time From must be before or equal to Time To"))
+		
+		# Update combined time range field
+		self.update_time_range()
 
 		# Calculate reserved capacity
 		self.calculate_reserved_capacity()
 
 		# Update slot status based on capacity
 		self.update_slot_status()
+	
+	def update_time_range(self):
+		"""Update the combined time range field"""
+		time_from = getattr(self, 'time_from', None)
+		time_to = getattr(self, 'time_to', None)
+		
+		if time_from and time_to:
+			# Format: "09:00 - 17:00"
+			from frappe.utils import format_time
+			self.time_range = f"{format_time(time_from)} - {format_time(time_to)}"
+		elif time_from:
+			# Only time_from provided
+			from frappe.utils import format_time
+			self.time_range = f"{format_time(time_from)} -"
+		elif time_to:
+			# Only time_to provided
+			from frappe.utils import format_time
+			self.time_range = f"- {format_time(time_to)}"
+		else:
+			# No time range
+			self.time_range = None
 
 	def calculate_reserved_capacity(self):
 		"""Calculate reserved capacity from PENDING tickets"""

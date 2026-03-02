@@ -5,12 +5,10 @@
  "autoname": "prompt",
  "creation": "2024-01-01 00:00:00",
  "doctype": "DocType",
- "name": "Cheese Route",
  "document_type": "Document",
  "engine": "InnoDB",
  "field_order": [
   "route_info",
-  "name",
   "description",
   "status",
   "pricing_section",
@@ -29,14 +27,6 @@
    "fieldname": "route_info",
    "fieldtype": "Section Break",
    "label": "Route Information"
-  },
-  {
-   "fieldname": "name",
-   "fieldtype": "Data",
-   "in_list_view": 1,
-   "in_standard_filter": 1,
-   "label": "Route Name",
-   "reqd": 1
   },
   {
    "fieldname": "description",
@@ -74,27 +64,28 @@
    "label": "Deposit Settings"
   },
   {
+   "default": "0",
    "fieldname": "deposit_required",
    "fieldtype": "Check",
    "label": "Deposit Required"
   },
   {
+   "depends_on": "eval:doc.deposit_required",
    "fieldname": "deposit_type",
    "fieldtype": "Select",
-   "depends_on": "eval:doc.deposit_required",
    "label": "Deposit Type",
    "options": "Amount\n%"
   },
   {
+   "depends_on": "eval:doc.deposit_required",
    "fieldname": "deposit_value",
    "fieldtype": "Float",
-   "depends_on": "eval:doc.deposit_required",
    "label": "Deposit Value"
   },
   {
+   "depends_on": "eval:doc.deposit_required",
    "fieldname": "deposit_ttl_hours",
    "fieldtype": "Int",
-   "depends_on": "eval:doc.deposit_required",
    "label": "Deposit TTL (Hours)"
   },
   {
@@ -111,9 +102,10 @@
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2024-01-01 00:00:00",
+ "modified": "2026-03-02 19:56:32.688996",
  "modified_by": "Administrator",
  "module": "Cheese",
+ "name": "Cheese Route",
  "naming_rule": "By \"Naming Series\" field",
  "owner": "Administrator",
  "permissions": [
@@ -162,6 +154,7 @@
    "share": 1
   }
  ],
+ "row_format": "Dynamic",
  "sort_field": "modified",
  "sort_order": "DESC",
  "states": [],
