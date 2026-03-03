@@ -2,7 +2,7 @@
  "actions": [],
  "allow_import": 1,
  "allow_rename": 1,
- "autoname": "format:{experience}-{date}",
+ "autoname": "format:{experience}-{date_from}",
  "creation": "2024-01-01 00:00:00",
  "doctype": "DocType",
  "name": "Cheese Experience Slot",
@@ -12,7 +12,9 @@
   "slot_info",
   "experience",
   "calendar_section",
-  "date",
+  "date_from",
+  "date_to",
+  "column_break_dates",
   "time_from",
   "time_to",
   "time_range",
@@ -42,12 +44,24 @@
    "label": "Calendar Range"
   },
   {
-   "fieldname": "date",
+   "fieldname": "date_from",
    "fieldtype": "Date",
    "in_list_view": 1,
    "in_standard_filter": 1,
-   "label": "Date",
+   "label": "Date From",
    "reqd": 1
+  },
+  {
+   "fieldname": "date_to",
+   "fieldtype": "Date",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Date To",
+   "reqd": 1
+  },
+  {
+   "fieldname": "column_break_dates",
+   "fieldtype": "Column Break"
   },
   {
    "fieldname": "time_from",
@@ -146,12 +160,13 @@
    "share": 1
   }
  ],
- "sort_field": "date",
+ "sort_field": "date_from",
  "sort_order": "ASC",
  "states": [],
  "track_changes": 1,
  "calendar_view": {
-  "start_date_field": "date",
+  "start_date_field": "date_from",
+  "end_date_field": "date_to",
   "title_field": "experience",
   "color_field": "slot_status"
  }

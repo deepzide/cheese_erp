@@ -66,6 +66,8 @@ class CheeseTicket(Document):
 		if self.is_new():
 			self.create_snapshots()
 			self.set_expires_at()
+			# Update slot capacity when ticket is created
+			self.update_capacity()
 
 		# Update capacity on status change
 		if not self.is_new() and self.has_value_changed("status"):

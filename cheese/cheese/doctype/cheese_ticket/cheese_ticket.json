@@ -2,10 +2,9 @@
  "actions": [],
  "allow_import": 1,
  "allow_rename": 1,
- "autoname": "format:TKT-.YYYY.-.MM.-.#####",
+ "autoname": "TKT-.YYYY.-.MM.-.#####",
  "creation": "2024-01-01 00:00:00",
  "doctype": "DocType",
- "name": "Cheese Ticket",
  "document_type": "Document",
  "engine": "InnoDB",
  "field_order": [
@@ -122,6 +121,7 @@
    "label": "Deposit"
   },
   {
+   "default": "0",
    "fieldname": "deposit_required",
    "fieldtype": "Check",
    "label": "Deposit Required"
@@ -134,10 +134,11 @@
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2024-01-01 00:00:00",
+ "modified": "2026-03-03 15:30:18.410914",
  "modified_by": "Administrator",
  "module": "Cheese",
- "naming_rule": "By \"Naming Series\" field",
+ "name": "Cheese Ticket",
+ "naming_rule": "Expression (old style)",
  "owner": "Administrator",
  "permissions": [
   {
@@ -185,6 +186,7 @@
    "share": 1
   }
  ],
+ "row_format": "Dynamic",
  "sort_field": "modified",
  "sort_order": "DESC",
  "states": [],
