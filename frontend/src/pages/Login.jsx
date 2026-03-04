@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { authService } from "@/api/authService";
-import { setBaseUrl } from "@/api/client";
+import { setBaseUrl, getBaseUrl } from "@/api/client";
 import { Loader2, Eye, EyeOff } from "lucide-react";
 
 export default function Login() {
@@ -18,6 +18,14 @@ export default function Login() {
     const [showServer, setShowServer] = useState(false);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState("");
+
+    // Restore base URL from localStorage on mount
+    useEffect(() => {
+        const storedBaseUrl = getBaseUrl();
+        if (storedBaseUrl) {
+            setServerUrl(storedBaseUrl);
+        }
+    }, []);
 
     const handleLogin = async (e) => {
         e.preventDefault();

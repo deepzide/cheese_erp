@@ -196,6 +196,11 @@ scheduler_events = {
 # before_request = ["cheese.utils.before_request"]
 # after_request = ["cheese.utils.after_request"]
 
+# Website Path Resolver
+# ---------------------
+# Custom path resolver for SPA routing
+website_path_resolver = ["cheese.utils.website_path_resolver.resolve_cheese_routes"]
+
 # Job Events
 # ----------
 # before_job = ["cheese.utils.before_job"]
