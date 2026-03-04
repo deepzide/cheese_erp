@@ -132,6 +132,12 @@
       args:
         chdir: "{{ project_dir }}/frappe_docker"
 
+    - name: Set ignore_csrf in common_site_config.json
+      ansible.builtin.command:
+        cmd: docker compose -f pwd.yml exec -T backend bench set-config -g ignore_csrf 1 --parse
+      args:
+        chdir: "{{ project_dir }}/frappe_docker"
+
 
     # ------------------------------------------------------------------------
     # ⚡ Crear sitio si no existe
