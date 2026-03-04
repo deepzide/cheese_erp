@@ -1,0 +1,88 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Cheese Yellow & Black Theme */
+    --background: 45 10% 97%;
+    --foreground: 45 5% 10%;
+    --card: 0 0% 100%;
+    --card-foreground: 45 5% 10%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 45 5% 10%;
+    --primary: 48 96% 53%;
+    --primary-foreground: 0 0% 5%;
+    --secondary: 45 10% 93%;
+    --secondary-foreground: 45 5% 15%;
+    --muted: 45 10% 93%;
+    --muted-foreground: 45 5% 40%;
+    --accent: 48 80% 90%;
+    --accent-foreground: 48 90% 20%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 45 10% 88%;
+    --input: 45 10% 88%;
+    --ring: 48 96% 53%;
+    --chart-1: 48 96% 53%;
+    --chart-2: 160 60% 45%;
+    --chart-3: 30 80% 55%;
+    --chart-4: 280 65% 60%;
+    --chart-5: 340 75% 55%;
+    --radius: 0.625rem;
+
+    /* Sidebar — Dark/Black with yellow accents */
+    --sidebar-background: 0 0% 7%;
+    --sidebar-foreground: 45 10% 80%;
+    --sidebar-primary: 48 96% 53%;
+    --sidebar-primary-foreground: 0 0% 5%;
+    --sidebar-accent: 45 10% 14%;
+    --sidebar-accent-foreground: 48 96% 53%;
+    --sidebar-border: 0 0% 15%;
+    --sidebar-ring: 48 96% 53%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground font-sans;
+    font-family: 'Inter', system-ui, sans-serif;
+  }
+}
+
+@layer utilities {
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .cheese-gradient {
+    background: linear-gradient(135deg, #FDD835 0%, #F9A825 50%, #F57F17 100%);
+  }
+
+  .cheese-gradient-dark {
+    background: linear-gradient(135deg, #1a1a1a 0%, #2a2a2a 50%, #1a1a1a 100%);
+  }
+
+  .glass-dark {
+    background: rgba(18, 18, 18, 0.85);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+  }
+
+  .glass-light {
+    background: rgba(255, 255, 255, 0.85);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+  }
+
+  .kanban-column {
+    min-height: 60vh;
+  }
+}
