@@ -5,7 +5,7 @@ import {
     LayoutDashboard, Ticket, Route, Sparkles, CalendarDays,
     Users, UserPlus, FileText, Wallet, ShoppingCart,
     Bell, Menu, LogOut, ChevronDown, ChevronRight, X,
-    Zap, Settings
+    Zap, Settings, Sun, Moon
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -15,6 +15,7 @@ import {
     DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { getStoredCredentials } from "@/api/client";
+import { useTheme } from "@/components/ThemeProvider";
 
 const navigationItems = [
     { title: "Dashboard", url: createPageUrl("dashboard"), icon: LayoutDashboard, section: "main" },
@@ -42,12 +43,17 @@ export default function Layout({ children }) {
     const navigate = useNavigate();
     const [sidebarOpen, setSidebarOpen] = useState(false);
     const [collapsedSections, setCollapsedSections] = useState({});
+    const { theme, setTheme, resolvedTheme } = useTheme();
 
     const currentUser = getStoredCredentials();
     const user = currentUser || { full_name: "Cheese Admin", role: "admin" };
 
     const toggleSection = (key) => {
         setCollapsedSections(prev => ({ ...prev, [key]: !prev[key] }));
+    };
+
+    const toggleTheme = () => {
+        setTheme(resolvedTheme === "dark" ? "light" : "dark");
     };
 
     const handleLogout = async () => {
@@ -111,8 +117,8 @@ export default function Layout({ children }) {
                                                 to={item.url}
                                                 onClick={() => setSidebarOpen(false)}
                                                 className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 ${isActive
-                                                        ? 'bg-cheese-500 text-black shadow-lg shadow-yellow-500/20'
-                                                        : 'text-white/60 hover:text-white hover:bg-white/5'
+                                                    ? 'bg-cheese-500 text-black shadow-lg shadow-yellow-500/20'
+                                                    : 'text-white/60 hover:text-white hover:bg-white/5'
                                                     }`}
                                             >
                                                 <item.icon className={`w-4 h-4 ${isActive ? 'text-black' : ''}`} />
@@ -150,7 +156,7 @@ export default function Layout({ children }) {
     );
 
     return (
-        <div className="min-h-screen flex w-full bg-gradient-to-br from-amber-50/30 via-white to-yellow-50/20">
+        <div className="min-h-screen flex w-full bg-background">
             {/* Desktop Sidebar */}
             <aside className="hidden lg:flex flex-col w-64 bg-[#0d0d0d] border-r border-white/5 fixed inset-y-0 left-0 z-40">
                 <SidebarContent />
@@ -175,13 +181,13 @@ export default function Layout({ children }) {
             {/* Main Content */}
             <main className="flex-1 flex flex-col lg:ml-64 min-h-screen">
                 {/* Top Header */}
-                <header className="sticky top-0 z-30 glass-light border-b border-gray-200/60 px-6 py-3 flex items-center justify-between">
+                <header className="sticky top-0 z-30 glass-surface border-b border-border px-6 py-3 flex items-center justify-between">
                     <div className="flex items-center gap-3">
                         <button
                             onClick={() => setSidebarOpen(true)}
-                            className="lg:hidden p-2 rounded-lg hover:bg-gray-100 transition-colors"
+                            className="lg:hidden p-2 rounded-lg hover:bg-accent transition-colors"
                         >
-                            <Menu className="w-5 h-5 text-gray-600" />
+                            <Menu className="w-5 h-5 text-muted-foreground" />
                         </button>
                         <div className="lg:hidden flex items-center gap-2">
                             <span className="text-xl">🧀</span>
@@ -191,10 +197,25 @@ export default function Layout({ children }) {
                         </div>
                     </div>
 
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-2">
+                        {/* Theme Toggle */}
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={toggleTheme}
+                            className="text-muted-foreground hover:text-foreground"
+                            title={resolvedTheme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+                        >
+                            {resolvedTheme === "dark" ? (
+                                <Sun className="w-5 h-5" />
+                            ) : (
+                                <Moon className="w-5 h-5" />
+                            )}
+                        </Button>
+
                         <DropdownMenu>
                             <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" size="icon" className="relative text-gray-500 hover:text-gray-700">
+                                <Button variant="ghost" size="icon" className="relative text-muted-foreground hover:text-foreground">
                                     <Bell className="w-5 h-5" />
                                 </Button>
                             </DropdownMenuTrigger>

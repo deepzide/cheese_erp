@@ -2,6 +2,7 @@ import './App.css'
 import Pages from "@/pages/index.jsx"
 import { Toaster } from "sonner"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
+import { ThemeProvider, useTheme } from "@/components/ThemeProvider"
 
 const queryClient = new QueryClient({
     defaultOptions: {
@@ -13,21 +14,31 @@ const queryClient = new QueryClient({
     },
 })
 
+function ThemedToaster() {
+    const { resolvedTheme } = useTheme();
+    return (
+        <Toaster
+            duration={2000}
+            theme={resolvedTheme}
+            toastOptions={{
+                style: {
+                    background: 'hsl(var(--card))',
+                    color: 'hsl(var(--card-foreground))',
+                    border: '1px solid hsl(var(--border))',
+                },
+            }}
+        />
+    );
+}
+
 function App() {
     return (
-        <QueryClientProvider client={queryClient}>
-            <Pages />
-            <Toaster
-                duration={2000}
-                toastOptions={{
-                    style: {
-                        background: '#1a1a1a',
-                        color: '#FDD835',
-                        border: '1px solid #333',
-                    },
-                }}
-            />
-        </QueryClientProvider>
+        <ThemeProvider defaultTheme="system" storageKey="cheese-theme">
+            <QueryClientProvider client={queryClient}>
+                <Pages />
+                <ThemedToaster />
+            </QueryClientProvider>
+        </ThemeProvider>
     )
 }
 

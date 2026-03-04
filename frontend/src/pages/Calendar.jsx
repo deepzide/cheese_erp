@@ -42,7 +42,7 @@ export default function CalendarPage() {
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="p-6 space-y-6">
             <div className="flex items-center justify-between">
                 <div>
-                    <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+                    <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
                         <CalendarDays className="w-6 h-6 text-cheese-600" /> Calendar
                     </h1>
                     <p className="text-sm text-muted-foreground mt-1">Slot availability overview</p>
@@ -72,13 +72,13 @@ export default function CalendarPage() {
                                 const data = mockSlotsByDate[key];
                                 const today = isToday(day);
                                 const selected = selectedDate && format(selectedDate, 'yyyy-MM-dd') === key;
-                                let bg = 'bg-white hover:bg-gray-50';
+                                let bg = 'bg-card hover:bg-muted';
                                 if (data) {
-                                    if (data.occupancy >= 90) bg = 'bg-red-50 hover:bg-red-100 border-red-200';
-                                    else if (data.occupancy >= 60) bg = 'bg-yellow-50 hover:bg-yellow-100 border-yellow-200';
-                                    else bg = 'bg-emerald-50 hover:bg-emerald-100 border-emerald-200';
+                                    if (data.occupancy >= 90) bg = 'bg-red-50 dark:bg-red-950/30 hover:bg-red-100 dark:hover:bg-red-950/50 border-red-200 dark:border-red-800';
+                                    else if (data.occupancy >= 60) bg = 'bg-yellow-50 dark:bg-yellow-950/30 hover:bg-yellow-100 dark:hover:bg-yellow-950/50 border-yellow-200 dark:border-yellow-800';
+                                    else bg = 'bg-emerald-50 dark:bg-emerald-950/30 hover:bg-emerald-100 dark:hover:bg-emerald-950/50 border-emerald-200 dark:border-emerald-800';
                                 }
-                                if (selected) bg = 'bg-cheese-100 border-cheese-400 ring-2 ring-cheese-300';
+                                if (selected) bg = 'bg-cheese-100 dark:bg-cheese-900/40 border-cheese-400 ring-2 ring-cheese-300';
 
                                 return (
                                     <button
@@ -99,7 +99,7 @@ export default function CalendarPage() {
                                 );
                             })}
                         </div>
-                        <div className="flex items-center justify-center gap-6 mt-4 pt-3 border-t">
+                        <div className="flex items-center justify-center gap-6 mt-4 pt-3 border-t border-border">
                             {[{ color: 'bg-emerald-500', label: 'Available' }, { color: 'bg-yellow-500', label: 'Filling' }, { color: 'bg-red-500', label: 'Full' }].map(l => (
                                 <div key={l.label} className="flex items-center gap-1.5"><div className={`w-2.5 h-2.5 rounded-full ${l.color}`} /><span className="text-xs text-muted-foreground">{l.label}</span></div>
                             ))}
@@ -121,14 +121,14 @@ export default function CalendarPage() {
                                 {daySlots.map((slot, i) => {
                                     const occ = Math.round((slot.booked / slot.capacity) * 100);
                                     return (
-                                        <div key={i} className="p-3 bg-gray-50 rounded-lg">
+                                        <div key={i} className="p-3 bg-muted rounded-lg">
                                             <div className="flex items-center justify-between mb-1">
                                                 <span className="font-mono font-bold text-sm">{slot.time}</span>
                                                 <Badge variant={slot.status === 'OPEN' ? 'success' : 'destructive'} className="text-[10px]">{slot.status}</Badge>
                                             </div>
                                             <p className="text-xs text-muted-foreground mb-2">{slot.experience}</p>
                                             <div className="flex items-center gap-2">
-                                                <div className="flex-1 bg-gray-200 rounded-full h-1.5">
+                                                <div className="flex-1 bg-muted-foreground/20 rounded-full h-1.5">
                                                     <div className={`h-1.5 rounded-full ${occ >= 90 ? 'bg-red-500' : occ >= 60 ? 'bg-yellow-500' : 'bg-emerald-500'}`} style={{ width: `${occ}%` }} />
                                                 </div>
                                                 <span className="text-xs text-muted-foreground flex items-center gap-1"><Users className="w-3 h-3" />{slot.booked}/{slot.capacity}</span>
@@ -139,7 +139,7 @@ export default function CalendarPage() {
                             </div>
                         ) : (
                             <div className="text-center py-12 text-muted-foreground">
-                                <CalendarDays className="w-12 h-12 mx-auto mb-3 text-gray-300" />
+                                <CalendarDays className="w-12 h-12 mx-auto mb-3 text-muted-foreground/30" />
                                 <p className="text-sm">Click a date to view slots</p>
                             </div>
                         )}

@@ -80,7 +80,7 @@ export default function Dashboard() {
             {/* Page Header */}
             <motion.div variants={item} className="flex items-center justify-between">
                 <div>
-                    <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
+                    <h1 className="text-2xl font-bold text-foreground">Dashboard</h1>
                     <p className="text-sm text-muted-foreground mt-1">Welcome back to your control center</p>
                 </div>
                 <div className="flex gap-2">
@@ -122,7 +122,7 @@ export default function Dashboard() {
                 <Card className="border-0 shadow-lg">
                     <CardHeader className="pb-2">
                         <CardTitle className="text-base font-semibold flex items-center gap-2">
-                            <div className="w-8 h-8 rounded-lg bg-yellow-100 flex items-center justify-center">
+                            <div className="w-8 h-8 rounded-lg bg-yellow-100 dark:bg-yellow-900/30 flex items-center justify-center">
                                 <Ticket className="w-4 h-4 text-yellow-600" />
                             </div>
                             Ticket Status
@@ -146,7 +146,7 @@ export default function Dashboard() {
                                         ))}
                                     </Pie>
                                     <Tooltip
-                                        contentStyle={{ background: '#1a1a1a', border: '1px solid #333', borderRadius: '8px', color: '#fff' }}
+                                        contentStyle={{ background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '8px', color: 'hsl(var(--card-foreground))' }}
                                     />
                                 </PieChart>
                             </ResponsiveContainer>
@@ -167,7 +167,7 @@ export default function Dashboard() {
                 <Card className="border-0 shadow-lg lg:col-span-2">
                     <CardHeader className="pb-2">
                         <CardTitle className="text-base font-semibold flex items-center gap-2">
-                            <div className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center">
+                            <div className="w-8 h-8 rounded-lg bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
                                 <TrendingUp className="w-4 h-4 text-blue-600" />
                             </div>
                             Weekly Ticket Trend
@@ -180,7 +180,7 @@ export default function Dashboard() {
                                     <XAxis dataKey="day" axisLine={false} tickLine={false} className="text-xs" />
                                     <YAxis axisLine={false} tickLine={false} className="text-xs" />
                                     <Tooltip
-                                        contentStyle={{ background: '#1a1a1a', border: '1px solid #333', borderRadius: '8px', color: '#fff' }}
+                                        contentStyle={{ background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '8px', color: 'hsl(var(--card-foreground))' }}
                                         cursor={{ fill: 'rgba(253, 216, 53, 0.1)' }}
                                     />
                                     <Bar dataKey="tickets" fill="#FDD835" radius={[6, 6, 0, 0]} />
@@ -197,7 +197,7 @@ export default function Dashboard() {
                 <Card className="border-0 shadow-lg lg:col-span-2">
                     <CardHeader className="pb-3">
                         <CardTitle className="text-base font-semibold flex items-center gap-2">
-                            <div className="w-8 h-8 rounded-lg bg-purple-100 flex items-center justify-center">
+                            <div className="w-8 h-8 rounded-lg bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center">
                                 <Clock className="w-4 h-4 text-purple-600" />
                             </div>
                             Today's Agenda
@@ -207,13 +207,13 @@ export default function Dashboard() {
                         {mockAgenda.map((event, i) => {
                             const occupancy = Math.round((event.booked / event.capacity) * 100);
                             return (
-                                <div key={i} className="flex items-center gap-4 p-3 rounded-xl bg-gray-50 hover:bg-gray-100 transition-colors group">
+                                <div key={i} className="flex items-center gap-4 p-3 rounded-xl bg-muted hover:bg-accent transition-colors group">
                                     <div className="text-center min-w-[48px]">
-                                        <span className="text-sm font-bold text-gray-900">{event.time}</span>
+                                        <span className="text-sm font-bold text-foreground">{event.time}</span>
                                     </div>
                                     <div className="w-px h-10 bg-cheese-300" />
                                     <div className="flex-1 min-w-0">
-                                        <p className="font-medium text-sm text-gray-900 truncate">{event.title}</p>
+                                        <p className="font-medium text-sm text-foreground truncate">{event.title}</p>
                                         <div className="flex items-center gap-3 mt-1">
                                             <span className="text-xs text-muted-foreground">
                                                 {event.booked}/{event.capacity} booked
@@ -237,7 +237,7 @@ export default function Dashboard() {
                 <Card className="border-0 shadow-lg">
                     <CardHeader className="pb-3">
                         <CardTitle className="text-base font-semibold flex items-center gap-2">
-                            <div className="w-8 h-8 rounded-lg bg-amber-100 flex items-center justify-center">
+                            <div className="w-8 h-8 rounded-lg bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center">
                                 <Sparkles className="w-4 h-4 text-amber-600" />
                             </div>
                             Quick Actions
@@ -245,11 +245,11 @@ export default function Dashboard() {
                     </CardHeader>
                     <CardContent className="space-y-2">
                         {[
-                            { label: "Create Ticket", icon: Ticket, path: "tickets", color: "bg-yellow-500/10 text-yellow-700 hover:bg-yellow-500/20" },
-                            { label: "New Route", icon: Route, path: "routes", color: "bg-emerald-500/10 text-emerald-700 hover:bg-emerald-500/20" },
-                            { label: "Add Experience", icon: Sparkles, path: "experiences", color: "bg-blue-500/10 text-blue-700 hover:bg-blue-500/20" },
-                            { label: "View Calendar", icon: CalendarDays, path: "calendar", color: "bg-purple-500/10 text-purple-700 hover:bg-purple-500/20" },
-                            { label: "Manage Contacts", icon: Users, path: "contacts", color: "bg-rose-500/10 text-rose-700 hover:bg-rose-500/20" },
+                            { label: "Create Ticket", icon: Ticket, path: "tickets", color: "bg-yellow-500/10 text-yellow-700 dark:text-yellow-400 hover:bg-yellow-500/20" },
+                            { label: "New Route", icon: Route, path: "routes", color: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-500/20" },
+                            { label: "Add Experience", icon: Sparkles, path: "experiences", color: "bg-blue-500/10 text-blue-700 dark:text-blue-400 hover:bg-blue-500/20" },
+                            { label: "View Calendar", icon: CalendarDays, path: "calendar", color: "bg-purple-500/10 text-purple-700 dark:text-purple-400 hover:bg-purple-500/20" },
+                            { label: "Manage Contacts", icon: Users, path: "contacts", color: "bg-rose-500/10 text-rose-700 dark:text-rose-400 hover:bg-rose-500/20" },
                         ].map((action) => (
                             <Button
                                 key={action.label}
