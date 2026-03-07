@@ -77,16 +77,32 @@ def list_establishments(page=1, page_size=20, search=None, status=None, locality
 					total=0
 				)
 		
-		# Get companies
-		companies = frappe.get_all(
-			"Company",
-			filters=filters,
-			or_filters=or_filters if or_filters else None,
-			fields=["name", "company_name", "email", "phone_no", "website", "company_description", "administrator_contact"],
-			limit_start=(page - 1) * page_size,
-			limit_page_length=page_size,
-			order_by="company_name asc"
-		)
+		# Get companies - try with administrator_contact, fallback without it if field doesn't exist
+		company_fields_with_contact = ["name", "company_name", "email", "phone_no", "website", "company_description", "administrator_contact"]
+		company_fields_without_contact = ["name", "company_name", "email", "phone_no", "website", "company_description"]
+		
+		try:
+			companies = frappe.get_all(
+				"Company",
+				filters=filters,
+				or_filters=or_filters if or_filters else None,
+				fields=company_fields_with_contact,
+				limit_start=(page - 1) * page_size,
+				limit_page_length=page_size,
+				order_by="company_name asc"
+			)
+		except Exception as field_error:
+			# If administrator_contact field doesn't exist yet, retry without it
+			frappe.log_error(f"Error fetching administrator_contact field (may not exist yet): {str(field_error)}")
+			companies = frappe.get_all(
+				"Company",
+				filters=filters,
+				or_filters=or_filters if or_filters else None,
+				fields=company_fields_without_contact,
+				limit_start=(page - 1) * page_size,
+				limit_page_length=page_size,
+				order_by="company_name asc"
+			)
 		
 		# Get total count
 		total = frappe.db.count("Company", filters=filters)

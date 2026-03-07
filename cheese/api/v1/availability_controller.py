@@ -9,48 +9,69 @@ from cheese.api.common.responses import success, error, not_found, validation_er
 
 
 @frappe.whitelist()
-def get_available_slots(experience_id, date):
+def get_available_slots(experience_id=None, date=None, date_from=None, date_to=None):
 	"""
-	Get available slots for an experience on a date
+	Get available slots for an experience or all experiences within a date range
 	
 	Args:
-		experience_id: ID of the experience
-		date: Date string (YYYY-MM-DD)
+		experience_id: ID of the experience (optional)
+		date: Date string (YYYY-MM-DD) - deprecated, use date_from and date_to instead
+		date_from: Start date string (YYYY-MM-DD) - required if date not provided
+		date_to: End date string (YYYY-MM-DD) - required if date not provided
 		
 	Returns:
-		Success response with list of available slots
+		Success response with list of available slots, grouped by experience if experience_id not provided
 	"""
 	try:
-		# Validate inputs
-		if not experience_id:
-			return validation_error("experience_id is required")
-		if not date:
-			return validation_error("date is required")
-
-		# Validate experience exists
-		if not frappe.db.exists("Cheese Experience", experience_id):
-			return not_found("Experience", experience_id)
-
-		# Get experience details
-		experience = frappe.get_doc("Cheese Experience", experience_id)
+		# Validate date inputs - support both old (date) and new (date_from/date_to) formats
+		if date:
+			# Legacy support: single date
+			date_from = date
+			date_to = date
 		
-		# Get slots for the date
+		if not date_from or not date_to:
+			return validation_error("date_from and date_to are required (or use date for single day)")
+		
+		date_from_obj = getdate(date_from)
+		date_to_obj = getdate(date_to)
+		
+		if date_from_obj > date_to_obj:
+			return validation_error("date_from must be before or equal to date_to")
+
+		# Build filters for slots
+		slot_filters = {
+			"date": [">=", date_from_obj],
+			"slot_status": ["in", ["OPEN", "CLOSED"]]
+		}
+		
+		# Add date_to filter
+		if date_from_obj == date_to_obj:
+			# Single day - use exact match
+			slot_filters["date"] = date_from_obj
+		else:
+			# Date range - use between
+			slot_filters["date"] = ["between", [date_from_obj, date_to_obj]]
+
+		# If experience_id provided, validate and filter
+		if experience_id:
+			if not frappe.db.exists("Cheese Experience", experience_id):
+				return not_found("Experience", experience_id)
+			slot_filters["experience"] = experience_id
+			experience = frappe.get_doc("Cheese Experience", experience_id)
+		
+		# Get slots
 		slots = frappe.get_all(
 			"Cheese Experience Slot",
-			filters={
-				"experience": experience_id,
-				"date": getdate(date),
-				"slot_status": ["in", ["OPEN", "CLOSED"]]
-			},
-			fields=["name", "date", "time", "max_capacity", "slot_status"],
-			order_by="time asc"
+			filters=slot_filters,
+			fields=["name", "experience", "date", "time", "max_capacity", "slot_status"],
+			order_by="date asc, time asc"
 		)
 
 		# Calculate available capacity for each slot
-		result = []
+		slots_with_availability = []
 		for slot in slots:
 			available = get_available_capacity(slot.name)
-			result.append({
+			slot_data = {
 				"slot_id": slot.name,
 				"date": str(slot.date),
 				"time": str(slot.time),
@@ -58,19 +79,66 @@ def get_available_slots(experience_id, date):
 				"available_capacity": available,
 				"slot_status": slot.slot_status,
 				"is_available": available > 0
-			})
-
-		return success(
-			f"Found {len(result)} slots for {experience.name} on {date}",
-			{
-				"experience_id": experience_id,
-				"experience_name": experience.name,
-				"date": date,
-				"slots": result,
-				"total_slots": len(result),
-				"available_slots": len([s for s in result if s["is_available"]])
 			}
-		)
+			
+			# Add experience info if filtering by multiple experiences
+			if not experience_id:
+				slot_data["experience_id"] = slot.experience
+				exp_name = frappe.db.get_value("Cheese Experience", slot.experience, "name")
+				slot_data["experience_name"] = exp_name
+			
+			slots_with_availability.append(slot_data)
+
+		# Build response
+		if experience_id:
+			# Single experience response
+			return success(
+				f"Found {len(slots_with_availability)} slots for {experience.name} from {date_from} to {date_to}",
+				{
+					"experience_id": experience_id,
+					"experience_name": experience.name,
+					"date_from": date_from,
+					"date_to": date_to,
+					"slots": slots_with_availability,
+					"total_slots": len(slots_with_availability),
+					"available_slots": len([s for s in slots_with_availability if s["is_available"]])
+				}
+			)
+		else:
+			# Multiple experiences - group by experience
+			experiences_dict = {}
+			for slot in slots_with_availability:
+				exp_id = slot["experience_id"]
+				if exp_id not in experiences_dict:
+					experiences_dict[exp_id] = {
+						"experience_id": exp_id,
+						"experience_name": slot["experience_name"],
+						"slots": []
+					}
+				experiences_dict[exp_id]["slots"].append(slot)
+			
+			# Convert to list and add summary
+			experiences_list = []
+			total_slots = 0
+			total_available = 0
+			for exp_id, exp_data in experiences_dict.items():
+				exp_data["total_slots"] = len(exp_data["slots"])
+				exp_data["available_slots"] = len([s for s in exp_data["slots"] if s["is_available"]])
+				total_slots += exp_data["total_slots"]
+				total_available += exp_data["available_slots"]
+				experiences_list.append(exp_data)
+			
+			return success(
+				f"Found {total_slots} slots across {len(experiences_list)} experiences from {date_from} to {date_to}",
+				{
+					"date_from": date_from,
+					"date_to": date_to,
+					"experiences": experiences_list,
+					"total_experiences": len(experiences_list),
+					"total_slots": total_slots,
+					"total_available_slots": total_available
+				}
+			)
 	except frappe.ValidationError as e:
 		return validation_error(str(e))
 	except Exception as e:
@@ -79,18 +147,20 @@ def get_available_slots(experience_id, date):
 
 
 @frappe.whitelist()
-def get_availability(experience_id, date):
+def get_availability(experience_id=None, date=None, date_from=None, date_to=None):
 	"""
 	Get availability by experience - alias for get_available_slots
 	
 	Args:
-		experience_id: ID of the experience
-		date: Date string (YYYY-MM-DD)
+		experience_id: ID of the experience (optional)
+		date: Date string (YYYY-MM-DD) - deprecated, use date_from and date_to instead
+		date_from: Start date string (YYYY-MM-DD)
+		date_to: End date string (YYYY-MM-DD)
 		
 	Returns:
 		Success response with list of available slots
 	"""
-	return get_available_slots(experience_id, date)
+	return get_available_slots(experience_id=experience_id, date=date, date_from=date_from, date_to=date_to)
 
 
 @frappe.whitelist()

@@ -4,7 +4,27 @@ const TOKEN_ENDPOINT = '/api/method/cheese.api.v1.auth_controller.token';
 const LOGOUT_ENDPOINT = '/api/method/cheese.api.v1.auth_controller.logout';
 
 const normalizeTokenPayload = (response = {}, defaults = {}) => {
-    const data = response?.message || response?.data?.message || response?.data || response || {};
+    // Handle Frappe's nested response structure: { message: { success, message, data: {...} } }
+    // or direct structure: { success, message, data: {...} }
+    let data = {};
+    
+    if (response?.message?.data) {
+        // Nested structure: response.message.data contains the actual data
+        data = response.message.data;
+    } else if (response?.message && typeof response.message === 'object' && !response.message.success) {
+        // response.message is the data itself
+        data = response.message;
+    } else if (response?.data) {
+        // Direct data structure
+        data = response.data;
+    } else if (response?.api_key) {
+        // Already normalized
+        data = response;
+    } else {
+        // Fallback
+        data = response || {};
+    }
+    
     return {
         api_key: data?.api_key || defaults?.api_key || '',
         api_secret: data?.api_secret || defaults?.api_secret || '',

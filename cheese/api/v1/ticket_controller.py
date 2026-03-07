@@ -562,7 +562,7 @@ def reject_ticket(ticket_id, reason=None):
 
 
 @frappe.whitelist()
-def list_tickets(page=1, page_size=20, status=None, route_id=None, establishment_id=None, experience_id=None, date=None):
+def list_tickets(page=1, page_size=20, status=None, route_id=None, establishment_id=None, experience_id=None, date=None, date_from=None, date_to=None):
 	"""
 	List tickets with filters (US-TK-01)
 	
@@ -573,7 +573,9 @@ def list_tickets(page=1, page_size=20, status=None, route_id=None, establishment
 		route_id: Filter by route
 		establishment_id: Filter by establishment (company)
 		experience_id: Filter by experience
-		date: Filter by date (YYYY-MM-DD)
+		date: Filter by date (YYYY-MM-DD) - deprecated, use date_from and date_to instead
+		date_from: Start date filter (YYYY-MM-DD)
+		date_to: End date filter (YYYY-MM-DD)
 		
 	Returns:
 		Paginated response with tickets list
@@ -596,21 +598,58 @@ def list_tickets(page=1, page_size=20, status=None, route_id=None, establishment
 			filters["experience"] = experience_id
 		
 		# Date filter requires joining with slot
+		# Support both single date (legacy) and date range
 		if date:
-			date_obj = getdate(date)
-			# Get slots for the date
-			slots = frappe.get_all(
-				"Cheese Experience Slot",
-				filters={"date": date_obj},
-				fields=["name"]
-			)
+			# Legacy support: single date
+			date_from = date
+			date_to = date
+		
+		if date_from or date_to:
+			if date_from and date_to:
+				date_from_obj = getdate(date_from)
+				date_to_obj = getdate(date_to)
+				if date_from_obj > date_to_obj:
+					return validation_error("date_from must be before or equal to date_to")
+				
+				# Get slots for the date range
+				if date_from_obj == date_to_obj:
+					# Single day
+					slots = frappe.get_all(
+						"Cheese Experience Slot",
+						filters={"date": date_from_obj},
+						fields=["name"]
+					)
+				else:
+					# Date range - use between operator
+					slots = frappe.get_all(
+						"Cheese Experience Slot",
+						filters={"date": ["between", [date_from_obj, date_to_obj]]},
+						fields=["name"]
+					)
+			elif date_from:
+				# Only date_from provided
+				date_from_obj = getdate(date_from)
+				slots = frappe.get_all(
+					"Cheese Experience Slot",
+					filters={"date": [">=", date_from_obj]},
+					fields=["name"]
+				)
+			elif date_to:
+				# Only date_to provided
+				date_to_obj = getdate(date_to)
+				slots = frappe.get_all(
+					"Cheese Experience Slot",
+					filters={"date": ["<=", date_to_obj]},
+					fields=["name"]
+				)
+			
 			if slots:
 				filters["slot"] = ["in", [s.name for s in slots]]
 			else:
-				# No slots for this date, return empty
+				# No slots for this date range, return empty
 				return paginated_response(
 					[],
-					"No tickets found for this date",
+					"No tickets found for this date range",
 					page=page,
 					page_size=page_size,
 					total=0
@@ -619,7 +658,7 @@ def list_tickets(page=1, page_size=20, status=None, route_id=None, establishment
 		tickets = frappe.get_all(
 			"Cheese Ticket",
 			filters=filters,
-			fields=["name", "contact", "company", "experience", "slot", "route", "party_size", "status", "created", "modified"],
+			fields=["name", "contact", "company", "experience", "slot", "route", "party_size", "status", "creation", "modified"],
 			limit_start=(page - 1) * page_size,
 			limit_page_length=page_size,
 			order_by="modified desc"
@@ -702,7 +741,7 @@ def get_reservations_by_phone(phone, page=1, page_size=20, status=None):
 		tickets = frappe.get_all(
 			"Cheese Ticket",
 			filters=filters,
-			fields=["name", "company", "experience", "slot", "route", "party_size", "status", "created", "modified"],
+			fields=["name", "company", "experience", "slot", "route", "party_size", "status", "creation", "modified"],
 			limit_start=(page - 1) * page_size,
 			limit_page_length=page_size,
 			order_by="modified desc"
@@ -808,7 +847,7 @@ def get_ticket_board(filters=None, status=None, route_id=None, establishment_id=
 		tickets = frappe.get_all(
 			"Cheese Ticket",
 			filters=filter_dict,
-			fields=["name", "status", "contact", "experience", "slot", "route", "party_size", "company", "created", "modified"]
+			fields=["name", "status", "contact", "experience", "slot", "route", "party_size", "company", "creation", "modified"]
 		)
 		
 		# Enrich tickets with slot date/time and contact info
@@ -1047,7 +1086,7 @@ def get_establishment_ticket_board(establishment_id, date=None):
 				"company": establishment_id,
 				"slot": ["in", slot_ids]
 			},
-			fields=["name", "status", "experience", "slot", "party_size", "contact", "created"]
+			fields=["name", "status", "experience", "slot", "party_size", "contact", "creation"]
 		)
 		
 		# Group by status

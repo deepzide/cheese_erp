@@ -1,11 +1,13 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { CalendarDays, ChevronLeft, ChevronRight, Clock, Users } from "lucide-react";
+import { CalendarDays, ChevronLeft, ChevronRight, Clock, Users, Filter } from "lucide-react";
 import { format, addMonths, subMonths, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isToday, getDay } from "date-fns";
+import { establishmentService } from "@/api/establishmentService";
+import { experienceService } from "@/api/experienceService";
 
 const mockSlotsByDate = {};
 const baseDate = new Date();
@@ -31,6 +33,67 @@ const daySlots = [
 export default function CalendarPage() {
     const [currentMonth, setCurrentMonth] = useState(new Date());
     const [selectedDate, setSelectedDate] = useState(null);
+    const [selectedEstablishment, setSelectedEstablishment] = useState(null);
+    const [selectedExperience, setSelectedExperience] = useState(null);
+    const [establishments, setEstablishments] = useState([]);
+    const [experiences, setExperiences] = useState([]);
+    const [loading, setLoading] = useState(false);
+
+    // Fetch establishments on mount
+    useEffect(() => {
+        const fetchEstablishments = async () => {
+            try {
+                const response = await establishmentService.listEstablishments({ page_size: 100 });
+                // Handle paginated response structure: { success, data: [...], meta: {...} }
+                // Also handle Frappe's nested structure: { message: { success, data: [...], meta: {...} } }
+                const data = response?.data || response?.message?.data || [];
+                if (Array.isArray(data)) {
+                    setEstablishments(data);
+                } else {
+                    console.warn("Establishments data is not an array:", data);
+                    setEstablishments([]);
+                }
+            } catch (error) {
+                console.error("Failed to fetch establishments:", error);
+                setEstablishments([]);
+            }
+        };
+        fetchEstablishments();
+    }, []);
+
+    // Fetch experiences when establishment changes
+    useEffect(() => {
+        const fetchExperiences = async () => {
+            setLoading(true);
+            try {
+                const params = selectedEstablishment 
+                    ? { company: selectedEstablishment, page_size: 100 }
+                    : { page_size: 100 };
+                
+                const response = await experienceService.listExperiences(params);
+                // Handle paginated response structure: { success, data: [...], meta: {...} }
+                // Also handle Frappe's nested structure: { message: { success, data: [...], meta: {...} } }
+                const data = response?.data || response?.message?.data || [];
+                if (Array.isArray(data)) {
+                    setExperiences(data);
+                } else {
+                    console.warn("Experiences data is not an array:", data);
+                    setExperiences([]);
+                }
+            } catch (error) {
+                console.error("Failed to fetch experiences:", error);
+                setExperiences([]);
+            } finally {
+                setLoading(false);
+            }
+        };
+        fetchExperiences();
+    }, [selectedEstablishment]);
+
+    // Reset experience filter when establishment changes
+    useEffect(() => {
+        setSelectedExperience(null);
+    }, [selectedEstablishment]);
 
     const monthStart = startOfMonth(currentMonth);
     const monthEnd = endOfMonth(currentMonth);
@@ -46,6 +109,36 @@ export default function CalendarPage() {
                         <CalendarDays className="w-6 h-6 text-cheese-600" /> Calendar
                     </h1>
                     <p className="text-sm text-muted-foreground mt-1">Slot availability overview</p>
+                </div>
+                <div className="flex items-center gap-2">
+                    <Select value={selectedEstablishment || "all"} onValueChange={(value) => setSelectedEstablishment(value === "all" ? null : value)}>
+                        <SelectTrigger className="w-48 h-9">
+                            <Filter className="w-3 h-3 mr-1" />
+                            <SelectValue placeholder="All Establishments" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="all">All Establishments</SelectItem>
+                            {establishments.map((est) => (
+                                <SelectItem key={est.company_id} value={est.company_id}>
+                                    {est.company_name}
+                                </SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                    <Select value={selectedExperience || "all"} onValueChange={(value) => setSelectedExperience(value === "all" ? null : value)} disabled={loading}>
+                        <SelectTrigger className="w-48 h-9">
+                            <Filter className="w-3 h-3 mr-1" />
+                            <SelectValue placeholder="All Activities" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="all">All Activities</SelectItem>
+                            {experiences.map((exp) => (
+                                <SelectItem key={exp.experience_id || exp.id || exp.name} value={exp.experience_id || exp.id || exp.name}>
+                                    {exp.experience_name || exp.name}
+                                </SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
                 </div>
             </div>
 

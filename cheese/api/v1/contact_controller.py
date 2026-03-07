@@ -21,20 +21,14 @@ def find_or_create_contact(phone=None, email=None, name=None):
 		Success response with contact data
 	"""
 	try:
-		# Validate inputs
-		if not phone and not email:
-			return validation_error("Either phone or email must be provided")
+		# Validate inputs - phone is mandatory
+		if not phone:
+			return validation_error("phone is required")
 
-		# Search for existing contact using OR logic (phone OR email)
-		or_filters = []
-		if phone:
-			or_filters.append(["phone", "=", phone])
-		if email:
-			or_filters.append(["email", "=", email])
-
+		# Search for existing contact by phone
 		existing = frappe.get_all(
 			"Cheese Contact",
-			or_filters=or_filters,
+			filters={"phone": phone},
 			fields=["name", "full_name", "phone", "email"],
 			limit=1
 		)
@@ -59,13 +53,9 @@ def find_or_create_contact(phone=None, email=None, name=None):
 			"email": email
 		}
 		
-		# Set full name - prioritize provided name, otherwise use phone or email
+		# Set full name only if name is explicitly provided, otherwise leave it empty
 		if name:
 			contact_data["full_name"] = name
-		elif phone:
-			contact_data["full_name"] = phone
-		elif email:
-			contact_data["full_name"] = email
 		
 		contact = frappe.get_doc(contact_data)
 		contact.insert()
@@ -146,9 +136,10 @@ def update_contact(contact_id, name=None, phone=None, email=None, preferred_lang
 		}
 		
 		# Update fields if provided
+		# Allow name to be set to empty string (None check allows empty strings)
 		if name is not None:
 			old_values["full_name"] = contact.full_name
-			contact.full_name = name
+			contact.full_name = name if name else ""  # Ensure empty string if name is empty
 			changed_fields.append("full_name")
 		if phone is not None:
 			old_values["phone"] = contact.phone

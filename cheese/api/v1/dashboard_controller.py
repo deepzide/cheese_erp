@@ -449,17 +449,21 @@ def get_dashboard_kpis(establishment_id=None, period="today"):
 
 
 @frappe.whitelist()
-def get_pending_actions(establishment_id):
+def get_pending_actions(establishment_id, date_from=None, date_to=None):
 	"""
 	Get pending actions for establishment (US-17)
 	
 	Args:
 		establishment_id: Establishment ID
+		date_from: Start date filter (YYYY-MM-DD) - optional
+		date_to: End date filter (YYYY-MM-DD) - optional
 		
 	Returns:
 		Success response with pending actions
 	"""
 	try:
+		from frappe.utils import getdate
+		
 		if not establishment_id:
 			return validation_error("establishment_id is required")
 		
@@ -471,9 +475,64 @@ def get_pending_actions(establishment_id):
 		)
 		exp_ids = [e.name for e in experiences]
 		
+		# Build slot filters
+		slot_filters = {"experience": ["in", exp_ids]}
+		
+		# Add date range filters if provided
+		if date_from or date_to:
+			if date_from and date_to:
+				date_from_obj = getdate(date_from)
+				date_to_obj = getdate(date_to)
+				if date_from_obj > date_to_obj:
+					return validation_error("date_from must be before or equal to date_to")
+				
+				if date_from_obj == date_to_obj:
+					# Single day
+					slot_filters["date"] = date_from_obj
+				else:
+					# Date range - need to handle this differently as Frappe doesn't support multiple date filters easily
+					# Get all slots in range
+					all_slots = frappe.get_all(
+						"Cheese Experience Slot",
+						filters={"experience": ["in", exp_ids]},
+						fields=["name", "date"]
+					)
+					# Filter by date range in Python
+					slot_ids_in_range = [
+						s.name for s in all_slots 
+						if date_from_obj <= getdate(s.date) <= date_to_obj
+					]
+					slot_filters = {"name": ["in", slot_ids_in_range]} if slot_ids_in_range else {"name": ["in", []]}
+			elif date_from:
+				date_from_obj = getdate(date_from)
+				# Get all slots and filter
+				all_slots = frappe.get_all(
+					"Cheese Experience Slot",
+					filters={"experience": ["in", exp_ids]},
+					fields=["name", "date"]
+				)
+				slot_ids_in_range = [
+					s.name for s in all_slots 
+					if getdate(s.date) >= date_from_obj
+				]
+				slot_filters = {"name": ["in", slot_ids_in_range]} if slot_ids_in_range else {"name": ["in", []]}
+			elif date_to:
+				date_to_obj = getdate(date_to)
+				# Get all slots and filter
+				all_slots = frappe.get_all(
+					"Cheese Experience Slot",
+					filters={"experience": ["in", exp_ids]},
+					fields=["name", "date"]
+				)
+				slot_ids_in_range = [
+					s.name for s in all_slots 
+					if getdate(s.date) <= date_to_obj
+				]
+				slot_filters = {"name": ["in", slot_ids_in_range]} if slot_ids_in_range else {"name": ["in", []]}
+		
 		slots = frappe.get_all(
 			"Cheese Experience Slot",
-			filters={"experience": ["in", exp_ids]},
+			filters=slot_filters,
 			fields=["name"]
 		)
 		slot_ids = [s.name for s in slots]
