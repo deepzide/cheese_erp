@@ -1,79 +1,100 @@
 import frappe
 from frappe.utils.password import check_password
+from cheese.api.common.responses import success, error, validation_error, unauthorized
 
 @frappe.whitelist(allow_guest=True, methods=["POST"])
 def token():
-    """POST /auth/token - Authenticate and obtain API key/secret."""
+    """
+    POST /auth/token - Authenticate and obtain API key/secret.
+    
+    If API key/secret don't exist, they will be created.
+    On each login, a new API secret is generated and returned.
+    
+    Args:
+        grant_type: Must be "password"
+        username: User username/email
+        password: User password
+        
+    Returns:
+        Success response with api_key, api_secret, user info, and permissions
+    """
     data = frappe.form_dict
     grant_type = data.get("grant_type")
     username = data.get("username")
     password = data.get("password")
 
     if grant_type != "password":
-        frappe.local.response["http_status_code"] = 400
-        return {"message": "grant_type must be 'password'", "status": "error"}
+        return validation_error("grant_type must be 'password'")
 
     if not username or not password:
-        frappe.local.response["http_status_code"] = 400
-        return {"message": "username and password are required", "status": "error"}
+        return validation_error("username and password are required")
 
     try:
         # Authenticate user
         check_password(username, password)
     except frappe.AuthenticationError:
-        frappe.local.response["http_status_code"] = 401
-        return {"message": "Invalid credentials", "status": "error"}
+        return unauthorized("Invalid credentials")
 
     if not frappe.db.get_value("User", username, "enabled"):
-        frappe.local.response["http_status_code"] = 401
-        return {"message": "User disabled", "status": "error"}
+        return unauthorized("User account is disabled")
 
-    # Get or generate API key and secret
-    user_doc = frappe.get_doc("User", username)
-    
-    # Generate API key if not exists
-    if not user_doc.api_key:
-        user_doc.api_key = frappe.generate_hash(length=15)
-    
-    # Always generate a new API secret on login to return the clear text version
-    api_secret = frappe.generate_hash(length=15)
-    user_doc.api_secret = api_secret
-    
-    user_doc.save(ignore_permissions=True)
-    frappe.db.commit()
-    
-    api_key = user_doc.api_key
+    try:
+        # Get or generate API key and secret
+        user_doc = frappe.get_doc("User", username)
+        
+        # Generate API key if not exists
+        if not user_doc.api_key:
+            user_doc.api_key = frappe.generate_hash(length=15)
+        
+        # Always generate a new API secret on login to return the clear text version
+        api_secret = frappe.generate_hash(length=15)
+        user_doc.api_secret = api_secret
+        
+        user_doc.save(ignore_permissions=True)
+        frappe.db.commit()
+        
+        api_key = user_doc.api_key
 
-    # Get user permissions
-    roles = frappe.get_roles(username)
-    permissions = []
-    
-    role_permission_map = {
-        "System Manager": ["Dashboard", "Tickets", "Routes", "Experiences", "Calendar", "Contacts", "Leads", "Quotations", "Deposits", "Bookings"],
-        "Cheese Manager": ["Dashboard", "Tickets", "Routes", "Experiences", "Calendar", "Contacts", "Leads", "Quotations", "Deposits", "Bookings"],
-    }
-    for role in roles:
-        if role in role_permission_map:
-            permissions.extend(role_permission_map[role])
-    permissions = list(dict.fromkeys(permissions))
+        # Get user permissions
+        roles = frappe.get_roles(username)
+        permissions = []
+        
+        role_permission_map = {
+            "System Manager": ["Dashboard", "Tickets", "Routes", "Experiences", "Calendar", "Contacts", "Leads", "Quotations", "Deposits", "Bookings"],
+            "Cheese Manager": ["Dashboard", "Tickets", "Routes", "Experiences", "Calendar", "Contacts", "Leads", "Quotations", "Deposits", "Bookings"],
+        }
+        for role in roles:
+            if role in role_permission_map:
+                permissions.extend(role_permission_map[role])
+        permissions = list(dict.fromkeys(permissions))
 
-    return {
-        "api_key": api_key,
-        "api_secret": api_secret,
-        "user": username,
-        "full_name": user_doc.full_name,
-        "email": user_doc.email,
-        "permissions": permissions,
-    }
+        return success(
+            "Authentication successful",
+            {
+                "api_key": api_key,
+                "api_secret": api_secret,
+                "user": username,
+                "full_name": user_doc.full_name,
+                "email": user_doc.email,
+                "permissions": permissions,
+            }
+        )
+    except Exception as e:
+        frappe.log_error(f"Error in token endpoint: {str(e)}")
+        return error("Failed to generate API credentials", "SERVER_ERROR", {"error": str(e)}, 500)
 
 
 @frappe.whitelist(methods=["POST"])
 def logout():
-    """POST /auth/logout - Regenerate API secret (effectively invalidates current session)."""
+    """
+    POST /auth/logout - Regenerate API secret (effectively invalidates current session).
+    
+    Returns:
+        Success response confirming logout
+    """
     try:
         if frappe.session.user == "Guest":
-            frappe.local.response["http_status_code"] = 401
-            return {"message": "Not logged in", "status": "error"}
+            return unauthorized("Not logged in")
             
         user_doc = frappe.get_doc("User", frappe.session.user)
         
@@ -82,9 +103,8 @@ def logout():
         user_doc.save(ignore_permissions=True)
         frappe.db.commit()
         
-        return {"message": "Logged out successfully. API secret has been regenerated.", "status": "success"}
+        return success("Logged out successfully. API secret has been regenerated.")
 
     except Exception as e:
         frappe.log_error(f"Logout error: {str(e)}")
-        frappe.local.response["http_status_code"] = 500
-        return {"message": "Internal server error", "status": "error"}
+        return error("Internal server error", "SERVER_ERROR", {"error": str(e)}, 500)

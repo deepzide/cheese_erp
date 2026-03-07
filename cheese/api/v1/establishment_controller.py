@@ -82,7 +82,7 @@ def list_establishments(page=1, page_size=20, search=None, status=None, locality
 			"Company",
 			filters=filters,
 			or_filters=or_filters if or_filters else None,
-			fields=["name", "company_name", "email", "phone_no", "website", "company_description"],
+			fields=["name", "company_name", "email", "phone_no", "website", "company_description", "administrator_contact"],
 			limit_start=(page - 1) * page_size,
 			limit_page_length=page_size,
 			order_by="company_name asc"
@@ -111,6 +111,7 @@ def list_establishments(page=1, page_size=20, search=None, status=None, locality
 				"phone": company.phone_no,
 				"website": company.website,
 				"description": company.company_description,
+				"administrator_contact": getattr(company, "administrator_contact", None),
 				"experiences_count": experiences_count,
 				"online_experiences_count": online_experiences
 			})
@@ -243,6 +244,7 @@ def get_establishment_details(company_id):
 				"phone": company.phone_no,
 				"website": company.website,
 				"description": company.company_description,
+				"administrator_contact": getattr(company, "administrator_contact", None),
 				"address": address,
 				"contacts": contacts,
 				"experiences": experiences,
@@ -283,7 +285,7 @@ def update_establishment(company_id, **kwargs):
 		# Allowed fields for update (restrict operational fields)
 		allowed_fields = [
 			"company_name", "email", "phone_no", "website", 
-			"company_description", "company_logo"
+			"company_description", "company_logo", "administrator_contact"
 		]
 		
 		changes = []
