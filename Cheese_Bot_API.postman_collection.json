@@ -6,6 +6,61 @@
 	},
 	"item": [
 		{
+			"name": "0. Authentication",
+			"item": [
+				{
+					"name": "Get Authentication Token",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"grant_type\": \"password\",\n  \"username\": \"user@example.com\",\n  \"password\": \"your_password\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/method/cheese.api.v1.auth_controller.token",
+							"host": ["{{base_url}}"],
+							"path": ["api", "method", "cheese.api.v1.auth_controller.token"]
+						},
+						"description": "Authenticate and obtain API key/secret. If API key/secret don't exist, they will be created. On each login, a new API secret is generated and returned.\n\n**Response format:**\n```json\n{\n  \"success\": true,\n  \"message\": \"Authentication successful\",\n  \"data\": {\n    \"api_key\": \"generated_api_key\",\n    \"api_secret\": \"generated_api_secret\",\n    \"user\": \"username\",\n    \"full_name\": \"User Full Name\",\n    \"email\": \"user@example.com\",\n    \"permissions\": [\"Dashboard\", \"Tickets\", ...]\n  }\n}\n```"
+					},
+					"response": []
+				},
+				{
+					"name": "Logout",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "token {{token}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/method/cheese.api.v1.auth_controller.logout",
+							"host": ["{{base_url}}"],
+							"path": ["api", "method", "cheese.api.v1.auth_controller.logout"]
+						},
+						"description": "Logout and regenerate API secret (effectively invalidates current session)."
+					},
+					"response": []
+				}
+			]
+		},
+		{
 			"name": "1. Contact",
 			"item": [
 				{
@@ -1505,7 +1560,7 @@
 							"host": ["{{base_url}}"],
 							"path": ["api", "method", "cheese.api.v1.establishment_controller.list_establishments"]
 						},
-						"description": "List establishments with pagination and filters"
+						"description": "List establishments with pagination and filters.\n\n**Response includes:**\n- `administrator_contact`: Contact information for the establishment administrator (e.g., email, phone) to be provided when users ask the bot for human assistance about an experience.\n\n**Example response:**\n```json\n{\n  \"success\": true,\n  \"message\": \"Establishments retrieved successfully\",\n  \"data\": [\n    {\n      \"company_id\": \"COMPANY-001\",\n      \"company_name\": \"Example Establishment\",\n      \"email\": \"info@example.com\",\n      \"phone\": \"+1234567890\",\n      \"administrator_contact\": \"admin@example.com, +1234567890\",\n      \"experiences_count\": 5,\n      ...\n    }\n  ],\n  \"meta\": { ... }\n}\n```"
 					}
 				},
 				{
@@ -1531,8 +1586,35 @@
 							"host": ["{{base_url}}"],
 							"path": ["api", "method", "cheese.api.v1.establishment_controller.get_establishment_details"]
 						},
-						"description": "Get full establishment profile"
+						"description": "Get full establishment profile with experiences, attachments, and status.\n\n**Response includes:**\n- `administrator_contact`: Contact information for the establishment administrator (e.g., email, phone) to be provided when users ask the bot for human assistance about an experience.\n\n**Example response:**\n```json\n{\n  \"success\": true,\n  \"message\": \"Establishment details retrieved successfully\",\n  \"data\": {\n    \"company_id\": \"COMPANY-001\",\n    \"company_name\": \"Example Establishment\",\n    \"administrator_contact\": \"admin@example.com, +1234567890\",\n    \"experiences\": [...],\n    \"contacts\": [...],\n    ...\n  }\n}\n```\n\n**Note:** The bot can use this endpoint to retrieve `administrator_contact` when users ask for human assistance about an experience."
 					}
+				},
+				{
+					"name": "Update Establishment",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "token {{token}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"company_id\": \"COMPANY-001\",\n  \"company_name\": \"Updated Name\",\n  \"email\": \"newemail@example.com\",\n  \"phone_no\": \"+1234567890\",\n  \"website\": \"https://example.com\",\n  \"company_description\": \"Updated description\",\n  \"administrator_contact\": \"admin@example.com, +1234567890\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/method/cheese.api.v1.establishment_controller.update_establishment",
+							"host": ["{{base_url}}"],
+							"path": ["api", "method", "cheese.api.v1.establishment_controller.update_establishment"]
+						},
+						"description": "Update establishment fields with audit trail.\n\n**Allowed fields:**\n- `company_name`\n- `email`\n- `phone_no`\n- `website`\n- `company_description`\n- `company_logo`\n- `administrator_contact`: Contact information for the establishment administrator (e.g., email, phone) to be provided when users ask the bot for human assistance.\n\n**Example response:**\n```json\n{\n  \"success\": true,\n  \"message\": \"Establishment updated successfully\",\n  \"data\": {\n    \"company_id\": \"COMPANY-001\",\n    \"company_name\": \"Updated Name\",\n    \"changes\": [\"company_name\", \"administrator_contact\"]\n  }\n}\n```"
+					},
+					"response": []
 				}
 			]
 		},
