@@ -194,8 +194,30 @@ def update_contact(contact_id, name=None, phone=None, email=None, preferred_lang
 		except Exception as audit_error:
 			frappe.log_error(f"Failed to create audit event: {str(audit_error)}")
 		
+		# Check for duplicates before renaming if phone was updated
+		# Since phone is the autoname field, we need to ensure no other contact has this phone
+		if new_phone is not None and new_phone and new_phone != contact.name:
+			# Check if another contact already exists with this phone number
+			existing_contact = frappe.db.get_value("Cheese Contact", new_phone, "name")
+			if existing_contact and existing_contact != contact.name:
+				return validation_error(f"Contact with phone number {new_phone} already exists: {existing_contact}")
+			
+			# Also check by phone field (in case the name doesn't match the phone yet)
+			existing_by_phone = frappe.get_all(
+				"Cheese Contact",
+				filters={"phone": new_phone, "name": ["!=", contact.name]},
+				limit=1
+			)
+			if existing_by_phone:
+				return validation_error(f"Contact with phone number {new_phone} already exists: {existing_by_phone[0].name}")
+		
+		# Save first to trigger validation (which will check for duplicates)
+		contact.save()
+		frappe.db.commit()
+		
 		# Rename document if phone was updated and differs from current document name
 		# Since phone is the autoname field, the document name should match the phone number
+		# Do this AFTER save to ensure validation passes first
 		if new_phone is not None and new_phone and new_phone != contact.name:
 			try:
 				# Use frappe.rename_doc to rename the document to match the new phone
@@ -203,15 +225,14 @@ def update_contact(contact_id, name=None, phone=None, email=None, preferred_lang
 				frappe.rename_doc("Cheese Contact", contact.name, new_phone, force=True, merge=False)
 				# Reload the contact with the new name
 				contact = frappe.get_doc("Cheese Contact", new_phone)
+				frappe.db.commit()
 			except frappe.DuplicateEntryError:
-				# If a document with the new name already exists, log and continue with current name
-				frappe.log_error(f"Cannot rename contact {contact.name} to {new_phone}: document with that phone already exists")
+				# If a document with the new name already exists, return error
+				return validation_error(f"Cannot rename contact {contact.name} to {new_phone}: document with that phone already exists")
 			except Exception as rename_error:
-				# Log rename errors but don't fail the update
+				# Log rename errors and return error
 				frappe.log_error(f"Failed to rename contact {contact.name} to {new_phone}: {str(rename_error)}")
-		
-		contact.save()
-		frappe.db.commit()
+				return error("Failed to rename contact", "RENAME_ERROR", {"error": str(rename_error)}, 500)
 		
 		# Get the final contact_id (may have changed if renamed)
 		final_contact_id = contact.name
