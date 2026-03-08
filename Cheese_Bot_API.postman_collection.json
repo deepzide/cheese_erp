@@ -29,6 +29,28 @@
 						},
 						"description": "Authenticate and obtain API key/secret. If API key/secret don't exist, they will be created. On each login, a new API secret is generated and returned.\n\n**Response format:**\n```json\n{\n  \"success\": true,\n  \"message\": \"Authentication successful\",\n  \"data\": {\n    \"api_key\": \"generated_api_key\",\n    \"api_secret\": \"generated_api_secret\",\n    \"user\": \"username\",\n    \"full_name\": \"User Full Name\",\n    \"email\": \"user@example.com\",\n    \"permissions\": [\"Dashboard\", \"Tickets\", ...]\n  }\n}\n```"
 					},
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    var jsonData = pm.response.json();",
+									"    if (jsonData.success && jsonData.data) {",
+									"        var apiKey = jsonData.data.api_key;",
+									"        var apiSecret = jsonData.data.api_secret;",
+									"        if (apiKey && apiSecret) {",
+									"            var token = apiKey + \":\" + apiSecret;",
+									"            pm.collectionVariables.set(\"token\", token);",
+									"            console.log(\"Token set successfully: \" + apiKey.substring(0, 10) + \"...\");",
+									"        }",
+									"    }",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
 					"response": []
 				},
 				{
@@ -374,7 +396,7 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n  \"experience_id\": \"EXP-001\",\n  \"date\": \"2024-12-31\"\n}"
+							"raw": "{\n  \"experience_id\": \"EXP-001\",\n  \"date\": \"2024-12-31\",\n  \"date_from\": \"2024-12-31\",\n  \"date_to\": \"2024-12-31\"\n}"
 						},
 						"url": {
 							"raw": "{{base_url}}/api/method/cheese.api.v1.availability_controller.get_availability",
@@ -401,7 +423,7 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n  \"experience_id\": \"EXP-001\",\n  \"date\": \"2024-12-31\"\n}"
+							"raw": "{\n  \"experience_id\": \"EXP-001\",\n  \"date\": \"2024-12-31\",\n  \"date_from\": \"2024-12-31\",\n  \"date_to\": \"2024-12-31\"\n}"
 						},
 						"url": {
 							"raw": "{{base_url}}/api/method/cheese.api.v1.availability_controller.get_available_slots",

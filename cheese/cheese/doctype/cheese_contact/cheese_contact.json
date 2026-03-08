@@ -2,7 +2,7 @@
  "actions": [],
  "allow_import": 1,
  "allow_rename": 1,
- "autoname": "field:full_name",
+ "autoname": "field:phone",
  "creation": "2024-01-01 00:00:00",
  "doctype": "DocType",
  "name": "Cheese Contact",
@@ -46,7 +46,8 @@
    "in_list_view": 1,
    "in_standard_filter": 1,
    "label": "Phone",
-   "options": "Phone"
+   "options": "Phone",
+   "reqd": 1
   },
   {
    "fieldname": "email",

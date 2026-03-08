@@ -137,13 +137,15 @@ def update_contact(contact_id, name=None, phone=None, email=None, preferred_lang
 		
 		# Update fields if provided
 		# Allow name to be set to empty string (None check allows empty strings)
+		new_phone = None
 		if name is not None:
 			old_values["full_name"] = contact.full_name
 			contact.full_name = name if name else ""  # Ensure empty string if name is empty
 			changed_fields.append("full_name")
 		if phone is not None:
 			old_values["phone"] = contact.phone
-			contact.phone = phone
+			new_phone = phone
+			contact.phone = new_phone
 			changed_fields.append("phone")
 		if email is not None:
 			old_values["email"] = contact.email
@@ -192,14 +194,33 @@ def update_contact(contact_id, name=None, phone=None, email=None, preferred_lang
 		except Exception as audit_error:
 			frappe.log_error(f"Failed to create audit event: {str(audit_error)}")
 		
+		# Rename document if phone was updated and differs from current document name
+		# Since phone is the autoname field, the document name should match the phone number
+		if new_phone is not None and new_phone and new_phone != contact.name:
+			try:
+				# Use frappe.rename_doc to rename the document to match the new phone
+				# This ensures the document name stays in sync with phone (the autoname field)
+				frappe.rename_doc("Cheese Contact", contact.name, new_phone, force=True, merge=False)
+				# Reload the contact with the new name
+				contact = frappe.get_doc("Cheese Contact", new_phone)
+			except frappe.DuplicateEntryError:
+				# If a document with the new name already exists, log and continue with current name
+				frappe.log_error(f"Cannot rename contact {contact.name} to {new_phone}: document with that phone already exists")
+			except Exception as rename_error:
+				# Log rename errors but don't fail the update
+				frappe.log_error(f"Failed to rename contact {contact.name} to {new_phone}: {str(rename_error)}")
+		
 		contact.save()
 		frappe.db.commit()
+		
+		# Get the final contact_id (may have changed if renamed)
+		final_contact_id = contact.name
 		
 		return success(
 			"Contact updated successfully",
 			{
 				"contact": {
-					"contact_id": contact.name,
+					"contact_id": final_contact_id,
 					"full_name": contact.full_name,
 					"phone": contact.phone,
 					"email": contact.email,
