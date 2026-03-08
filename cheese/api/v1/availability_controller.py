@@ -39,18 +39,16 @@ def get_available_slots(experience_id=None, date=None, date_from=None, date_to=N
 			return validation_error("date_from must be before or equal to date_to")
 
 		# Build filters for slots
+		# Slots have date_from and date_to fields, so we need to check for overlap
+		# A slot overlaps if: slot.date_from <= date_to AND slot.date_to >= date_from
 		slot_filters = {
-			"date": [">=", date_from_obj],
 			"slot_status": ["in", ["OPEN", "CLOSED"]]
 		}
 		
-		# Add date_to filter
-		if date_from_obj == date_to_obj:
-			# Single day - use exact match
-			slot_filters["date"] = date_from_obj
-		else:
-			# Date range - use between
-			slot_filters["date"] = ["between", [date_from_obj, date_to_obj]]
+		# Filter slots that overlap with the requested date range
+		# Using OR conditions to find slots that overlap
+		slot_filters["date_from"] = ["<=", date_to_obj]
+		slot_filters["date_to"] = [">=", date_from_obj]
 
 		# If experience_id provided, validate and filter
 		if experience_id:
@@ -63,8 +61,8 @@ def get_available_slots(experience_id=None, date=None, date_from=None, date_to=N
 		slots = frappe.get_all(
 			"Cheese Experience Slot",
 			filters=slot_filters,
-			fields=["name", "experience", "date", "time", "max_capacity", "slot_status"],
-			order_by="date asc, time asc"
+			fields=["name", "experience", "date_from", "date_to", "time_from", "time_to", "max_capacity", "slot_status"],
+			order_by="date_from asc, time_from asc"
 		)
 
 		# Calculate available capacity for each slot
@@ -73,13 +71,20 @@ def get_available_slots(experience_id=None, date=None, date_from=None, date_to=N
 			available = get_available_capacity(slot.name)
 			slot_data = {
 				"slot_id": slot.name,
-				"date": str(slot.date),
-				"time": str(slot.time),
+				"date_from": str(slot.date_from) if slot.date_from is not None else None,
+				"date_to": str(slot.date_to) if slot.date_to is not None else None,
+				"time_from": str(slot.time_from) if slot.time_from is not None else None,
+				"time_to": str(slot.time_to) if slot.time_to is not None else None,
 				"max_capacity": slot.max_capacity,
 				"available_capacity": available,
 				"slot_status": slot.slot_status,
 				"is_available": available > 0
 			}
+			
+			# For backward compatibility, also include date and time fields
+			# Use date_from as the primary date, and time_from as the primary time
+			slot_data["date"] = str(slot.date_from) if slot.date_from is not None else None
+			slot_data["time"] = str(slot.time_from) if slot.time_from is not None else None
 			
 			# Add experience info if filtering by multiple experiences
 			if not experience_id:
