@@ -1,302 +1,240 @@
 import React, { useState } from "react";
 import { motion } from "framer-motion";
+import { useNavigate } from "react-router-dom";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Progress } from "@/components/ui/progress";
-import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import {
-    Route, Search, Plus, Globe, GlobeLock, Archive, ChevronRight,
-    Sparkles, DollarSign, MoreHorizontal, ArrowRight, CheckCircle, XCircle
-} from "lucide-react";
-import {
-    DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator,
-} from "@/components/ui/dropdown-menu";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Route, Search, Plus, ChevronRight, Sparkles, Globe, WifiOff, Archive, MoreHorizontal, AlertCircle, RefreshCw, Loader2, DollarSign, Ticket } from "lucide-react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
+import { routeService } from "@/api/routeService";
+import { experienceService } from "@/api/experienceService";
+import { extractData } from "@/lib/useApiData";
 
-const container = { hidden: { opacity: 0 }, show: { opacity: 1, transition: { staggerChildren: 0.06 } } };
-const item = { hidden: { opacity: 0, y: 15 }, show: { opacity: 1, y: 0 } };
-
-const STATUS_MAP = {
-    ONLINE: { label: "Online", color: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800", icon: Globe },
-    OFFLINE: { label: "Offline", color: "bg-gray-500/15 text-gray-600 dark:text-gray-400 border-gray-200 dark:border-gray-700", icon: GlobeLock },
-    ARCHIVED: { label: "Archived", color: "bg-red-500/15 text-red-600 dark:text-red-400 border-red-200 dark:border-red-800", icon: Archive },
+const STATUS_CONFIG = {
+    ONLINE: { label: "Online", badge: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400", icon: Globe },
+    OFFLINE: { label: "Offline", badge: "bg-gray-500/15 text-gray-600 dark:text-gray-400", icon: WifiOff },
+    ARCHIVED: { label: "Archived", badge: "bg-red-500/15 text-red-700 dark:text-red-400", icon: Archive },
 };
 
-const ALL_EXPERIENCES = ["Wine Tasting", "Cheese Factory", "Gourmet Lunch", "Sunset Walk", "Artisan Workshop", "VIP Cave Tour", "Interactive Workshop", "Taste & Play", "Private Dinner", "Garden Walk", "Special Tasting"];
-
-const initialRoutes = [
-    { id: "RT-001", name: "Golden Route", description: "Premium full-day experience combining the best of our offerings", status: "ONLINE", experiences: ["Wine Tasting", "Cheese Factory", "Gourmet Lunch", "Sunset Walk"], price: 250, bookings_today: 12, capacity: 20, deposit_required: true },
-    { id: "RT-002", name: "Classic Tour", description: "A traditional half-day exploration of our finest selections", status: "ONLINE", experiences: ["Cheese Factory", "Artisan Workshop"], price: 120, bookings_today: 8, capacity: 15, deposit_required: false },
-    { id: "RT-003", name: "Premium Experience", description: "Exclusive VIP access to rare and limited experiences", status: "ONLINE", experiences: ["VIP Cave Tour", "Wine Tasting", "Private Dinner"], price: 450, bookings_today: 4, capacity: 8, deposit_required: true },
-    { id: "RT-004", name: "Family Fun", description: "Kid-friendly adventure through our interactive stations", status: "OFFLINE", experiences: ["Interactive Workshop", "Taste & Play"], price: 80, bookings_today: 0, capacity: 25, deposit_required: false },
-    { id: "RT-005", name: "Weekend Special", description: "Limited weekend-only route with exclusive tastings", status: "ARCHIVED", experiences: ["Special Tasting", "Garden Walk"], price: 180, bookings_today: 0, capacity: 12, deposit_required: true },
-];
-
-const emptyForm = { name: "", description: "", experiences: [], price: "", capacity: "", deposit_required: false };
-
 export default function RoutesPage() {
-    const [routes, setRoutes] = useState(initialRoutes);
+    const navigate = useNavigate();
+    const queryClient = useQueryClient();
     const [searchTerm, setSearchTerm] = useState("");
-    const [selectedRoute, setSelectedRoute] = useState(null);
-    const [detailOpen, setDetailOpen] = useState(false);
+    const [filterStatus, setFilterStatus] = useState("all");
     const [createOpen, setCreateOpen] = useState(false);
-    const [form, setForm] = useState(emptyForm);
-    const [expInput, setExpInput] = useState("");
+    const [detailRoute, setDetailRoute] = useState(null);
+    const [form, setForm] = useState({ name: "", description: "", price: "" });
 
-    const filtered = routes.filter(r =>
-        r.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        r.id.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+    const { data: routesRaw, isLoading, error, refetch } = useQuery({
+        queryKey: ['routes'],
+        queryFn: async () => {
+            const result = await routeService.listRoutes({ page_size: 100 });
+            const payload = result?.data?.message || result?.data || result;
+            return payload?.data || [];
+        },
+    });
 
-    const handleCreate = () => {
-        if (!form.name || !form.price || form.experiences.length === 0) {
-            toast.error("Name, price, and at least one experience are required");
-            return;
+    const { data: experiencesRaw } = useQuery({
+        queryKey: ['experiences-for-routes'],
+        queryFn: async () => {
+            const result = await experienceService.listExperiences({ page_size: 100 });
+            const payload = result?.data?.message || result?.data || result;
+            return payload?.data || [];
+        },
+    });
+
+    const routes = Array.isArray(routesRaw) ? routesRaw : [];
+    const experiences = Array.isArray(experiencesRaw) ? experiencesRaw : [];
+
+    const createMutation = useMutation({
+        mutationFn: (data) => routeService.createRoute(data),
+        onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['routes'] }); setCreateOpen(false); setForm({ name: "", description: "", price: "" }); toast.success("Route created"); },
+        onError: (err) => toast.error(err?.message || "Failed"),
+    });
+
+    const publishMutation = useMutation({
+        mutationFn: (routeId) => routeService.publishRoute(routeId),
+        onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['routes'] }); toast.success("Route published"); },
+    });
+
+    const unpublishMutation = useMutation({
+        mutationFn: (routeId) => routeService.unpublishRoute(routeId),
+        onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['routes'] }); toast.success("Route unpublished"); },
+    });
+
+    const archiveMutation = useMutation({
+        mutationFn: (routeId) => routeService.archiveRoute(routeId),
+        onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['routes'] }); toast.success("Route archived"); },
+    });
+
+    const filtered = routes.filter(r => {
+        if (filterStatus !== "all" && r.status !== filterStatus) return false;
+        if (searchTerm) {
+            const term = searchTerm.toLowerCase();
+            return (r.name || '').toLowerCase().includes(term) || (r.description || '').toLowerCase().includes(term);
         }
-        const newRoute = {
-            id: `RT-${String(routes.length + 1).padStart(3, '0')}`,
-            name: form.name,
-            description: form.description,
-            status: "OFFLINE",
-            experiences: form.experiences,
-            price: parseInt(form.price),
-            bookings_today: 0,
-            capacity: parseInt(form.capacity) || 20,
-            deposit_required: form.deposit_required,
-        };
-        setRoutes(prev => [newRoute, ...prev]);
-        setForm(emptyForm);
-        setCreateOpen(false);
-        toast.success(`Route "${newRoute.name}" created as Offline`);
-    };
+        return true;
+    });
 
-    const toggleExp = (exp) => {
-        setForm(f => ({
-            ...f,
-            experiences: f.experiences.includes(exp) ? f.experiences.filter(e => e !== exp) : [...f.experiences, exp]
-        }));
-    };
-
-    const updateRouteStatus = (routeId, newStatus) => {
-        setRoutes(prev => prev.map(r => r.id === routeId ? { ...r, status: newStatus } : r));
-        toast.success(`Route ${routeId} → ${STATUS_MAP[newStatus].label}`);
-    };
+    if (error) {
+        return (
+            <div className="p-6 flex flex-col items-center justify-center min-h-[400px] text-center">
+                <AlertCircle className="w-12 h-12 text-red-400 mb-4" />
+                <h2 className="text-lg font-semibold mb-2">Failed to load routes</h2>
+                <p className="text-sm text-muted-foreground mb-4">{error?.message}</p>
+                <Button onClick={() => refetch()} variant="outline"><RefreshCw className="w-4 h-4 mr-2" /> Retry</Button>
+            </div>
+        );
+    }
 
     return (
-        <motion.div variants={container} initial="hidden" animate="show" className="p-6 space-y-6">
-            <motion.div variants={item} className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="p-6 space-y-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
-                    <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
-                        <Route className="w-6 h-6 text-cheese-600" />
-                        Route Management
-                    </h1>
-                    <p className="text-sm text-muted-foreground mt-1">{filtered.length} routes configured</p>
+                    <h1 className="text-2xl font-bold text-foreground flex items-center gap-2"><Route className="w-6 h-6 text-cheese-600" /> Routes</h1>
+                    <p className="text-sm text-muted-foreground mt-1">{isLoading ? '...' : `${filtered.length} routes`}</p>
                 </div>
                 <div className="flex gap-2">
-                    <div className="relative">
-                        <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-                        <Input placeholder="Search routes..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-9 w-56 h-9" />
-                    </div>
-                    <Button className="cheese-gradient text-black font-semibold border-0 h-9" onClick={() => setCreateOpen(true)}>
-                        <Plus className="w-4 h-4 mr-1" /> New Route
-                    </Button>
+                    <div className="relative"><Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" /><Input placeholder="Search..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-9 w-56 h-9" /></div>
+                    <Select value={filterStatus} onValueChange={setFilterStatus}>
+                        <SelectTrigger className="w-36 h-9"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="all">All Status</SelectItem>
+                            {Object.entries(STATUS_CONFIG).map(([k, v]) => <SelectItem key={k} value={k}>{v.label}</SelectItem>)}
+                        </SelectContent>
+                    </Select>
+                    <Button className="cheese-gradient text-black font-semibold border-0 h-9" onClick={() => setCreateOpen(true)}><Plus className="w-4 h-4 mr-1" /> New Route</Button>
+                    <Button variant="ghost" size="icon" onClick={() => refetch()} className="h-9 w-9"><RefreshCw className="w-4 h-4" /></Button>
                 </div>
-            </motion.div>
+            </div>
 
-            <motion.div variants={item} className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-                {filtered.map((route) => {
-                    const statusConfig = STATUS_MAP[route.status];
-                    const StatusIcon = statusConfig.icon;
-                    const occupancy = route.capacity > 0 ? Math.round((route.bookings_today / route.capacity) * 100) : 0;
-
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                {isLoading ? Array.from({ length: 6 }).map((_, i) => (
+                    <Card key={i} className="border border-border"><CardContent className="p-5 space-y-3">
+                        <Skeleton className="h-5 w-40" /><Skeleton className="h-4 w-full" /><Skeleton className="h-8 w-20" />
+                    </CardContent></Card>
+                )) : filtered.map((route) => {
+                    const config = STATUS_CONFIG[route.status] || STATUS_CONFIG.OFFLINE;
+                    const StatusIcon = config.icon;
                     return (
-                        <motion.div key={route.id} whileHover={{ y: -4 }} transition={{ duration: 0.2 }}>
-                            <Card className="border border-border shadow-sm hover:shadow-lg transition-all duration-300 group overflow-hidden">
-                                <div className={`h-1 ${route.status === 'ONLINE' ? 'cheese-gradient' : route.status === 'OFFLINE' ? 'bg-muted-foreground/30' : 'bg-red-300 dark:bg-red-800'}`} />
+                        <motion.div key={route.name || route.route_id} whileHover={{ y: -3 }}>
+                            <Card className="border border-border shadow-sm hover:shadow-md transition-all group cursor-pointer" onClick={() => setDetailRoute(route)}>
                                 <CardContent className="p-5">
                                     <div className="flex items-start justify-between mb-3">
-                                        <div>
-                                            <div className="flex items-center gap-2 mb-1">
-                                                <span className="text-xs font-mono text-muted-foreground">{route.id}</span>
-                                                <Badge className={statusConfig.color}>
-                                                    <StatusIcon className="w-3 h-3 mr-1" />
-                                                    {statusConfig.label}
-                                                </Badge>
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-10 h-10 cheese-gradient rounded-xl flex items-center justify-center shadow-lg shadow-yellow-500/10">
+                                                <Route className="w-5 h-5 text-black" />
                                             </div>
-                                            <h3 className="text-lg font-bold text-foreground">{route.name}</h3>
+                                            <div>
+                                                <h3 className="font-semibold text-foreground line-clamp-1">{route.route_info || route.name}</h3>
+                                                <span className="text-xs text-muted-foreground">{route.route_id || route.name}</span>
+                                            </div>
                                         </div>
                                         <DropdownMenu>
                                             <DropdownMenuTrigger asChild>
-                                                <Button variant="ghost" size="icon" className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                    <MoreHorizontal className="w-4 h-4" />
-                                                </Button>
+                                                <Button variant="ghost" size="icon" className="h-8 w-8 opacity-0 group-hover:opacity-100" onClick={(e) => e.stopPropagation()}><MoreHorizontal className="w-4 h-4" /></Button>
                                             </DropdownMenuTrigger>
                                             <DropdownMenuContent align="end">
-                                                <DropdownMenuItem onClick={() => updateRouteStatus(route.id, "ONLINE")}><Globe className="w-3 h-3 mr-2" /> Publish</DropdownMenuItem>
-                                                <DropdownMenuItem onClick={() => updateRouteStatus(route.id, "OFFLINE")}><GlobeLock className="w-3 h-3 mr-2" /> Unpublish</DropdownMenuItem>
+                                                {route.status === "OFFLINE" && <DropdownMenuItem onClick={(e) => { e.stopPropagation(); publishMutation.mutate(route.name); }}><Globe className="w-3 h-3 mr-2" /> Publish</DropdownMenuItem>}
+                                                {route.status === "ONLINE" && <DropdownMenuItem onClick={(e) => { e.stopPropagation(); unpublishMutation.mutate(route.name); }}><WifiOff className="w-3 h-3 mr-2" /> Unpublish</DropdownMenuItem>}
                                                 <DropdownMenuSeparator />
-                                                <DropdownMenuItem className="text-red-600" onClick={() => updateRouteStatus(route.id, "ARCHIVED")}><Archive className="w-3 h-3 mr-2" /> Archive</DropdownMenuItem>
+                                                <DropdownMenuItem className="text-red-600" onClick={(e) => { e.stopPropagation(); archiveMutation.mutate(route.name); }}><Archive className="w-3 h-3 mr-2" /> Archive</DropdownMenuItem>
+                                                <DropdownMenuSeparator />
+                                                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); navigate(`/cheese/bank-accounts?route=${route.name}`); }}>Bank Account</DropdownMenuItem>
+                                                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); navigate(`/cheese/documents?entity_type=Route&entity_id=${route.name}`); }}>Documents</DropdownMenuItem>
                                             </DropdownMenuContent>
                                         </DropdownMenu>
                                     </div>
-
-                                    <p className="text-sm text-muted-foreground mb-4 line-clamp-2">{route.description}</p>
-
-                                    {/* Experience Flow */}
-                                    <div className="flex items-center gap-1 mb-4 overflow-hidden">
-                                        {route.experiences.map((exp, i) => (
-                                            <React.Fragment key={i}>
-                                                <span className="text-[10px] bg-cheese-50 dark:bg-cheese-900/30 text-cheese-800 dark:text-cheese-300 px-2 py-1 rounded-full whitespace-nowrap font-medium border border-cheese-200 dark:border-cheese-800">
-                                                    {exp}
-                                                </span>
-                                                {i < route.experiences.length - 1 && (
-                                                    <ArrowRight className="w-3 h-3 text-cheese-400 flex-shrink-0" />
-                                                )}
-                                            </React.Fragment>
-                                        ))}
+                                    {route.description && <p className="text-xs text-muted-foreground mb-3 line-clamp-2">{route.description}</p>}
+                                    <div className="flex items-center justify-between">
+                                        <Badge className={config.badge}><StatusIcon className="w-3 h-3 mr-1" />{config.label}</Badge>
+                                        {route.price != null && (
+                                            <span className="text-sm font-semibold text-foreground flex items-center"><DollarSign className="w-3.5 h-3.5" />{Number(route.price).toLocaleString()}</span>
+                                        )}
                                     </div>
-
-                                    {/* Stats */}
-                                    <div className="flex items-center justify-between text-sm mb-2">
-                                        <span className="text-muted-foreground">Today's bookings</span>
-                                        <span className="font-semibold text-foreground">{route.bookings_today}/{route.capacity}</span>
-                                    </div>
-                                    <Progress value={occupancy} className="h-1.5 mb-3" />
-
-                                    <div className="flex items-center justify-between pt-2 border-t border-border">
-                                        <div className="flex items-center gap-1">
-                                            <DollarSign className="w-3.5 h-3.5 text-cheese-600" />
-                                            <span className="font-bold text-foreground">${route.price}</span>
-                                            {route.deposit_required && (
-                                                <Badge variant="outline" className="text-[10px] ml-1">Deposit</Badge>
-                                            )}
+                                    {route.experiences?.length > 0 && (
+                                        <div className="mt-3 pt-3 border-t border-border">
+                                            <div className="flex items-center gap-1 flex-wrap">
+                                                <Sparkles className="w-3 h-3 text-cheese-600" />
+                                                {route.experiences.slice(0, 3).map((exp, i) => (
+                                                    <Badge key={i} variant="outline" className="text-[10px] px-1.5 py-0">{exp.experience_info || exp.experience_id || exp.name}</Badge>
+                                                ))}
+                                                {route.experiences.length > 3 && <span className="text-[10px] text-muted-foreground">+{route.experiences.length - 3}</span>}
+                                            </div>
                                         </div>
-                                        <Button
-                                            variant="ghost"
-                                            size="sm"
-                                            className="text-cheese-600 hover:text-cheese-700 hover:bg-cheese-50 dark:hover:bg-cheese-900/20 h-7 text-xs"
-                                            onClick={() => { setSelectedRoute(route); setDetailOpen(true); }}
-                                        >
-                                            Details <ChevronRight className="w-3 h-3 ml-1" />
-                                        </Button>
-                                    </div>
+                                    )}
                                 </CardContent>
                             </Card>
                         </motion.div>
                     );
                 })}
-            </motion.div>
+            </div>
+
+            {!isLoading && filtered.length === 0 && (
+                <div className="text-center py-16">
+                    <Route className="w-16 h-16 text-muted-foreground/20 mx-auto mb-4" />
+                    <p className="text-muted-foreground">No routes found</p>
+                </div>
+            )}
 
             {/* Create Route Dialog */}
             <Dialog open={createOpen} onOpenChange={setCreateOpen}>
-                <DialogContent className="max-w-lg">
+                <DialogContent className="max-w-md">
                     <DialogHeader>
-                        <DialogTitle className="flex items-center gap-2">
-                            <Plus className="w-5 h-5 text-cheese-600" />
-                            Create New Route
-                        </DialogTitle>
-                        <DialogDescription>Configure a new route with experiences</DialogDescription>
+                        <DialogTitle className="flex items-center gap-2"><Plus className="w-5 h-5 text-cheese-600" /> New Route</DialogTitle>
+                        <DialogDescription>Create a new experience route</DialogDescription>
                     </DialogHeader>
                     <div className="space-y-4">
-                        <div className="space-y-2">
-                            <Label>Route Name *</Label>
-                            <Input placeholder="e.g. Golden Route" value={form.name} onChange={(e) => setForm(f => ({ ...f, name: e.target.value }))} />
-                        </div>
-                        <div className="space-y-2">
-                            <Label>Description</Label>
-                            <Textarea placeholder="Route description..." value={form.description} onChange={(e) => setForm(f => ({ ...f, description: e.target.value }))} rows={2} />
-                        </div>
-                        <div className="space-y-2">
-                            <Label>Experiences * (select at least one)</Label>
-                            <div className="flex flex-wrap gap-2 p-3 border border-border rounded-lg bg-muted/30 max-h-36 overflow-y-auto">
-                                {ALL_EXPERIENCES.map(exp => (
-                                    <button key={exp} type="button" onClick={() => toggleExp(exp)}
-                                        className={`text-xs px-3 py-1.5 rounded-full font-medium transition-all border ${form.experiences.includes(exp) ? 'bg-cheese-500 text-black border-cheese-500' : 'bg-background border-border text-muted-foreground hover:border-cheese-300'}`}
-                                    >
-                                        {form.experiences.includes(exp) && <CheckCircle className="w-3 h-3 inline mr-1" />}
-                                        {exp}
-                                    </button>
-                                ))}
-                            </div>
-                            {form.experiences.length > 0 && (
-                                <div className="flex items-center gap-1 mt-2">
-                                    <span className="text-xs text-muted-foreground">Flow:</span>
-                                    {form.experiences.map((exp, i) => (
-                                        <React.Fragment key={i}>
-                                            <span className="text-[10px] font-medium text-cheese-700 dark:text-cheese-400">{exp}</span>
-                                            {i < form.experiences.length - 1 && <ArrowRight className="w-3 h-3 text-cheese-400" />}
-                                        </React.Fragment>
-                                    ))}
-                                </div>
-                            )}
-                        </div>
-                        <div className="grid grid-cols-2 gap-4">
-                            <div className="space-y-2">
-                                <Label>Price ($) *</Label>
-                                <Input type="number" min="0" placeholder="250" value={form.price} onChange={(e) => setForm(f => ({ ...f, price: e.target.value }))} />
-                            </div>
-                            <div className="space-y-2">
-                                <Label>Capacity</Label>
-                                <Input type="number" min="1" placeholder="20" value={form.capacity} onChange={(e) => setForm(f => ({ ...f, capacity: e.target.value }))} />
-                            </div>
-                        </div>
-                        <div className="flex items-center gap-2">
-                            <input type="checkbox" id="deposit" checked={form.deposit_required} onChange={(e) => setForm(f => ({ ...f, deposit_required: e.target.checked }))} className="rounded" />
-                            <Label htmlFor="deposit" className="cursor-pointer">Deposit Required</Label>
-                        </div>
+                        <div className="space-y-2"><Label>Name *</Label><Input placeholder="Golden Route" value={form.name} onChange={(e) => setForm(f => ({ ...f, name: e.target.value }))} /></div>
+                        <div className="space-y-2"><Label>Description</Label><Input placeholder="A tour through the finest..." value={form.description} onChange={(e) => setForm(f => ({ ...f, description: e.target.value }))} /></div>
+                        <div className="space-y-2"><Label>Price</Label><Input type="number" min="0" placeholder="150" value={form.price} onChange={(e) => setForm(f => ({ ...f, price: e.target.value }))} /></div>
                     </div>
                     <DialogFooter>
                         <Button variant="outline" onClick={() => setCreateOpen(false)}>Cancel</Button>
-                        <Button className="cheese-gradient text-black font-semibold border-0" onClick={handleCreate}>
-                            <Plus className="w-4 h-4 mr-1" /> Create Route
+                        <Button className="cheese-gradient text-black font-semibold border-0" onClick={() => createMutation.mutate(form)} disabled={createMutation.isPending}>
+                            {createMutation.isPending ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Plus className="w-4 h-4 mr-1" />} Create
                         </Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
 
             {/* Route Detail Dialog */}
-            <Dialog open={detailOpen} onOpenChange={setDetailOpen}>
-                <DialogContent className="max-w-lg">
+            <Dialog open={!!detailRoute} onOpenChange={(open) => !open && setDetailRoute(null)}>
+                <DialogContent className="max-w-md">
                     <DialogHeader>
-                        <DialogTitle className="flex items-center gap-2">
-                            <Route className="w-5 h-5 text-cheese-600" />
-                            {selectedRoute?.name}
-                        </DialogTitle>
-                        <DialogDescription>{selectedRoute?.id} • {selectedRoute?.description}</DialogDescription>
+                        <DialogTitle className="flex items-center gap-2"><Route className="w-5 h-5 text-cheese-600" /> {detailRoute?.route_info || detailRoute?.name}</DialogTitle>
                     </DialogHeader>
-                    {selectedRoute && (
+                    {detailRoute && (
                         <div className="space-y-4">
-                            <div>
-                                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Experience Flow</p>
-                                <div className="flex flex-wrap items-center gap-2">
-                                    {selectedRoute.experiences.map((exp, i) => (
-                                        <React.Fragment key={i}>
-                                            <div className="flex items-center gap-2 bg-muted rounded-lg px-3 py-2">
-                                                <div className="w-6 h-6 rounded-full bg-cheese-100 dark:bg-cheese-900/30 flex items-center justify-center text-xs font-bold text-cheese-700 dark:text-cheese-400">{i + 1}</div>
-                                                <span className="text-sm font-medium">{exp}</span>
-                                            </div>
-                                            {i < selectedRoute.experiences.length - 1 && (
-                                                <ChevronRight className="w-4 h-4 text-cheese-400" />
-                                            )}
-                                        </React.Fragment>
-                                    ))}
-                                </div>
-                            </div>
                             <div className="grid grid-cols-2 gap-4">
-                                <div className="bg-muted rounded-lg p-3">
-                                    <p className="text-xs text-muted-foreground">Price</p>
-                                    <p className="text-xl font-bold text-foreground">${selectedRoute.price}</p>
-                                </div>
-                                <div className="bg-muted rounded-lg p-3">
-                                    <p className="text-xs text-muted-foreground">Capacity</p>
-                                    <p className="text-xl font-bold text-foreground">{selectedRoute.capacity}</p>
-                                </div>
+                                <div><p className="text-xs text-muted-foreground">Status</p><Badge className={STATUS_CONFIG[detailRoute.status]?.badge}>{STATUS_CONFIG[detailRoute.status]?.label}</Badge></div>
+                                <div><p className="text-xs text-muted-foreground">Price</p><p className="font-semibold">${Number(detailRoute.price || 0).toLocaleString()}</p></div>
                             </div>
+                            {detailRoute.description && <div><p className="text-xs text-muted-foreground">Description</p><p className="text-sm">{detailRoute.description}</p></div>}
+                            {detailRoute.experiences?.length > 0 && (
+                                <div>
+                                    <p className="text-xs text-muted-foreground mb-2">Experiences ({detailRoute.experiences.length})</p>
+                                    <div className="space-y-1">
+                                        {detailRoute.experiences.map((exp, i) => (
+                                            <div key={i} className="flex items-center gap-2 text-sm p-2 bg-muted rounded-lg">
+                                                <span className="w-5 h-5 rounded-full bg-cheese-500 text-black text-xs flex items-center justify-center font-bold">{exp.sequence || i + 1}</span>
+                                                <span>{exp.experience_info || exp.experience_id || exp.name}</span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+                            <DialogFooter className="gap-2">
+                                <Button variant="outline" onClick={() => navigate(`/cheese/tickets?route=${detailRoute.name}`)}><Ticket className="w-4 h-4 mr-1" /> View Tickets</Button>
+                                <Button variant="outline" onClick={() => navigate(`/cheese/bookings?route=${detailRoute.name}`)}>Bookings</Button>
+                            </DialogFooter>
                         </div>
                     )}
                 </DialogContent>

@@ -1,269 +1,223 @@
 import React, { useState } from "react";
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
-import { createPageUrl } from "@/utils";
+import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Progress } from "@/components/ui/progress";
-import {
-    Ticket, Route, Sparkles, CalendarDays, Users, TrendingUp,
-    Clock, AlertCircle, Plus, ArrowUpRight, CheckCircle2,
-    XCircle, Timer, Eye
-} from "lucide-react";
-import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip } from "recharts";
-
-const container = {
-    hidden: { opacity: 0 },
-    show: { opacity: 1, transition: { staggerChildren: 0.08 } }
-};
-
-const item = {
-    hidden: { opacity: 0, y: 20 },
-    show: { opacity: 1, y: 0, transition: { duration: 0.4 } }
-};
-
-const TICKET_COLORS = {
-    Pending: "#FDD835",
-    Confirmed: "#4CAF50",
-    "Checked-In": "#2196F3",
-    Completed: "#9C27B0",
-    Cancelled: "#F44336",
-    "No-Show": "#FF9800",
-};
-
-const mockTicketStats = [
-    { name: "Pending", value: 12, color: TICKET_COLORS.Pending },
-    { name: "Confirmed", value: 28, color: TICKET_COLORS.Confirmed },
-    { name: "Checked-In", value: 8, color: TICKET_COLORS["Checked-In"] },
-    { name: "Completed", value: 45, color: TICKET_COLORS.Completed },
-    { name: "Cancelled", value: 5, color: TICKET_COLORS.Cancelled },
-    { name: "No-Show", value: 2, color: TICKET_COLORS["No-Show"] },
-];
-
-const mockWeeklyData = [
-    { day: "Mon", tickets: 18 },
-    { day: "Tue", tickets: 24 },
-    { day: "Wed", tickets: 32 },
-    { day: "Thu", tickets: 28 },
-    { day: "Fri", tickets: 35 },
-    { day: "Sat", tickets: 42 },
-    { day: "Sun", tickets: 15 },
-];
-
-const mockAgenda = [
-    { time: "09:00", title: "Wine Tasting Tour", slots: 3, booked: 12, capacity: 15 },
-    { time: "10:30", title: "Cheese Factory Visit", slots: 2, booked: 8, capacity: 20 },
-    { time: "12:00", title: "Gourmet Lunch Experience", slots: 1, booked: 18, capacity: 20 },
-    { time: "14:00", title: "Artisan Workshop", slots: 2, booked: 5, capacity: 12 },
-    { time: "16:00", title: "Sunset Vineyard Walk", slots: 1, booked: 10, capacity: 10 },
-];
+import { Skeleton } from "@/components/ui/skeleton";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { LayoutDashboard, Ticket, Users, DollarSign, Clock, TrendingUp, AlertCircle, RefreshCw, CalendarDays, Shield, Sparkles } from "lucide-react";
+import { dashboardService } from "@/api/dashboardService";
+import { apiRequest } from "@/api/client";
 
 export default function Dashboard() {
     const navigate = useNavigate();
-    const totalTickets = mockTicketStats.reduce((a, b) => a + b.value, 0);
+    const [period, setPeriod] = useState("today");
+
+    const { data: dashRaw, isLoading, error, refetch } = useQuery({
+        queryKey: ['dashboard', period],
+        queryFn: async () => {
+            const result = await dashboardService.getCentralDashboard(period);
+            const payload = result?.data?.message || result?.data || result;
+            return payload?.data || payload || {};
+        },
+    });
+
+    const { data: kpisRaw, isLoading: kpisLoading } = useQuery({
+        queryKey: ['dashboard-kpis', period],
+        queryFn: async () => {
+            const result = await dashboardService.getDashboardKpis(null, period);
+            const payload = result?.data?.message || result?.data || result;
+            return payload?.data || payload || {};
+        },
+    });
+    // Fallback: fetch tickets directly if dashboard doesn't have tickets_by_status
+    const { data: ticketsRaw = [] } = useQuery({
+        queryKey: ['dashboard-tickets'],
+        queryFn: async () => {
+            const params = new URLSearchParams();
+            params.append('fields', JSON.stringify(["name", "status"]));
+            params.append('limit_page_length', '500');
+            const res = await apiRequest(`/api/resource/Cheese Ticket?${params}`);
+            return res?.data?.data || [];
+        },
+    });
+
+    const dashboard = dashRaw || {};
+    const kpis = kpisRaw || {};
+
+    // Compute tickets_by_status from raw tickets if dashboard doesn't provide it
+    let ticketsByStatus = dashboard.tickets_by_status || {};
+    if (Object.keys(ticketsByStatus).length === 0 && ticketsRaw.length > 0) {
+        ticketsByStatus = {};
+        ticketsRaw.forEach(t => {
+            const s = t.status || 'Unknown';
+            ticketsByStatus[s] = (ticketsByStatus[s] || 0) + 1;
+        });
+    }
+    const totalTickets = Object.values(ticketsByStatus).reduce((sum, v) => sum + (Number(v) || 0), 0) || kpis?.conversion_rates?.total_tickets || 0;
+
+    const convRates = kpis?.conversion_rates || {};
+    const depRates = kpis?.deposit_collection_rates || {};
+    const attRates = kpis?.attendance_rates || {};
+
+    const totalLeads = convRates.total_leads || dashboard.total_leads || 0;
+    const collectedRevenue = depRates.collected_amount || dashboard.total_revenue || 0;
+    const pendingDeposits = (depRates.total_deposits || 0) - (depRates.paid_deposits || 0);
+    const satisfaction = kpis?.average_satisfaction || 0;
 
     const kpiCards = [
-        { title: "Total Tickets Today", value: totalTickets, icon: Ticket, change: "+12%", color: "from-yellow-500 to-amber-500", textColor: "text-black" },
-        { title: "Active Routes", value: 8, icon: Route, change: "+2", color: "from-emerald-500 to-green-600", textColor: "text-white" },
-        { title: "Pending Actions", value: 12, icon: AlertCircle, change: "3 urgent", color: "from-red-500 to-rose-600", textColor: "text-white" },
-        { title: "Occupancy Rate", value: "73%", icon: TrendingUp, change: "+5%", color: "from-blue-500 to-indigo-600", textColor: "text-white" },
+        { title: "Total Tickets", value: totalTickets || convRates.total_tickets || 0, icon: Ticket, color: "text-blue-600", onClick: () => navigate('/cheese/tickets') },
+        { title: "Revenue Collected", value: `$${Number(collectedRevenue).toLocaleString()}`, icon: DollarSign, color: "text-emerald-600", onClick: () => navigate('/cheese/deposits') },
+        { title: "Leads", value: totalLeads, icon: Users, color: "text-purple-600", onClick: () => navigate('/cheese/leads') },
+        { title: "Pending Deposits", value: pendingDeposits, icon: Clock, color: "text-orange-600", onClick: () => navigate('/cheese/deposits?status=PENDING') },
     ];
 
+    // Ticket status breakdown for chart
+    const statusEntries = Object.entries(ticketsByStatus);
+    const maxCount = Math.max(1, ...statusEntries.map(([, v]) => v));
+
+    const statusColors = {
+        PENDING: "bg-yellow-500", CONFIRMED: "bg-emerald-500", CHECKED_IN: "bg-blue-500",
+        COMPLETED: "bg-purple-500", CANCELLED: "bg-red-500", NO_SHOW: "bg-orange-500", EXPIRED: "bg-gray-500", REJECTED: "bg-rose-500",
+    };
+
+    // Recent activity / agenda
+    const agenda = dashboard.agenda || dashboard.day_agenda || [];
+    const pendingActions = dashboard.pending_actions || [];
+
+    if (error) {
+        return (
+            <div className="p-6 flex flex-col items-center justify-center min-h-[400px] text-center">
+                <AlertCircle className="w-12 h-12 text-red-400 mb-4" />
+                <h2 className="text-lg font-semibold mb-2">Failed to load dashboard</h2>
+                <p className="text-sm text-muted-foreground mb-4">{error?.message}</p>
+                <Button onClick={() => refetch()} variant="outline"><RefreshCw className="w-4 h-4 mr-2" /> Retry</Button>
+            </div>
+        );
+    }
+
     return (
-        <motion.div
-            variants={container}
-            initial="hidden"
-            animate="show"
-            className="p-6 space-y-6"
-        >
-            {/* Page Header */}
-            <motion.div variants={item} className="flex items-center justify-between">
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="p-6 space-y-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
-                    <h1 className="text-2xl font-bold text-foreground">Dashboard</h1>
-                    <p className="text-sm text-muted-foreground mt-1">Welcome back to your control center</p>
+                    <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
+                        <LayoutDashboard className="w-6 h-6 text-cheese-600" /> Dashboard
+                    </h1>
+                    <p className="text-sm text-muted-foreground mt-1">Overview of your cheese operations</p>
                 </div>
                 <div className="flex gap-2">
-                    <Button
-                        onClick={() => navigate(createPageUrl("tickets"))}
-                        className="cheese-gradient text-black font-semibold border-0 hover:shadow-lg hover:shadow-yellow-500/20"
-                    >
-                        <Plus className="w-4 h-4 mr-1" /> New Ticket
-                    </Button>
+                    <Select value={period} onValueChange={setPeriod}>
+                        <SelectTrigger className="w-36 h-9"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="today">Today</SelectItem>
+                            <SelectItem value="yesterday">Yesterday</SelectItem>
+                            <SelectItem value="7">Last 7 Days</SelectItem>
+                            <SelectItem value="30">Last 30 Days</SelectItem>
+                        </SelectContent>
+                    </Select>
+                    <Button variant="ghost" size="icon" onClick={() => refetch()} className="h-9 w-9"><RefreshCw className="w-4 h-4" /></Button>
                 </div>
-            </motion.div>
+            </div>
 
             {/* KPI Cards */}
-            <motion.div variants={item} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                {kpiCards.map((kpi, i) => (
-                    <Card key={i} className="overflow-hidden border-0 shadow-lg hover:shadow-xl transition-shadow duration-300">
-                        <div className={`bg-gradient-to-br ${kpi.color} p-5`}>
-                            <div className="flex items-center justify-between">
-                                <div>
-                                    <p className={`text-sm font-medium ${kpi.textColor} opacity-80`}>{kpi.title}</p>
-                                    <p className={`text-3xl font-bold ${kpi.textColor} mt-1`}>{kpi.value}</p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                {kpiCards.map((kpi) => (
+                    <motion.div key={kpi.title} whileHover={{ y: -3, scale: 1.02 }}>
+                        <Card className="border-0 shadow-lg cursor-pointer hover:shadow-xl transition-all" onClick={kpi.onClick}>
+                            <CardContent className="p-5">
+                                <div className="flex items-center justify-between mb-3">
+                                    <kpi.icon className={`w-8 h-8 ${kpi.color}`} />
+                                    <TrendingUp className="w-4 h-4 text-muted-foreground" />
                                 </div>
-                                <div className={`w-12 h-12 rounded-xl ${kpi.textColor}/10 bg-white/20 flex items-center justify-center`}>
-                                    <kpi.icon className={`w-6 h-6 ${kpi.textColor}`} />
-                                </div>
-                            </div>
-                            <div className="mt-3 flex items-center gap-1">
-                                <ArrowUpRight className={`w-3 h-3 ${kpi.textColor} opacity-70`} />
-                                <span className={`text-xs font-medium ${kpi.textColor} opacity-70`}>{kpi.change} from yesterday</span>
-                            </div>
-                        </div>
-                    </Card>
+                                {isLoading || kpisLoading ? (
+                                    <><Skeleton className="h-8 w-20 mb-1" /><Skeleton className="h-3 w-24" /></>
+                                ) : (
+                                    <><p className="text-2xl font-bold text-foreground">{kpi.value}</p><p className="text-xs text-muted-foreground">{kpi.title}</p></>
+                                )}
+                            </CardContent>
+                        </Card>
+                    </motion.div>
                 ))}
-            </motion.div>
+            </div>
 
-            {/* Charts Row */}
-            <motion.div variants={item} className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                {/* Ticket Status Donut */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {/* Ticket Status Chart */}
                 <Card className="border-0 shadow-lg">
                     <CardHeader className="pb-2">
-                        <CardTitle className="text-base font-semibold flex items-center gap-2">
-                            <div className="w-8 h-8 rounded-lg bg-yellow-100 dark:bg-yellow-900/30 flex items-center justify-center">
-                                <Ticket className="w-4 h-4 text-yellow-600" />
-                            </div>
-                            Ticket Status
-                        </CardTitle>
+                        <CardTitle className="text-base flex items-center gap-2"><Ticket className="w-4 h-4 text-cheese-600" /> Tickets by Status</CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <div className="h-48">
-                            <ResponsiveContainer width="100%" height="100%">
-                                <PieChart>
-                                    <Pie
-                                        data={mockTicketStats}
-                                        cx="50%"
-                                        cy="50%"
-                                        innerRadius={50}
-                                        outerRadius={75}
-                                        paddingAngle={3}
-                                        dataKey="value"
-                                    >
-                                        {mockTicketStats.map((entry, index) => (
-                                            <Cell key={`cell-${index}`} fill={entry.color} />
-                                        ))}
-                                    </Pie>
-                                    <Tooltip
-                                        contentStyle={{ background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '8px', color: 'hsl(var(--card-foreground))' }}
-                                    />
-                                </PieChart>
-                            </ResponsiveContainer>
+                        {isLoading ? (
+                            <div className="space-y-3">{Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-8 w-full" />)}</div>
+                        ) : statusEntries.length > 0 ? (
+                            <div className="space-y-3">
+                                {statusEntries.map(([status, count]) => (
+                                    <div key={status} className="flex items-center gap-3 cursor-pointer hover:bg-muted/50 p-1 rounded-lg" onClick={() => navigate(`/cheese/tickets?status=${status}`)}>
+                                        <span className="text-xs font-medium w-20 text-muted-foreground uppercase">{status.replace('_', ' ')}</span>
+                                        <div className="flex-1 bg-muted rounded-full h-4">
+                                            <div className={`h-4 rounded-full ${statusColors[status] || 'bg-gray-500'} transition-all`} style={{ width: `${(count / maxCount) * 100}%` }} />
+                                        </div>
+                                        <span className="text-sm font-bold w-8 text-right">{count}</span>
+                                    </div>
+                                ))}
+                            </div>
+                        ) : (
+                            <p className="text-center text-muted-foreground py-8">No ticket data for this period</p>
+                        )}
+                    </CardContent>
+                </Card>
+
+                {/* Quick Actions / Pending */}
+                <Card className="border-0 shadow-lg">
+                    <CardHeader className="pb-2">
+                        <CardTitle className="text-base flex items-center gap-2"><Shield className="w-4 h-4 text-cheese-600" /> Quick Links</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="grid grid-cols-2 gap-3">
+                            {[
+                                { label: "Tickets", icon: Ticket, path: "/cheese/tickets", color: "bg-blue-50 dark:bg-blue-950 text-blue-700 dark:text-blue-400" },
+                                { label: "Routes", icon: Sparkles, path: "/cheese/routes", color: "bg-emerald-50 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-400" },
+                                { label: "Experiences", icon: Sparkles, path: "/cheese/experiences", color: "bg-purple-50 dark:bg-purple-950 text-purple-700 dark:text-purple-400" },
+                                { label: "Calendar", icon: CalendarDays, path: "/cheese/calendar", color: "bg-orange-50 dark:bg-orange-950 text-orange-700 dark:text-orange-400" },
+                                { label: "Deposits", icon: DollarSign, path: "/cheese/deposits", color: "bg-yellow-50 dark:bg-yellow-950 text-yellow-700 dark:text-yellow-400" },
+                                { label: "Support", icon: Shield, path: "/cheese/support", color: "bg-red-50 dark:bg-red-950 text-red-700 dark:text-red-400" },
+                                { label: "Contacts", icon: Users, path: "/cheese/contacts", color: "bg-teal-50 dark:bg-teal-950 text-teal-700 dark:text-teal-400" },
+                                { label: "Events Log", icon: Clock, path: "/cheese/events", color: "bg-gray-50 dark:bg-gray-900 text-gray-700 dark:text-gray-400" },
+                            ].map((item) => (
+                                <Button key={item.label} variant="ghost" className={`h-auto flex flex-col items-center gap-2 py-4 rounded-xl ${item.color}`} onClick={() => navigate(item.path)}>
+                                    <item.icon className="w-5 h-5" />
+                                    <span className="text-xs font-medium">{item.label}</span>
+                                </Button>
+                            ))}
                         </div>
-                        <div className="grid grid-cols-3 gap-2 mt-2">
-                            {mockTicketStats.map((stat) => (
-                                <div key={stat.name} className="flex items-center gap-1.5">
-                                    <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: stat.color }} />
-                                    <span className="text-xs text-muted-foreground">{stat.name}</span>
-                                    <span className="text-xs font-semibold ml-auto">{stat.value}</span>
+                    </CardContent>
+                </Card>
+            </div>
+
+            {/* Agenda / Recent Activity */}
+            {(Array.isArray(agenda) && agenda.length > 0) && (
+                <Card className="border-0 shadow-lg">
+                    <CardHeader className="pb-2">
+                        <CardTitle className="text-base flex items-center gap-2"><CalendarDays className="w-4 h-4 text-cheese-600" /> Today's Agenda</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="space-y-2">
+                            {agenda.map((item, i) => (
+                                <div key={i} className="flex items-center gap-3 p-3 bg-muted rounded-lg">
+                                    <Clock className="w-4 h-4 text-muted-foreground shrink-0" />
+                                    <div className="flex-1 min-w-0">
+                                        <p className="text-sm font-medium text-foreground truncate">{item.title || item.experience || item.name}</p>
+                                        <p className="text-xs text-muted-foreground">{item.time || item.slot_time || '—'} • {item.description || `${item.booked || 0}/${item.capacity || 0} booked`}</p>
+                                    </div>
+                                    {item.status && <Badge variant="outline">{item.status}</Badge>}
                                 </div>
                             ))}
                         </div>
                     </CardContent>
                 </Card>
-
-                {/* Weekly Trend */}
-                <Card className="border-0 shadow-lg lg:col-span-2">
-                    <CardHeader className="pb-2">
-                        <CardTitle className="text-base font-semibold flex items-center gap-2">
-                            <div className="w-8 h-8 rounded-lg bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
-                                <TrendingUp className="w-4 h-4 text-blue-600" />
-                            </div>
-                            Weekly Ticket Trend
-                        </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <div className="h-56">
-                            <ResponsiveContainer width="100%" height="100%">
-                                <BarChart data={mockWeeklyData}>
-                                    <XAxis dataKey="day" axisLine={false} tickLine={false} className="text-xs" />
-                                    <YAxis axisLine={false} tickLine={false} className="text-xs" />
-                                    <Tooltip
-                                        contentStyle={{ background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '8px', color: 'hsl(var(--card-foreground))' }}
-                                        cursor={{ fill: 'rgba(253, 216, 53, 0.1)' }}
-                                    />
-                                    <Bar dataKey="tickets" fill="#FDD835" radius={[6, 6, 0, 0]} />
-                                </BarChart>
-                            </ResponsiveContainer>
-                        </div>
-                    </CardContent>
-                </Card>
-            </motion.div>
-
-            {/* Today's Agenda + Quick Actions */}
-            <motion.div variants={item} className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                {/* Today's Agenda */}
-                <Card className="border-0 shadow-lg lg:col-span-2">
-                    <CardHeader className="pb-3">
-                        <CardTitle className="text-base font-semibold flex items-center gap-2">
-                            <div className="w-8 h-8 rounded-lg bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center">
-                                <Clock className="w-4 h-4 text-purple-600" />
-                            </div>
-                            Today's Agenda
-                        </CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-3">
-                        {mockAgenda.map((event, i) => {
-                            const occupancy = Math.round((event.booked / event.capacity) * 100);
-                            return (
-                                <div key={i} className="flex items-center gap-4 p-3 rounded-xl bg-muted hover:bg-accent transition-colors group">
-                                    <div className="text-center min-w-[48px]">
-                                        <span className="text-sm font-bold text-foreground">{event.time}</span>
-                                    </div>
-                                    <div className="w-px h-10 bg-cheese-300" />
-                                    <div className="flex-1 min-w-0">
-                                        <p className="font-medium text-sm text-foreground truncate">{event.title}</p>
-                                        <div className="flex items-center gap-3 mt-1">
-                                            <span className="text-xs text-muted-foreground">
-                                                {event.booked}/{event.capacity} booked
-                                            </span>
-                                            <Progress value={occupancy} className="h-1.5 flex-1 max-w-[120px]" />
-                                            <Badge variant={occupancy >= 90 ? "destructive" : occupancy >= 70 ? "warning" : "success"} className="text-[10px]">
-                                                {occupancy}%
-                                            </Badge>
-                                        </div>
-                                    </div>
-                                    <Badge variant="outline" className="text-xs">
-                                        {event.slots} slots
-                                    </Badge>
-                                </div>
-                            );
-                        })}
-                    </CardContent>
-                </Card>
-
-                {/* Quick Actions */}
-                <Card className="border-0 shadow-lg">
-                    <CardHeader className="pb-3">
-                        <CardTitle className="text-base font-semibold flex items-center gap-2">
-                            <div className="w-8 h-8 rounded-lg bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center">
-                                <Sparkles className="w-4 h-4 text-amber-600" />
-                            </div>
-                            Quick Actions
-                        </CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-2">
-                        {[
-                            { label: "Create Ticket", icon: Ticket, path: "tickets", color: "bg-yellow-500/10 text-yellow-700 dark:text-yellow-400 hover:bg-yellow-500/20" },
-                            { label: "New Route", icon: Route, path: "routes", color: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-500/20" },
-                            { label: "Add Experience", icon: Sparkles, path: "experiences", color: "bg-blue-500/10 text-blue-700 dark:text-blue-400 hover:bg-blue-500/20" },
-                            { label: "View Calendar", icon: CalendarDays, path: "calendar", color: "bg-purple-500/10 text-purple-700 dark:text-purple-400 hover:bg-purple-500/20" },
-                            { label: "Manage Contacts", icon: Users, path: "contacts", color: "bg-rose-500/10 text-rose-700 dark:text-rose-400 hover:bg-rose-500/20" },
-                        ].map((action) => (
-                            <Button
-                                key={action.label}
-                                variant="ghost"
-                                onClick={() => navigate(createPageUrl(action.path))}
-                                className={`w-full justify-start h-11 ${action.color} transition-all duration-200`}
-                            >
-                                <action.icon className="w-4 h-4 mr-3" />
-                                {action.label}
-                            </Button>
-                        ))}
-                    </CardContent>
-                </Card>
-            </motion.div>
+            )}
         </motion.div>
     );
 }

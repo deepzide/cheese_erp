@@ -5,7 +5,8 @@ import {
     LayoutDashboard, Ticket, Route, Sparkles, CalendarDays,
     Users, UserPlus, FileText, Wallet, ShoppingCart,
     Bell, Menu, LogOut, ChevronDown, ChevronRight, X,
-    Zap, Settings, Sun, Moon
+    Zap, Settings, Sun, Moon,
+    Shield, Landmark, UserCheck, QrCode, Star, Activity, MessageSquare
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -24,10 +25,19 @@ const navigationItems = [
     { title: "Bookings", url: createPageUrl("bookings"), icon: ShoppingCart, section: "flow" },
     { title: "Experiences", url: createPageUrl("experiences"), icon: Sparkles, section: "catalog" },
     { title: "Calendar", url: createPageUrl("calendar"), icon: CalendarDays, section: "catalog" },
+    { title: "Booking Policy", url: createPageUrl("booking-policy"), icon: Shield, section: "catalog" },
     { title: "Contacts", url: createPageUrl("contacts"), icon: Users, section: "crm" },
     { title: "Leads", url: createPageUrl("leads"), icon: UserPlus, section: "crm" },
     { title: "Quotations", url: createPageUrl("quotations"), icon: FileText, section: "crm" },
+    { title: "Conversations", url: createPageUrl("conversations"), icon: MessageSquare, section: "crm" },
     { title: "Deposits", url: createPageUrl("deposits"), icon: Wallet, section: "finance" },
+    { title: "Bank Accounts", url: createPageUrl("bank-accounts"), icon: Landmark, section: "finance" },
+    { title: "Support", url: createPageUrl("support"), icon: Shield, section: "operations" },
+    { title: "Attendance", url: createPageUrl("attendance"), icon: UserCheck, section: "operations" },
+    { title: "QR Tokens", url: createPageUrl("qr-tokens"), icon: QrCode, section: "operations" },
+    { title: "Documents", url: createPageUrl("documents"), icon: FileText, section: "operations" },
+    { title: "Surveys", url: createPageUrl("surveys"), icon: Star, section: "operations" },
+    { title: "System Events", url: createPageUrl("events"), icon: Activity, section: "system" },
 ];
 
 const sections = {
@@ -36,6 +46,8 @@ const sections = {
     catalog: { label: "Catalog", icon: Sparkles },
     crm: { label: "CRM", icon: Users },
     finance: { label: "Finance", icon: Wallet },
+    operations: { label: "Operations", icon: Shield },
+    system: { label: "System", icon: Activity },
 };
 
 export default function Layout({ children }) {

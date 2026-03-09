@@ -1,111 +1,130 @@
 import React, { useState } from "react";
 import { motion } from "framer-motion";
+import { useNavigate } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { FileText, Search, Plus, DollarSign, Eye, MoreHorizontal, Trash2, Send } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
+import { FileText, Search, Plus, DollarSign, Eye, MoreHorizontal, Trash2, Send, AlertCircle, RefreshCw, Loader2, Route } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
+import { useFrappeList, useFrappeCreate, useFrappeUpdate, useFrappeDelete } from "@/lib/useApiData";
 
 const QT_STATUS = {
     Draft: "bg-gray-500/15 text-gray-600 dark:text-gray-400",
     Sent: "bg-blue-500/15 text-blue-700 dark:text-blue-400",
     Accepted: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400",
-    Rejected: "bg-red-500/15 text-red-700 dark:text-red-400"
+    Rejected: "bg-red-500/15 text-red-700 dark:text-red-400",
 };
 
-const ROUTES = ["Golden Route", "Classic Tour", "Premium Experience", "Family Fun", "VIP Cave Tour"];
-
-const initialQuotations = [
-    { id: "QT-001", contact: "George Chen", route: "Golden Route", total: 1500, party_size: 6, status: "Draft", date: "Today" },
-    { id: "QT-002", contact: "Hannah Kim", route: "Premium Experience", total: 4500, party_size: 10, status: "Sent", date: "Yesterday" },
-    { id: "QT-003", contact: "Ivan Smirnov", route: "VIP Cave Tour", total: 960, party_size: 8, status: "Accepted", date: "3 days ago" },
-    { id: "QT-004", contact: "Julia Costa", route: "Family Fun", total: 640, party_size: 8, status: "Draft", date: "Today" },
-    { id: "QT-005", contact: "Karl Muller", route: "Classic Tour", total: 360, party_size: 3, status: "Rejected", date: "1 week ago" },
-];
-
-const emptyForm = { contact: "", route: "", party_size: "1", total: "" };
-
 export default function Quotations() {
-    const [quotations, setQuotations] = useState(initialQuotations);
+    const navigate = useNavigate();
     const [searchTerm, setSearchTerm] = useState("");
     const [createOpen, setCreateOpen] = useState(false);
-    const [form, setForm] = useState(emptyForm);
+    const [form, setForm] = useState({ lead: "", route: "", total_price: "" });
 
-    const filtered = quotations.filter(q => q.contact.toLowerCase().includes(searchTerm.toLowerCase()) || q.id.toLowerCase().includes(searchTerm.toLowerCase()));
+    const { data: quotations = [], isLoading, error, refetch } = useFrappeList("Cheese Quotation", {
+        fields: ["name", "lead", "route", "total_price", "deposit_amount", "status", "valid_until"],
+        pageSize: 100,
+    });
+
+    // Fetch routes for create form
+    const { data: routes = [] } = useFrappeList("Cheese Route", {
+        fields: ["name", "route_info"],
+        pageSize: 100,
+    });
+
+    // Fetch leads for create form
+    const { data: leads = [] } = useFrappeList("Cheese Lead", {
+        fields: ["name", "contact"],
+        pageSize: 100,
+    });
+
+    const createMutation = useFrappeCreate("Cheese Quotation");
+    const updateMutation = useFrappeUpdate("Cheese Quotation");
+    const deleteMutation = useFrappeDelete("Cheese Quotation");
+
+    const qtList = Array.isArray(quotations) ? quotations : [];
+    const filtered = qtList.filter(q => {
+        if (searchTerm) {
+            const term = searchTerm.toLowerCase();
+            return (q.lead || '').toLowerCase().includes(term) || (q.name || '').toLowerCase().includes(term);
+        }
+        return true;
+    });
 
     const handleCreate = () => {
-        if (!form.contact || !form.route || !form.total) {
-            toast.error("Contact, route, and total are required");
-            return;
-        }
-        const newQt = {
-            id: `QT-${String(quotations.length + 1).padStart(3, '0')}`,
-            contact: form.contact,
-            route: form.route,
-            total: parseInt(form.total),
-            party_size: parseInt(form.party_size) || 1,
-            status: "Draft",
-            date: "Just now",
-        };
-        setQuotations(prev => [newQt, ...prev]);
-        setForm(emptyForm);
-        setCreateOpen(false);
-        toast.success(`Quotation ${newQt.id} created as Draft`);
+        if (!form.lead || !form.route || !form.total_price) { toast.error("Lead, route, and total are required"); return; }
+        createMutation.mutate({ ...form, status: "Draft", total_price: parseFloat(form.total_price) }, {
+            onSuccess: () => { setForm({ lead: "", route: "", total_price: "" }); setCreateOpen(false); toast.success("Quotation created"); },
+            onError: (err) => toast.error(err?.message || "Failed"),
+        });
     };
 
-    const updateStatus = (id, newStatus) => {
-        setQuotations(prev => prev.map(q => q.id === id ? { ...q, status: newStatus } : q));
-        toast.success(`Quotation ${id} → ${newStatus}`);
+    const updateStatus = (name, newStatus) => {
+        updateMutation.mutate({ name, data: { status: newStatus } }, {
+            onSuccess: () => toast.success(`Quotation → ${newStatus}`),
+        });
     };
 
-    const deleteQuotation = (id) => {
-        setQuotations(prev => prev.filter(q => q.id !== id));
-        toast.success(`Quotation ${id} deleted`);
-    };
+    if (error) {
+        return (
+            <div className="p-6 flex flex-col items-center justify-center min-h-[400px] text-center">
+                <AlertCircle className="w-12 h-12 text-red-400 mb-4" />
+                <h2 className="text-lg font-semibold mb-2">Failed to load quotations</h2>
+                <p className="text-sm text-muted-foreground mb-4">{error?.message}</p>
+                <Button onClick={() => refetch()} variant="outline"><RefreshCw className="w-4 h-4 mr-2" /> Retry</Button>
+            </div>
+        );
+    }
 
     return (
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="p-6 space-y-6">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
                     <h1 className="text-2xl font-bold text-foreground flex items-center gap-2"><FileText className="w-6 h-6 text-cheese-600" /> Quotations</h1>
-                    <p className="text-sm text-muted-foreground mt-1">{filtered.length} quotations</p>
+                    <p className="text-sm text-muted-foreground mt-1">{isLoading ? '...' : `${filtered.length} quotations`}</p>
                 </div>
                 <div className="flex gap-2">
                     <div className="relative"><Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" /><Input placeholder="Search..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-9 w-56 h-9" /></div>
-                    <Button className="cheese-gradient text-black font-semibold border-0 h-9" onClick={() => setCreateOpen(true)}><Plus className="w-4 h-4 mr-1" /> New Quote</Button>
+                    <Button className="cheese-gradient text-black font-semibold border-0 h-9" onClick={() => navigate("/cheese/quotations/new")}><Plus className="w-4 h-4 mr-1" /> New Quote</Button>
+                    <Button variant="ghost" size="icon" onClick={() => refetch()} className="h-9 w-9"><RefreshCw className="w-4 h-4" /></Button>
                 </div>
             </div>
+
             <div className="space-y-3">
-                {filtered.map((qt) => (
-                    <motion.div key={qt.id} whileHover={{ x: 4 }}>
+                {isLoading ? Array.from({ length: 5 }).map((_, i) => (
+                    <Card key={i} className="border border-border"><CardContent className="p-4 flex items-center gap-4">
+                        <Skeleton className="w-10 h-10 rounded-lg" /><div className="flex-1"><Skeleton className="h-4 w-40 mb-2" /><Skeleton className="h-3 w-24" /></div><Skeleton className="h-6 w-20" />
+                    </CardContent></Card>
+                )) : filtered.map((qt) => (
+                    <motion.div key={qt.name} whileHover={{ x: 4 }}>
                         <Card className="border border-border shadow-sm hover:shadow-md transition-all group">
                             <CardContent className="p-4 flex items-center gap-4">
                                 <div className="w-10 h-10 rounded-lg bg-cheese-100 dark:bg-cheese-900/30 flex items-center justify-center"><FileText className="w-5 h-5 text-cheese-700 dark:text-cheese-400" /></div>
                                 <div className="flex-1 min-w-0">
-                                    <div className="flex items-center gap-2"><h3 className="font-semibold text-sm text-foreground">{qt.contact}</h3><span className="text-xs font-mono text-muted-foreground">{qt.id}</span></div>
-                                    <p className="text-xs text-muted-foreground">{qt.route} • {qt.party_size} guests</p>
+                                    <div className="flex items-center gap-2"><h3 className="font-semibold text-sm text-foreground">{qt.lead || '—'}</h3><span className="text-xs font-mono text-muted-foreground">{qt.name}</span></div>
+                                    <p className="text-xs text-muted-foreground">{qt.route || '—'}{qt.valid_until ? ` • Valid until: ${qt.valid_until}` : ''}</p>
                                 </div>
                                 <div className="text-right">
-                                    <p className="font-bold text-lg text-foreground flex items-center"><DollarSign className="w-4 h-4" />{qt.total.toLocaleString()}</p>
-                                    <Badge className={QT_STATUS[qt.status]}>{qt.status}</Badge>
+                                    <p className="font-bold text-lg text-foreground flex items-center"><DollarSign className="w-4 h-4" />{Number(qt.total_price || 0).toLocaleString()}</p>
+                                    <Badge className={QT_STATUS[qt.status] || QT_STATUS.Draft}>{qt.status || 'Draft'}</Badge>
                                 </div>
-                                <span className="text-xs text-muted-foreground hidden sm:block">{qt.date}</span>
+                                <span className="text-xs text-muted-foreground hidden sm:block">{qt.deposit_amount ? `Deposit: $${Number(qt.deposit_amount).toLocaleString()}` : ''}</span>
                                 <DropdownMenu>
-                                    <DropdownMenuTrigger asChild>
-                                        <Button variant="ghost" size="icon" className="h-8 w-8 opacity-0 group-hover:opacity-100"><MoreHorizontal className="w-4 h-4" /></Button>
-                                    </DropdownMenuTrigger>
+                                    <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8 opacity-0 group-hover:opacity-100"><MoreHorizontal className="w-4 h-4" /></Button></DropdownMenuTrigger>
                                     <DropdownMenuContent align="end">
-                                        <DropdownMenuItem><Eye className="w-3 h-3 mr-2" /> View</DropdownMenuItem>
-                                        {qt.status === "Draft" && <DropdownMenuItem onClick={() => updateStatus(qt.id, "Sent")}><Send className="w-3 h-3 mr-2" /> Send</DropdownMenuItem>}
-                                        {qt.status === "Sent" && <DropdownMenuItem onClick={() => updateStatus(qt.id, "Accepted")}>Mark Accepted</DropdownMenuItem>}
-                                        {qt.status === "Sent" && <DropdownMenuItem onClick={() => updateStatus(qt.id, "Rejected")}>Mark Rejected</DropdownMenuItem>}
+                                        {qt.status === "Draft" && <DropdownMenuItem onClick={() => updateStatus(qt.name, "Sent")}><Send className="w-3 h-3 mr-2" /> Send</DropdownMenuItem>}
+                                        {qt.status === "Sent" && <DropdownMenuItem onClick={() => updateStatus(qt.name, "Accepted")}>Mark Accepted</DropdownMenuItem>}
+                                        {qt.status === "Sent" && <DropdownMenuItem onClick={() => updateStatus(qt.name, "Rejected")}>Mark Rejected</DropdownMenuItem>}
                                         <DropdownMenuSeparator />
-                                        <DropdownMenuItem className="text-red-600" onClick={() => deleteQuotation(qt.id)}><Trash2 className="w-3 h-3 mr-2" /> Delete</DropdownMenuItem>
+                                        <DropdownMenuItem onClick={() => navigate(`/cheese/leads?search=${qt.lead}`)}>View Lead</DropdownMenuItem>
+                                        <DropdownMenuItem onClick={() => navigate(`/cheese/routes?search=${qt.route}`)}><Route className="w-3 h-3 mr-2" /> View Route</DropdownMenuItem>
+                                        <DropdownMenuSeparator />
+                                        <DropdownMenuItem className="text-red-600" onClick={() => deleteMutation.mutate(qt.name, { onSuccess: () => toast.success("Deleted") })}><Trash2 className="w-3 h-3 mr-2" /> Delete</DropdownMenuItem>
                                     </DropdownMenuContent>
                                 </DropdownMenu>
                             </CardContent>
@@ -114,42 +133,22 @@ export default function Quotations() {
                 ))}
             </div>
 
-            {/* Create Quotation Dialog */}
+            {!isLoading && filtered.length === 0 && (
+                <div className="text-center py-16"><FileText className="w-16 h-16 text-muted-foreground/20 mx-auto mb-4" /><p className="text-muted-foreground">No quotations found</p></div>
+            )}
+
             <Dialog open={createOpen} onOpenChange={setCreateOpen}>
                 <DialogContent className="max-w-sm">
-                    <DialogHeader>
-                        <DialogTitle className="flex items-center gap-2"><Plus className="w-5 h-5 text-cheese-600" /> New Quotation</DialogTitle>
-                        <DialogDescription>Create a price quote for a client</DialogDescription>
-                    </DialogHeader>
+                    <DialogHeader><DialogTitle className="flex items-center gap-2"><Plus className="w-5 h-5 text-cheese-600" /> New Quotation</DialogTitle><DialogDescription>Create a price quote</DialogDescription></DialogHeader>
                     <div className="space-y-4">
-                        <div className="space-y-2">
-                            <Label>Contact Name *</Label>
-                            <Input placeholder="Client name" value={form.contact} onChange={(e) => setForm(f => ({ ...f, contact: e.target.value }))} />
-                        </div>
-                        <div className="space-y-2">
-                            <Label>Route *</Label>
-                            <Select value={form.route} onValueChange={(v) => setForm(f => ({ ...f, route: v }))}>
-                                <SelectTrigger><SelectValue placeholder="Select route" /></SelectTrigger>
-                                <SelectContent>
-                                    {ROUTES.map(r => <SelectItem key={r} value={r}>{r}</SelectItem>)}
-                                </SelectContent>
-                            </Select>
-                        </div>
-                        <div className="grid grid-cols-2 gap-4">
-                            <div className="space-y-2">
-                                <Label>Party Size</Label>
-                                <Input type="number" min="1" value={form.party_size} onChange={(e) => setForm(f => ({ ...f, party_size: e.target.value }))} />
-                            </div>
-                            <div className="space-y-2">
-                                <Label>Total ($) *</Label>
-                                <Input type="number" min="0" placeholder="1500" value={form.total} onChange={(e) => setForm(f => ({ ...f, total: e.target.value }))} />
-                            </div>
-                        </div>
+                        <div className="space-y-2"><Label>Lead *</Label><Input placeholder="Lead ID" value={form.lead} onChange={(e) => setForm(f => ({ ...f, lead: e.target.value }))} /></div>
+                        <div className="space-y-2"><Label>Route *</Label><Input placeholder="Route ID" value={form.route} onChange={(e) => setForm(f => ({ ...f, route: e.target.value }))} /></div>
+                        <div className="space-y-2"><Label>Total ($) *</Label><Input type="number" min="0" placeholder="1500" value={form.total_price} onChange={(e) => setForm(f => ({ ...f, total_price: e.target.value }))} /></div>
                     </div>
                     <DialogFooter>
                         <Button variant="outline" onClick={() => setCreateOpen(false)}>Cancel</Button>
-                        <Button className="cheese-gradient text-black font-semibold border-0" onClick={handleCreate}>
-                            <Plus className="w-4 h-4 mr-1" /> Create Quote
+                        <Button className="cheese-gradient text-black font-semibold border-0" onClick={handleCreate} disabled={createMutation.isPending}>
+                            {createMutation.isPending ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Plus className="w-4 h-4 mr-1" />} Create Quote
                         </Button>
                     </DialogFooter>
                 </DialogContent>
