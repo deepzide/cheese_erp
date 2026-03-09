@@ -71,6 +71,8 @@
   }
  ],
  "index_web_pages_for_search": 1,
+ "title_field": "contact",
+ "search_fields": "contact,status",
  "links": [],
  "modified": "2024-01-01 00:00:00",
  "modified_by": "Administrator",

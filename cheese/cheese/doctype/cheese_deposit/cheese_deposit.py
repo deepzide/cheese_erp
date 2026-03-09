@@ -21,7 +21,7 @@ class CheeseDeposit(Document):
 		amount_required: DF.Currency
 		due_at: DF.Datetime | None
 		entity_id: DF.DynamicLink
-		entity_type: DF.Literal["Ticket", "Route Booking"]
+		entity_type: DF.Literal["Cheese Ticket", "Cheese Route Booking"]
 		ocr_payload: DF.JSON | None
 		paid_at: DF.Datetime | None
 		status: DF.Literal["PENDING", "PAID", "OVERDUE", "ADJUSTED", "REFUNDED"]
@@ -33,6 +33,9 @@ class CheeseDeposit(Document):
 		# Validate amount
 		if self.amount_paid and self.amount_paid < 0:
 			frappe.throw(_("Amount Paid cannot be negative"))
+			
+		if self.amount_paid and self.amount_paid > self.amount_required:
+			frappe.throw(_("Amount paid ({0}) cannot exceed the required deposit amount ({1}).").format(self.amount_paid, self.amount_required))
 
 		if self.amount_required <= 0:
 			frappe.throw(_("Amount Required must be greater than 0"))

@@ -93,12 +93,15 @@ class CheeseRouteBooking(Document):
 			self.log_status_change()
 			# Auto-convert lead when route booking becomes CONFIRMED
 			if self.status == "CONFIRMED":
+				self.confirm_tickets()
 				self.convert_associated_lead()
 				# Send confirmation notification
 				self.send_status_notification("confirmed")
 			elif self.status == "CANCELLED":
+				self.cancel_tickets()
 				self.send_status_notification("rejected")
 			elif self.status == "EXPIRED":
+				self.cancel_tickets()
 				self.send_status_notification("expired")
 
 	def log_status_change(self):
@@ -114,6 +117,24 @@ class CheeseRouteBooking(Document):
 		except Exception:
 			# Silently fail if event logging fails
 			pass
+
+	def confirm_tickets(self):
+		"""Cascade confirm status to child tickets"""
+		for row in self.tickets:
+			if row.ticket:
+				ticket = frappe.get_doc("Cheese Ticket", row.ticket)
+				if ticket.status == "PENDING":
+					ticket.status = "CONFIRMED"
+					ticket.save()
+
+	def cancel_tickets(self):
+		"""Cascade cancel status to child tickets"""
+		for row in self.tickets:
+			if row.ticket:
+				ticket = frappe.get_doc("Cheese Ticket", row.ticket)
+				if ticket.status in ["PENDING", "CONFIRMED"]:
+					ticket.status = "CANCELLED"
+					ticket.save()
 
 	@frappe.whitelist()
 	def refresh_ticket_statuses(self):
@@ -158,3 +179,23 @@ class CheeseRouteBooking(Document):
 		except Exception as e:
 			# Silently fail if notification fails
 			frappe.log_error(f"Failed to send notification for route booking {self.name}: {e}", "Notification Error")
+
+@frappe.whitelist()
+def make_deposit(source_name, target_doc=None):
+	from frappe.model.mapper import get_mapped_doc
+
+	def set_missing_values(source, target):
+		target.entity_type = "Cheese Route Booking"
+		target.entity_id = source.name
+		target.status = "PENDING"
+		target.amount_required = source.deposit_amount
+		target.amount_paid = 0
+
+	doclist = get_mapped_doc("Cheese Route Booking", source_name, {
+		"Cheese Route Booking": {
+			"doctype": "Cheese Deposit",
+			"field_map": {}
+		}
+	}, target_doc, set_missing_values)
+
+	return doclist

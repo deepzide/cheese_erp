@@ -259,3 +259,43 @@ class CheeseTicket(Document):
 		except Exception as e:
 			# Silently fail if notification fails
 			frappe.log_error(f"Failed to send notification for ticket {self.name}: {e}", "Notification Error")
+
+@frappe.whitelist()
+def make_route_booking(source_name, target_doc=None):
+	from frappe.model.mapper import get_mapped_doc
+	
+	def set_missing_values(source, target):
+		target.status = "PENDING"
+		
+		if source.route:
+			route = frappe.get_doc("Cheese Route", source.route)
+			target.total_price = route.price
+			target.deposit_required = route.deposit_required
+			
+			if route.deposit_required:
+				if route.deposit_type == "Amount":
+					target.deposit_amount = route.deposit_value
+				elif route.deposit_type == "%" and route.price:
+					target.deposit_amount = (route.price * route.deposit_value) / 100.0
+
+	doclist = get_mapped_doc("Cheese Ticket", source_name, {
+		"Cheese Ticket": {
+			"doctype": "Cheese Route Booking",
+			"field_map": {
+				"contact": "contact",
+				"route": "route",
+				"conversation": "conversation"
+			}
+		}
+	}, target_doc, set_missing_values)
+
+	source = frappe.get_doc("Cheese Ticket", source_name)
+	doclist.append("tickets", {
+		"ticket": source.name,
+		"experience": source.experience,
+		"slot": source.slot,
+		"party_size": source.party_size,
+		"status": source.status
+	})
+
+	return doclist
