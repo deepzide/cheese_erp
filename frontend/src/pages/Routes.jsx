@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Route, Search, Plus, ChevronRight, Sparkles, Globe, WifiOff, Archive, MoreHorizontal, AlertCircle, RefreshCw, Loader2, DollarSign, Ticket } from "lucide-react";
+import { Route, Search, Plus, ChevronRight, Sparkles, Globe, WifiOff, Archive, MoreHorizontal, AlertCircle, RefreshCw, Loader2, DollarSign, Ticket, Eye } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
 import { routeService } from "@/api/routeService";
@@ -125,7 +125,11 @@ export default function RoutesPage() {
                     const StatusIcon = config.icon;
                     return (
                         <motion.div key={route.name || route.route_id} whileHover={{ y: -3 }}>
-                            <Card className="border border-border shadow-sm hover:shadow-md transition-all group cursor-pointer" onClick={() => setDetailRoute(route)}>
+                            <Card className="border border-border shadow-sm hover:shadow-md transition-all group cursor-pointer" onClick={(e) => {
+                                if (!e.target.closest('[role="menuitem"]') && !e.target.closest('button')) {
+                                    navigate(`/cheese/routes/${route.name}`);
+                                }
+                            }}>
                                 <CardContent className="p-5">
                                     <div className="flex items-start justify-between mb-3">
                                         <div className="flex items-center gap-3">
@@ -142,8 +146,13 @@ export default function RoutesPage() {
                                                 <Button variant="ghost" size="icon" className="h-8 w-8 opacity-0 group-hover:opacity-100" onClick={(e) => e.stopPropagation()}><MoreHorizontal className="w-4 h-4" /></Button>
                                             </DropdownMenuTrigger>
                                             <DropdownMenuContent align="end">
-                                                {route.status === "OFFLINE" && <DropdownMenuItem onClick={(e) => { e.stopPropagation(); publishMutation.mutate(route.name); }}><Globe className="w-3 h-3 mr-2" /> Publish</DropdownMenuItem>}
-                                                {route.status === "ONLINE" && <DropdownMenuItem onClick={(e) => { e.stopPropagation(); unpublishMutation.mutate(route.name); }}><WifiOff className="w-3 h-3 mr-2" /> Unpublish</DropdownMenuItem>}
+                                                <DropdownMenuItem onClick={() => navigate(`/cheese/routes/${route.name}`)}><Eye className="w-3 h-3 mr-2" /> View Details</DropdownMenuItem>
+                                                <DropdownMenuSeparator />
+                                                {route.status === "ONLINE" ? (
+                                                    <DropdownMenuItem onClick={(e) => { e.stopPropagation(); updateStatus(route.name, "OFFLINE"); }}><WifiOff className="w-3 h-3 mr-2" /> Take Offline</DropdownMenuItem>
+                                                ) : (
+                                                    <DropdownMenuItem onClick={(e) => { e.stopPropagation(); updateStatus(route.name, "ONLINE"); }}><Globe className="w-3 h-3 mr-2" /> Publish Online</DropdownMenuItem>
+                                                )}
                                                 <DropdownMenuSeparator />
                                                 <DropdownMenuItem className="text-red-600" onClick={(e) => { e.stopPropagation(); archiveMutation.mutate(route.name); }}><Archive className="w-3 h-3 mr-2" /> Archive</DropdownMenuItem>
                                                 <DropdownMenuSeparator />

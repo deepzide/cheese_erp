@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Sparkles, Search, Plus, DollarSign, Calendar, Ticket, Shield, FileText, MoreHorizontal, AlertCircle, RefreshCw, Loader2 } from "lucide-react";
+import { Sparkles, Search, Plus, DollarSign, Calendar, Ticket, Shield, FileText, MoreHorizontal, AlertCircle, RefreshCw, Loader2, Eye } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
 import { experienceService } from "@/api/experienceService";
@@ -90,7 +90,11 @@ export default function Experiences() {
                     </CardContent></Card>
                 )) : filtered.map((exp) => (
                     <motion.div key={exp.name} whileHover={{ y: -3 }}>
-                        <Card className="border border-border shadow-sm hover:shadow-md transition-all cursor-pointer group" onClick={() => setSelectedExperience(exp)}>
+                        <Card className="border border-border shadow-sm hover:shadow-md transition-all group cursor-pointer" onClick={(e) => {
+                            if (!e.target.closest('[role="menuitem"]') && !e.target.closest('button') && !e.target.closest('a')) {
+                                navigate(`/cheese/experiences/${exp.name}`);
+                            }
+                        }}>
                             <CardContent className="p-5">
                                 <div className="flex items-start justify-between mb-3">
                                     <div className="flex items-center gap-3">
@@ -107,11 +111,19 @@ export default function Experiences() {
                                             <Button variant="ghost" size="icon" className="h-8 w-8 opacity-0 group-hover:opacity-100" onClick={(e) => e.stopPropagation()}><MoreHorizontal className="w-4 h-4" /></Button>
                                         </DropdownMenuTrigger>
                                         <DropdownMenuContent align="end">
+                                            <DropdownMenuItem onClick={(e) => { e.stopPropagation(); navigate(`/cheese/experiences/${exp.name}`); }}><Eye className="w-3 h-3 mr-2" /> View Details</DropdownMenuItem>
+                                            <DropdownMenuSeparator />
                                             <DropdownMenuItem onClick={(e) => { e.stopPropagation(); navigate(`/cheese/calendar?experience=${exp.name}`); }}><Calendar className="w-3 h-3 mr-2" /> View Slots</DropdownMenuItem>
                                             <DropdownMenuItem onClick={(e) => { e.stopPropagation(); navigate(`/cheese/tickets?experience=${exp.name}`); }}><Ticket className="w-3 h-3 mr-2" /> View Tickets</DropdownMenuItem>
                                             <DropdownMenuSeparator />
                                             <DropdownMenuItem onClick={(e) => { e.stopPropagation(); navigate(`/cheese/booking-policy?experience=${exp.name}`); }}><Shield className="w-3 h-3 mr-2" /> Booking Policy</DropdownMenuItem>
                                             <DropdownMenuItem onClick={(e) => { e.stopPropagation(); navigate(`/cheese/documents?entity_type=Experience&entity_id=${exp.name}`); }}><FileText className="w-3 h-3 mr-2" /> Documents</DropdownMenuItem>
+                                            <DropdownMenuSeparator />
+                                            {exp.status === "ACTIVE" ? (
+                                                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); updateStatus(exp.name, "INACTIVE"); }}>Take Offline</DropdownMenuItem>
+                                            ) : (
+                                                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); updateStatus(exp.name, "ACTIVE"); }}>Publish Online</DropdownMenuItem>
+                                            )}
                                         </DropdownMenuContent>
                                     </DropdownMenu>
                                 </div>

@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -10,7 +10,14 @@ import CreatePageLayout from "@/components/CreatePageLayout";
 
 export default function ContactCreate() {
     const navigate = useNavigate();
-    const [form, setForm] = useState({ full_name: "", phone: "", email: "", preferred_language: "", preferred_channel: "" });
+    const [searchParams] = useSearchParams();
+    const [form, setForm] = useState({
+        full_name: searchParams.get("full_name") || "",
+        phone: searchParams.get("phone") || "",
+        email: searchParams.get("email") || "",
+        preferred_language: searchParams.get("preferred_language") || "",
+        preferred_channel: searchParams.get("preferred_channel") || "",
+    });
     const createMutation = useFrappeCreate("Cheese Contact");
 
     const handleSubmit = () => {

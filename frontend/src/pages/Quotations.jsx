@@ -102,7 +102,11 @@ export default function Quotations() {
                     </CardContent></Card>
                 )) : filtered.map((qt) => (
                     <motion.div key={qt.name} whileHover={{ x: 4 }}>
-                        <Card className="border border-border shadow-sm hover:shadow-md transition-all group">
+                        <Card className="border border-border shadow-sm hover:shadow-md transition-all group cursor-pointer" onClick={(e) => {
+                            if (!e.target.closest('[role="menuitem"]') && !e.target.closest('button')) {
+                                navigate(`/cheese/quotations/${qt.name}`);
+                            }
+                        }}>
                             <CardContent className="p-4 flex items-center gap-4">
                                 <div className="w-10 h-10 rounded-lg bg-cheese-100 dark:bg-cheese-900/30 flex items-center justify-center"><FileText className="w-5 h-5 text-cheese-700 dark:text-cheese-400" /></div>
                                 <div className="flex-1 min-w-0">
@@ -117,6 +121,8 @@ export default function Quotations() {
                                 <DropdownMenu>
                                     <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8 opacity-0 group-hover:opacity-100"><MoreHorizontal className="w-4 h-4" /></Button></DropdownMenuTrigger>
                                     <DropdownMenuContent align="end">
+                                        <DropdownMenuItem onClick={() => navigate(`/cheese/quotations/${qt.name}`)}><Eye className="w-3 h-3 mr-2" /> View Details</DropdownMenuItem>
+                                        <DropdownMenuSeparator />
                                         {qt.status === "Draft" && <DropdownMenuItem onClick={() => updateStatus(qt.name, "Sent")}><Send className="w-3 h-3 mr-2" /> Send</DropdownMenuItem>}
                                         {qt.status === "Sent" && <DropdownMenuItem onClick={() => updateStatus(qt.name, "Accepted")}>Mark Accepted</DropdownMenuItem>}
                                         {qt.status === "Sent" && <DropdownMenuItem onClick={() => updateStatus(qt.name, "Rejected")}>Mark Rejected</DropdownMenuItem>}

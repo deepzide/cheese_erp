@@ -11,8 +11,8 @@ import FrappeSearchSelect from "@/components/FrappeSearchSelect";
 import { apiRequest } from "@/api/client";
 
 const ENTITY_DOCTYPE_MAP = {
-    Route: { doctype: "Cheese Route", label: "route_info" },
-    Experience: { doctype: "Cheese Experience", label: "experience_info" },
+    "Cheese Route": { doctype: "Cheese Route", label: "route_info" },
+    "Cheese Experience": { doctype: "Cheese Experience", label: "experience_info" },
 };
 
 export default function DocumentCreate() {
@@ -41,15 +41,16 @@ export default function DocumentCreate() {
             formData.append('file', file);
             formData.append('is_private', '0');
             formData.append('doctype', 'Cheese Document');
-            const res = await fetch('/api/method/upload_file', { method: 'POST', body: formData, headers: { 'X-Frappe-CSRF-Token': window.csrf_token || '' } });
-            const data = await res.json();
-            const url = data?.message?.file_url;
+            const result = await apiRequest('/api/method/upload_file', { method: 'POST', body: formData });
+            const url = result?.data?.message?.file_url || result?.data?.file_url;
             if (url) {
                 setForm(f => ({ ...f, file_url: url }));
                 toast.success("File uploaded");
+            } else {
+                toast.error("Upload succeeded but no file URL returned");
             }
         } catch (err) {
-            toast.error("Upload failed");
+            toast.error(err?.message || "Upload failed");
         }
         setUploading(false);
     };
@@ -79,8 +80,8 @@ export default function DocumentCreate() {
                         <Select value={form.entity_type} onValueChange={(v) => setForm(f => ({ ...f, entity_type: v, entity_id: "" }))}>
                             <SelectTrigger><SelectValue placeholder="Select type" /></SelectTrigger>
                             <SelectContent>
-                                <SelectItem value="Route">Route</SelectItem>
-                                <SelectItem value="Experience">Experience</SelectItem>
+                                <SelectItem value="Cheese Route">Route</SelectItem>
+                                <SelectItem value="Cheese Experience">Experience</SelectItem>
                             </SelectContent>
                         </Select>
                     </div>

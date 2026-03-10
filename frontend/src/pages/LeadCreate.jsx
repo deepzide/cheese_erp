@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { UserPlus } from "lucide-react";
@@ -10,7 +10,12 @@ import FrappeSearchSelect from "@/components/FrappeSearchSelect";
 
 export default function LeadCreate() {
     const navigate = useNavigate();
-    const [form, setForm] = useState({ contact: "", interest_type: "", status: "New" });
+    const [searchParams] = useSearchParams();
+    const [form, setForm] = useState({
+        contact: searchParams.get("contact") || "",
+        interest_type: searchParams.get("interest_type") || "",
+        status: searchParams.get("status") || "New",
+    });
     const createMutation = useFrappeCreate("Cheese Lead");
 
     const handleSubmit = () => {

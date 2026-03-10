@@ -1,22 +1,56 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useCallback } from "react";
 import { motion } from "framer-motion";
-import { useNavigate } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { useQueryClient } from "@tanstack/react-query";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { CalendarDays, ChevronLeft, ChevronRight, Clock, Users, Filter, AlertCircle, RefreshCw, Ticket } from "lucide-react";
-import { format, addMonths, subMonths, startOfMonth, endOfMonth, eachDayOfInterval, isToday, getDay } from "date-fns";
-import { experienceService } from "@/api/experienceService";
+import { CalendarDays, ChevronLeft, ChevronRight, Filter, RefreshCw, Plus, AlertCircle } from "lucide-react";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useFrappeList } from "@/lib/useApiData";
+import {
+    format, navigate as nav, startOfWeek, endOfWeek, startOfMonth, endOfMonth,
+} from "@/components/calendar/calendarUtils";
+
+import CalendarWeekView from "@/components/calendar/CalendarWeekView";
+import CalendarDayView from "@/components/calendar/CalendarDayView";
+import CalendarMonthView from "@/components/calendar/CalendarMonthView";
+import CalendarSlotDetail from "@/components/calendar/CalendarSlotDetail";
+import CalendarCreateSlotDialog from "@/components/calendar/CalendarCreateSlotDialog";
+
+const VIEWS = ["day", "week", "month"];
 
 export default function CalendarPage() {
-    const navigate = useNavigate();
-    const [currentMonth, setCurrentMonth] = useState(new Date());
-    const [selectedDate, setSelectedDate] = useState(null);
+    const queryClient = useQueryClient();
+    const [view, setView] = useState("week");
+    const [currentDate, setCurrentDate] = useState(new Date());
     const [selectedExperience, setSelectedExperience] = useState(null);
+
+    // Slot detail dialog
+    const [detailSlot, setDetailSlot] = useState(null);
+
+    // Create dialog
+    const [createOpen, setCreateOpen] = useState(false);
+    const [createPrefillDate, setCreatePrefillDate] = useState(null);
+    const [createPrefillHour, setCreatePrefillHour] = useState(null);
+
+    // Compute date range for fetching slots
+    const getDateRange = () => {
+        if (view === "day") {
+            const d = format(currentDate, "yyyy-MM-dd");
+            return { from: d, to: d };
+        }
+        if (view === "week") {
+            const ws = startOfWeek(currentDate, { weekStartsOn: 0 });
+            const we = endOfWeek(currentDate, { weekStartsOn: 0 });
+            return { from: format(ws, "yyyy-MM-dd"), to: format(we, "yyyy-MM-dd") };
+        }
+        // month
+        const ms = startOfMonth(currentDate);
+        const me = endOfMonth(currentDate);
+        return { from: format(ms, "yyyy-MM-dd"), to: format(me, "yyyy-MM-dd") };
+    };
+
+    const { from, to } = getDateRange();
 
     // Fetch experiences
     const { data: experiences = [] } = useFrappeList("Cheese Experience", {
@@ -24,18 +58,14 @@ export default function CalendarPage() {
         pageSize: 100,
     });
 
-    // Fetch slots for the current month
-    const monthKey = format(currentMonth, 'yyyy-MM');
-    const monthStart = startOfMonth(currentMonth);
-    const monthEnd = endOfMonth(currentMonth);
-
+    // Fetch slots for current range
     const slotFilters = {};
     if (selectedExperience && selectedExperience !== "all") slotFilters.experience = selectedExperience;
 
-    const { data: slotsRaw = [], isLoading, refetch } = useFrappeList("Cheese Experience Slot", {
+    const { data: slotsRaw = [], isLoading, error, refetch } = useFrappeList("Cheese Experience Slot", {
         filters: {
             ...slotFilters,
-            date_from: ["between", [format(monthStart, 'yyyy-MM-dd'), format(monthEnd, 'yyyy-MM-dd')]],
+            date_from: ["between", [from, to]],
         },
         fields: ["name", "experience", "date_from", "date_to", "time_from", "time_to", "max_capacity", "reserved_capacity", "slot_status"],
         pageSize: 500,
@@ -43,151 +73,171 @@ export default function CalendarPage() {
 
     const slots = Array.isArray(slotsRaw) ? slotsRaw : [];
 
-    // Group slots by date
-    const slotsByDate = {};
-    slots.forEach(slot => {
-        const key = slot.date_from;
-        if (!key) return;
-        if (!slotsByDate[key]) slotsByDate[key] = { slots: 0, total: 0, booked: 0 };
-        slotsByDate[key].slots += 1;
-        slotsByDate[key].total += (slot.max_capacity || 0);
-        slotsByDate[key].booked += (slot.reserved_capacity || 0);
-    });
-    Object.values(slotsByDate).forEach(d => { d.occupancy = d.total > 0 ? Math.round((d.booked / d.total) * 100) : 0; });
+    // Navigation
+    const handlePrev = () => setCurrentDate(nav[view].prev(currentDate));
+    const handleNext = () => setCurrentDate(nav[view].next(currentDate));
+    const handleToday = () => setCurrentDate(new Date());
+    const title = nav[view].title(currentDate);
 
-    // Slots for selected date
-    const selectedDateKey = selectedDate ? format(selectedDate, 'yyyy-MM-dd') : null;
-    const daySlots = slots.filter(s => s.date_from === selectedDateKey);
+    // Slot click
+    const handleSlotClick = useCallback((slot) => {
+        setDetailSlot(slot);
+    }, []);
 
-    const days = eachDayOfInterval({ start: monthStart, end: monthEnd });
-    const startDay = getDay(monthStart);
-    const blanks = Array(startDay).fill(null);
+    // Empty area click → create slot
+    const handleEmptyClick = useCallback((date, hour) => {
+        setCreatePrefillDate(date);
+        setCreatePrefillHour(hour);
+        setCreateOpen(true);
+    }, []);
+
+    // Day click from month/week view
+    const handleDayClick = useCallback((day) => {
+        setCurrentDate(day);
+        setView("day");
+    }, []);
+
+    // After slot created
+    const handleSlotCreated = useCallback(() => {
+        queryClient.invalidateQueries({ queryKey: ["frappe-list", "Cheese Experience Slot"] });
+    }, [queryClient]);
 
     return (
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="p-6 space-y-6">
-            <div className="flex items-center justify-between">
-                <div>
-                    <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
-                        <CalendarDays className="w-6 h-6 text-cheese-600" /> Calendar
-                    </h1>
-                    <p className="text-sm text-muted-foreground mt-1">Slot availability overview • {isLoading ? '...' : `${slots.length} slots`}</p>
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="p-6 space-y-4">
+            {/* Toolbar */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="flex items-center gap-3">
+                    <CalendarDays className="w-6 h-6 text-cheese-600" />
+                    <div>
+                        <h1 className="text-xl font-bold text-foreground">Calendar</h1>
+                        <p className="text-xs text-muted-foreground">
+                            {isLoading ? "Loading..." : `${slots.length} slots`}
+                        </p>
+                    </div>
                 </div>
-                <div className="flex items-center gap-2">
+
+                <div className="flex items-center gap-2 flex-wrap">
+                    {/* View switcher */}
+                    <Tabs value={view} onValueChange={setView}>
+                        <TabsList className="h-8">
+                            <TabsTrigger value="day" className="text-xs px-3 h-6">Day</TabsTrigger>
+                            <TabsTrigger value="week" className="text-xs px-3 h-6">Week</TabsTrigger>
+                            <TabsTrigger value="month" className="text-xs px-3 h-6">Month</TabsTrigger>
+                        </TabsList>
+                    </Tabs>
+
+                    {/* Experience filter */}
                     <Select value={selectedExperience || "all"} onValueChange={(v) => setSelectedExperience(v === "all" ? null : v)}>
-                        <SelectTrigger className="w-48 h-9"><Filter className="w-3 h-3 mr-1" /><SelectValue placeholder="All Activities" /></SelectTrigger>
+                        <SelectTrigger className="w-44 h-8 text-xs">
+                            <Filter className="w-3 h-3 mr-1" />
+                            <SelectValue placeholder="All Activities" />
+                        </SelectTrigger>
                         <SelectContent>
                             <SelectItem value="all">All Activities</SelectItem>
-                            {(Array.isArray(experiences) ? experiences : []).map(exp => (
-                                <SelectItem key={exp.name} value={exp.name}>{exp.experience_info || exp.name}</SelectItem>
+                            {(Array.isArray(experiences) ? experiences : []).map((exp) => (
+                                <SelectItem key={exp.name} value={exp.name}>
+                                    {exp.experience_info || exp.name}
+                                </SelectItem>
                             ))}
                         </SelectContent>
                     </Select>
-                    <Button variant="ghost" size="icon" onClick={() => refetch()} className="h-9 w-9"><RefreshCw className="w-4 h-4" /></Button>
+
+                    {/* Create slot button */}
+                    <Button
+                        size="sm"
+                        className="h-8 bg-cheese-500 hover:bg-cheese-600 text-black text-xs"
+                        onClick={() => {
+                            setCreatePrefillDate(currentDate);
+                            setCreatePrefillHour(null);
+                            setCreateOpen(true);
+                        }}
+                    >
+                        <Plus className="w-3.5 h-3.5 mr-1" />
+                        New Slot
+                    </Button>
+
+                    <Button variant="ghost" size="icon" onClick={() => refetch()} className="h-8 w-8">
+                        <RefreshCw className="w-3.5 h-3.5" />
+                    </Button>
                 </div>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <Card className="border-0 shadow-lg lg:col-span-2">
-                    <CardHeader className="pb-2">
-                        <div className="flex items-center justify-between">
-                            <Button variant="ghost" size="icon" onClick={() => setCurrentMonth(subMonths(currentMonth, 1))}><ChevronLeft className="w-5 h-5" /></Button>
-                            <CardTitle className="text-lg">{format(currentMonth, 'MMMM yyyy')}</CardTitle>
-                            <Button variant="ghost" size="icon" onClick={() => setCurrentMonth(addMonths(currentMonth, 1))}><ChevronRight className="w-5 h-5" /></Button>
-                        </div>
-                    </CardHeader>
-                    <CardContent>
-                        <div className="grid grid-cols-7 gap-1 mb-2">
-                            {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(d => (
-                                <div key={d} className="text-center text-xs font-semibold text-muted-foreground py-2">{d}</div>
-                            ))}
-                        </div>
-                        <div className="grid grid-cols-7 gap-1">
-                            {blanks.map((_, i) => <div key={`b-${i}`} className="aspect-square" />)}
-                            {days.map((day) => {
-                                const key = format(day, 'yyyy-MM-dd');
-                                const data = slotsByDate[key];
-                                const today = isToday(day);
-                                const selected = selectedDate && format(selectedDate, 'yyyy-MM-dd') === key;
-                                let bg = 'bg-card hover:bg-muted';
-                                if (data) {
-                                    if (data.occupancy >= 90) bg = 'bg-red-50 dark:bg-red-950/30 hover:bg-red-100 dark:hover:bg-red-950/50 border-red-200 dark:border-red-800';
-                                    else if (data.occupancy >= 60) bg = 'bg-yellow-50 dark:bg-yellow-950/30 hover:bg-yellow-100 dark:hover:bg-yellow-950/50 border-yellow-200 dark:border-yellow-800';
-                                    else bg = 'bg-emerald-50 dark:bg-emerald-950/30 hover:bg-emerald-100 dark:hover:bg-emerald-950/50 border-emerald-200 dark:border-emerald-800';
-                                }
-                                if (selected) bg = 'bg-cheese-100 dark:bg-cheese-900/40 border-cheese-400 ring-2 ring-cheese-300';
-
-                                return (
-                                    <button key={key} onClick={() => setSelectedDate(day)}
-                                        className={`aspect-square rounded-lg border text-sm flex flex-col items-center justify-center transition-all ${bg} ${today ? 'font-bold' : ''}`}>
-                                        <span className={today ? 'w-6 h-6 rounded-full bg-cheese-500 text-black flex items-center justify-center text-xs' : ''}>
-                                            {format(day, 'd')}
-                                        </span>
-                                        {data && (
-                                            <div className="flex items-center gap-0.5 mt-0.5">
-                                                <div className={`w-1.5 h-1.5 rounded-full ${data.occupancy >= 90 ? 'bg-red-500' : data.occupancy >= 60 ? 'bg-yellow-500' : 'bg-emerald-500'}`} />
-                                                <span className="text-[9px] text-muted-foreground">{data.slots}</span>
-                                            </div>
-                                        )}
-                                    </button>
-                                );
-                            })}
-                        </div>
-                        <div className="flex items-center justify-center gap-6 mt-4 pt-3 border-t border-border">
-                            {[{ color: 'bg-emerald-500', label: 'Available' }, { color: 'bg-yellow-500', label: 'Filling' }, { color: 'bg-red-500', label: 'Full' }].map(l => (
-                                <div key={l.label} className="flex items-center gap-1.5"><div className={`w-2.5 h-2.5 rounded-full ${l.color}`} /><span className="text-xs text-muted-foreground">{l.label}</span></div>
-                            ))}
-                        </div>
-                    </CardContent>
-                </Card>
-
-                <Card className="border-0 shadow-lg">
-                    <CardHeader className="pb-2">
-                        <CardTitle className="text-base flex items-center gap-2">
-                            <Clock className="w-4 h-4 text-cheese-600" />
-                            {selectedDate ? format(selectedDate, 'EEEE, MMM d') : "Select a date"}
-                        </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        {selectedDate ? (
-                            daySlots.length > 0 ? (
-                                <div className="space-y-2">
-                                    {daySlots.map((slot) => {
-                                        const occ = slot.max_capacity > 0 ? Math.round(((slot.reserved_capacity || 0) / slot.max_capacity) * 100) : 0;
-                                        return (
-                                            <div key={slot.name} className="p-3 bg-muted rounded-lg">
-                                                <div className="flex items-center justify-between mb-1">
-                                                    <span className="font-mono font-bold text-sm">{slot.time_from || '—'}{slot.time_to ? ` – ${slot.time_to}` : ''}</span>
-                                                    <Badge variant={slot.slot_status === 'OPEN' ? 'outline' : 'secondary'} className="text-[10px]">{slot.slot_status || '—'}</Badge>
-                                                </div>
-                                                <p className="text-xs text-muted-foreground mb-2">{slot.experience || '—'}</p>
-                                                <div className="flex items-center gap-2">
-                                                    <div className="flex-1 bg-muted-foreground/20 rounded-full h-1.5">
-                                                        <div className={`h-1.5 rounded-full ${occ >= 90 ? 'bg-red-500' : occ >= 60 ? 'bg-yellow-500' : 'bg-emerald-500'}`} style={{ width: `${occ}%` }} />
-                                                    </div>
-                                                    <span className="text-xs text-muted-foreground flex items-center gap-1"><Users className="w-3 h-3" />{slot.reserved_capacity || 0}/{slot.max_capacity || '—'}</span>
-                                                </div>
-                                                <Button variant="ghost" size="sm" className="mt-2 h-7 text-xs w-full" onClick={() => navigate(`/cheese/tickets?slot=${slot.name}`)}>
-                                                    <Ticket className="w-3 h-3 mr-1" /> View Tickets
-                                                </Button>
-                                            </div>
-                                        );
-                                    })}
-                                </div>
-                            ) : (
-                                <div className="text-center py-8 text-muted-foreground">
-                                    <CalendarDays className="w-8 h-8 mx-auto mb-2 text-muted-foreground/30" />
-                                    <p className="text-sm">No slots for this date</p>
-                                </div>
-                            )
-                        ) : (
-                            <div className="text-center py-12 text-muted-foreground">
-                                <CalendarDays className="w-12 h-12 mx-auto mb-3 text-muted-foreground/30" />
-                                <p className="text-sm">Click a date to view slots</p>
-                            </div>
-                        )}
-                    </CardContent>
-                </Card>
+            {/* Navigation */}
+            <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                    <Button variant="outline" size="sm" onClick={handleToday} className="h-7 text-xs">
+                        Today
+                    </Button>
+                    <Button variant="ghost" size="icon" onClick={handlePrev} className="h-7 w-7">
+                        <ChevronLeft className="w-4 h-4" />
+                    </Button>
+                    <Button variant="ghost" size="icon" onClick={handleNext} className="h-7 w-7">
+                        <ChevronRight className="w-4 h-4" />
+                    </Button>
+                </div>
+                <h2 className="text-base font-semibold text-foreground">{title}</h2>
+                <div className="w-24" /> {/* spacer for balance */}
             </div>
+
+            {/* Error state */}
+            {error ? (
+                <div className="flex flex-col items-center justify-center py-16">
+                    <AlertCircle className="w-12 h-12 text-red-400 mb-4" />
+                    <h3 className="text-lg font-semibold mb-2">Failed to load slots</h3>
+                    <p className="text-sm text-muted-foreground mb-4">{error?.message}</p>
+                    <Button onClick={() => refetch()} variant="outline">
+                        <RefreshCw className="w-4 h-4 mr-2" /> Retry
+                    </Button>
+                </div>
+            ) : isLoading ? (
+                <div className="space-y-2">
+                    <Skeleton className="h-8 w-full" />
+                    <Skeleton className="h-[400px] w-full rounded-lg" />
+                </div>
+            ) : (
+                <>
+                    {view === "week" && (
+                        <CalendarWeekView
+                            date={currentDate}
+                            slots={slots}
+                            onSlotClick={handleSlotClick}
+                            onEmptyClick={handleEmptyClick}
+                            onDayClick={handleDayClick}
+                        />
+                    )}
+                    {view === "day" && (
+                        <CalendarDayView
+                            date={currentDate}
+                            slots={slots}
+                            onSlotClick={handleSlotClick}
+                            onEmptyClick={handleEmptyClick}
+                        />
+                    )}
+                    {view === "month" && (
+                        <CalendarMonthView
+                            date={currentDate}
+                            slots={slots}
+                            onDayClick={handleDayClick}
+                        />
+                    )}
+                </>
+            )}
+
+            {/* Slot detail dialog */}
+            <CalendarSlotDetail
+                slot={detailSlot}
+                open={!!detailSlot}
+                onClose={() => setDetailSlot(null)}
+            />
+
+            {/* Create slot dialog */}
+            <CalendarCreateSlotDialog
+                open={createOpen}
+                onClose={() => setCreateOpen(false)}
+                prefillDate={createPrefillDate}
+                prefillHour={createPrefillHour}
+                onCreated={handleSlotCreated}
+            />
         </motion.div>
     );
 }

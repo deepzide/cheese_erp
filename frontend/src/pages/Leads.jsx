@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
-import { UserPlus, Search, Plus, ArrowRight, Trash2, AlertCircle, RefreshCw, Loader2 } from "lucide-react";
+import { UserPlus, Search, Plus, ArrowRight, Trash2, AlertCircle, RefreshCw, Loader2, Eye, FileText } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
 import { useFrappeList, useFrappeCreate, useFrappeUpdate, useFrappeDelete } from "@/lib/useApiData";
@@ -96,9 +96,13 @@ export default function Leads() {
                     <Card key={i} className="border border-border"><CardContent className="p-5 space-y-3"><Skeleton className="h-10 w-10 rounded-full" /><Skeleton className="h-4 w-32" /><Skeleton className="h-6 w-20" /></CardContent></Card>
                 )) : filtered.map((lead) => (
                     <motion.div key={lead.name} whileHover={{ y: -3 }}>
-                        <Card className="border border-border shadow-sm hover:shadow-md transition-all group">
+                        <Card className="border border-border shadow-sm hover:shadow-md transition-all group cursor-pointer" onClick={(e) => {
+                            if (!e.target.closest('[role="menuitem"]') && !e.target.closest('button')) {
+                                navigate(`/cheese/leads/${lead.name}`);
+                            }
+                        }}>
                             <CardContent className="p-5">
-                                <div className="flex items-center justify-between mb-3">
+                                <div className="flex items-start justify-between mb-4">
                                     <div className="flex items-center gap-3">
                                         <div className="w-10 h-10 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center font-bold text-blue-700 dark:text-blue-400">{(lead.contact || '?').charAt(0)}</div>
                                         <div><h3 className="font-semibold text-foreground">{lead.contact || lead.name}</h3><span className="text-xs text-muted-foreground">{lead.name}</span></div>
@@ -106,11 +110,13 @@ export default function Leads() {
                                     <DropdownMenu>
                                         <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8 opacity-0 group-hover:opacity-100"><ArrowRight className="w-4 h-4" /></Button></DropdownMenuTrigger>
                                         <DropdownMenuContent align="end">
+                                            <DropdownMenuItem onClick={() => navigate(`/cheese/leads/${lead.name}`)}><Eye className="w-3 h-3 mr-2" /> View Details</DropdownMenuItem>
+                                            <DropdownMenuSeparator />
                                             {Object.keys(LEAD_STATUSES).filter(s => s !== lead.status).map(s => (
                                                 <DropdownMenuItem key={s} onClick={() => updateStatus(lead.name, s)}>Move to {s}</DropdownMenuItem>
                                             ))}
                                             <DropdownMenuSeparator />
-                                            <DropdownMenuItem onClick={() => navigate(`/cheese/quotations?lead=${lead.name}`)}>Create Quotation</DropdownMenuItem>
+                                            <DropdownMenuItem onClick={() => navigate(`/cheese/quotations/new?lead=${lead.name}`)}><FileText className="w-3 h-3 mr-2" /> Create Quotation</DropdownMenuItem>
                                             <DropdownMenuItem onClick={() => navigate(`/cheese/conversations?lead=${lead.name}`)}>Conversations</DropdownMenuItem>
                                             <DropdownMenuSeparator />
                                             <DropdownMenuItem className="text-red-600" onClick={() => handleDelete(lead.name)}><Trash2 className="w-3 h-3 mr-2" /> Delete</DropdownMenuItem>

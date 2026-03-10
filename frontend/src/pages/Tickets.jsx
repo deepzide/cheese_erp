@@ -17,7 +17,7 @@ import {
     ChevronRight, MoreHorizontal, RefreshCw, AlertCircle, Loader2
 } from "lucide-react";
 import {
-    DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
+    DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator
 } from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
 import { ticketService } from "@/api/ticketService";
@@ -226,7 +226,11 @@ export default function Tickets() {
                                         <>
                                             {columnTickets.map((ticket) => (
                                                 <motion.div key={ticket.name} layout initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} whileHover={{ scale: 1.02, y: -2 }} transition={{ duration: 0.2 }}>
-                                                    <Card className="border border-border shadow-sm hover:shadow-md transition-all cursor-pointer group" onClick={() => openDetail(ticket)}>
+                                                    <Card className="border border-border shadow-sm hover:shadow-md transition-all group cursor-pointer" onClick={(e) => {
+                                                        if (!e.target.closest('[role="menuitem"]') && !e.target.closest('button')) {
+                                                            navigate(`/cheese/tickets/${ticket.name}`);
+                                                        }
+                                                    }}>
                                                         <CardContent className="p-3">
                                                             <div className="flex items-center justify-between mb-2">
                                                                 <span className="text-xs font-mono text-muted-foreground">{ticket.name}</span>
@@ -237,10 +241,14 @@ export default function Tickets() {
                                                                         </Button>
                                                                     </DropdownMenuTrigger>
                                                                     <DropdownMenuContent align="end">
-                                                                        <DropdownMenuItem onClick={(e) => { e.stopPropagation(); openDetail(ticket); }}><Eye className="w-3 h-3 mr-2" /> View Details</DropdownMenuItem>
+                                                                        <DropdownMenuItem onClick={() => navigate(`/cheese/tickets/${ticket.name}`)}><Eye className="w-3 h-3 mr-2" /> View Details</DropdownMenuItem>
+                                                                        <DropdownMenuSeparator />
+                                                                        <DropdownMenuItem onClick={() => navigate(`/cheese/bookings/new?ticket=${ticket.name}`)}>Convert to Booking</DropdownMenuItem>
+                                                                        <DropdownMenuItem onClick={() => navigate(`/cheese/deposits/new?ticket=${ticket.name}`)}>Register Deposit</DropdownMenuItem>
+                                                                        <DropdownMenuSeparator />
                                                                         {ticket.status === "PENDING" && <DropdownMenuItem onClick={(e) => { e.stopPropagation(); updateStatus(ticket.name, "CONFIRMED"); }}><CheckCircle className="w-3 h-3 mr-2" /> Confirm</DropdownMenuItem>}
                                                                         {ticket.status !== "CANCELLED" && <DropdownMenuItem className="text-red-600" onClick={(e) => { e.stopPropagation(); updateStatus(ticket.name, "CANCELLED"); }}><XCircle className="w-3 h-3 mr-2" /> Cancel</DropdownMenuItem>}
-                                                                        <DropdownMenuItem onClick={(e) => { e.stopPropagation(); navigate(`/cheese/support?ticket=${ticket.name}`); }}><AlertTriangle className="w-3 h-3 mr-2" /> Create Support Case</DropdownMenuItem>
+                                                                        <DropdownMenuItem onClick={(e) => { e.stopPropagation(); navigate(`/cheese/support/new?ticket=${ticket.name}`); }}><AlertTriangle className="w-3 h-3 mr-2" /> Create Support Case</DropdownMenuItem>
                                                                     </DropdownMenuContent>
                                                                 </DropdownMenu>
                                                             </div>
@@ -364,7 +372,7 @@ export default function Tickets() {
                                         <Button variant="outline" className="text-orange-600 border-orange-200 hover:bg-orange-50 dark:hover:bg-orange-950" onClick={() => updateStatus(selectedTicket.name, "NO_SHOW")}><Ban className="w-4 h-4 mr-1" /> No-Show</Button>
                                     </>
                                 )}
-                                <Button variant="outline" onClick={() => navigate(`/cheese/support?ticket=${selectedTicket.name}`)}>
+                                <Button variant="outline" onClick={() => navigate(`/cheese/support/new?ticket=${selectedTicket.name}`)}>
                                     <AlertTriangle className="w-4 h-4 mr-1" /> Support Case
                                 </Button>
                             </DialogFooter>

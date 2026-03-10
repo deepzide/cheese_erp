@@ -83,7 +83,11 @@ export default function Contacts() {
                     <Card key={i} className="border border-border"><CardContent className="p-5 space-y-3"><Skeleton className="h-10 w-10 rounded-full" /><Skeleton className="h-4 w-32" /><Skeleton className="h-3 w-48" /></CardContent></Card>
                 )) : filtered.map((contact) => (
                     <motion.div key={contact.name} whileHover={{ y: -3 }}>
-                        <Card className="border border-border shadow-sm hover:shadow-md transition-all group">
+                        <Card className="border border-border shadow-sm hover:shadow-md transition-all group cursor-pointer" onClick={(e) => {
+                            if (!e.target.closest('[role="menuitem"]') && !e.target.closest('button')) {
+                                navigate(`/cheese/contacts/${contact.name}`);
+                            }
+                        }}>
                             <CardContent className="p-5">
                                 <div className="flex items-start justify-between mb-3">
                                     <div className="flex items-center gap-3">
@@ -93,9 +97,13 @@ export default function Contacts() {
                                     <DropdownMenu>
                                         <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8 opacity-0 group-hover:opacity-100"><MoreHorizontal className="w-4 h-4" /></Button></DropdownMenuTrigger>
                                         <DropdownMenuContent align="end">
-                                            <DropdownMenuItem onClick={() => navigate(`/cheese/tickets?contact=${contact.name}`)}><Ticket className="w-3 h-3 mr-2" /> Tickets</DropdownMenuItem>
+                                            <DropdownMenuItem onClick={() => navigate(`/cheese/contacts/${contact.name}`)}><Eye className="w-3 h-3 mr-2" /> View Details</DropdownMenuItem>
+                                            <DropdownMenuItem onClick={() => navigate(`/cheese/tickets/new?contact=${contact.name}`)}><Ticket className="w-3 h-3 mr-2" /> Create Ticket</DropdownMenuItem>
+                                            <DropdownMenuItem onClick={() => navigate(`/cheese/leads/new?contact=${contact.name}`)}>Create Lead</DropdownMenuItem>
+                                            <DropdownMenuSeparator />
+                                            <DropdownMenuItem onClick={() => navigate(`/cheese/tickets?contact=${contact.name}`)}><Ticket className="w-3 h-3 mr-2" /> View Tickets</DropdownMenuItem>
                                             <DropdownMenuItem onClick={() => navigate(`/cheese/conversations?contact=${contact.name}`)}><MessageSquare className="w-3 h-3 mr-2" /> Conversations</DropdownMenuItem>
-                                            <DropdownMenuItem onClick={() => navigate(`/cheese/support?contact=${contact.name}`)}>Support Cases</DropdownMenuItem>
+                                            <DropdownMenuItem onClick={() => navigate(`/cheese/support/new?contact=${contact.name}`)}>Create Support Case</DropdownMenuItem>
                                             <DropdownMenuSeparator />
                                             <DropdownMenuItem className="text-red-600" onClick={() => handleDelete(contact.name)}><Trash2 className="w-3 h-3 mr-2" /> Delete</DropdownMenuItem>
                                         </DropdownMenuContent>
