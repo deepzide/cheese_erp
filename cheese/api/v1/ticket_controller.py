@@ -82,7 +82,7 @@ def create_pending_ticket(contact_id, experience_id, slot_id, party_size):
 
 		# Validate booking policy
 		try:
-			slot_datetime = get_datetime(f"{slot.date} {slot.time}")
+			slot_datetime = get_datetime(f"{slot.date_from} {slot.time_from}")
 			validate_booking_policy(experience_id, slot_datetime, action="booking")
 		except frappe.ValidationError as e:
 			return validation_error(str(e))
@@ -175,12 +175,12 @@ def modify_reservation_preview(reservation_id, new_slot=None, party_size=None):
 			
 			new_slot_doc = frappe.get_doc("Cheese Experience Slot", new_slot)
 			preview["new_slot"] = new_slot
-			preview["new_slot_date"] = str(new_slot_doc.date)
-			preview["new_slot_time"] = str(new_slot_doc.time)
+			preview["new_slot_date"] = str(new_slot_doc.date_from)
+			preview["new_slot_time"] = str(new_slot_doc.time_from)
 			
 			# Check modification policy
 			try:
-				slot_datetime = get_datetime(f"{new_slot_doc.date} {new_slot_doc.time}")
+				slot_datetime = get_datetime(f"{new_slot_doc.date_from} {new_slot_doc.time_from}")
 				validate_booking_policy(ticket.experience, slot_datetime, action="modify")
 				preview["slot_change_allowed"] = True
 			except frappe.ValidationError as e:
@@ -277,7 +277,7 @@ def modify_ticket(ticket_id, new_slot=None, party_size=None):
 			
 			try:
 				slot = frappe.get_doc("Cheese Experience Slot", new_slot)
-				slot_datetime = get_datetime(f"{slot.date} {slot.time}")
+				slot_datetime = get_datetime(f"{slot.date_from} {slot.time_from}")
 				validate_booking_policy(ticket.experience, slot_datetime, action="modify")
 			except frappe.ValidationError as e:
 				return validation_error(str(e))
@@ -366,7 +366,7 @@ def cancel_ticket(ticket_id):
 			# Validate cancellation policy
 			try:
 				slot = frappe.get_doc("Cheese Experience Slot", ticket.slot)
-				slot_datetime = get_datetime(f"{slot.date} {slot.time}")
+				slot_datetime = get_datetime(f"{slot.date_from} {slot.time_from}")
 				validate_booking_policy(ticket.experience, slot_datetime, action="cancel")
 			except frappe.ValidationError as e:
 				return validation_error(str(e))
@@ -438,8 +438,8 @@ def get_ticket_summary(ticket_id):
 				},
 				"slot": {
 					"slot_id": slot.name,
-					"date": str(slot.date),
-					"time": str(slot.time),
+					"date": str(slot.date_from),
+					"time": str(slot.time_from),
 					"max_capacity": slot.max_capacity
 				},
 				"party_size": ticket.party_size,
@@ -616,14 +616,14 @@ def list_tickets(page=1, page_size=20, status=None, route_id=None, establishment
 					# Single day
 					slots = frappe.get_all(
 						"Cheese Experience Slot",
-						filters={"date": date_from_obj},
+						filters={"date_from": date_from_obj},
 						fields=["name"]
 					)
 				else:
 					# Date range - use between operator
 					slots = frappe.get_all(
 						"Cheese Experience Slot",
-						filters={"date": ["between", [date_from_obj, date_to_obj]]},
+						filters={"date_from": ["between", [date_from_obj, date_to_obj]]},
 						fields=["name"]
 					)
 			elif date_from:
@@ -631,7 +631,7 @@ def list_tickets(page=1, page_size=20, status=None, route_id=None, establishment
 				date_from_obj = getdate(date_from)
 				slots = frappe.get_all(
 					"Cheese Experience Slot",
-					filters={"date": [">=", date_from_obj]},
+					filters={"date_from": [">=", date_from_obj]},
 					fields=["name"]
 				)
 			elif date_to:
@@ -639,7 +639,7 @@ def list_tickets(page=1, page_size=20, status=None, route_id=None, establishment
 				date_to_obj = getdate(date_to)
 				slots = frappe.get_all(
 					"Cheese Experience Slot",
-					filters={"date": ["<=", date_to_obj]},
+					filters={"date_from": ["<=", date_to_obj]},
 					fields=["name"]
 				)
 			
@@ -670,12 +670,12 @@ def list_tickets(page=1, page_size=20, status=None, route_id=None, establishment
 				slot = frappe.db.get_value(
 					"Cheese Experience Slot",
 					ticket.slot,
-					["date", "time"],
+					["date_from", "time_from"],
 					as_dict=True
 				)
 				if slot:
-					ticket["slot_date"] = str(slot.date)
-					ticket["slot_time"] = str(slot.time)
+					ticket["slot_date"] = str(slot.date_from)
+					ticket["slot_time"] = str(slot.time_from)
 		
 		total = frappe.db.count("Cheese Ticket", filters=filters)
 		
@@ -760,12 +760,12 @@ def get_reservations_by_phone(phone, page=1, page_size=20, status=None):
 				slot = frappe.db.get_value(
 					"Cheese Experience Slot",
 					ticket.slot,
-					["date", "time"],
+					["date_from", "time_from"],
 					as_dict=True
 				)
 				if slot:
-					ticket["slot_date"] = str(slot.date)
-					ticket["slot_time"] = str(slot.time)
+					ticket["slot_date"] = str(slot.date_from)
+					ticket["slot_time"] = str(slot.time_from)
 
 		total = frappe.db.count("Cheese Ticket", filters=filters)
 
@@ -830,7 +830,7 @@ def get_ticket_board(filters=None, status=None, route_id=None, establishment_id=
 			date_obj = getdate(date)
 			slots = frappe.get_all(
 				"Cheese Experience Slot",
-				filters={"date": date_obj},
+				filters={"date_from": date_obj},
 				fields=["name"]
 			)
 			if slots:
@@ -856,12 +856,12 @@ def get_ticket_board(filters=None, status=None, route_id=None, establishment_id=
 				slot = frappe.db.get_value(
 					"Cheese Experience Slot",
 					ticket.slot,
-					["date", "time"],
+					["date_from", "time_from"],
 					as_dict=True
 				)
 				if slot:
-					ticket["slot_date"] = str(slot.date)
-					ticket["slot_time"] = str(slot.time)
+					ticket["slot_date"] = str(slot.date_from)
+					ticket["slot_time"] = str(slot.time_from)
 			
 			if ticket.contact:
 				contact = frappe.db.get_value(
@@ -1061,8 +1061,8 @@ def get_establishment_ticket_board(establishment_id, date=None):
 		# Get slots for the date
 		slots = frappe.get_all(
 			"Cheese Experience Slot",
-			filters={"date": target_date},
-			fields=["name", "experience", "time"]
+			filters={"date_from": target_date},
+			fields=["name", "experience", "time_from"]
 		)
 		
 		if not slots:
