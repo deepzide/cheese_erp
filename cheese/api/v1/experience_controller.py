@@ -47,7 +47,7 @@ def list_experiences(page=1, page_size=20, status=None, company=None, establishm
 			date_obj = getdate(date)
 			slots = frappe.get_all(
 				"Cheese Experience Slot",
-				filters={"date": date_obj, "slot_status": "OPEN"},
+				filters={"date_from": date_obj, "slot_status": "OPEN"},
 				fields=["name", "experience"]
 			)
 
@@ -155,11 +155,11 @@ def get_experience_detail(experience_id, include_next_availability=True):
 				"Cheese Experience Slot",
 				filters={
 					"experience": experience_id,
-					"date": [">=", today],
+					"date_from": [">=", today],
 					"slot_status": "OPEN"
 				},
-				fields=["name", "date", "time"],
-				order_by="date asc, time asc",
+				fields=["name", "date_from", "time_from"],
+				order_by="date_from asc, time_from asc",
 				limit=50
 			)
 
@@ -168,8 +168,8 @@ def get_experience_detail(experience_id, include_next_availability=True):
 				if available > 0:
 					next_availability = {
 						"slot_id": slot.name,
-						"date": str(slot.date),
-						"time": str(slot.time),
+						"date": str(slot.date_from),
+						"time": str(slot.time_from),
 						"available_capacity": available
 					}
 					break
@@ -306,8 +306,8 @@ def create_time_slot(experience_id, date, time, max_capacity, slot_status="OPEN"
 		slot = frappe.get_doc({
 			"doctype": "Cheese Experience Slot",
 			"experience": experience_id,
-			"date": getdate(date),
-			"time": get_time(time),
+			"date_from": getdate(date),
+			"time_from": get_time(time),
 			"max_capacity": max_capacity,
 			"slot_status": slot_status,
 			"reserved_capacity": 0
@@ -320,8 +320,8 @@ def create_time_slot(experience_id, date, time, max_capacity, slot_status="OPEN"
 			{
 				"slot_id": slot.name,
 				"experience_id": experience_id,
-				"date": str(slot.date),
-				"time": str(slot.time),
+				"date": str(slot.date_from),
+				"time": str(slot.time_from),
 				"max_capacity": slot.max_capacity,
 				"slot_status": slot.slot_status
 			}
@@ -423,22 +423,22 @@ def list_time_slots(experience_id, date_from=None, date_to=None, slot_status=Non
 		filters = {"experience": experience_id}
 		
 		if date_from:
-			filters["date"] = [">=", getdate(date_from)]
+			filters["date_from"] = [">=", getdate(date_from)]
 		if date_to:
-			if "date" in filters and isinstance(filters["date"], list):
-				filters["date"].append(["<=", getdate(date_to)])
+			if "date_from" in filters and isinstance(filters["date_from"], list):
+				filters["date_from"].append(["<=", getdate(date_to)])
 			else:
-				filters["date"] = ["<=", getdate(date_to)]
+				filters["date_from"] = ["<=", getdate(date_to)]
 		if slot_status:
 			filters["slot_status"] = slot_status
 		
 		slots = frappe.get_all(
 			"Cheese Experience Slot",
 			filters=filters,
-			fields=["name", "date", "time", "max_capacity", "reserved_capacity", "slot_status"],
+			fields=["name", "date_from", "time_from", "max_capacity", "reserved_capacity", "slot_status"],
 			limit_start=(page - 1) * page_size,
 			limit_page_length=page_size,
-			order_by="date asc, time asc"
+			order_by="date_from asc, time_from asc"
 		)
 		
 		# Calculate available capacity
