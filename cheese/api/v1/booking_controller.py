@@ -258,8 +258,8 @@ def get_booking_status(booking_id):
 		if len(parts) < 3 or parts[0] != "BK":
 			return validation_error("Invalid booking_id format")
 		
-		contact_id = parts[1]
-		timestamp_str = "-".join(parts[2:])  # Handle timestamp with dashes
+		timestamp_str = parts[-1]
+		contact_id = "-".join(parts[1:-1])
 		
 		# Parse timestamp to get creation time window
 		from frappe.utils import get_datetime, add_to_date
