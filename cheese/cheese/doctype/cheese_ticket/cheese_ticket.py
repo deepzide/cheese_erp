@@ -43,7 +43,7 @@ class CheeseTicket(Document):
 
 	# Valid status transitions
 	VALID_TRANSITIONS = {
-		"PENDING": ["CONFIRMED", "EXPIRED", "REJECTED"],
+		"PENDING": ["CONFIRMED", "CANCELLED", "EXPIRED", "REJECTED"],
 		"CONFIRMED": ["CHECKED_IN", "CANCELLED", "NO_SHOW"],
 		"CHECKED_IN": ["COMPLETED"],
 		"COMPLETED": [],  # Terminal
