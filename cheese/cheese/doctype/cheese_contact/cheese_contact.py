@@ -29,6 +29,13 @@ class CheeseContact(Document):
 		erpnext_contact: DF.Link | None
 	# end: auto-generated types
 
+	def autoname(self):
+		"""Set document name to full_name if provided, otherwise phone"""
+		if self.full_name:
+			self.name = self.full_name
+		else:
+			self.name = self.phone
+
 	def validate(self):
 		"""Validate contact data and enforce deduplication rules"""
 		# Ensure at least phone or email is provided
@@ -40,6 +47,16 @@ class CheeseContact(Document):
 
 		# Update channel opt-in timestamps
 		self.update_channel_opt_in_timestamps()
+
+	def after_rename(self, old_name, new_name, merge=False):
+		"""Called after document is renamed"""
+		pass
+
+	def on_update(self):
+		"""Rename document if full_name changes"""
+		expected_name = self.full_name if self.full_name else self.phone
+		if expected_name and self.name != expected_name:
+			frappe.rename_doc("Cheese Contact", self.name, expected_name, merge=False)
 
 	def check_duplicates(self):
 		"""Check for duplicate contacts by phone or email"""

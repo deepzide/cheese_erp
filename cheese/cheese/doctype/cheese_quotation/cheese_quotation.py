@@ -27,10 +27,45 @@ class CheeseQuotation(Document):
 
 	def validate(self):
 		"""Validate quotation data"""
+		# Auto-calculate pricing from experiences
+		self.calculate_totals()
+
 		# Check expiration
 		if self.valid_until and get_datetime(self.valid_until) < now_datetime():
 			if self.status != "EXPIRED":
 				self.status = "EXPIRED"
+
+	def calculate_totals(self):
+		"""Calculate total_price and deposit_amount from linked experiences"""
+		if not self.experiences:
+			return
+
+		total_price = 0
+		total_deposit = 0
+
+		for exp_row in self.experiences:
+			if not exp_row.experience:
+				continue
+
+			experience = frappe.get_doc("Cheese Experience", exp_row.experience)
+
+			# Use route_price if the quotation has a route, otherwise individual_price
+			if self.route:
+				price = experience.route_price or 0
+			else:
+				price = experience.individual_price or 0
+
+			total_price += price
+
+			# Calculate deposit for this experience
+			if experience.deposit_required:
+				if experience.deposit_type == "%":
+					total_deposit += price * (experience.deposit_value or 0) / 100
+				else:
+					total_deposit += experience.deposit_value or 0
+
+		self.total_price = total_price
+		self.deposit_amount = total_deposit
 
 @frappe.whitelist()
 def make_tickets(source_name, target_doc=None):
