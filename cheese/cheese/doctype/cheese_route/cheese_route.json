@@ -117,7 +117,7 @@
     "modified_by": "Administrator",
     "module": "Cheese",
     "name": "Cheese Route",
-    "naming_rule": "By \"Naming Series\" field",
+    "naming_rule": "Set by user",
     "owner": "Administrator",
     "permissions": [
         {

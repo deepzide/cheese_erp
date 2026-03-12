@@ -169,13 +169,15 @@ def get_availability(experience_id=None, date=None, date_from=None, date_to=None
 
 
 @frappe.whitelist()
-def get_route_availability(route_id, date=None, party_size=1):
+def get_route_availability(route_id, date=None, date_from=None, date_to=None, party_size=1):
 	"""
 	Get availability by route - returns aggregated availability or rules to build it
 	
 	Args:
 		route_id: Route ID
-		date: Date string (YYYY-MM-DD) - optional, if not provided returns general availability rules
+		date: Date string (YYYY-MM-DD) - deprecated, use date_from and date_to instead
+		date_from: Start date string (YYYY-MM-DD) - required if date not provided
+		date_to: End date string (YYYY-MM-DD) - required if date not provided
 		party_size: Party size for capacity checks
 		
 	Returns:
@@ -212,9 +214,20 @@ def get_route_availability(route_id, date=None, party_size=1):
 				"status": exp_doc.status
 			})
 		
-		# If date is provided, check actual availability
+		# Validate date inputs - support both old (date) and new (date_from/date_to) formats
 		if date:
-			date_obj = getdate(date)
+			# Legacy support: single date
+			date_from = date
+			date_to = date
+		
+		# If date range is provided, check actual availability
+		if date_from and date_to:
+			date_from_obj = getdate(date_from)
+			date_to_obj = getdate(date_to)
+			
+			if date_from_obj > date_to_obj:
+				return validation_error("date_from must be before or equal to date_to")
+			
 			availability_by_experience = []
 			all_available = True
 			
@@ -228,26 +241,36 @@ def get_route_availability(route_id, date=None, party_size=1):
 					})
 					continue
 				
-				# Get slots for this experience on the date
+				# Get slots for this experience that overlap with the date range
+				# Slots have date_from and date_to fields, so we need to check for overlap
+				# A slot overlaps if: slot.date_from <= date_to AND slot.date_to >= date_from
 				slots = frappe.get_all(
 					"Cheese Experience Slot",
 					filters={
 						"experience": exp["experience_id"],
-						"date": date_obj,
+						"date_from": ["<=", date_to_obj],
+						"date_to": [">=", date_from_obj],
 						"slot_status": "OPEN"
 					},
-					fields=["name", "time", "max_capacity"]
+					fields=["name", "date_from", "date_to", "time_from", "time_to", "max_capacity"]
 				)
 				
 				available_slots = []
 				for slot in slots:
 					available = get_available_capacity(slot.name)
 					if available >= party_size:
-						available_slots.append({
+						slot_data = {
 							"slot_id": slot.name,
-							"time": str(slot.time),
+							"date_from": str(slot.date_from) if slot.date_from else None,
+							"date_to": str(slot.date_to) if slot.date_to else None,
+							"time_from": str(slot.time_from) if slot.time_from else None,
+							"time_to": str(slot.time_to) if slot.time_to else None,
 							"available_capacity": available
-						})
+						}
+						# For backward compatibility, also include date and time fields
+						slot_data["date"] = str(slot.date_from) if slot.date_from else None
+						slot_data["time"] = str(slot.time_from) if slot.time_from else None
+						available_slots.append(slot_data)
 				
 				if not available_slots:
 					all_available = False
@@ -265,7 +288,8 @@ def get_route_availability(route_id, date=None, party_size=1):
 				"Route availability retrieved successfully",
 				{
 					"route_id": route_id,
-					"date": str(date_obj),
+					"date_from": str(date_from_obj),
+					"date_to": str(date_to_obj),
 					"party_size": party_size,
 					"available": all_available,
 					"experiences": availability_by_experience
@@ -280,7 +304,7 @@ def get_route_availability(route_id, date=None, party_size=1):
 					"status": route.status,
 					"experiences_count": len(experiences),
 					"experiences": experiences,
-					"note": "Provide a date to check actual slot availability"
+					"note": "Provide date_from and date_to (or date) to check actual slot availability"
 				}
 			)
 	except frappe.ValidationError as e:
