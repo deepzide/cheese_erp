@@ -247,6 +247,33 @@
 						"description": "ERP: Persists events. Bot: Sends relevant events (intent, tool-calls, errors)."
 					},
 					"response": []
+				},
+				{
+					"name": "Upload Message Transcript",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "token {{token}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"phone_number\": \"+1234567890\",\n  \"messages\": [\n    {\"role\": \"user\", \"content\": \"hello\"},\n    {\"role\": \"assistant\", \"content\": \"Nice to meet you\"}\n  ],\n  \"conversation_id\": \"CONV-001\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/method/cheese.api.v1.message_controller.upload_message_transcript",
+							"host": ["{{base_url}}"],
+							"path": ["api", "method", "cheese.api.v1.message_controller.upload_message_transcript"]
+						},
+						"description": "Upload message transcript - stores individual messages from a conversation.\n\n**Parameters:**\n- `phone_number`: Phone number of the user (required)\n- `messages`: Array of message objects with `role` (user/assistant) and `content` (required)\n- `conversation_id`: Optional conversation ID to link messages to\n\n**Example response:**\n```json\n{\n  \"success\": true,\n  \"message\": \"Message transcript uploaded successfully\",\n  \"data\": {\n    \"contact_id\": \"CONTACT-001\",\n    \"conversation_id\": \"CONV-001\",\n    \"message_count\": 2,\n    \"message_ids\": [\"MSG-001\", \"MSG-002\"]\n  }\n}\n```"
+					},
+					"response": []
 				}
 			]
 		},
@@ -812,7 +839,7 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n  \"contact_id\": \"CONTACT-001\",\n  \"route_id\": \"ROUTE-001\",\n  \"party_size\": 2,\n  \"date\": \"2024-12-31\",\n  \"conversation_id\": \"CONV-001\"\n}"
+							"raw": "{\n  \"contact_id\": \"CONTACT-001\",\n  \"route_id\": \"ROUTE-001\",\n  \"party_size\": 2,\n  \"date_from\": \"2024-12-31\",\n  \"date_to\": \"2024-12-31\",\n  \"conversation_id\": \"CONV-001\"\n}"
 						},
 						"url": {
 							"raw": "{{base_url}}/api/method/cheese.api.v1.route_booking_controller.create_route_reservation",
@@ -1539,14 +1566,14 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n  \"contact_id\": \"CONTACT-001\",\n  \"description\": \"Issue with booking experience\",\n  \"ticket_id\": \"TICKET-001\",\n  \"complaint_type\": \"Service\"\n}"
+							"raw": "{\n  \"contact_id\": \"CONTACT-001\",\n  \"description\": \"Issue with booking experience\",\n  \"ticket_id\": \"TICKET-001\",\n  \"complaint_type\": \"Service\",\n  \"incident_type\": \"LOCAL\"\n}"
 						},
 						"url": {
 							"raw": "{{base_url}}/api/method/cheese.api.v1.complaint_controller.create_complaint",
 							"host": ["{{base_url}}"],
 							"path": ["api", "method", "cheese.api.v1.complaint_controller.create_complaint"]
 						},
-						"description": "Create a complaint/support case."
+						"description": "Create a complaint/support case.\n\n**Parameters:**\n- `contact_id`: Contact ID (required)\n- `description`: Complaint description (required)\n- `ticket_id`: Related ticket ID (optional)\n- `route_booking_id`: Related route booking ID (optional)\n- `complaint_type`: Complaint type (optional)\n- `incident_type`: Incident type - LOCAL or GENERAL (required)\n\n**Routing Logic:**\n- **LOCAL**: If there's an active booking today/upcoming, sends WhatsApp notification to establishment (without exposing personal data)\n- **GENERAL**: Routes to admin user for manual handling\n\n**Example response:**\n```json\n{\n  \"success\": true,\n  \"message\": \"Complaint created successfully\",\n  \"data\": {\n    \"complaint_id\": \"CASE-CONTACT-001-20241231\",\n    \"support_case_id\": \"CASE-CONTACT-001-20241231\",\n    \"contact_id\": \"CONTACT-001\",\n    \"ticket_id\": \"TICKET-001\",\n    \"status\": \"OPEN\",\n    \"created_at\": \"2024-12-31T12:00:00\"\n  }\n}\n```"
 					},
 					"response": []
 				},

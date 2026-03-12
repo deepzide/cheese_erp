@@ -8,7 +8,7 @@ from cheese.api.common.responses import success, created, error, not_found, vali
 
 
 @frappe.whitelist()
-def create_complaint(contact_id, description, ticket_id=None, route_booking_id=None, complaint_type=None):
+def create_complaint(contact_id, description, ticket_id=None, route_booking_id=None, complaint_type=None, incident_type=None):
 	"""
 	Create complaint - creates support case/complaint
 	
@@ -18,6 +18,7 @@ def create_complaint(contact_id, description, ticket_id=None, route_booking_id=N
 		ticket_id: Related ticket ID (optional)
 		route_booking_id: Related route booking ID (optional)
 		complaint_type: Complaint type (optional)
+		incident_type: Incident type - LOCAL or GENERAL (required)
 		
 	Returns:
 		Created response with complaint data
@@ -27,6 +28,11 @@ def create_complaint(contact_id, description, ticket_id=None, route_booking_id=N
 			return validation_error("contact_id is required")
 		if not description:
 			return validation_error("description is required")
+		if not incident_type:
+			return validation_error("incident_type is required (LOCAL or GENERAL)")
+		
+		if incident_type not in ["LOCAL", "GENERAL"]:
+			return validation_error("incident_type must be LOCAL or GENERAL")
 		
 		if not frappe.db.exists("Cheese Contact", contact_id):
 			return not_found("Contact", contact_id)
@@ -42,6 +48,7 @@ def create_complaint(contact_id, description, ticket_id=None, route_booking_id=N
 			"contact": contact_id,
 			"ticket": ticket_id,
 			"description": description,
+			"incident_type": incident_type,
 			"status": "OPEN"
 		})
 		support_case.insert()
@@ -55,6 +62,7 @@ def create_complaint(contact_id, description, ticket_id=None, route_booking_id=N
 				"contact_id": contact_id,
 				"ticket_id": ticket_id,
 				"route_booking_id": route_booking_id,
+				"incident_type": support_case.incident_type,
 				"status": support_case.status,
 				"created_at": str(support_case.creation) if support_case.creation else None
 			}

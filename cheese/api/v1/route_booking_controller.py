@@ -12,7 +12,7 @@ import json
 
 
 @frappe.whitelist()
-def create_route_reservation(contact_id=None, route_id=None, experiences_with_slots=None, preferred_dates=None, party_size=1, conversation_id=None, date=None):
+def create_route_reservation(contact_id=None, route_id=None, experiences_with_slots=None, preferred_dates=None, party_size=1, conversation_id=None, date_from=None, date_to=None):
 	"""
 	Create pending route reservation
 	Creates RouteBooking = PENDING + internal reservations, locks capacity
@@ -24,7 +24,8 @@ def create_route_reservation(contact_id=None, route_id=None, experiences_with_sl
 		preferred_dates: Alias for experiences_with_slots
 		party_size: Party size (default: 1)
 		conversation_id: Conversation ID (optional)
-		date: Date to auto-select slots (optional)
+		date_from: Start date to auto-select slots (optional, YYYY-MM-DD)
+		date_to: End date to auto-select slots (optional, YYYY-MM-DD). If not provided, uses date_from
 		
 	Returns:
 		Success response with route booking data
@@ -57,25 +58,34 @@ def create_route_reservation(contact_id=None, route_id=None, experiences_with_sl
 		if route.status != "ONLINE":
 			return validation_error(f"Route {route_id} is not ONLINE. Current status: {route.status}")
 
-		# Auto-select slots if date is provided and explicit slots are missing
-		if not experiences_with_slots and date:
+		# Auto-select slots if date_from is provided and explicit slots are missing
+		if not experiences_with_slots and date_from:
 			try:
-				target_date = getdate(date)
-			except Exception:
-				return validation_error("Invalid date format")
+				start_date = getdate(date_from)
+				end_date = getdate(date_to) if date_to else start_date
+				
+				if end_date < start_date:
+					return validation_error("date_to must be greater than or equal to date_from")
+			except Exception as e:
+				return validation_error(f"Invalid date format: {str(e)}")
 
 			experiences_with_slots = []
 			for exp_row in route.experiences:
-				# Find available slots for this experience on the date
+				# Find available slots for this experience in the date range
+				# Slots have date_from and date_to fields, so we need to check for overlap
+				# A slot overlaps if: slot.date_from <= end_date AND slot.date_to >= start_date
+				slot_filters = {
+					"experience": exp_row.experience,
+					"slot_status": "OPEN",
+					"date_from": ["<=", end_date],
+					"date_to": [">=", start_date]
+				}
+				
 				slots = frappe.get_all(
 					"Cheese Experience Slot",
-					filters={
-						"experience": exp_row.experience,
-						"date": target_date,
-						"slot_status": "OPEN"
-					},
-					fields=["name", "time", "max_capacity"],
-					order_by="time asc"
+					filters=slot_filters,
+					fields=["name", "time_from", "date_from", "max_capacity"],
+					order_by="date_from asc, time_from asc"
 				)
 				
 				selected_slot = None
@@ -91,10 +101,11 @@ def create_route_reservation(contact_id=None, route_id=None, experiences_with_sl
 						"slot_id": selected_slot
 					})
 				else:
-					return validation_error(f"No available slot found for experience {exp_row.experience} on {date}")
+					date_range_str = f"{start_date}" if start_date == end_date else f"{start_date} to {end_date}"
+					return validation_error(f"No available slot found for experience {exp_row.experience} between {date_range_str}")
 
 		if not experiences_with_slots:
-			return validation_error("experiences_with_slots (or date) is required")
+			return validation_error("experiences_with_slots (or date_from/date_to) is required")
 		
 		# Parse experiences_with_slots
 		if isinstance(experiences_with_slots, str):

@@ -2,28 +2,35 @@
  "actions": [],
  "allow_import": 1,
  "allow_rename": 1,
- "autoname": "format:CASE-{contact}-{creation}",
+ "autoname": "format:MSG-{contact}-{timestamp}",
  "creation": "2024-01-01 00:00:00",
  "doctype": "DocType",
- "name": "Cheese Support Case",
+ "name": "Cheese Message",
  "document_type": "Document",
  "engine": "InnoDB",
  "field_order": [
-  "support_info",
+  "message_info",
+  "conversation",
   "contact",
-  "ticket",
-  "survey_response",
-  "description",
-  "incident_type",
-  "status",
-  "priority",
-  "assigned_to"
+  "phone_number",
+  "role",
+  "content",
+  "message_order",
+  "timestamp"
  ],
  "fields": [
   {
-   "fieldname": "support_info",
+   "fieldname": "message_info",
    "fieldtype": "Section Break",
-   "label": "Support Case Information"
+   "label": "Message Information"
+  },
+  {
+   "fieldname": "conversation",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Conversation",
+   "options": "Conversation"
   },
   {
    "fieldname": "contact",
@@ -35,55 +42,46 @@
    "reqd": 1
   },
   {
-   "fieldname": "ticket",
-   "fieldtype": "Link",
-   "label": "Ticket",
-   "options": "Cheese Ticket"
+   "fieldname": "phone_number",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Phone Number",
+   "options": "Phone",
+   "reqd": 1
   },
   {
-   "fieldname": "survey_response",
-   "fieldtype": "Link",
-   "label": "Survey Response",
-   "options": "Cheese Survey Response"
+   "fieldname": "role",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Role",
+   "options": "user\nassistant",
+   "reqd": 1
   },
   {
-   "fieldname": "description",
+   "fieldname": "content",
    "fieldtype": "Text Editor",
-   "label": "Description",
+   "label": "Content",
    "reqd": 1
   },
   {
-   "fieldname": "incident_type",
-   "fieldtype": "Select",
+   "fieldname": "message_order",
+   "fieldtype": "Int",
    "in_list_view": 1,
-   "in_standard_filter": 1,
-   "label": "Incident Type",
-   "options": "LOCAL\nGENERAL",
+   "label": "Message Order",
    "reqd": 1
   },
   {
-   "fieldname": "status",
-   "fieldtype": "Select",
+   "default": "Now",
+   "fieldname": "timestamp",
+   "fieldtype": "Datetime",
    "in_list_view": 1,
-   "in_standard_filter": 1,
-   "label": "Status",
-   "options": "OPEN\nIN_PROGRESS\nRESOLVED\nCLOSED",
+   "label": "Timestamp",
    "reqd": 1
-  },
-  {
-   "fieldname": "priority",
-   "fieldtype": "Select",
-   "label": "Priority",
-   "options": "Low\nMedium\nHigh\nUrgent"
-  },
-  {
-   "fieldname": "assigned_to",
-   "fieldtype": "Link",
-   "label": "Assigned To",
-   "options": "User"
   }
  ],
- "index_web_pages_for_search": 1,
+ "index_web_pages_for_search": 0,
  "links": [],
  "modified": "2024-01-01 00:00:00",
  "modified_by": "Administrator",
@@ -136,8 +134,8 @@
    "share": 1
   }
  ],
- "sort_field": "modified",
- "sort_order": "DESC",
+ "sort_field": "timestamp",
+ "sort_order": "ASC",
  "states": [],
  "track_changes": 1
 }

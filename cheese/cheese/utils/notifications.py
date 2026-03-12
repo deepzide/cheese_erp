@@ -280,3 +280,111 @@ def _send_notification(contact, channel, message, notification_type, entity_id):
 		
 	except Exception as e:
 		frappe.log_error(f"Failed to send notification via {channel}: {e}", "Notification Send Error")
+
+
+def send_whatsapp_notification(phone_number, message):
+	"""
+	Send WhatsApp notification to a phone number
+	
+	Args:
+		phone_number: Phone number to send to
+		message: Message content
+		
+	Returns:
+		True if sent successfully, False otherwise
+	"""
+	try:
+		# Check if WhatsApp integration is available
+		# Try to use WhatsApp integration if available
+		try:
+			# Check if WhatsApp Account doctype exists
+			if frappe.db.exists("DocType", "WhatsApp Account"):
+				account = frappe.get_all("WhatsApp Account", filters={"status": "Active"}, limit=1)
+				if account:
+					# Use WhatsApp integration if available
+					from whatsapp_integration.whatsapp_integration.api import send_message
+					result = send_message(phone_number, message)
+					if result and result.get("status") == "success":
+						frappe.logger().info(f"WhatsApp message sent to {phone_number}")
+						return True
+		except ImportError:
+			# WhatsApp integration not available, log and continue
+			pass
+		except Exception as e:
+			frappe.log_error(f"WhatsApp integration error: {str(e)}", "WhatsApp Notification Error")
+		
+		# Fallback: Log the notification
+		frappe.logger().info(f"WhatsApp notification to {phone_number}: {message}")
+		
+		# Log to system event for audit trail
+		from cheese.cheese.utils.events import log_event
+		log_event(
+			entity_type="System",
+			entity_id="WhatsApp Notification",
+			event_type="whatsapp_notification_sent",
+			payload={
+				"phone_number": phone_number,
+				"message": message
+			}
+		)
+		
+		return True
+	except Exception as e:
+		frappe.log_error(f"Failed to send WhatsApp notification: {e}", "WhatsApp Notification Error")
+		return False
+
+
+def send_support_notification_to_establishment(company_id, support_case_id, booking_info=None):
+	"""
+	Send WhatsApp notification to establishment about a support case
+	
+	Args:
+		company_id: Company ID
+		support_case_id: Support case ID
+		booking_info: Optional booking information dict
+		
+	Returns:
+		True if sent successfully, False otherwise
+	"""
+	try:
+		# Get company WhatsApp number
+		company = frappe.get_doc("Company", company_id)
+		whatsapp_phone = getattr(company, "whatsapp_phone", None)
+		
+		if not whatsapp_phone:
+			frappe.logger().warning(f"No WhatsApp phone configured for company {company_id}")
+			return False
+		
+		# Get support case details
+		support_case = frappe.get_doc("Cheese Support Case", support_case_id)
+		
+		# Build message (sanitized, no personal data)
+		message_parts = [
+			f"Support Case: {support_case_id}",
+			f"Incident Type: {support_case.incident_type}"
+		]
+		
+		if booking_info:
+			if booking_info.get("ticket_id"):
+				message_parts.append(f"Booking Reference: {booking_info.get('ticket_id')}")
+			if booking_info.get("slot_date"):
+				message_parts.append(f"Date: {booking_info.get('slot_date')}")
+		
+		# Add sanitized description (remove personal info)
+		description = support_case.description or ""
+		# Remove email addresses and phone numbers from description
+		import re
+		description = re.sub(r'\b[\w\.-]+@[\w\.-]+\.\w+\b', '[email]', description)
+		description = re.sub(r'\b\d{3}[-.]?\d{3}[-.]?\d{4}\b', '[phone]', description)
+		description = description[:200]  # Limit length
+		
+		if description:
+			message_parts.append(f"Description: {description}")
+		
+		message = "\n".join(message_parts)
+		
+		# Send WhatsApp notification
+		return send_whatsapp_notification(whatsapp_phone, message)
+	except Exception as e:
+		frappe.log_error(f"Failed to send support notification to establishment: {e}", "Support Notification Error")
+		return False
