@@ -59,6 +59,7 @@ def create_route_reservation(contact_id=None, route_id=None, experiences_with_sl
 			return validation_error(f"Route {route_id} is not ONLINE. Current status: {route.status}")
 
 		# Auto-select slots if date_from is provided and explicit slots are missing
+		selected_date_for_tickets = None
 		if not experiences_with_slots and date_from:
 			try:
 				start_date = getdate(date_from)
@@ -66,6 +67,11 @@ def create_route_reservation(contact_id=None, route_id=None, experiences_with_sl
 				
 				if end_date < start_date:
 					return validation_error("date_to must be greater than or equal to date_from")
+				
+				# Store the selected date to use when creating tickets
+				# For single-day routes, use start_date for all tickets
+				# For multi-day routes, we use start_date for all tickets (can be enhanced later)
+				selected_date_for_tickets = start_date
 			except Exception as e:
 				return validation_error(f"Invalid date format: {str(e)}")
 
@@ -176,7 +182,14 @@ def create_route_reservation(contact_id=None, route_id=None, experiences_with_sl
 				return validation_error(f"No slot provided for experience {experience_id} at sequence {exp_row.sequence}")
 			
 			# Create pending ticket
-			ticket_result = create_pending_ticket(contact_id, experience_id, slot_id, party_size)
+			# Pass selected_date if it was provided during auto-selection
+			ticket_result = create_pending_ticket(
+				contact_id, 
+				experience_id, 
+				slot_id, 
+				party_size,
+				selected_date=str(selected_date_for_tickets) if selected_date_for_tickets else None
+			)
 			
 			if not ticket_result.get("success"):
 				# Rollback created tickets and route booking
@@ -300,12 +313,18 @@ def get_route_status(route_booking_id):
 		for ticket_row in route_booking.tickets:
 			if ticket_row.ticket:
 				ticket = frappe.get_doc("Cheese Ticket", ticket_row.ticket)
+				slot = frappe.get_doc("Cheese Experience Slot", ticket.slot)
+				
+				# Use selected_date if available, otherwise fall back to slot.date_from
+				display_date = str(ticket.selected_date) if ticket.selected_date else str(slot.date_from)
+				
 				tickets.append({
 					"ticket_id": ticket.name,
 					"status": ticket.status,
 					"experience": ticket.experience,
 					"slot": ticket.slot,
-					"party_size": ticket.party_size
+					"party_size": ticket.party_size,
+					"slot_date": display_date
 				})
 		
 		return success(
@@ -370,12 +389,16 @@ def get_route_summary(route_booking_id):
 				slot = frappe.get_doc("Cheese Experience Slot", ticket.slot)
 				experience = frappe.get_doc("Cheese Experience", ticket.experience)
 				
+				# Use selected_date if available, otherwise fall back to slot.date_from
+				display_date = str(ticket.selected_date) if ticket.selected_date else str(slot.date_from)
+				display_time = str(slot.time_from) if slot.time_from else None
+				
 				itinerary.append({
 					"ticket_id": ticket.name,
 					"experience_id": experience.name,
 					"experience_name": experience.name,
-					"date": str(slot.date),
-					"time": str(slot.time),
+					"date": display_date,
+					"time": display_time,
 					"status": ticket.status,
 					"party_size": ticket.party_size
 				})

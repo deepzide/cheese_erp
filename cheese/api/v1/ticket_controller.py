@@ -43,7 +43,7 @@ def get_reservation_status(reservation_id):
 
 
 @frappe.whitelist()
-def create_pending_ticket(contact_id, experience_id, slot_id, party_size):
+def create_pending_ticket(contact_id, experience_id, slot_id, party_size, selected_date=None):
 	"""
 	Create a pending ticket with TTL
 	
@@ -52,6 +52,7 @@ def create_pending_ticket(contact_id, experience_id, slot_id, party_size):
 		experience_id: ID of the experience
 		slot_id: ID of the slot
 		party_size: Number of people
+		selected_date: Optional date selected by the user (YYYY-MM-DD). If provided, stored in ticket.selected_date
 		
 	Returns:
 		Success response with ticket data
@@ -94,7 +95,7 @@ def create_pending_ticket(contact_id, experience_id, slot_id, party_size):
 		deposit_amount = calculate_deposit_amount(experience_id, price_data["total_price"])
 
 		# Create ticket
-		ticket = frappe.get_doc({
+		ticket_data = {
 			"doctype": "Cheese Ticket",
 			"contact": contact_id,
 			"company": experience.company,
@@ -104,7 +105,18 @@ def create_pending_ticket(contact_id, experience_id, slot_id, party_size):
 			"status": "PENDING",
 			"deposit_required": bool(deposit_amount > 0),
 			"deposit_amount": deposit_amount
-		})
+		}
+		
+		# Store selected_date if provided
+		if selected_date:
+			from frappe.utils import getdate
+			try:
+				ticket_data["selected_date"] = getdate(selected_date)
+			except Exception:
+				# If date parsing fails, continue without selected_date
+				pass
+		
+		ticket = frappe.get_doc(ticket_data)
 		ticket.insert()
 		
 		# Update slot capacity
@@ -420,6 +432,9 @@ def get_ticket_summary(ticket_id):
 		experience = frappe.get_doc("Cheese Experience", ticket.experience)
 		contact = frappe.get_doc("Cheese Contact", ticket.contact)
 
+		# Use selected_date if available, otherwise fall back to slot.date_from
+		display_date = str(ticket.selected_date) if ticket.selected_date else str(slot.date_from)
+
 		return success(
 			"Ticket details retrieved successfully",
 			{
@@ -438,7 +453,7 @@ def get_ticket_summary(ticket_id):
 				},
 				"slot": {
 					"slot_id": slot.name,
-					"date": str(slot.date_from),
+					"date": display_date,
 					"time": str(slot.time_from),
 					"max_capacity": slot.max_capacity
 				},

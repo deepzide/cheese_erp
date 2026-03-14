@@ -14,6 +14,7 @@
         "experience",
         "route",
         "slot",
+        "selected_date",
         "party_size",
         "status",
         "expires_at",
@@ -72,6 +73,12 @@
             "label": "Slot",
             "options": "Cheese Experience Slot",
             "reqd": 1
+        },
+        {
+            "fieldname": "selected_date",
+            "fieldtype": "Date",
+            "label": "Selected Date",
+            "description": "The date selected by the user when booking (may differ from slot.date_from for slots with date ranges)"
         },
         {
             "fieldname": "party_size",
