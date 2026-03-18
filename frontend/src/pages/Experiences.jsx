@@ -14,6 +14,7 @@ import { Sparkles, Search, Plus, DollarSign, Calendar, Ticket, Shield, FileText,
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
 import { experienceService } from "@/api/experienceService";
+import { useFrappeUpdate } from "@/lib/useApiData";
 
 const STATUS_BADGE = {
     ACTIVE: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400",
@@ -25,6 +26,7 @@ export default function Experiences() {
     const navigate = useNavigate();
     const queryClient = useQueryClient();
     const [searchTerm, setSearchTerm] = useState("");
+    const [companyFilter, setCompanyFilter] = useState("all");
     const [selectedExperience, setSelectedExperience] = useState(null);
 
     const { data: expRaw, isLoading, error, refetch } = useQuery({
@@ -37,6 +39,36 @@ export default function Experiences() {
     });
 
     const experiences = Array.isArray(expRaw) ? expRaw : [];
+
+    const uniqueCompanies = Array.from(
+        new Set(
+            (experiences || [])
+                .map((e) => e.company)
+                .filter((c) => c && c.trim() !== "")
+        )
+    );
+
+    // Status update mutation for experiences
+    const updateExperienceMutation = useFrappeUpdate("Cheese Experience");
+
+    const updateStatus = (experienceId, newStatus) => {
+        updateExperienceMutation.mutate(
+            { name: experienceId, data: { status: newStatus } },
+            {
+                onSuccess: () => {
+                    toast.success(
+                        newStatus === "ONLINE"
+                            ? "Experience published online"
+                            : "Experience taken offline"
+                    );
+                    queryClient.invalidateQueries({ queryKey: ['experiences'] });
+                },
+                onError: (err) => {
+                    toast.error(err?.message || "Failed to update experience status");
+                },
+            }
+        );
+    };
 
     // Fetch time slots when an experience is selected
     const { data: slotsRaw, isLoading: slotsLoading } = useQuery({
@@ -52,6 +84,9 @@ export default function Experiences() {
     const slots = Array.isArray(slotsRaw) ? slotsRaw : [];
 
     const filtered = experiences.filter(e => {
+        if (companyFilter !== "all" && e.company !== companyFilter) {
+            return false;
+        }
         if (searchTerm) {
             const term = searchTerm.toLowerCase();
             return (e.experience_info || e.name || '').toLowerCase().includes(term);
@@ -77,9 +112,46 @@ export default function Experiences() {
                     <h1 className="text-2xl font-bold text-foreground flex items-center gap-2"><Sparkles className="w-6 h-6 text-cheese-600" /> Experiences</h1>
                     <p className="text-sm text-muted-foreground mt-1">{isLoading ? '...' : `${filtered.length} experiences`}</p>
                 </div>
-                <div className="flex gap-2">
-                    <div className="relative"><Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" /><Input placeholder="Search..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-9 w-56 h-9" /></div>
-                    <Button variant="ghost" size="icon" onClick={() => refetch()} className="h-9 w-9"><RefreshCw className="w-4 h-4" /></Button>
+                <div className="flex gap-2 items-center">
+                    <div className="relative">
+                        <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                        <Input
+                            placeholder="Search..."
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            className="pl-9 w-56 h-9"
+                        />
+                    </div>
+                    <Select
+                        value={companyFilter}
+                        onValueChange={setCompanyFilter}
+                    >
+                        <SelectTrigger className="w-40 h-9 text-xs">
+                            <SelectValue placeholder="All Companies" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="all">All Companies</SelectItem>
+                            {uniqueCompanies.map((company) => (
+                                <SelectItem key={company} value={company}>
+                                    {company}
+                                </SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => refetch()}
+                        className="h-9 w-9"
+                    >
+                        <RefreshCw className="w-4 h-4" />
+                    </Button>
+                    <Button
+                        className="cheese-gradient text-black font-semibold border-0 h-9"
+                        onClick={() => navigate("/cheese/experiences/new")}
+                    >
+                        <Plus className="w-4 h-4 mr-1" /> New Experience
+                    </Button>
                 </div>
             </div>
 
@@ -119,10 +191,24 @@ export default function Experiences() {
                                             <DropdownMenuItem onClick={(e) => { e.stopPropagation(); navigate(`/cheese/booking-policy?experience=${exp.name}`); }}><Shield className="w-3 h-3 mr-2" /> Booking Policy</DropdownMenuItem>
                                             <DropdownMenuItem onClick={(e) => { e.stopPropagation(); navigate(`/cheese/documents?entity_type=Experience&entity_id=${exp.name}`); }}><FileText className="w-3 h-3 mr-2" /> Documents</DropdownMenuItem>
                                             <DropdownMenuSeparator />
-                                            {exp.status === "ACTIVE" ? (
-                                                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); updateStatus(exp.name, "INACTIVE"); }}>Take Offline</DropdownMenuItem>
+                                            {exp.status === "ONLINE" ? (
+                                                <DropdownMenuItem
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        updateStatus(exp.name, "OFFLINE");
+                                                    }}
+                                                >
+                                                    Take Offline
+                                                </DropdownMenuItem>
                                             ) : (
-                                                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); updateStatus(exp.name, "ACTIVE"); }}>Publish Online</DropdownMenuItem>
+                                                <DropdownMenuItem
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        updateStatus(exp.name, "ONLINE");
+                                                    }}
+                                                >
+                                                    Publish Online
+                                                </DropdownMenuItem>
                                             )}
                                         </DropdownMenuContent>
                                     </DropdownMenu>

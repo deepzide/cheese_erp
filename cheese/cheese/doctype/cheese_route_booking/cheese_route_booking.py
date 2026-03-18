@@ -39,7 +39,8 @@ class CheeseRouteBooking(Document):
 			frappe.throw(_("Contact {0} does not exist").format(self.contact))
 
 		# Calculate status from tickets if tickets exist
-		if self.tickets and len(self.tickets) > 0:
+		# Only auto-calculate when status was not explicitly changed by the user
+		if self.tickets and len(self.tickets) > 0 and not self.has_value_changed("status"):
 			self.calculate_status()
 
 		# Set expiration if status is PENDING

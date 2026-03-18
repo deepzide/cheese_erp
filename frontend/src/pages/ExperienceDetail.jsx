@@ -25,11 +25,13 @@ export default function ExperienceDetail() {
     // Reset local form when fetched data changes
     useEffect(() => {
         if (exp) {
+            const hours = exp.event_duration ? exp.event_duration / 3600 : 0;
             setForm({
                 company: exp.company || "",
                 google_maps_link: exp.google_maps_link || "",
                 description: exp.description || "",
-                event_duration: exp.event_duration || 0,
+                // Backend stores duration in seconds; convert to hours for UI and round for readability
+                event_duration: Number(hours.toFixed(2)),
                 individual_price: exp.individual_price || 0,
                 route_price: exp.route_price || 0,
                 package_mode: exp.package_mode || "Both",
@@ -55,8 +57,16 @@ export default function ExperienceDetail() {
 
         const changes = {};
         Object.keys(form).forEach(key => {
-            if (form[key] !== (exp[key] || "") && !(form[key] === 0 && !exp[key])) {
-                changes[key] = form[key];
+            let newValue = form[key];
+
+            // Convert event_duration from hours back to seconds before sending
+            if (key === "event_duration") {
+                const hours = parseFloat(form.event_duration) || 0;
+                newValue = Math.round(hours * 3600);
+            }
+
+            if (newValue !== (exp[key] || "") && !(newValue === 0 && !exp[key])) {
+                changes[key] = newValue;
             }
         });
 
@@ -133,7 +143,13 @@ export default function ExperienceDetail() {
                                             )}
                                         </div>
 
-                                        <EditableField label="Event Duration (Seconds)" type="number" value={form.event_duration} onChange={(v) => handleFieldChange("event_duration", v)} editMode={editMode} />
+                                        <EditableField
+                                            label="Event Duration (Hours)"
+                                            type="number"
+                                            value={form.event_duration}
+                                            onChange={(v) => handleFieldChange("event_duration", v)}
+                                            editMode={editMode}
+                                        />
 
                                         <div className="space-y-1">
                                             {editMode ? (

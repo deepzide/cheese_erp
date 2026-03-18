@@ -55,9 +55,26 @@ export default function RoutesPage() {
 
     const createMutation = useMutation({
         mutationFn: (data) => routeService.createRoute(data),
-        onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['routes'] }); setCreateOpen(false); setForm({ name: "", description: "", price: "" }); toast.success("Route created"); },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['routes'] });
+            setCreateOpen(false);
+            setForm({ name: "", description: "", price: "" });
+            toast.success("Route created");
+        },
         onError: (err) => toast.error(err?.message || "Failed"),
     });
+
+    const handleCreateRoute = () => {
+        if (!form.name.trim()) {
+            toast.error("Route name is required");
+            return;
+        }
+        if (!form.description.trim()) {
+            toast.error("Short Description is required");
+            return;
+        }
+        createMutation.mutate(form);
+    };
 
     const publishMutation = useMutation({
         mutationFn: (routeId) => routeService.publishRoute(routeId),
@@ -202,12 +219,12 @@ export default function RoutesPage() {
                     </DialogHeader>
                     <div className="space-y-4">
                         <div className="space-y-2"><Label>Name *</Label><Input placeholder="Golden Route" value={form.name} onChange={(e) => setForm(f => ({ ...f, name: e.target.value }))} /></div>
-                        <div className="space-y-2"><Label>Description</Label><Input placeholder="A tour through the finest..." value={form.description} onChange={(e) => setForm(f => ({ ...f, description: e.target.value }))} /></div>
+                        <div className="space-y-2"><Label>Short Description *</Label><Input placeholder="A tour through the finest..." value={form.description} onChange={(e) => setForm(f => ({ ...f, description: e.target.value }))} /></div>
                         <div className="space-y-2"><Label>Price</Label><Input type="number" min="0" placeholder="150" value={form.price} onChange={(e) => setForm(f => ({ ...f, price: e.target.value }))} /></div>
                     </div>
                     <DialogFooter>
                         <Button variant="outline" onClick={() => setCreateOpen(false)}>Cancel</Button>
-                        <Button className="cheese-gradient text-black font-semibold border-0" onClick={() => createMutation.mutate(form)} disabled={createMutation.isPending}>
+                        <Button className="cheese-gradient text-black font-semibold border-0" onClick={handleCreateRoute} disabled={createMutation.isPending}>
                             {createMutation.isPending ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Plus className="w-4 h-4 mr-1" />} Create
                         </Button>
                     </DialogFooter>

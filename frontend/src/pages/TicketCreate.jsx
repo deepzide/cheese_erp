@@ -85,8 +85,10 @@ export default function TicketCreate() {
                             doctype="Cheese Experience"
                             label="experience_info"
                             value={form.experience}
-                            onChange={(v) => setForm(f => ({ ...f, experience: v }))}
+                            onChange={(v) => setForm(f => ({ ...f, experience: v, slot: "" }))}
                             placeholder="Select an experience..."
+                            // When a route is selected, only show experiences linked to that route
+                            filters={form.route ? { route: form.route } : {}}
                         />
                     </div>
                     <div className="space-y-2">
@@ -95,7 +97,7 @@ export default function TicketCreate() {
                             doctype="Cheese Route"
                             label="route_info"
                             value={form.route}
-                            onChange={(v) => setForm(f => ({ ...f, route: v }))}
+                            onChange={(v) => setForm(f => ({ ...f, route: v, experience: "", slot: "" }))}
                             placeholder="Select a route..."
                         />
                     </div>
@@ -111,6 +113,8 @@ export default function TicketCreate() {
                             value={form.slot}
                             onChange={(v) => setForm(f => ({ ...f, slot: v }))}
                             placeholder="Select a slot..."
+                            // Only show slots for the selected experience
+                            filters={form.experience ? { experience: form.experience } : {}}
                         />
                     </div>
                     <div className="space-y-2">

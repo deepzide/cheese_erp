@@ -59,6 +59,9 @@ class CheeseTicket(Document):
 		if not self.is_new():
 			self.validate_status_transition()
 
+		# Prevent duplicate active tickets for same contact + experience + slot
+		self.validate_duplicate_active_ticket()
+
 		# Validate capacity
 		self.validate_capacity()
 
@@ -89,6 +92,31 @@ class CheeseTicket(Document):
 					),
 					frappe.ValidationError
 				)
+
+	def validate_duplicate_active_ticket(self):
+		"""Prevent multiple active tickets with same contact+experience+slot"""
+		if not (self.contact and self.experience and self.slot):
+			return
+
+		# Only consider tickets that are not terminal/cancelled
+		excluded_statuses = ["CANCELLED", "EXPIRED", "REJECTED", "NO_SHOW"]
+
+		filters = {
+			"contact": self.contact,
+			"experience": self.experience,
+			"slot": self.slot,
+			"name": ["!=", self.name] if self.name else ["!=", ""],
+			"status": ["not in", excluded_statuses],
+		}
+
+		exists = frappe.db.exists("Cheese Ticket", filters)
+		if exists:
+			frappe.throw(
+				_("A ticket already exists for this contact, experience, and slot: {0}").format(
+					exists
+				),
+				frappe.ValidationError,
+			)
 
 	def validate_capacity(self):
 		"""Validate slot capacity"""

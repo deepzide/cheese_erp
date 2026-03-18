@@ -1,5 +1,6 @@
 import React, { useState, useCallback } from "react";
 import { motion } from "framer-motion";
+import { useSearchParams } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
@@ -21,9 +22,16 @@ const VIEWS = ["day", "week", "month"];
 
 export default function CalendarPage() {
     const queryClient = useQueryClient();
+    const [searchParams] = useSearchParams();
+
     const [view, setView] = useState("week");
     const [currentDate, setCurrentDate] = useState(new Date());
-    const [selectedExperience, setSelectedExperience] = useState(null);
+
+    // Pre-filter by experience if provided in URL (?experience=EXPERIENCE-ID)
+    const initialExperience = searchParams.get("experience");
+    const [selectedExperience, setSelectedExperience] = useState(
+        initialExperience && initialExperience !== "all" ? initialExperience : null
+    );
 
     // Slot detail dialog
     const [detailSlot, setDetailSlot] = useState(null);

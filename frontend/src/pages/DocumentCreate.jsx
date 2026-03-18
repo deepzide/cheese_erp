@@ -24,7 +24,7 @@ export default function DocumentCreate() {
         title: "",
         document_type: "PDF",
         file_url: "",
-        language: "EN",
+        language: "English",
         version: "1.0",
     });
     const [uploading, setUploading] = useState(false);
@@ -121,9 +121,8 @@ export default function DocumentCreate() {
                         <Select value={form.language} onValueChange={(v) => setForm(f => ({ ...f, language: v }))}>
                             <SelectTrigger><SelectValue /></SelectTrigger>
                             <SelectContent>
-                                <SelectItem value="EN">English</SelectItem>
-                                <SelectItem value="FR">French</SelectItem>
-                                <SelectItem value="AR">Arabic</SelectItem>
+                                <SelectItem value="English">English</SelectItem>
+                                <SelectItem value="Spanish">Spanish</SelectItem>
                             </SelectContent>
                         </Select>
                     </div>

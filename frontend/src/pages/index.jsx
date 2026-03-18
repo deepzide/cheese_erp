@@ -10,6 +10,7 @@ import RoutesPage from './Routes';
 import RouteDetail from './RouteDetail';
 import Experiences from './Experiences';
 import ExperienceDetail from './ExperienceDetail';
+import ExperienceCreate from './ExperienceCreate';
 import Calendar from './Calendar';
 import Contacts from './Contacts';
 import Leads from './Leads';
@@ -36,6 +37,8 @@ import BookingPolicyCreate from './BookingPolicyCreate';
 import BankAccountCreate from './BankAccountCreate';
 import DocumentCreate from './DocumentCreate';
 import TicketCreate from './TicketCreate';
+import BookingCreate from './BookingCreate';
+import DepositCreate from './DepositCreate';
 
 export default function Pages() {
     return (
@@ -56,6 +59,7 @@ export default function Pages() {
                                         <Route path="/routes" element={<RoutesPage />} />
                                         <Route path="/routes/:id" element={<RouteDetail />} />
                                         <Route path="/experiences" element={<Experiences />} />
+                                        <Route path="/experiences/new" element={<ExperienceCreate />} />
                                         <Route path="/experiences/:id" element={<ExperienceDetail />} />
                                         <Route path="/calendar" element={<Calendar />} />
                                         <Route path="/contacts" element={<Contacts />} />
@@ -68,7 +72,9 @@ export default function Pages() {
                                         <Route path="/quotations/new" element={<QuotationCreate />} />
                                         <Route path="/quotations/:id" element={<QuotationDetail />} />
                                         <Route path="/deposits" element={<Deposits />} />
+                                        <Route path="/deposits/new" element={<DepositCreate />} />
                                         <Route path="/bookings" element={<Bookings />} />
+                                        <Route path="/bookings/new" element={<BookingCreate />} />
                                         <Route path="/support" element={<Support />} />
                                         <Route path="/support/new" element={<SupportCreate />} />
                                         <Route path="/booking-policy" element={<BookingPolicy />} />

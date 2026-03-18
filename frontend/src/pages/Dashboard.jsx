@@ -180,6 +180,7 @@ export default function Dashboard() {
                                 { label: "Tickets", icon: Ticket, path: "/cheese/tickets", color: "bg-blue-50 dark:bg-blue-950 text-blue-700 dark:text-blue-400" },
                                 { label: "Routes", icon: Sparkles, path: "/cheese/routes", color: "bg-emerald-50 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-400" },
                                 { label: "Experiences", icon: Sparkles, path: "/cheese/experiences", color: "bg-purple-50 dark:bg-purple-950 text-purple-700 dark:text-purple-400" },
+                                { label: "New Experience", icon: Sparkles, path: "/cheese/experiences/new", color: "bg-purple-100 dark:bg-purple-900 text-purple-800 dark:text-purple-300" },
                                 { label: "Calendar", icon: CalendarDays, path: "/cheese/calendar", color: "bg-orange-50 dark:bg-orange-950 text-orange-700 dark:text-orange-400" },
                                 { label: "Deposits", icon: DollarSign, path: "/cheese/deposits", color: "bg-yellow-50 dark:bg-yellow-950 text-yellow-700 dark:text-yellow-400" },
                                 { label: "Support", icon: Shield, path: "/cheese/support", color: "bg-red-50 dark:bg-red-950 text-red-700 dark:text-red-400" },
