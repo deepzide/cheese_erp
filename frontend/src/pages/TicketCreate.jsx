@@ -11,6 +11,8 @@ import FrappeSearchSelect from "@/components/FrappeSearchSelect";
 export default function TicketCreate() {
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
+    const contactId = searchParams.get("contact") || "";
+    const backPath = contactId ? `/cheese/contacts/${contactId}` : "/cheese/tickets";
     const [form, setForm] = useState({
         contact: searchParams.get("contact") || "",
         company: searchParams.get("company") || "",
@@ -47,7 +49,7 @@ export default function TicketCreate() {
             title="New Ticket"
             description="Create a pending ticket for a guest"
             icon={Ticket}
-            backPath="/cheese/tickets"
+            backPath={backPath}
             onSubmit={handleSubmit}
             isSubmitting={createMutation.isPending}
             submitLabel="Create Ticket"

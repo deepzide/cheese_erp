@@ -274,12 +274,21 @@ export default function Experiences() {
                                             <div key={slot.name} className="flex items-center justify-between p-2 bg-muted rounded-lg text-sm">
                                                 <div className="flex items-center gap-2">
                                                     <Calendar className="w-3.5 h-3.5 text-muted-foreground" />
-                                                    <span className="font-medium">{slot.date}</span>
-                                                    <span className="text-muted-foreground">{slot.time}</span>
+                                                    <span className="font-medium">{slot.date_from || slot.date}</span>
+                                                    <span className="text-muted-foreground">{slot.time_from || slot.time}</span>
                                                 </div>
                                                 <div className="flex items-center gap-2 text-xs">
-                                                    <span>{slot.booked || 0}/{slot.capacity || '—'}</span>
-                                                    <Badge variant={slot.status === 'OPEN' ? 'outline' : 'secondary'} className="text-[10px]">{slot.status || '—'}</Badge>
+                                                    <span>
+                                                        {slot.reserved_capacity != null ? slot.reserved_capacity : (slot.booked || 0)}
+                                                        /
+                                                        {slot.max_capacity != null ? slot.max_capacity : (slot.capacity || '—')}
+                                                    </span>
+                                                    <Badge
+                                                        variant={(slot.slot_status || slot.status) === 'OPEN' ? 'outline' : 'secondary'}
+                                                        className="text-[10px]"
+                                                    >
+                                                        {slot.slot_status || slot.status || '—'}
+                                                    </Badge>
                                                 </div>
                                             </div>
                                         ))}

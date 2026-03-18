@@ -1,14 +1,20 @@
-import React, { useState, useEffect } from "react";
+import React, { useMemo, useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { useFrappeDoc, useFrappeUpdate } from "@/lib/useApiData";
+import { useFrappeDoc, useFrappeUpdate, useFrappeList } from "@/lib/useApiData";
 import { toast } from "sonner";
 import DetailPageLayout from "@/components/DetailPageLayout";
 import EditableField from "@/components/EditableField";
 import { Label } from "@/components/ui/label";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Map, MapPin, DollarSign, Calendar, Info, Shield, Layers } from "lucide-react";
+import { Map, MapPin, DollarSign, Calendar, Info, Shield, Layers, FileText } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { useQuery } from "@tanstack/react-query";
+import { experienceService } from "@/api/experienceService";
+import { routeService } from "@/api/routeService";
+import FrappeSearchSelect from "@/components/FrappeSearchSelect";
+import { Trash2, ChevronUp, ChevronDown } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 export default function RouteDetail() {
     const { id } = useParams();
@@ -21,13 +27,22 @@ export default function RouteDetail() {
     // Local State for Edit Mode
     const [editMode, setEditMode] = useState(false);
     const [form, setForm] = useState({});
+    const [experienceToAdd, setExperienceToAdd] = useState("");
+    const [experienceIds, setExperienceIds] = useState([]);
+    const [isSavingExperiences, setIsSavingExperiences] = useState(false);
 
     // Reset local form when fetched data changes
     useEffect(() => {
         if (route) {
+            const sorted = Array.isArray(route.experiences)
+                ? [...route.experiences].sort((a, b) => (a.sequence || 0) - (b.sequence || 0))
+                : [];
+            const initialIds = sorted.map((row) => row.experience).filter(Boolean);
+            setExperienceIds(initialIds);
             setForm({
                 short_description: route.short_description || "",
                 description: route.description || "",
+                google_maps_link: route.google_maps_link || "",
                 status: route.status || "ONLINE",
                 price_mode: route.price_mode || "Manual",
                 price: route.price || 0,
@@ -43,13 +58,90 @@ export default function RouteDetail() {
         setForm(prev => ({ ...prev, [field]: value }));
     };
 
-    const handleSave = () => {
+    const { data: experiencesRaw } = useQuery({
+        queryKey: ["experiences-for-route-detail"],
+        queryFn: async () => {
+            const result = await experienceService.listExperiences({ page_size: 100 });
+            const payload = result?.data?.message || result?.data || result;
+            return payload?.data || [];
+        },
+        enabled: !!route,
+    });
+
+    const experiences = Array.isArray(experiencesRaw) ? experiencesRaw : [];
+    const expById = useMemo(() => Object.fromEntries(experiences.map((e) => [e.name, e])), [experiences]);
+    const computedRoutePrice = useMemo(() => {
+        return experienceIds.reduce((sum, expId) => {
+            const exp = expById[expId];
+            const price = Number(exp?.route_price ?? exp?.individual_price ?? 0);
+            return sum + (Number.isFinite(price) ? price : 0);
+        }, 0);
+    }, [experienceIds, expById]);
+
+    // Keep price consistent with "sum from experiences" rule while editing experiences.
+    useEffect(() => {
+        if (!editMode) return;
+        setForm((prev) => {
+            if (!prev) return prev;
+            return {
+                ...prev,
+                price_mode: "Manual",
+                price: computedRoutePrice,
+            };
+        });
+    }, [computedRoutePrice, editMode]);
+
+    const { data: documents = [], isLoading: documentsLoading } = useFrappeList("Cheese Document", {
+        enabled: !!id,
+        filters: {
+            entity_type: "Cheese Route",
+            entity_id: id,
+        },
+        fields: ["name", "title", "document_type", "file_url", "status", "language", "version", "validity_date", "creation"],
+        pageSize: 20,
+        orderBy: "creation desc",
+    });
+
+    const handleMoveExperience = (fromIndex, toIndex) => {
+        setExperienceIds((prev) => {
+            if (toIndex < 0 || toIndex >= prev.length) return prev;
+            const next = [...prev];
+            const [moved] = next.splice(fromIndex, 1);
+            next.splice(toIndex, 0, moved);
+            return next;
+        });
+    };
+
+    const handleRemoveExperience = (index) => {
+        setExperienceIds((prev) => prev.filter((_, i) => i !== index));
+    };
+
+    const handleAddExperienceToRoute = () => {
+        if (!experienceToAdd) {
+            toast.error("Select an experience to add");
+            return;
+        }
+        if (experienceIds.includes(experienceToAdd)) {
+            toast.error("This experience is already included");
+            return;
+        }
+        setExperienceIds((prev) => [...prev, experienceToAdd]);
+        setExperienceToAdd("");
+    };
+
+    const handleSave = async () => {
         if (!form.short_description) {
             toast.error("Short description is required.");
             return;
         }
 
-        // Calculate only what changed
+        const sortedCurrent = Array.isArray(route?.experiences)
+            ? [...route.experiences].sort((a, b) => (a.sequence || 0) - (b.sequence || 0))
+            : [];
+        const currentIds = sortedCurrent.map((row) => row.experience).filter(Boolean);
+        const experiencesChanged = JSON.stringify(currentIds) !== JSON.stringify(experienceIds);
+
+        // Calculate only what changed (scalar fields)
         const changes = {};
         Object.keys(form).forEach(key => {
             if (form[key] !== (route[key] || "") && !(form[key] === 0 && !route[key])) {
@@ -57,18 +149,37 @@ export default function RouteDetail() {
             }
         });
 
-        if (Object.keys(changes).length === 0) {
+        if (Object.keys(changes).length === 0 && !experiencesChanged) {
             setEditMode(false);
             return;
         }
 
-        updateMutation.mutate({ name: id, data: changes }, {
-            onSuccess: () => {
-                toast.success("Route updated successfully.");
-                setEditMode(false);
-            },
-            onError: (err) => toast.error(err?.message || "Failed to update route")
-        });
+        try {
+            // Save experiences ordering through backend controller (child table update).
+            if (experiencesChanged) {
+                setIsSavingExperiences(true);
+                const experiencesPayload = experienceIds.map((expId, idx) => ({
+                    experience: expId,
+                    sequence: idx + 1,
+                }));
+                const res = await routeService.updateRoute(id, { experiences: experiencesPayload });
+                if (res?.success === false) {
+                    toast.error(res?.data?.message || "Failed to update route experiences");
+                    return;
+                }
+            }
+
+            if (Object.keys(changes).length > 0) {
+                await updateMutation.mutateAsync({ name: id, data: changes });
+            }
+
+            toast.success("Route updated successfully.");
+            setEditMode(false);
+        } catch (err) {
+            toast.error(err?.message || "Failed to update route");
+        } finally {
+            setIsSavingExperiences(false);
+        }
     };
 
     const getStatusBadge = (status) => {
@@ -82,7 +193,7 @@ export default function RouteDetail() {
 
     return (
         <DetailPageLayout
-            title={route?.short_description || "Loading Route..."}
+            title={route?.short_description || route?.route_info || route?.name || "Route"}
             subtitle={`Route Identifier: ${id}`}
             backPath="/cheese/routes"
             isLoading={isLoading}
@@ -90,7 +201,7 @@ export default function RouteDetail() {
             onEditToggle={() => setEditMode(!editMode)}
             editMode={editMode}
             onSave={handleSave}
-            isSaving={updateMutation.isPending}
+            isSaving={updateMutation.isPending || isSavingExperiences}
         >
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 {/* Left/Main Column - Forms */}
@@ -132,6 +243,26 @@ export default function RouteDetail() {
                                                 <EditableField label="Status" value={form.status} editMode={false} />
                                             )}
                                         </div>
+
+                                        <EditableField
+                                            label="Google Maps Link"
+                                            value={form.google_maps_link}
+                                            onChange={(v) => handleFieldChange("google_maps_link", v)}
+                                            editMode={editMode}
+                                            placeholder="https://maps.google.com/..."
+                                        />
+
+                                        {!editMode && form.google_maps_link ? (
+                                            <div className="flex items-center gap-2">
+                                                <Button
+                                                    type="button"
+                                                    variant="outline"
+                                                    onClick={() => window.open(form.google_maps_link, "_blank")}
+                                                >
+                                                    Open in Google Maps
+                                                </Button>
+                                            </div>
+                                        ) : null}
                                     </div>
                                 </CardContent>
                             </Card>
@@ -155,6 +286,49 @@ export default function RouteDetail() {
                                             className="text-sm prose prose-sm max-w-none text-muted-foreground"
                                             dangerouslySetInnerHTML={{ __html: route?.description || '<span class="italic font-normal">No description</span>' }}
                                         />
+                                    )}
+                                </CardContent>
+                            </Card>
+
+                            {/* Route Documents */}
+                            <Card className="border-border/60 shadow-sm">
+                                <CardHeader className="border-b bg-muted/20 pb-4">
+                                    <CardTitle className="text-sm font-semibold text-muted-foreground uppercase flex items-center">
+                                        <FileText className="w-4 h-4 mr-2" /> Documents
+                                    </CardTitle>
+                                </CardHeader>
+                                <CardContent className="p-0">
+                                    {documentsLoading ? (
+                                        <div className="p-6 text-sm text-muted-foreground">Loading...</div>
+                                    ) : documents && documents.length > 0 ? (
+                                        <div className="divide-y divide-border/50">
+                                            {documents.slice(0, 10).map((doc) => (
+                                                <div key={doc.name} className="p-4 flex items-center justify-between gap-3 hover:bg-muted/10 transition-colors">
+                                                    <div className="min-w-0">
+                                                        <p className="font-medium text-sm truncate">{doc.title || doc.name}</p>
+                                                        <p className="text-xs text-muted-foreground">
+                                                            {doc.document_type || "FILE"} {doc.language ? `• ${doc.language}` : ""}
+                                                        </p>
+                                                    </div>
+                                                    {doc.file_url ? (
+                                                        <Button
+                                                            type="button"
+                                                            variant="outline"
+                                                            onClick={() => window.open(doc.file_url, "_blank")}
+                                                        >
+                                                            Open
+                                                        </Button>
+                                                    ) : (
+                                                        <span className="text-xs text-muted-foreground">—</span>
+                                                    )}
+                                                </div>
+                                            ))}
+                                        </div>
+                                    ) : (
+                                        <div className="p-12 text-center text-muted-foreground flex flex-col items-center">
+                                            <FileText className="w-8 h-8 mb-4 opacity-20" />
+                                            <p>No documents attached to this route yet.</p>
+                                        </div>
                                     )}
                                 </CardContent>
                             </Card>
@@ -259,21 +433,83 @@ export default function RouteDetail() {
                                     <CardTitle className="text-sm font-semibold text-muted-foreground uppercase">Tied Experiences</CardTitle>
                                 </CardHeader>
                                 <CardContent className="p-0">
-                                    {route?.experiences && route.experiences.length > 0 ? (
+                                    {experienceIds.length > 0 ? (
                                         <div className="divide-y divide-border/50">
-                                            {route.experiences.map((exp, i) => (
-                                                <div key={i} className="p-4 flex items-center justify-between hover:bg-muted/10 transition-colors">
-                                                    <div className="flex items-center gap-2">
-                                                        <span className="text-xs font-semibold bg-muted px-2 py-0.5 rounded text-muted-foreground">Day {exp.day}</span>
-                                                        <p className="font-medium text-sm">{exp.experience}</p>
+                                            {experienceIds.map((expId, idx) => {
+                                                const exp = expById[expId];
+                                                const label = exp?.experience_info || exp?.name || expId;
+                                                return (
+                                                    <div key={`${expId}-${idx}`} className="p-4 flex items-center justify-between gap-4 hover:bg-muted/10 transition-colors">
+                                                        <div className="flex items-center gap-2 min-w-0">
+                                                            <span className="text-xs font-semibold bg-muted px-2 py-0.5 rounded text-muted-foreground">#{idx + 1}</span>
+                                                            <p className="font-medium text-sm truncate">{label}</p>
+                                                        </div>
+
+                                                        {editMode ? (
+                                                            <div className="flex items-center gap-1">
+                                                                <Button
+                                                                    type="button"
+                                                                    variant="ghost"
+                                                                    size="icon"
+                                                                    onClick={() => handleMoveExperience(idx, idx - 1)}
+                                                                    disabled={idx === 0}
+                                                                    className="h-8 w-8"
+                                                                >
+                                                                    <ChevronUp className="w-4 h-4" />
+                                                                </Button>
+                                                                <Button
+                                                                    type="button"
+                                                                    variant="ghost"
+                                                                    size="icon"
+                                                                    onClick={() => handleMoveExperience(idx, idx + 1)}
+                                                                    disabled={idx === experienceIds.length - 1}
+                                                                    className="h-8 w-8"
+                                                                >
+                                                                    <ChevronDown className="w-4 h-4" />
+                                                                </Button>
+                                                                <Button
+                                                                    type="button"
+                                                                    variant="ghost"
+                                                                    size="icon"
+                                                                    onClick={() => handleRemoveExperience(idx)}
+                                                                    className="h-8 w-8"
+                                                                >
+                                                                    <Trash2 className="w-4 h-4 text-red-500" />
+                                                                </Button>
+                                                            </div>
+                                                        ) : null}
                                                     </div>
-                                                </div>
-                                            ))}
+                                                );
+                                            })}
                                         </div>
                                     ) : (
                                         <div className="p-12 text-center text-muted-foreground flex flex-col items-center">
                                             <MapPin className="w-8 h-8 mb-4 opacity-20" />
-                                            <p>No experiences have been added to this route chain yet.</p>
+                                            <p>No experiences have been added to this route.</p>
+                                        </div>
+                                    )}
+
+                                    {editMode && (
+                                        <div className="p-4 border-t border-border bg-muted/20 space-y-3">
+                                            <div className="space-y-2">
+                                                <Label className="text-xs text-muted-foreground">Add experience</Label>
+                                                <FrappeSearchSelect
+                                                    doctype="Cheese Experience"
+                                                    label="experience_info"
+                                                    value={experienceToAdd}
+                                                    onChange={setExperienceToAdd}
+                                                    placeholder="Select an experience..."
+                                                />
+                                            </div>
+                                            <div className="flex items-center gap-2">
+                                                <Button type="button" variant="outline" disabled={!experienceToAdd} onClick={handleAddExperienceToRoute}>
+                                                    <Trash2 className="w-4 h-4 mr-2 opacity-0" /> {/* spacing helper */}
+                                                    Add
+                                                </Button>
+                                                <div className="text-xs text-muted-foreground">
+                                                    Route price updates to sum of included experiences.
+                                                </div>
+                                            </div>
                                         </div>
                                     )}
                                 </CardContent>

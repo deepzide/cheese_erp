@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Route, Search, Plus, ChevronRight, Sparkles, Globe, WifiOff, Archive, MoreHorizontal, AlertCircle, RefreshCw, Loader2, DollarSign, Ticket, Eye } from "lucide-react";
+import { Route, Search, Plus, ChevronRight, ChevronUp, ChevronDown, Sparkles, Globe, WifiOff, Archive, MoreHorizontal, AlertCircle, RefreshCw, Loader2, DollarSign, Ticket, Eye, Trash2 } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
 import { routeService } from "@/api/routeService";
@@ -31,6 +31,8 @@ export default function RoutesPage() {
     const [createOpen, setCreateOpen] = useState(false);
     const [detailRoute, setDetailRoute] = useState(null);
     const [form, setForm] = useState({ name: "", description: "", price: "" });
+    const [selectedExperienceIds, setSelectedExperienceIds] = useState([]);
+    const [experienceToAdd, setExperienceToAdd] = useState("");
 
     const { data: routesRaw, isLoading, error, refetch } = useQuery({
         queryKey: ['routes'],
@@ -52,6 +54,55 @@ export default function RoutesPage() {
 
     const routes = Array.isArray(routesRaw) ? routesRaw : [];
     const experiences = Array.isArray(experiencesRaw) ? experiencesRaw : [];
+    const experiencesById = useMemo(() => {
+        return Object.fromEntries((experiences || []).map((e) => [e.name, e]));
+    }, [experiences]);
+
+    const eligibleExperiences = useMemo(() => {
+        // Backend: only experiences with package_mode in ["Route", "Both"] are eligible for routes.
+        return (experiences || []).filter((e) => ["Route", "Both"].includes(e.package_mode));
+    }, [experiences]);
+
+    // Route price is the sum of included experience route prices (fallback to individual price)
+    const computedRoutePrice = useMemo(() => {
+        return selectedExperienceIds.reduce((sum, expId) => {
+            const exp = experiencesById[expId];
+            const price = Number(exp?.route_price ?? exp?.individual_price ?? 0);
+            return sum + (Number.isFinite(price) ? price : 0);
+        }, 0);
+    }, [selectedExperienceIds, experiencesById]);
+
+    const addExperienceToRoute = () => {
+        if (!experienceToAdd) {
+            toast.error("Select an experience to add");
+            return;
+        }
+        if (selectedExperienceIds.includes(experienceToAdd)) {
+            toast.error("This experience is already included in the route");
+            return;
+        }
+        const exp = experiencesById[experienceToAdd];
+        if (exp && !["Route", "Both"].includes(exp.package_mode)) {
+            toast.error(`Experience "${exp.experience_info || exp.name}" is not eligible for routes`);
+            return;
+        }
+        setSelectedExperienceIds(prev => [...prev, experienceToAdd]);
+        setExperienceToAdd("");
+    };
+
+    const moveExperience = (fromIndex, toIndex) => {
+        setSelectedExperienceIds(prev => {
+            if (toIndex < 0 || toIndex >= prev.length) return prev;
+            const next = [...prev];
+            const [moved] = next.splice(fromIndex, 1);
+            next.splice(toIndex, 0, moved);
+            return next;
+        });
+    };
+
+    const removeExperienceAt = (index) => {
+        setSelectedExperienceIds(prev => prev.filter((_, i) => i !== index));
+    };
 
     const createMutation = useMutation({
         mutationFn: (data) => routeService.createRoute(data),
@@ -59,21 +110,37 @@ export default function RoutesPage() {
             queryClient.invalidateQueries({ queryKey: ['routes'] });
             setCreateOpen(false);
             setForm({ name: "", description: "", price: "" });
+            setSelectedExperienceIds([]);
+            setExperienceToAdd("");
             toast.success("Route created");
         },
         onError: (err) => toast.error(err?.message || "Failed"),
     });
 
     const handleCreateRoute = () => {
-        if (!form.name.trim()) {
-            toast.error("Route name is required");
-            return;
-        }
         if (!form.description.trim()) {
             toast.error("Short Description is required");
             return;
         }
-        createMutation.mutate(form);
+        if (selectedExperienceIds.length === 0) {
+            toast.error("Add at least one experience to the route");
+            return;
+        }
+
+        const experiencesPayload = selectedExperienceIds.map((experienceId, idx) => ({
+            experience: experienceId,
+            sequence: idx + 1,
+        }));
+
+        createMutation.mutate({
+            name: form.description,
+            description: form.description,
+            // Route doctype requires `short_description`; the UI's “Short Description” field maps to it.
+            short_description: form.description,
+            price_mode: "Manual",
+            price: computedRoutePrice,
+            experiences: experiencesPayload,
+        });
     };
 
     const publishMutation = useMutation({
@@ -154,7 +221,7 @@ export default function RoutesPage() {
                                                 <Route className="w-5 h-5 text-black" />
                                             </div>
                                             <div>
-                                                <h3 className="font-semibold text-foreground line-clamp-1">{route.route_info || route.name}</h3>
+												<h3 className="font-semibold text-foreground line-clamp-1">{route.short_description || route.route_info || route.name}</h3>
                                                 <span className="text-xs text-muted-foreground">{route.route_id || route.name}</span>
                                             </div>
                                         </div>
@@ -190,7 +257,7 @@ export default function RoutesPage() {
                                             <div className="flex items-center gap-1 flex-wrap">
                                                 <Sparkles className="w-3 h-3 text-cheese-600" />
                                                 {route.experiences.slice(0, 3).map((exp, i) => (
-                                                    <Badge key={i} variant="outline" className="text-[10px] px-1.5 py-0">{exp.experience_info || exp.experience_id || exp.name}</Badge>
+													<Badge key={i} variant="outline" className="text-[10px] px-1.5 py-0">{exp.experience || exp.experience_info || exp.name}</Badge>
                                                 ))}
                                                 {route.experiences.length > 3 && <span className="text-[10px] text-muted-foreground">+{route.experiences.length - 3}</span>}
                                             </div>
@@ -218,9 +285,101 @@ export default function RoutesPage() {
                         <DialogDescription>Create a new experience route</DialogDescription>
                     </DialogHeader>
                     <div className="space-y-4">
-                        <div className="space-y-2"><Label>Name *</Label><Input placeholder="Golden Route" value={form.name} onChange={(e) => setForm(f => ({ ...f, name: e.target.value }))} /></div>
-                        <div className="space-y-2"><Label>Short Description *</Label><Input placeholder="A tour through the finest..." value={form.description} onChange={(e) => setForm(f => ({ ...f, description: e.target.value }))} /></div>
-                        <div className="space-y-2"><Label>Price</Label><Input type="number" min="0" placeholder="150" value={form.price} onChange={(e) => setForm(f => ({ ...f, price: e.target.value }))} /></div>
+                        <div className="space-y-2">
+                            <Label>Short Description *</Label>
+                            <Input
+                                placeholder="e.g. Golden Route"
+                                value={form.description}
+                                onChange={(e) =>
+                                    setForm((f) => ({
+                                        ...f,
+                                        description: e.target.value,
+                                        name: e.target.value,
+                                    }))
+                                }
+                            />
+                        </div>
+
+                        <div className="space-y-2">
+                            <Label>Experiences *</Label>
+                            <div className="flex items-end gap-2">
+                                <div className="flex-1">
+                                    <Select value={experienceToAdd} onValueChange={setExperienceToAdd}>
+                                        <SelectTrigger>
+                                            <SelectValue placeholder="Select an experience..." />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {eligibleExperiences.map((exp) => (
+                                                <SelectItem key={exp.name} value={exp.name}>
+                                                    {exp.experience_info || exp.name}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    disabled={!experienceToAdd}
+                                    onClick={addExperienceToRoute}
+                                >
+                                    <Plus className="w-4 h-4 mr-1" /> Add
+                                </Button>
+                            </div>
+
+                            {selectedExperienceIds.length > 0 && (
+                                <div className="mt-2 space-y-2 max-h-48 overflow-y-auto pr-1">
+                                    {selectedExperienceIds.map((expId, idx) => {
+                                        const exp = experiencesById[expId];
+                                        return (
+                                            <div key={`${expId}-${idx}`} className="flex items-center justify-between gap-3 p-2 bg-muted/20 rounded-lg border border-border">
+                                                <div className="min-w-0 flex items-center gap-2">
+                                                    <span className="text-xs font-semibold bg-muted px-2 py-0.5 rounded text-muted-foreground">#{idx + 1}</span>
+                                                    <p className="text-sm font-medium truncate">
+                                                        {exp?.experience_info || exp?.name || expId}
+                                                    </p>
+                                                </div>
+                                                <div className="flex items-center gap-1">
+                                                    <button
+                                                        type="button"
+                                                        aria-label="Move up"
+                                                        disabled={idx === 0}
+                                                        onClick={() => moveExperience(idx, idx - 1)}
+                                                        className="p-1 rounded hover:bg-muted disabled:opacity-50 disabled:cursor-not-allowed"
+                                                    >
+                                                        <ChevronUp className="w-4 h-4" />
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        aria-label="Move down"
+                                                        disabled={idx === selectedExperienceIds.length - 1}
+                                                        onClick={() => moveExperience(idx, idx + 1)}
+                                                        className="p-1 rounded hover:bg-muted disabled:opacity-50 disabled:cursor-not-allowed"
+                                                    >
+                                                        <ChevronDown className="w-4 h-4" />
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        aria-label="Remove experience"
+                                                        onClick={() => removeExperienceAt(idx)}
+                                                        className="p-1 rounded hover:bg-muted"
+                                                    >
+                                                        <Trash2 className="w-4 h-4 text-red-500" />
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            )}
+                        </div>
+
+                        <div className="space-y-2">
+                            <Label>Route Price (Sum of included experiences) *</Label>
+                            <div className="text-sm font-semibold px-3 py-2 rounded-md bg-muted/40 border border-border">
+                                ${Number(computedRoutePrice || 0).toLocaleString()}
+                            </div>
+                        </div>
                     </div>
                     <DialogFooter>
                         <Button variant="outline" onClick={() => setCreateOpen(false)}>Cancel</Button>

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
@@ -14,6 +14,31 @@ import { apiRequest } from "@/api/client";
 export default function Dashboard() {
     const navigate = useNavigate();
     const [period, setPeriod] = useState("today");
+
+    const { dateFrom, dateTo } = useMemo(() => {
+        const now = new Date();
+        const toISODate = (d) => d.toISOString().slice(0, 10);
+        const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        if (period === "today") {
+            return { dateFrom: toISODate(startOfToday), dateTo: toISODate(startOfToday) };
+        }
+        if (period === "yesterday") {
+            const y = new Date(startOfToday);
+            y.setDate(y.getDate() - 1);
+            return { dateFrom: toISODate(y), dateTo: toISODate(y) };
+        }
+        if (period === "7") {
+            const d = new Date(startOfToday);
+            d.setDate(d.getDate() - 6);
+            return { dateFrom: toISODate(d), dateTo: toISODate(startOfToday) };
+        }
+        if (period === "30") {
+            const d = new Date(startOfToday);
+            d.setDate(d.getDate() - 29);
+            return { dateFrom: toISODate(d), dateTo: toISODate(startOfToday) };
+        }
+        return { dateFrom: null, dateTo: null };
+    }, [period]);
 
     const { data: dashRaw, isLoading, error, refetch } = useQuery({
         queryKey: ['dashboard', period],
@@ -85,7 +110,21 @@ export default function Dashboard() {
 
     // Recent activity / agenda
     const agenda = dashboard.agenda || dashboard.day_agenda || [];
-    const pendingActions = dashboard.pending_actions || [];
+
+    const {
+        data: pendingActionsData,
+        isLoading: pendingActionsLoading,
+        error: pendingActionsError,
+        refetch: refetchPendingActions,
+    } = useQuery({
+        queryKey: ["pending-actions", period],
+        queryFn: async () => {
+            const result = await dashboardService.getPendingActions(null, dateFrom, dateTo);
+            return result?.data?.data || result?.data || result || {};
+        },
+    });
+
+    const pendingConfirmations = pendingActionsData?.pending_confirmations || [];
 
     if (error) {
         return (
@@ -219,6 +258,59 @@ export default function Dashboard() {
                     </CardContent>
                 </Card>
             )}
+
+            {/* Pending Confirmations */}
+            <Card className="border-0 shadow-lg">
+                <CardHeader className="pb-2">
+                    <CardTitle className="text-base flex items-center gap-2">
+                        <Clock className="w-4 h-4 text-cheese-600" /> Pending Confirmations
+                    </CardTitle>
+                </CardHeader>
+                <CardContent>
+                    {pendingActionsError ? (
+                        <div className="p-3 text-sm text-red-500">
+                            Failed to load pending confirmations.
+                        </div>
+                    ) : pendingActionsLoading ? (
+                        <div className="space-y-2">
+                            {Array.from({ length: 5 }).map((_, i) => (
+                                <Skeleton key={i} className="h-12 w-full" />
+                            ))}
+                        </div>
+                    ) : pendingConfirmations.length > 0 ? (
+                        <div className="space-y-2">
+                            {pendingConfirmations.slice(0, 10).map((t) => (
+                                <div key={t.name} className="flex items-start justify-between gap-3 p-3 bg-muted/30 rounded-lg">
+                                    <div className="min-w-0">
+                                        <p className="text-sm font-medium truncate">{t.name}</p>
+                                        <p className="text-xs text-muted-foreground truncate">
+                                            {t.experience ? `Exp: ${t.experience}` : ""} {t.route ? `• Route: ${t.route}` : ""}
+                                        </p>
+                                        <p className="text-xs text-muted-foreground truncate">
+                                            {t.slot_date_from ? `Date: ${t.slot_date_from}` : ""} {t.slot_time_from ? `• Time: ${t.slot_time_from}` : ""}
+                                            {t.party_size ? ` • Ppl: ${t.party_size}` : ""}
+                                        </p>
+                                    </div>
+                                    <div className="flex flex-col gap-2 shrink-0">
+                                        <Button
+                                            variant="outline"
+                                            className="h-8"
+                                            onClick={() => navigate(`/cheese/bookings/new?ticket=${t.name}`)}
+                                        >
+                                            Convert to Booking
+                                        </Button>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    ) : (
+                        <p className="text-sm text-muted-foreground">No pending confirmations for this period.</p>
+                    )}
+                    {pendingConfirmations.length > 10 ? (
+                        <p className="text-xs text-muted-foreground mt-2">Showing first 10 items.</p>
+                    ) : null}
+                </CardContent>
+            </Card>
         </motion.div>
     );
 }

@@ -11,11 +11,13 @@ import FrappeSearchSelect from "@/components/FrappeSearchSelect";
 export default function LeadCreate() {
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
+    const contactId = searchParams.get("contact") || "";
     const [form, setForm] = useState({
         contact: searchParams.get("contact") || "",
         interest_type: searchParams.get("interest_type") || "",
-        status: searchParams.get("status") || "New",
+        status: searchParams.get("status") || "OPEN",
     });
+    const backPath = contactId ? `/cheese/contacts/${contactId}` : "/cheese/leads";
     const createMutation = useFrappeCreate("Cheese Lead");
 
     const handleSubmit = () => {
@@ -31,7 +33,7 @@ export default function LeadCreate() {
             title="New Lead"
             description="Register a new sales lead"
             icon={UserPlus}
-            backPath="/cheese/leads"
+            backPath={backPath}
             onSubmit={handleSubmit}
             isSubmitting={createMutation.isPending}
             submitLabel="Create Lead"
@@ -55,7 +57,6 @@ export default function LeadCreate() {
                             <SelectContent>
                                 <SelectItem value="Route">Route</SelectItem>
                                 <SelectItem value="Experience">Experience</SelectItem>
-                                <SelectItem value="General">General</SelectItem>
                             </SelectContent>
                         </Select>
                     </div>
@@ -64,9 +65,11 @@ export default function LeadCreate() {
                         <Select value={form.status} onValueChange={(v) => setForm(f => ({ ...f, status: v }))}>
                             <SelectTrigger><SelectValue /></SelectTrigger>
                             <SelectContent>
-                                <SelectItem value="New">New</SelectItem>
-                                <SelectItem value="Contacted">Contacted</SelectItem>
-                                <SelectItem value="Qualified">Qualified</SelectItem>
+                                <SelectItem value="OPEN">OPEN</SelectItem>
+                                <SelectItem value="IN_PROGRESS">IN_PROGRESS</SelectItem>
+                                <SelectItem value="CONVERTED">CONVERTED</SelectItem>
+                                <SelectItem value="LOST">LOST</SelectItem>
+                                <SelectItem value="DISCARDED">DISCARDED</SelectItem>
                             </SelectContent>
                         </Select>
                     </div>

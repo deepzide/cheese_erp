@@ -15,19 +15,20 @@ import { toast } from "sonner";
 import { useFrappeList, useFrappeCreate, useFrappeUpdate, useFrappeDelete } from "@/lib/useApiData";
 
 const LEAD_STATUSES = {
-    New: "bg-blue-500/15 text-blue-700 dark:text-blue-400",
-    Contacted: "bg-yellow-500/15 text-yellow-700 dark:text-yellow-400",
-    Qualified: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400",
-    Lost: "bg-red-500/15 text-red-700 dark:text-red-400",
+    OPEN: "bg-blue-500/15 text-blue-700 dark:text-blue-400",
+    IN_PROGRESS: "bg-yellow-500/15 text-yellow-700 dark:text-yellow-400",
+    CONVERTED: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400",
+    LOST: "bg-red-500/15 text-red-700 dark:text-red-400",
+    DISCARDED: "bg-gray-500/15 text-gray-600 dark:text-gray-400",
 };
 
-const SOURCES = ["Website", "Referral", "Phone", "Email", "Walk-in", "Social", "Advertisement", "WhatsApp"];
+const LOST_REASONS = ["No Response", "Price Too High", "Not Interested", "Other"];
 
 export default function Leads() {
     const navigate = useNavigate();
     const [searchTerm, setSearchTerm] = useState("");
     const [createOpen, setCreateOpen] = useState(false);
-    const [form, setForm] = useState({ lead_name: "", source: "", interest: "", status: "New" });
+    const [form, setForm] = useState({ contact: "", interest_type: "", status: "OPEN" });
 
     const { data: leads = [], isLoading, error, refetch } = useFrappeList("Cheese Lead", {
         fields: ["name", "contact", "conversation", "status", "interest_type", "lost_reason", "last_interaction_at"],
@@ -46,14 +47,20 @@ export default function Leads() {
 
     const handleCreate = () => {
         if (!form.contact || !form.interest_type) { toast.error("Contact and interest type are required"); return; }
-        createMutation.mutate({ contact: form.contact, interest_type: form.interest_type, status: "New" }, {
-            onSuccess: () => { setForm({ contact: "", interest_type: "", status: "New" }); setCreateOpen(false); toast.success("Lead created"); },
+        createMutation.mutate({ contact: form.contact, interest_type: form.interest_type, status: "OPEN" }, {
+            onSuccess: () => { setForm({ contact: "", interest_type: "", status: "OPEN" }); setCreateOpen(false); toast.success("Lead created"); },
             onError: (err) => toast.error(err?.message || "Failed"),
         });
     };
 
-    const updateStatus = (name, newStatus) => {
-        updateMutation.mutate({ name, data: { status: newStatus } }, {
+    const updateStatus = (name, newStatus, lostReason) => {
+        updateMutation.mutate({
+            name,
+            data: {
+                status: newStatus,
+                ...(newStatus === "LOST" && lostReason ? { lost_reason: lostReason } : {}),
+            },
+        }, {
             onSuccess: () => toast.success(`Lead → ${newStatus}`),
             onError: (err) => toast.error(err?.message || "Failed"),
         });
@@ -112,9 +119,32 @@ export default function Leads() {
                                         <DropdownMenuContent align="end">
                                             <DropdownMenuItem onClick={() => navigate(`/cheese/leads/${lead.name}`)}><Eye className="w-3 h-3 mr-2" /> View Details</DropdownMenuItem>
                                             <DropdownMenuSeparator />
-                                            {Object.keys(LEAD_STATUSES).filter(s => s !== lead.status).map(s => (
-                                                <DropdownMenuItem key={s} onClick={() => updateStatus(lead.name, s)}>Move to {s}</DropdownMenuItem>
-                                            ))}
+                                            {Object.keys(LEAD_STATUSES)
+                                                .filter(s => s !== lead.status)
+                                                .map((s) => (
+                                                    <DropdownMenuItem
+                                                        key={s}
+                                                        onClick={() => {
+                                                            if (s === "LOST") {
+                                                                const reason = window.prompt(
+                                                                    `Lost reason for ${lead.name} (one of: ${LOST_REASONS.join(", ")})`,
+                                                                    lead.lost_reason || LOST_REASONS[0]
+                                                                );
+                                                                if (!reason) return;
+                                                                const trimmed = reason.trim();
+                                                                if (!LOST_REASONS.includes(trimmed)) {
+                                                                    toast.error("Invalid lost reason. Please use one of the suggested values.");
+                                                                    return;
+                                                                }
+                                                                updateStatus(lead.name, s, trimmed);
+                                                            } else {
+                                                                updateStatus(lead.name, s);
+                                                            }
+                                                        }}
+                                                    >
+                                                        Move to {s}
+                                                    </DropdownMenuItem>
+                                                ))}
                                             <DropdownMenuSeparator />
                                             <DropdownMenuItem onClick={() => navigate(`/cheese/quotations/new?lead=${lead.name}`)}><FileText className="w-3 h-3 mr-2" /> Create Quotation</DropdownMenuItem>
                                             <DropdownMenuItem onClick={() => navigate(`/cheese/conversations?lead=${lead.name}`)}>Conversations</DropdownMenuItem>
@@ -123,7 +153,7 @@ export default function Leads() {
                                         </DropdownMenuContent>
                                     </DropdownMenu>
                                 </div>
-                                <Badge className={LEAD_STATUSES[lead.status] || LEAD_STATUSES.New}>{lead.status || 'New'}</Badge>
+                                <Badge className={LEAD_STATUSES[lead.status] || LEAD_STATUSES.OPEN}>{lead.status || 'OPEN'}</Badge>
                                 {lead.interest_type && <p className="text-sm text-muted-foreground mt-2">Interest: <span className="font-medium text-foreground">{lead.interest_type}</span></p>}
                                 <div className="flex items-center justify-between mt-3 pt-3 border-t border-border text-xs text-muted-foreground">
                                     <span>{lead.lost_reason ? `Lost: ${lead.lost_reason}` : ''}</span><span>{lead.last_interaction_at || '—'}</span>
@@ -149,7 +179,6 @@ export default function Leads() {
                                 <SelectContent>
                                     <SelectItem value="Route">Route</SelectItem>
                                     <SelectItem value="Experience">Experience</SelectItem>
-                                    <SelectItem value="General">General</SelectItem>
                                 </SelectContent>
                             </Select>
                         </div>

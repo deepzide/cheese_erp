@@ -9,7 +9,16 @@ import json
 
 
 @frappe.whitelist()
-def create_route(name, description=None, status="OFFLINE", experiences=None, price_mode=None, price=None):
+def create_route(
+	name,
+	description=None,
+	status="OFFLINE",
+	experiences=None,
+	price_mode=None,
+	price=None,
+	short_description=None,
+	google_maps_link=None
+):
 	"""
 	Create a new route with experiences
 	
@@ -76,6 +85,10 @@ def create_route(name, description=None, status="OFFLINE", experiences=None, pri
 			"doctype": "Cheese Route",
 			"name": name,
 			"description": description,
+			# `Cheese Route.short_description` is required in the doctype schema.
+			# The frontend currently sends the route "Name" as `name`, so we map it here.
+			"short_description": short_description or name,
+			"google_maps_link": google_maps_link,
 			"status": status,
 			"price_mode": price_mode,
 			"price": price
@@ -108,7 +121,17 @@ def create_route(name, description=None, status="OFFLINE", experiences=None, pri
 
 
 @frappe.whitelist()
-def update_route(route_id, name=None, description=None, status=None, experiences=None, price_mode=None, price=None):
+def update_route(
+	route_id,
+	name=None,
+	description=None,
+	status=None,
+	experiences=None,
+	price_mode=None,
+	price=None,
+	short_description=None,
+	google_maps_link=None
+):
 	"""
 	Update route details
 	
@@ -138,6 +161,10 @@ def update_route(route_id, name=None, description=None, status=None, experiences
 			route.name = name
 		if description is not None:
 			route.description = description
+		if short_description is not None:
+			route.short_description = short_description
+		if google_maps_link is not None:
+			route.google_maps_link = google_maps_link
 		if status is not None:
 			if status not in ["ONLINE", "OFFLINE", "ARCHIVED"]:
 				return validation_error(f"Invalid status: {status}")
@@ -240,6 +267,7 @@ def get_route_details(route_id):
 				"name": route.name,
 				"description": route.description,
 				"status": route.status,
+				"google_maps_link": getattr(route, "google_maps_link", None),
 				"price_mode": route.price_mode,
 				"price": route.price,
 				"deposit_required": route.deposit_required,
@@ -327,7 +355,7 @@ def list_routes(page=1, page_size=20, status=None, search=None, experiences=None
 			"Cheese Route",
 			filters=filters,
 			or_filters=or_filters if or_filters else None,
-			fields=["name", "name as route_id", "name as route_name", "description", "status", "price_mode", "price"],
+			fields=["name", "short_description", "google_maps_link", "name as route_id", "name as route_name", "description", "status", "price_mode", "price"],
 			limit_start=(page - 1) * page_size,
 			limit_page_length=page_size,
 			order_by="name asc"
@@ -338,7 +366,7 @@ def list_routes(page=1, page_size=20, status=None, search=None, experiences=None
 			experiences = frappe.get_all(
 				"Cheese Route Experience",
 				filters={"parent": route.name},
-				fields=["experience"],
+				fields=["experience", "sequence"],
 				order_by="sequence asc"
 			)
 			
@@ -355,7 +383,8 @@ def list_routes(page=1, page_size=20, status=None, search=None, experiences=None
 					route["experiences"].append({
 						"id": exp_details.name,
 						"experience": exp_details.name,
-						"establishment": exp_details.company
+						"establishment": exp_details.company,
+						"sequence": exp.sequence
 					})
 			
 			route["experiences_count"] = len(route["experiences"])
@@ -667,7 +696,24 @@ def get_route_deposit_instructions(route_booking_id):
 		if not deposit_name:
 			# Create deposit
 			from frappe.utils import add_to_date, now_datetime
-			due_at = add_to_date(now_datetime(), hours=route.deposit_ttl_hours or 24, as_string=False)
+			reservation_now = now_datetime()
+			deposit_due_candidates = []
+			for exp_row in route.experiences:
+				exp_doc = frappe.get_doc("Cheese Experience", exp_row.experience)
+				if exp_doc.deposit_required:
+					deposit_due_candidates.append(
+						add_to_date(
+							reservation_now,
+							hours=exp_doc.deposit_ttl_hours or 24,
+							as_string=False,
+						)
+					)
+
+			due_at = (
+				min(deposit_due_candidates)
+				if deposit_due_candidates
+				else add_to_date(reservation_now, hours=route.deposit_ttl_hours or 24, as_string=False)
+			)
 			
 			deposit = frappe.get_doc({
 				"doctype": "Cheese Deposit",

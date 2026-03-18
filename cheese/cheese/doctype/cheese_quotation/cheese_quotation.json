@@ -15,6 +15,7 @@
         "route",
         "conversation",
         "valid_until",
+        "party_size",
         "experiences_section",
         "experiences",
         "pricing_section",
@@ -62,6 +63,14 @@
             "fieldname": "valid_until",
             "fieldtype": "Datetime",
             "label": "Valid Until"
+        },
+        {
+            "fieldname": "party_size",
+            "fieldtype": "Int",
+            "in_list_view": 1,
+            "in_standard_filter": 1,
+            "label": "Party Size",
+            "default": "1"
         },
         {
             "fieldname": "experiences_section",

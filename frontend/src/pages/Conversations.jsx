@@ -40,7 +40,7 @@ export default function Conversations() {
     const filtered = (Array.isArray(convos) ? convos : []).filter(c => {
         if (searchTerm) {
             const term = searchTerm.toLowerCase();
-            return (c.contact || '').toLowerCase().includes(term) || (c.summary || '').toLowerCase().includes(term) || (c.name || '').toLowerCase().includes(term);
+            return (c.contact || '').toLowerCase().includes(term) || (c.summary || '').toLowerCase().includes(term) || (c.name || '').toLowerCase().includes(term) || (c.lead || '').toLowerCase().includes(term);
         }
         return true;
     });

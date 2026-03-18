@@ -242,6 +242,28 @@ export default function QuotationDetail() {
                                         <span className="flex items-center"><CheckCircle className="w-4 h-4 mr-2" /> Mark as Accepted</span>
                                     </button>
                                 )}
+                                {quotation?.lead && (
+                                    <button onClick={() => navigate(`/cheese/leads/${quotation.lead}`)} className="text-sm text-left px-3 py-2 rounded-md hover:bg-primary/10 transition-colors text-primary font-medium flex items-center justify-between">
+                                        <span className="flex items-center"><FileText className="w-4 h-4 mr-2" /> View Lead</span>
+                                    </button>
+                                )}
+                                {quotation?.route && (
+                                    <button onClick={() => navigate(`/cheese/routes/${quotation.route}`)} className="text-sm text-left px-3 py-2 rounded-md hover:bg-primary/10 transition-colors text-primary font-medium flex items-center justify-between">
+                                        <span className="flex items-center"><FileText className="w-4 h-4 mr-2" /> View Route</span>
+                                    </button>
+                                )}
+                                <button
+                                    onClick={() => window.open(`/printview?doctype=${encodeURIComponent("Cheese Quotation")}&name=${encodeURIComponent(id)}`, "_blank")}
+                                    className="text-sm text-left px-3 py-2 rounded-md hover:bg-primary/10 transition-colors text-primary font-medium flex items-center justify-between"
+                                >
+                                    <span className="flex items-center"><FileText className="w-4 h-4 mr-2" /> Print</span>
+                                </button>
+                                <button
+                                    onClick={() => window.open(`/printview?doctype=${encodeURIComponent("Cheese Quotation")}&name=${encodeURIComponent(id)}&format=pdf`, "_blank")}
+                                    className="text-sm text-left px-3 py-2 rounded-md hover:bg-primary/10 transition-colors text-primary font-medium flex items-center justify-between"
+                                >
+                                    <span className="flex items-center"><FileText className="w-4 h-4 mr-2" /> Export PDF</span>
+                                </button>
                                 <button className="text-sm text-left px-3 py-2 rounded-md hover:bg-primary/10 transition-colors text-primary font-medium flex items-center">
                                     <Clock className="w-4 h-4 mr-2" /> Send Follow-up Reminder
                                 </button>

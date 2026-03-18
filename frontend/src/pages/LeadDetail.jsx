@@ -1,13 +1,14 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { useFrappeDoc, useFrappeUpdate } from "@/lib/useApiData";
+import { useFrappeDoc, useFrappeList, useFrappeUpdate } from "@/lib/useApiData";
 import { toast } from "sonner";
 import DetailPageLayout from "@/components/DetailPageLayout";
 import EditableField from "@/components/EditableField";
 import { Label } from "@/components/ui/label";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Target, MessageSquare, Calendar, Activity, ChevronRight, FileText } from "lucide-react";
+import { Target, MessageSquare, Calendar, Activity, ChevronRight, FileText, Ticket, ShoppingCart, DollarSign } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
 export default function LeadDetail() {
@@ -17,6 +18,38 @@ export default function LeadDetail() {
     // Fetch Data
     const { data: lead, isLoading } = useFrappeDoc("Cheese Lead", id);
     const updateMutation = useFrappeUpdate("Cheese Lead");
+
+    // Related records (filtered)
+    const { data: quotations = [], isLoading: quotationsLoading } = useFrappeList("Cheese Quotation", {
+        filters: { lead: id },
+        fields: ["name", "total_price", "status", "valid_until", "route", "modified"],
+        pageSize: 5,
+        enabled: !!id,
+    });
+
+    const { data: tickets = [], isLoading: ticketsLoading } = useFrappeList("Cheese Ticket", {
+        filters: lead?.contact ? { contact: lead.contact } : {},
+        fields: ["name", "experience", "route", "slot", "selected_date", "party_size", "status", "creation", "expires_at"],
+        pageSize: 5,
+        enabled: !!lead?.contact,
+        orderBy: "creation desc",
+    });
+
+    const { data: routeBookings = [], isLoading: routeBookingsLoading } = useFrappeList("Cheese Route Booking", {
+        filters: lead?.contact ? { contact: lead.contact } : {},
+        fields: ["name", "route", "status", "total_price", "deposit_required", "deposit_amount", "expires_at", "modified"],
+        pageSize: 5,
+        enabled: !!lead?.contact,
+        orderBy: "modified desc",
+    });
+
+    const { data: conversations = [], isLoading: conversationsLoading } = useFrappeList("Conversation", {
+        filters: { lead: id },
+        fields: ["name", "contact", "channel", "status", "summary", "transcript_url", "ticket", "route_booking", "modified"],
+        pageSize: 5,
+        enabled: !!id,
+        orderBy: "modified desc",
+    });
 
     // Local State for Edit Mode
     const [editMode, setEditMode] = useState(false);
@@ -182,6 +215,182 @@ export default function LeadDetail() {
                                 </CardHeader>
                                 <CardContent className="p-6">
                                     <EditableField label="Conversation" value={form.conversation} onChange={(v) => handleFieldChange("conversation", v)} editMode={editMode} doctype="Conversation" searchLabel="name" />
+                                </CardContent>
+                            </Card>
+
+                            {/* Related Quotations */}
+                            <Card className="border-border/60 shadow-sm">
+                                <CardHeader className="border-b bg-muted/20 pb-4">
+                                    <CardTitle className="text-sm font-semibold text-muted-foreground uppercase flex items-center">
+                                        <FileText className="w-4 h-4 mr-2" /> Quotations
+                                    </CardTitle>
+                                </CardHeader>
+                                <CardContent className="p-6 space-y-3">
+                                    {quotationsLoading ? (
+                                        <p className="text-sm text-muted-foreground">Loading quotations...</p>
+                                    ) : quotations.length > 0 ? (
+                                        <div className="space-y-2">
+                                            {quotations.map((q) => (
+                                                <div key={q.name} className="flex items-center justify-between gap-3 p-2 bg-muted rounded-lg">
+                                                    <div className="min-w-0">
+                                                        <p className="text-sm font-medium truncate">{q.name}</p>
+                                                        <p className="text-xs text-muted-foreground truncate">
+                                                            {q.route ? `Route: ${q.route}` : "No route"} • {q.status || "—"}
+                                                        </p>
+                                                    </div>
+                                                    <div className="flex items-center gap-2 shrink-0">
+                                                        <p className="text-sm font-semibold flex items-center gap-1">
+                                                            <DollarSign className="w-3.5 h-3.5" />
+                                                            {Number(q.total_price || 0).toLocaleString()}
+                                                        </p>
+                                                        <Button
+                                                            type="button"
+                                                            variant="outline"
+                                                            size="sm"
+                                                            onClick={() => navigate(`/cheese/quotations/${q.name}`)}
+                                                        >
+                                                            View
+                                                        </Button>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    ) : (
+                                        <p className="text-sm text-muted-foreground">No quotations for this lead.</p>
+                                    )}
+                                </CardContent>
+                            </Card>
+
+                            {/* Related Tickets */}
+                            <Card className="border-border/60 shadow-sm">
+                                <CardHeader className="border-b bg-muted/20 pb-4">
+                                    <CardTitle className="text-sm font-semibold text-muted-foreground uppercase flex items-center">
+                                        <Ticket className="w-4 h-4 mr-2" /> Tickets
+                                    </CardTitle>
+                                </CardHeader>
+                                <CardContent className="p-6 space-y-3">
+                                    {ticketsLoading ? (
+                                        <p className="text-sm text-muted-foreground">Loading tickets...</p>
+                                    ) : tickets.length > 0 ? (
+                                        <div className="space-y-2">
+                                            {tickets.map((t) => (
+                                                <div key={t.name} className="flex items-center justify-between gap-3 p-2 bg-muted rounded-lg">
+                                                    <div className="min-w-0">
+                                                        <p className="text-sm font-medium truncate">{t.name}</p>
+                                                        <p className="text-xs text-muted-foreground truncate">
+                                                            {t.experience || "—"} • {t.selected_date || "—"} • People: {t.party_size || 1}
+                                                        </p>
+                                                    </div>
+                                                    <Button
+                                                        type="button"
+                                                        variant="outline"
+                                                        size="sm"
+                                                        onClick={() => navigate(`/cheese/tickets/${t.name}`)}
+                                                    >
+                                                        View
+                                                    </Button>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    ) : (
+                                        <p className="text-sm text-muted-foreground">No tickets for this contact.</p>
+                                    )}
+                                </CardContent>
+                            </Card>
+
+                            {/* Related Route Bookings */}
+                            <Card className="border-border/60 shadow-sm">
+                                <CardHeader className="border-b bg-muted/20 pb-4">
+                                    <CardTitle className="text-sm font-semibold text-muted-foreground uppercase flex items-center">
+                                        <ShoppingCart className="w-4 h-4 mr-2" /> Route Bookings
+                                    </CardTitle>
+                                </CardHeader>
+                                <CardContent className="p-6 space-y-3">
+                                    {routeBookingsLoading ? (
+                                        <p className="text-sm text-muted-foreground">Loading route bookings...</p>
+                                    ) : routeBookings.length > 0 ? (
+                                        <div className="space-y-2">
+                                            {routeBookings.map((b) => (
+                                                <div key={b.name} className="flex items-center justify-between gap-3 p-2 bg-muted rounded-lg">
+                                                    <div className="min-w-0">
+                                                        <p className="text-sm font-medium truncate">{b.name}</p>
+                                                        <p className="text-xs text-muted-foreground truncate">
+                                                            Route: {b.route || "—"} • {b.status || "—"}
+                                                        </p>
+                                                    </div>
+                                                    <div className="flex items-center gap-2 shrink-0">
+                                                        <p className="text-sm font-semibold flex items-center gap-1">
+                                                            <DollarSign className="w-3.5 h-3.5" />
+                                                            {Number(b.total_price || 0).toLocaleString()}
+                                                        </p>
+                                                        <Button
+                                                            type="button"
+                                                            variant="outline"
+                                                            size="sm"
+                                                            onClick={() => navigate(`/cheese/bookings/${b.name}`)}
+                                                        >
+                                                            View
+                                                        </Button>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    ) : (
+                                        <p className="text-sm text-muted-foreground">No route bookings for this contact.</p>
+                                    )}
+                                </CardContent>
+                            </Card>
+
+                            {/* Related Conversations */}
+                            <Card className="border-border/60 shadow-sm">
+                                <CardHeader className="border-b bg-muted/20 pb-4">
+                                    <CardTitle className="text-sm font-semibold text-muted-foreground uppercase flex items-center">
+                                        <MessageSquare className="w-4 h-4 mr-2" /> Conversations
+                                    </CardTitle>
+                                </CardHeader>
+                                <CardContent className="p-6 space-y-3">
+                                    <div className="flex items-center justify-between gap-3">
+                                        <p className="text-sm text-muted-foreground">
+                                            {conversationsLoading ? "Loading..." : `${conversations.length} found`}
+                                        </p>
+                                        <Button
+                                            type="button"
+                                            variant="outline"
+                                            size="sm"
+                                            onClick={() => navigate(`/cheese/conversations?lead=${encodeURIComponent(id)}`)}
+                                        >
+                                            Open
+                                        </Button>
+                                    </div>
+                                    {conversationsLoading ? (
+                                        <p className="text-sm text-muted-foreground">Loading conversations...</p>
+                                    ) : conversations.length > 0 ? (
+                                        <div className="space-y-2">
+                                            {conversations.map((c) => (
+                                                <div key={c.name} className="flex items-start justify-between gap-3 p-2 bg-muted rounded-lg">
+                                                    <div className="min-w-0">
+                                                        <p className="text-sm font-medium truncate">{c.name}</p>
+                                                        <p className="text-xs text-muted-foreground truncate">
+                                                            {c.channel || "—"} • {c.status || "—"}
+                                                        </p>
+                                                        {c.summary ? <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{c.summary}</p> : null}
+                                                    </div>
+                                                    {c.transcript_url ? (
+                                                        <Button
+                                                            type="button"
+                                                            variant="outline"
+                                                            size="sm"
+                                                            onClick={() => window.open(c.transcript_url, "_blank")}
+                                                        >
+                                                            Transcript
+                                                        </Button>
+                                                    ) : null}
+                                                </div>
+                                            ))}
+                                        </div>
+                                    ) : (
+                                        <p className="text-sm text-muted-foreground">No conversations for this lead.</p>
+                                    )}
                                 </CardContent>
                             </Card>
                         </TabsContent>

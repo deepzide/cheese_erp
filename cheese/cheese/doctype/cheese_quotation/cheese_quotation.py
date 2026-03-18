@@ -32,6 +32,12 @@ class CheeseQuotation(Document):
 
 		# Check expiration
 		if self.valid_until and get_datetime(self.valid_until) < now_datetime():
+			has_selected_slot = any((exp_row.slot for exp_row in (self.experiences or [])))
+			if has_selected_slot:
+				frappe.throw(
+					"Cannot save a quotation with selected slots when `valid_until` is expired.",
+					frappe.ValidationError,
+				)
 			if self.status != "EXPIRED":
 				self.status = "EXPIRED"
 
@@ -39,6 +45,8 @@ class CheeseQuotation(Document):
 		"""Calculate total_price and deposit_amount from linked experiences"""
 		if not self.experiences:
 			return
+
+		party_size = int(getattr(self, "party_size", None) or 1)
 
 		total_price = 0
 		total_deposit = 0
@@ -51,16 +59,16 @@ class CheeseQuotation(Document):
 
 			# Use route_price if the quotation has a route, otherwise individual_price
 			if self.route:
-				price = experience.route_price or 0
+				price_per_person = experience.route_price or 0
 			else:
-				price = experience.individual_price or 0
+				price_per_person = experience.individual_price or 0
 
-			total_price += price
+			total_price += price_per_person * party_size
 
 			# Calculate deposit for this experience
 			if experience.deposit_required:
 				if experience.deposit_type == "%":
-					total_deposit += price * (experience.deposit_value or 0) / 100
+					total_deposit += (price_per_person * party_size) * (experience.deposit_value or 0) / 100
 				else:
 					total_deposit += experience.deposit_value or 0
 

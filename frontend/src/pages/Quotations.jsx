@@ -127,8 +127,8 @@ export default function Quotations() {
                                         {qt.status === "Sent" && <DropdownMenuItem onClick={() => updateStatus(qt.name, "Accepted")}>Mark Accepted</DropdownMenuItem>}
                                         {qt.status === "Sent" && <DropdownMenuItem onClick={() => updateStatus(qt.name, "Rejected")}>Mark Rejected</DropdownMenuItem>}
                                         <DropdownMenuSeparator />
-                                        <DropdownMenuItem onClick={() => navigate(`/cheese/leads?search=${qt.lead}`)}>View Lead</DropdownMenuItem>
-                                        <DropdownMenuItem onClick={() => navigate(`/cheese/routes?search=${qt.route}`)}><Route className="w-3 h-3 mr-2" /> View Route</DropdownMenuItem>
+                                        <DropdownMenuItem onClick={() => qt.lead && navigate(`/cheese/leads/${qt.lead}`)}>View Lead</DropdownMenuItem>
+                                        <DropdownMenuItem onClick={() => qt.route && navigate(`/cheese/routes/${qt.route}`)}><Route className="w-3 h-3 mr-2" /> View Route</DropdownMenuItem>
                                         <DropdownMenuSeparator />
                                         <DropdownMenuItem className="text-red-600" onClick={() => deleteMutation.mutate(qt.name, { onSuccess: () => toast.success("Deleted") })}><Trash2 className="w-3 h-3 mr-2" /> Delete</DropdownMenuItem>
                                     </DropdownMenuContent>

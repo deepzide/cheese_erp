@@ -449,7 +449,7 @@ def get_dashboard_kpis(establishment_id=None, period="today"):
 
 
 @frappe.whitelist()
-def get_pending_actions(establishment_id, date_from=None, date_to=None):
+def get_pending_actions(establishment_id=None, date_from=None, date_to=None):
 	"""
 	Get pending actions for establishment (US-17)
 	
@@ -463,79 +463,55 @@ def get_pending_actions(establishment_id, date_from=None, date_to=None):
 	"""
 	try:
 		from frappe.utils import getdate
-		
-		if not establishment_id:
-			return validation_error("establishment_id is required")
-		
-		# Get pending confirmations
+
+		# Get experiences to build relevant slots.
+		# If establishment_id is not provided, return pending actions across all companies.
+		experience_filters = {}
+		if establishment_id:
+			experience_filters = {"company": establishment_id}
+
 		experiences = frappe.get_all(
 			"Cheese Experience",
-			filters={"company": establishment_id},
-			fields=["name"]
+			filters=experience_filters,
+			fields=["name"],
 		)
 		exp_ids = [e.name for e in experiences]
-		
-		# Build slot filters
-		slot_filters = {"experience": ["in", exp_ids]}
-		
-		# Add date range filters if provided
-		if date_from or date_to:
-			if date_from and date_to:
-				date_from_obj = getdate(date_from)
-				date_to_obj = getdate(date_to)
-				if date_from_obj > date_to_obj:
-					return validation_error("date_from must be before or equal to date_to")
-				
-				if date_from_obj == date_to_obj:
-					# Single day
-					slot_filters["date"] = date_from_obj
-				else:
-					# Date range - need to handle this differently as Frappe doesn't support multiple date filters easily
-					# Get all slots in range
-					all_slots = frappe.get_all(
-						"Cheese Experience Slot",
-						filters={"experience": ["in", exp_ids]},
-						fields=["name", "date"]
-					)
-					# Filter by date range in Python
-					slot_ids_in_range = [
-						s.name for s in all_slots 
-						if date_from_obj <= getdate(s.date) <= date_to_obj
-					]
-					slot_filters = {"name": ["in", slot_ids_in_range]} if slot_ids_in_range else {"name": ["in", []]}
-			elif date_from:
-				date_from_obj = getdate(date_from)
-				# Get all slots and filter
-				all_slots = frappe.get_all(
-					"Cheese Experience Slot",
-					filters={"experience": ["in", exp_ids]},
-					fields=["name", "date"]
-				)
-				slot_ids_in_range = [
-					s.name for s in all_slots 
-					if getdate(s.date) >= date_from_obj
-				]
-				slot_filters = {"name": ["in", slot_ids_in_range]} if slot_ids_in_range else {"name": ["in", []]}
-			elif date_to:
-				date_to_obj = getdate(date_to)
-				# Get all slots and filter
-				all_slots = frappe.get_all(
-					"Cheese Experience Slot",
-					filters={"experience": ["in", exp_ids]},
-					fields=["name", "date"]
-				)
-				slot_ids_in_range = [
-					s.name for s in all_slots 
-					if getdate(s.date) <= date_to_obj
-				]
-				slot_filters = {"name": ["in", slot_ids_in_range]} if slot_ids_in_range else {"name": ["in", []]}
-		
-		slots = frappe.get_all(
+
+		if not exp_ids:
+			return success(
+				"Pending actions retrieved successfully",
+				{
+					"establishment_id": establishment_id,
+					"pending_confirmations": [],
+					"pending_confirmations_count": 0,
+					"pending_deposits": [],
+					"pending_deposits_count": 0,
+				},
+			)
+
+		# Pull candidate slots then filter by date_from in Python (Cheese Experience Slot uses `date_from`).
+		all_slots = frappe.get_all(
 			"Cheese Experience Slot",
-			filters=slot_filters,
-			fields=["name"]
+			filters={"experience": ["in", exp_ids]},
+			fields=["name", "date_from", "time_from"],
 		)
-		slot_ids = [s.name for s in slots]
+
+		date_from_obj = getdate(date_from) if date_from else None
+		date_to_obj = getdate(date_to) if date_to else None
+		if date_from_obj and date_to_obj and date_from_obj > date_to_obj:
+			return validation_error("date_from must be before or equal to date_to")
+
+		filtered_slots = []
+		for s in all_slots:
+			slot_date = getdate(s.date_from)
+			if date_from_obj and slot_date < date_from_obj:
+				continue
+			if date_to_obj and slot_date > date_to_obj:
+				continue
+			filtered_slots.append(s)
+
+		slot_ids = [s.name for s in filtered_slots]
+		slot_details_by_id = {s.name: s for s in filtered_slots}
 		
 		pending_tickets = []
 		if slot_ids:
@@ -545,10 +521,16 @@ def get_pending_actions(establishment_id, date_from=None, date_to=None):
 					"slot": ["in", slot_ids],
 					"status": "PENDING"
 				},
-				fields=["name", "experience", "slot", "party_size", "creation"],
+				fields=["name", "contact", "experience", "route", "slot", "party_size", "selected_date", "expires_at", "creation"],
 				order_by="creation asc",
 				limit=20
 			)
+
+			# Attach slot date/time for UI convenience.
+			for t in pending_tickets:
+				slot_detail = slot_details_by_id.get(t.slot)
+				t["slot_date_from"] = str(slot_detail.date_from) if slot_detail else None
+				t["slot_time_from"] = str(slot_detail.time_from) if slot_detail and slot_detail.time_from else None
 		
 		# Get pending deposits
 		ticket_ids = [t.name for t in pending_tickets]

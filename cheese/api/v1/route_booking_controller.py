@@ -141,18 +141,11 @@ def create_route_reservation(contact_id=None, route_id=None, experiences_with_sl
 		if not route_experiences or len(route_experiences) == 0:
 			return validation_error("Route has no experiences")
 		
-		# Calculate total price and deposit
+		# Calculate total price (deposit is calculated from included experiences/tickets below)
 		from cheese.cheese.utils.pricing import calculate_route_price
 		total_price = calculate_route_price(route_id, party_size)
 		deposit_amount = 0
 		deposit_required = False
-		
-		if route.deposit_required:
-			deposit_required = True
-			if route.deposit_type == "Amount":
-				deposit_amount = route.deposit_value
-			elif route.deposit_type == "%":
-				deposit_amount = (total_price * route.deposit_value) / 100
 		
 		# Create RouteBooking doctype
 		route_booking = frappe.get_doc({
@@ -226,13 +219,36 @@ def create_route_reservation(contact_id=None, route_id=None, experiences_with_sl
 			
 			tickets.append(ticket_id)
 		
+		# Calculate deposit required/amount based on included experiences (ticket deposits).
+		# Route-level deposit fields should not override experience deposit rules here.
+		deposit_amount = 0
+		deposit_due_candidates = []
+		reservation_now = now_datetime()
+		for ticket_id in tickets:
+			ticket_doc = frappe.get_doc("Cheese Ticket", ticket_id)
+			deposit_amount += ticket_doc.deposit_amount or 0
+			if ticket_doc.deposit_required and (ticket_doc.deposit_amount or 0) > 0:
+				exp_doc = frappe.get_doc("Cheese Experience", ticket_doc.experience)
+				hours = exp_doc.deposit_ttl_hours or 24
+				deposit_due_candidates.append(add_to_date(reservation_now, hours=hours, as_string=False))
+
+		deposit_required = deposit_amount > 0
+		deposit_due_at = (
+			min(deposit_due_candidates)
+			if deposit_due_candidates
+			else add_to_date(reservation_now, hours=route.deposit_ttl_hours or 24, as_string=False)
+		)
+
+		route_booking.deposit_required = deposit_required
+		route_booking.deposit_amount = deposit_amount
+
 		# Calculate status and save route booking
 		route_booking.calculate_status()
 		route_booking.save()
 		
 		# Create deposit if required
 		if deposit_required and deposit_amount > 0:
-			due_at = add_to_date(now_datetime(), hours=route.deposit_ttl_hours or 24, as_string=False)
+			due_at = deposit_due_at
 			deposit = frappe.get_doc({
 				"doctype": "Cheese Deposit",
 				"entity_type": "Cheese Route Booking",

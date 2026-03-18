@@ -1,17 +1,14 @@
 import React, { useState } from "react";
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ShoppingCart, Search, Filter, DollarSign, Clock, CheckCircle, XCircle, AlertCircle, RefreshCw, Users, Route, Ticket, MoreHorizontal, Eye, Wallet } from "lucide-react";
+import { ShoppingCart, Search, Filter, DollarSign, AlertCircle, RefreshCw, Users, Route, Ticket, MoreHorizontal, Eye, Wallet } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
-import { toast } from "sonner";
 import { useFrappeList } from "@/lib/useApiData";
 
 const STATUS_CONFIG = {
@@ -27,7 +24,6 @@ export default function Bookings() {
     const navigate = useNavigate();
     const [searchTerm, setSearchTerm] = useState("");
     const [filterStatus, setFilterStatus] = useState("all");
-    const [selectedBooking, setSelectedBooking] = useState(null);
 
     const statusFilter = filterStatus !== "all" ? { status: filterStatus } : {};
 
@@ -85,7 +81,10 @@ export default function Bookings() {
                     const config = STATUS_CONFIG[booking.status] || STATUS_CONFIG.PENDING;
                     return (
                         <motion.div key={booking.name} whileHover={{ x: 4 }}>
-                            <Card className="border border-border shadow-sm hover:shadow-md transition-all group cursor-pointer" onClick={() => setSelectedBooking(booking)}>
+                            <Card
+                                className="border border-border shadow-sm hover:shadow-md transition-all group cursor-pointer"
+                                onClick={() => booking?.name && navigate(`/cheese/bookings/${booking.name}`)}
+                            >
                                 <CardContent className="p-4 flex items-center gap-4">
                                     <div className="w-10 h-10 rounded-lg bg-cheese-100 dark:bg-cheese-900/30 flex items-center justify-center">
                                         <ShoppingCart className="w-5 h-5 text-cheese-700 dark:text-cheese-400" />
@@ -107,11 +106,22 @@ export default function Bookings() {
                                             <Button variant="ghost" size="icon" className="h-8 w-8 opacity-0 group-hover:opacity-100" onClick={(e) => e.stopPropagation()}><MoreHorizontal className="w-4 h-4" /></Button>
                                         </DropdownMenuTrigger>
                                         <DropdownMenuContent align="end">
-                                            <DropdownMenuItem onClick={(e) => { e.stopPropagation(); setSelectedBooking(booking); }}><Eye className="w-3 h-3 mr-2" /> View</DropdownMenuItem>
-                                            <DropdownMenuItem onClick={(e) => { e.stopPropagation(); navigate(`/cheese/routes?search=${booking.route}`); }}><Route className="w-3 h-3 mr-2" /> View Route</DropdownMenuItem>
-                                            <DropdownMenuItem onClick={(e) => { e.stopPropagation(); navigate(`/cheese/deposits?search=${booking.name}`); }}><Wallet className="w-3 h-3 mr-2" /> Deposits</DropdownMenuItem>
+                                            <DropdownMenuItem onClick={(e) => { e.stopPropagation(); navigate(`/cheese/bookings/${booking.name}`); }}>
+                                                <Eye className="w-3 h-3 mr-2" /> View
+                                            </DropdownMenuItem>
+                                            <DropdownMenuItem onClick={(e) => { e.stopPropagation(); booking?.contact && navigate(`/cheese/contacts/${booking.contact}`); }}>
+                                                <Users className="w-3 h-3 mr-2" /> Contact
+                                            </DropdownMenuItem>
+                                            <DropdownMenuItem onClick={(e) => { e.stopPropagation(); booking?.route && navigate(`/cheese/routes/${booking.route}`); }}>
+                                                <Route className="w-3 h-3 mr-2" /> Route
+                                            </DropdownMenuItem>
+                                            <DropdownMenuItem onClick={(e) => { e.stopPropagation(); navigate(`/cheese/deposits?entity_id=${encodeURIComponent(booking?.name || "")}`); }}>
+                                                <Wallet className="w-3 h-3 mr-2" /> Deposits
+                                            </DropdownMenuItem>
                                             <DropdownMenuSeparator />
-                                            <DropdownMenuItem onClick={(e) => { e.stopPropagation(); navigate(`/cheese/support?route_booking=${booking.name}`); }}>Support Case</DropdownMenuItem>
+                                            <DropdownMenuItem onClick={(e) => { e.stopPropagation(); navigate(`/cheese/support/new?contact=${encodeURIComponent(booking?.contact || "")}`); }}>
+                                                <Ticket className="w-3 h-3 mr-2" /> Support Case
+                                            </DropdownMenuItem>
                                         </DropdownMenuContent>
                                     </DropdownMenu>
                                 </CardContent>
@@ -124,33 +134,6 @@ export default function Bookings() {
             {!isLoading && filtered.length === 0 && (
                 <div className="text-center py-16"><ShoppingCart className="w-16 h-16 text-muted-foreground/20 mx-auto mb-4" /><p className="text-muted-foreground">No bookings found</p></div>
             )}
-
-            {/* Detail Dialog */}
-            <Dialog open={!!selectedBooking} onOpenChange={(open) => !open && setSelectedBooking(null)}>
-                <DialogContent className="max-w-md">
-                    <DialogHeader>
-                        <DialogTitle className="flex items-center gap-2"><ShoppingCart className="w-5 h-5 text-cheese-600" /> {selectedBooking?.name}</DialogTitle>
-                        <DialogDescription>Route Booking Details</DialogDescription>
-                    </DialogHeader>
-                    {selectedBooking && (
-                        <div className="space-y-4">
-                            <div className="grid grid-cols-2 gap-4">
-                                <div><p className="text-xs text-muted-foreground">Status</p><Badge className={STATUS_CONFIG[selectedBooking.status]?.badge}>{STATUS_CONFIG[selectedBooking.status]?.label}</Badge></div>
-                                <div><p className="text-xs text-muted-foreground">Total</p><p className="font-semibold">${Number(selectedBooking.total_price || 0).toLocaleString()}</p></div>
-                                <div><p className="text-xs text-muted-foreground">Contact</p><p className="text-sm font-medium">{selectedBooking.contact || '—'}</p></div>
-                                <div><p className="text-xs text-muted-foreground">Route</p><p className="text-sm font-medium">{selectedBooking.route || '—'}</p></div>
-                                <div><p className="text-xs text-muted-foreground">Deposit Required</p><p className="text-sm">{selectedBooking.deposit_required ? 'Yes' : 'No'}</p></div>
-                                <div><p className="text-xs text-muted-foreground">Expires</p><p className="text-sm">{selectedBooking.expires_at || '—'}</p></div>
-                            </div>
-                            <DialogFooter className="gap-2">
-                                <Button variant="outline" onClick={() => navigate(`/cheese/contacts?search=${selectedBooking.contact}`)}><Users className="w-4 h-4 mr-1" /> Contact</Button>
-                                <Button variant="outline" onClick={() => navigate(`/cheese/routes?search=${selectedBooking.route}`)}><Route className="w-4 h-4 mr-1" /> Route</Button>
-                                <Button variant="outline" onClick={() => navigate(`/cheese/deposits?search=${selectedBooking.name}`)}><Wallet className="w-4 h-4 mr-1" /> Deposits</Button>
-                            </DialogFooter>
-                        </div>
-                    )}
-                </DialogContent>
-            </Dialog>
         </motion.div>
     );
 }

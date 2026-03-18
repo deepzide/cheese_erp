@@ -38,6 +38,7 @@ import BankAccountCreate from './BankAccountCreate';
 import DocumentCreate from './DocumentCreate';
 import TicketCreate from './TicketCreate';
 import BookingCreate from './BookingCreate';
+import BookingDetail from './BookingDetail';
 import DepositCreate from './DepositCreate';
 
 export default function Pages() {
@@ -75,6 +76,7 @@ export default function Pages() {
                                         <Route path="/deposits/new" element={<DepositCreate />} />
                                         <Route path="/bookings" element={<Bookings />} />
                                         <Route path="/bookings/new" element={<BookingCreate />} />
+                                        <Route path="/bookings/:id" element={<BookingDetail />} />
                                         <Route path="/support" element={<Support />} />
                                         <Route path="/support/new" element={<SupportCreate />} />
                                         <Route path="/booking-policy" element={<BookingPolicy />} />

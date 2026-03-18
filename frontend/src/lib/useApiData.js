@@ -109,9 +109,15 @@ export function useFrappeUpdate(doctype) {
             });
             return result?.data?.message || result?.data || result;
         },
-        onSuccess: () => {
+        onSuccess: (data, variables) => {
+            const updatedName = variables?.name;
             queryClient.invalidateQueries({ queryKey: ['frappe-list', doctype] });
-            queryClient.invalidateQueries({ queryKey: ['frappe-doc', doctype] });
+            // Ensure the specific document query refetches (not only the prefix).
+            if (updatedName) {
+                queryClient.invalidateQueries({ queryKey: ['frappe-doc', doctype, updatedName] });
+            } else {
+                queryClient.invalidateQueries({ queryKey: ['frappe-doc', doctype] });
+            }
         },
     });
 }

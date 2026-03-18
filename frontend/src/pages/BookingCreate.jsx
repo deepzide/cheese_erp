@@ -38,21 +38,33 @@ export default function BookingCreate() {
         }
 
         try {
+            const selectedDate = ticket?.selected_date;
+            const reservationPayload = {
+                contact_id: initialValues.contact,
+                route_id: routeId,
+                party_size: initialValues.party_size,
+                conversation_id: ticket?.conversation,
+            };
+
+            // If we have a selected date, let the backend auto-select OPEN slots for ALL experiences in the route.
+            // This prevents validation errors when the route contains multiple experiences.
+            if (selectedDate) {
+                reservationPayload.date_from = selectedDate;
+            } else {
+                reservationPayload.experiences_with_slots = [
+                    {
+                        experience_id: ticket.experience,
+                        slot_id: ticket.slot,
+                    },
+                ];
+            }
+
             const res = await apiRequest(
                 "/api/method/cheese.api.v1.route_booking_controller.create_route_reservation",
                 {
                 method: "POST",
                 body: JSON.stringify({
-                    contact_id: initialValues.contact,
-                    route_id: routeId,
-                    party_size: initialValues.party_size,
-                    experiences_with_slots: [
-                    {
-                        experience_id: ticket.experience,
-                        slot_id: ticket.slot,
-                    },
-                    ],
-                    conversation_id: ticket.conversation,
+                    ...reservationPayload,
                 }),
                 }
             );

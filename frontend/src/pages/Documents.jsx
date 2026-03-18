@@ -28,6 +28,10 @@ export default function Documents() {
     });
 
     const { data: docs = [], isLoading, error, refetch } = useFrappeList("Cheese Document", {
+        filters: {
+            entity_type: form.entity_type || undefined,
+            entity_id: form.entity_id || undefined,
+        },
         fields: ["name", "entity_type", "entity_id", "title", "document_type", "file_url", "status", "language", "version", "validity_date", "tags", "creation"],
         pageSize: 100,
     });
@@ -88,8 +92,12 @@ export default function Documents() {
                                     <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8 opacity-0 group-hover:opacity-100"><MoreHorizontal className="w-4 h-4" /></Button></DropdownMenuTrigger>
                                     <DropdownMenuContent align="end">
                                         {doc.file_url && <DropdownMenuItem onClick={() => window.open(doc.file_url, '_blank')}><ExternalLink className="w-3 h-3 mr-2" /> Open File</DropdownMenuItem>}
-                                        {doc.entity_type === 'Route' && <DropdownMenuItem onClick={() => navigate(`/cheese/routes?search=${doc.entity_id}`)}>View Route</DropdownMenuItem>}
-                                        {doc.entity_type === 'Experience' && <DropdownMenuItem onClick={() => navigate(`/cheese/experiences?search=${doc.entity_id}`)}>View Experience</DropdownMenuItem>}
+                                        {doc.entity_type === 'Cheese Route' && (
+                                            <DropdownMenuItem onClick={() => navigate(`/cheese/routes/${doc.entity_id}`)}>View Route</DropdownMenuItem>
+                                        )}
+                                        {doc.entity_type === 'Cheese Experience' && (
+                                            <DropdownMenuItem onClick={() => navigate(`/cheese/experiences/${doc.entity_id}`)}>View Experience</DropdownMenuItem>
+                                        )}
                                     </DropdownMenuContent>
                                 </DropdownMenu>
                             </CardContent>

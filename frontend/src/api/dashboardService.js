@@ -21,8 +21,13 @@ export const dashboardService = {
         return apiRequest(`${BASE}.get_dashboard_kpis?${params}`);
     },
 
-    getPendingActions: async (establishmentId) => {
-        return apiRequest(`${BASE}.get_pending_actions?establishment_id=${establishmentId}`);
+    getPendingActions: async (establishmentId = null, dateFrom = null, dateTo = null) => {
+        const params = new URLSearchParams();
+        if (establishmentId) params.append('establishment_id', establishmentId);
+        if (dateFrom) params.append('date_from', dateFrom);
+        if (dateTo) params.append('date_to', dateTo);
+        const query = params.toString();
+        return apiRequest(`${BASE}.get_pending_actions?${query}`);
     },
 
     getDayAgenda: async (establishmentId, date = null) => {

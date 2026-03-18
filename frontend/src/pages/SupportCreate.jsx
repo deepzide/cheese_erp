@@ -14,6 +14,8 @@ export default function SupportCreate() {
     const navigate = useNavigate();
     const queryClient = useQueryClient();
     const [searchParams] = useSearchParams();
+    const contactId = searchParams.get('contact') || '';
+    const backPath = contactId ? `/cheese/contacts/${contactId}` : "/cheese/support";
     const [form, setForm] = useState({
         contact_id: searchParams.get('contact') || "",
         ticket_id: searchParams.get('ticket') || "",
@@ -41,7 +43,7 @@ export default function SupportCreate() {
             title="New Support Case"
             description="File a complaint or support request"
             icon={Shield}
-            backPath="/cheese/support"
+            backPath={backPath}
             onSubmit={handleSubmit}
             isSubmitting={createMutation.isPending}
             submitLabel="Create Support Case"

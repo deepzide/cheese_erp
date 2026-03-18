@@ -35,12 +35,19 @@ export default function DocumentCreate() {
     const handleFileUpload = async (e) => {
         const file = e.target.files?.[0];
         if (!file) return;
+        // The File doctype needs a valid `attached_to_name` (docname) and doctype.
+        // We attach uploaded documents directly to the selected Route/Experience.
+        if (!form.entity_type || !form.entity_id) {
+            toast.error("Select an entity (type + ID) before uploading a file");
+            return;
+        }
         setUploading(true);
         try {
             const formData = new FormData();
             formData.append('file', file);
             formData.append('is_private', '0');
-            formData.append('doctype', 'Cheese Document');
+            formData.append('doctype', form.entity_type);
+            formData.append('docname', form.entity_id);
             const result = await apiRequest('/api/method/upload_file', { method: 'POST', body: formData });
             const url = result?.data?.message?.file_url || result?.data?.file_url;
             if (url) {
@@ -57,7 +64,8 @@ export default function DocumentCreate() {
 
     const handleSubmit = () => {
         if (!form.entity_type || !form.entity_id || !form.title) { toast.error("Entity type, entity, and title are required"); return; }
-        createMutation.mutate({ ...form, status: "ACTIVE" }, {
+        // Cheese Document supports: DRAFT / PUBLISHED / ARCHIVED
+        createMutation.mutate({ ...form, status: "PUBLISHED" }, {
             onSuccess: () => { toast.success("Document created"); navigate("/cheese/documents"); },
             onError: (err) => toast.error(err?.message || "Failed"),
         });
