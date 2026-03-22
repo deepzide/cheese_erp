@@ -16,6 +16,7 @@ export default function ExperienceCreate() {
         experience_info: "",
         company: "",
         status: "OFFLINE",
+        package_mode: "Both",
         individual_price: "",
         route_price: "",
         event_duration_hours: "",
@@ -44,6 +45,7 @@ export default function ExperienceCreate() {
                 experience_info: form.experience_info,
                 company: form.company,
                 status: form.status,
+                package_mode: form.package_mode,
                 individual_price: form.individual_price
                     ? Number(form.individual_price)
                     : 0,
@@ -123,6 +125,19 @@ export default function ExperienceCreate() {
                             <option value="ONLINE">ONLINE</option>
                             <option value="OFFLINE">OFFLINE</option>
                         </select>
+                    </div>
+                    <div className="space-y-2">
+                        <Label>Package Mode</Label>
+                        <select
+                            value={form.package_mode}
+                            onChange={(e) => handleChange("package_mode", e.target.value)}
+                            className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                        >
+                            <option value="Establishment">Establishment</option>
+                            <option value="Route">Route</option>
+                            <option value="Both">Both</option>
+                        </select>
+                        <p className="text-xs text-muted-foreground">Select \"Route\" or \"Both\" to make it eligible for Routes.</p>
                     </div>
                     <div className="space-y-2">
                         <Label>Event Duration (Hours)</Label>

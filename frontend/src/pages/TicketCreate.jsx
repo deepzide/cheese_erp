@@ -85,19 +85,20 @@ export default function TicketCreate() {
                         <Label>Experience <span className="text-red-500">*</span></Label>
                         <FrappeSearchSelect
                             doctype="Cheese Experience"
-                            label="experience_info"
+                            label="name"
                             value={form.experience}
                             onChange={(v) => setForm(f => ({ ...f, experience: v, slot: "" }))}
                             placeholder="Select an experience..."
-                            // When a route is selected, only show experiences linked to that route
-                            filters={form.route ? { route: form.route } : {}}
+                            // Note: filtering experiences by route requires a backend join via a controller.
+                            // Avoid passing unsupported filters to /api/resource to prevent empty results.
+                            filters={{}}
                         />
                     </div>
                     <div className="space-y-2">
                         <Label>Route</Label>
                         <FrappeSearchSelect
                             doctype="Cheese Route"
-                            label="route_info"
+                            label="short_description"
                             value={form.route}
                             onChange={(v) => setForm(f => ({ ...f, route: v, experience: "", slot: "" }))}
                             placeholder="Select a route..."

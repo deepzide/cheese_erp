@@ -16,6 +16,7 @@ import { useFrappeList, useFrappeCreate, useFrappeUpdate } from "@/lib/useApiDat
 export default function BookingPolicy() {
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
+    const experienceFilter = searchParams.get("experience") || "";
     const [searchTerm, setSearchTerm] = useState("");
     const [createOpen, setCreateOpen] = useState(false);
     const [editPolicy, setEditPolicy] = useState(null);
@@ -30,6 +31,7 @@ export default function BookingPolicy() {
     const updateMutation = useFrappeUpdate("Cheese Booking Policy");
 
     const filtered = (Array.isArray(policies) ? policies : []).filter(p => {
+        if (experienceFilter && p.experience !== experienceFilter) return false;
         if (searchTerm) return (p.experience || p.name || '').toLowerCase().includes(searchTerm.toLowerCase());
         return true;
     });
@@ -64,6 +66,9 @@ export default function BookingPolicy() {
                 <div>
                     <h1 className="text-2xl font-bold text-foreground flex items-center gap-2"><Shield className="w-6 h-6 text-cheese-600" /> Booking Policies</h1>
                     <p className="text-sm text-muted-foreground mt-1">{isLoading ? '...' : `${filtered.length} policies`}</p>
+                    {experienceFilter && (
+                        <p className="text-xs text-muted-foreground mt-1">Filtered by Experience: {experienceFilter}</p>
+                    )}
                 </div>
                 <div className="flex gap-2">
                     <div className="relative"><Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" /><Input placeholder="Search..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-9 w-56 h-9" /></div>

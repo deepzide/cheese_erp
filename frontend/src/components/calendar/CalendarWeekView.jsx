@@ -34,7 +34,9 @@ export default function CalendarWeekView({ date, slots, onSlotClick, onEmptyClic
     const slotsByDay = {};
     weekDays.forEach((d) => {
         const key = format(d, "yyyy-MM-dd");
-        slotsByDay[key] = slots.filter((s) => s.date_from === key);
+        slotsByDay[key] = slots
+            .filter((s) => s.date_from <= key && s.date_to >= key)
+            .sort((a, b) => (a.time_from || "").localeCompare(b.time_from || ""));
     });
 
     const handleColumnClick = (day, e) => {

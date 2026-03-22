@@ -71,12 +71,13 @@ export default function QuotationDetail() {
     };
 
     const getStatusBadge = (status) => {
-        switch (status) {
-            case "DRAFT": return <Badge variant="outline" className="bg-slate-50 text-slate-700 border-slate-200">Draft</Badge>;
-            case "SENT": return <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">Sent</Badge>;
-            case "ACCEPTED": return <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-200">Accepted</Badge>;
-            case "EXPIRED": return <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200">Expired</Badge>;
-            default: return <Badge variant="outline">{status}</Badge>;
+        const normalized = (status || "DRAFT").toUpperCase();
+        switch (normalized) {
+            case "DRAFT": return <Badge variant="outline" className="bg-slate-500/15 text-slate-700 border-slate-300 dark:text-slate-300 dark:border-slate-700">DRAFT</Badge>;
+            case "SENT": return <Badge variant="outline" className="bg-blue-500/15 text-blue-700 border-blue-300 dark:text-blue-300 dark:border-blue-700">SENT</Badge>;
+            case "ACCEPTED": return <Badge variant="outline" className="bg-emerald-500/15 text-emerald-700 border-emerald-300 dark:text-emerald-300 dark:border-emerald-700">ACCEPTED</Badge>;
+            case "EXPIRED": return <Badge variant="outline" className="bg-red-500/15 text-red-700 border-red-300 dark:text-red-300 dark:border-red-700">EXPIRED</Badge>;
+            default: return <Badge variant="outline">{normalized}</Badge>;
         }
     };
 
@@ -253,13 +254,21 @@ export default function QuotationDetail() {
                                     </button>
                                 )}
                                 <button
-                                    onClick={() => window.open(`/printview?doctype=${encodeURIComponent("Cheese Quotation")}&name=${encodeURIComponent(id)}`, "_blank")}
+                                    onClick={() => {
+                                        const base = `/printview?doctype=${encodeURIComponent("Cheese Quotation")}&name=${encodeURIComponent(id)}`;
+                                        const url = quotation?.route ? `${base}&format=${encodeURIComponent("ERP_CheeseQTYPDF")}` : base;
+                                        window.open(url, "_blank");
+                                    }}
                                     className="text-sm text-left px-3 py-2 rounded-md hover:bg-primary/10 transition-colors text-primary font-medium flex items-center justify-between"
                                 >
                                     <span className="flex items-center"><FileText className="w-4 h-4 mr-2" /> Print</span>
                                 </button>
                                 <button
-                                    onClick={() => window.open(`/printview?doctype=${encodeURIComponent("Cheese Quotation")}&name=${encodeURIComponent(id)}&format=pdf`, "_blank")}
+                                    onClick={() => {
+                                        const base = `/printview?doctype=${encodeURIComponent("Cheese Quotation")}&name=${encodeURIComponent(id)}&format=${encodeURIComponent("ERP_CheeseQTYPDF")}`;
+                                        const url = quotation?.route ? base : `/printview?doctype=${encodeURIComponent("Cheese Quotation")}&name=${encodeURIComponent(id)}&format=pdf`;
+                                        window.open(url, "_blank");
+                                    }}
                                     className="text-sm text-left px-3 py-2 rounded-md hover:bg-primary/10 transition-colors text-primary font-medium flex items-center justify-between"
                                 >
                                     <span className="flex items-center"><FileText className="w-4 h-4 mr-2" /> Export PDF</span>

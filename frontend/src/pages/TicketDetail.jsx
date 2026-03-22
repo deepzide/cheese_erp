@@ -162,7 +162,7 @@ export default function TicketDetail() {
                                 <CardContent className="p-6">
                                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-6 gap-x-8">
                                         <EditableField label="Experience" value={form.experience} onChange={(v) => handleFieldChange("experience", v)} editMode={editMode} doctype="Cheese Experience" searchLabel="name" />
-                                        <EditableField label="Route" value={form.route} onChange={(v) => handleFieldChange("route", v)} editMode={editMode} doctype="Cheese Route" searchLabel="route_info" />
+                                        <EditableField label="Route" value={form.route} onChange={(v) => handleFieldChange("route", v)} editMode={editMode} doctype="Cheese Route" searchLabel="short_description" />
                                         <EditableField label="Slot" value={form.slot} onChange={(v) => handleFieldChange("slot", v)} editMode={editMode} doctype="Cheese Experience Slot" searchLabel="name" />
 
                                         {editMode ? (

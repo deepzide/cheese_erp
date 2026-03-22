@@ -29,6 +29,8 @@ class CheeseQuotation(Document):
 		"""Validate quotation data"""
 		# Auto-calculate pricing from experiences
 		self.calculate_totals()
+		self.validate_relationships()
+		self.validate_slots_not_expired()
 
 		# Check expiration
 		if self.valid_until and get_datetime(self.valid_until) < now_datetime():
@@ -40,6 +42,58 @@ class CheeseQuotation(Document):
 				)
 			if self.status != "EXPIRED":
 				self.status = "EXPIRED"
+
+	def validate_relationships(self):
+		"""Validate route/experience/slot/establishment relationships."""
+		if not self.experiences:
+			return
+
+		route_experience_ids = set()
+		if self.route:
+			route_doc = frappe.get_doc("Cheese Route", self.route)
+			route_experience_ids = {row.experience for row in (route_doc.experiences or []) if row.experience}
+
+		for row in self.experiences:
+			if not row.experience:
+				continue
+
+			experience_doc = frappe.get_doc("Cheese Experience", row.experience)
+
+			if self.route and row.experience not in route_experience_ids:
+				frappe.throw(
+					_("Experience {0} is not part of Route {1}").format(row.experience, self.route),
+					frappe.ValidationError,
+				)
+
+			if self.establishment and experience_doc.company and experience_doc.company != self.establishment:
+				frappe.throw(
+					_("Experience {0} belongs to Establishment {1}, not {2}").format(
+						row.experience, experience_doc.company, self.establishment
+					),
+					frappe.ValidationError,
+				)
+
+			if row.slot:
+				slot_doc = frappe.get_doc("Cheese Experience Slot", row.slot)
+				if slot_doc.experience != row.experience:
+					frappe.throw(
+						_("Slot {0} does not belong to Experience {1}").format(row.slot, row.experience),
+						frappe.ValidationError,
+					)
+
+	def validate_slots_not_expired(self):
+		"""Prevent quotations from using past/expired slot date-time."""
+		now_dt = now_datetime()
+		for row in self.experiences or []:
+			if not row.slot:
+				continue
+			slot_doc = frappe.get_doc("Cheese Experience Slot", row.slot)
+			slot_end = get_datetime(f"{slot_doc.date_to} {slot_doc.time_to or '23:59:59'}")
+			if slot_end < now_dt:
+				frappe.throw(
+					_("Slot {0} has expired and cannot be used in a quotation.").format(row.slot),
+					frappe.ValidationError,
+				)
 
 	def calculate_totals(self):
 		"""Calculate total_price and deposit_amount from linked experiences"""
@@ -75,6 +129,11 @@ class CheeseQuotation(Document):
 		self.total_price = total_price
 		self.deposit_amount = total_deposit
 
+	def on_trash(self):
+		"""Allow deletion only while quotation is in DRAFT."""
+		if self.status != "DRAFT":
+			frappe.throw(_("Only DRAFT quotations can be deleted."), frappe.ValidationError)
+
 @frappe.whitelist()
 def make_tickets(source_name, target_doc=None):
 	quo = frappe.get_doc("Cheese Quotation", source_name)
@@ -99,8 +158,19 @@ def make_tickets(source_name, target_doc=None):
 		ticket.experience = exp.experience
 		ticket.route = quo.route
 		ticket.slot = exp.slot
-		ticket.party_size = 1 # Default
+		ticket.party_size = int(getattr(quo, "party_size", None) or 1)
 		ticket.status = "PENDING"
+
+		experience_doc = frappe.get_doc("Cheese Experience", exp.experience)
+		ticket.deposit_required = 1 if experience_doc.deposit_required else 0
+		ticket.deposit_amount = 0
+		if experience_doc.deposit_required:
+			if experience_doc.deposit_type == "Amount":
+				ticket.deposit_amount = experience_doc.deposit_value or 0
+			elif experience_doc.deposit_type == "%":
+				price_per_person = experience_doc.route_price if quo.route else experience_doc.individual_price
+				row_total = (price_per_person or 0) * ticket.party_size
+				ticket.deposit_amount = row_total * (experience_doc.deposit_value or 0) / 100.0
 		
 		ticket.insert(ignore_permissions=True)
 		tickets.append(ticket.name)

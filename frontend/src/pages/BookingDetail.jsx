@@ -180,8 +180,8 @@ export default function BookingDetail() {
                                 <Button
                                     type="button"
                                     variant="outline"
-                                    onClick={() => navigate(`/cheese/tickets?route=${encodeURIComponent(booking?.route || "")}`)}
-                                    disabled={!booking?.route}
+                                    onClick={() => navigate(`/cheese/tickets?booking=${encodeURIComponent(booking?.name || "")}`)}
+                                    disabled={!booking?.name}
                                 >
                                     <Ticket className="w-4 h-4 mr-2" /> Tickets
                                 </Button>

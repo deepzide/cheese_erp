@@ -14,10 +14,10 @@ import { toast } from "sonner";
 import { useFrappeList, useFrappeCreate, useFrappeUpdate, useFrappeDelete } from "@/lib/useApiData";
 
 const QT_STATUS = {
-    Draft: "bg-gray-500/15 text-gray-600 dark:text-gray-400",
-    Sent: "bg-blue-500/15 text-blue-700 dark:text-blue-400",
-    Accepted: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400",
-    Rejected: "bg-red-500/15 text-red-700 dark:text-red-400",
+    DRAFT: "bg-slate-500/15 text-slate-700 border-slate-300 dark:text-slate-300 dark:border-slate-700",
+    SENT: "bg-blue-500/15 text-blue-700 border-blue-300 dark:text-blue-300 dark:border-blue-700",
+    ACCEPTED: "bg-emerald-500/15 text-emerald-700 border-emerald-300 dark:text-emerald-300 dark:border-emerald-700",
+    EXPIRED: "bg-red-500/15 text-red-700 border-red-300 dark:text-red-300 dark:border-red-700",
 };
 
 export default function Quotations() {
@@ -58,7 +58,7 @@ export default function Quotations() {
 
     const handleCreate = () => {
         if (!form.lead || !form.route || !form.total_price) { toast.error("Lead, route, and total are required"); return; }
-        createMutation.mutate({ ...form, status: "Draft", total_price: parseFloat(form.total_price) }, {
+        createMutation.mutate({ ...form, status: "DRAFT", total_price: parseFloat(form.total_price) }, {
             onSuccess: () => { setForm({ lead: "", route: "", total_price: "" }); setCreateOpen(false); toast.success("Quotation created"); },
             onError: (err) => toast.error(err?.message || "Failed"),
         });
@@ -102,6 +102,9 @@ export default function Quotations() {
                     </CardContent></Card>
                 )) : filtered.map((qt) => (
                     <motion.div key={qt.name} whileHover={{ x: 4 }}>
+                        {(() => {
+                            const status = (qt.status || "DRAFT").toUpperCase();
+                            return (
                         <Card className="border border-border shadow-sm hover:shadow-md transition-all group cursor-pointer" onClick={(e) => {
                             if (!e.target.closest('[role="menuitem"]') && !e.target.closest('button')) {
                                 navigate(`/cheese/quotations/${qt.name}`);
@@ -115,7 +118,7 @@ export default function Quotations() {
                                 </div>
                                 <div className="text-right">
                                     <p className="font-bold text-lg text-foreground flex items-center"><DollarSign className="w-4 h-4" />{Number(qt.total_price || 0).toLocaleString()}</p>
-                                    <Badge className={QT_STATUS[qt.status] || QT_STATUS.Draft}>{qt.status || 'Draft'}</Badge>
+                                    <Badge variant="outline" className={QT_STATUS[status] || QT_STATUS.DRAFT}>{status}</Badge>
                                 </div>
                                 <span className="text-xs text-muted-foreground hidden sm:block">{qt.deposit_amount ? `Deposit: $${Number(qt.deposit_amount).toLocaleString()}` : ''}</span>
                                 <DropdownMenu>
@@ -123,18 +126,21 @@ export default function Quotations() {
                                     <DropdownMenuContent align="end">
                                         <DropdownMenuItem onClick={() => navigate(`/cheese/quotations/${qt.name}`)}><Eye className="w-3 h-3 mr-2" /> View Details</DropdownMenuItem>
                                         <DropdownMenuSeparator />
-                                        {qt.status === "Draft" && <DropdownMenuItem onClick={() => updateStatus(qt.name, "Sent")}><Send className="w-3 h-3 mr-2" /> Send</DropdownMenuItem>}
-                                        {qt.status === "Sent" && <DropdownMenuItem onClick={() => updateStatus(qt.name, "Accepted")}>Mark Accepted</DropdownMenuItem>}
-                                        {qt.status === "Sent" && <DropdownMenuItem onClick={() => updateStatus(qt.name, "Rejected")}>Mark Rejected</DropdownMenuItem>}
+                                        {status === "DRAFT" && <DropdownMenuItem onClick={() => updateStatus(qt.name, "SENT")}><Send className="w-3 h-3 mr-2" /> Send</DropdownMenuItem>}
+                                        {status === "SENT" && <DropdownMenuItem onClick={() => updateStatus(qt.name, "ACCEPTED")}>Mark Accepted</DropdownMenuItem>}
                                         <DropdownMenuSeparator />
                                         <DropdownMenuItem onClick={() => qt.lead && navigate(`/cheese/leads/${qt.lead}`)}>View Lead</DropdownMenuItem>
                                         <DropdownMenuItem onClick={() => qt.route && navigate(`/cheese/routes/${qt.route}`)}><Route className="w-3 h-3 mr-2" /> View Route</DropdownMenuItem>
                                         <DropdownMenuSeparator />
-                                        <DropdownMenuItem className="text-red-600" onClick={() => deleteMutation.mutate(qt.name, { onSuccess: () => toast.success("Deleted") })}><Trash2 className="w-3 h-3 mr-2" /> Delete</DropdownMenuItem>
+                                        {status === "DRAFT" && (
+                                            <DropdownMenuItem className="text-red-600" onClick={() => deleteMutation.mutate(qt.name, { onSuccess: () => toast.success("Deleted") })}><Trash2 className="w-3 h-3 mr-2" /> Delete</DropdownMenuItem>
+                                        )}
                                     </DropdownMenuContent>
                                 </DropdownMenu>
                             </CardContent>
                         </Card>
+                            );
+                        })()}
                     </motion.div>
                 ))}
             </div>

@@ -442,7 +442,16 @@ export default function LeadDetail() {
                                     <span className="flex items-center"><FileText className="w-4 h-4 mr-2" /> Create Quotation</span>
                                     <ChevronRight className="w-4 h-4 opacity-0 group-hover:opacity-100 transition-opacity" />
                                 </button>
-                                <button onClick={() => navigate(`/cheese/contacts/${lead?.contact}`)} className="text-sm text-left px-3 py-2 rounded-md hover:bg-primary/10 transition-colors text-primary font-medium flex items-center justify-between group">
+                                <button
+                                    onClick={() => {
+                                        if (!lead?.contact) {
+                                            toast.error("This lead has no linked contact.");
+                                            return;
+                                        }
+                                        navigate(`/cheese/contacts/${lead.contact}`);
+                                    }}
+                                    className="text-sm text-left px-3 py-2 rounded-md hover:bg-primary/10 transition-colors text-primary font-medium flex items-center justify-between group"
+                                >
                                     <span className="flex items-center"><Target className="w-4 h-4 mr-2" /> View Contact Setup</span>
                                     <ChevronRight className="w-4 h-4 opacity-0 group-hover:opacity-100 transition-opacity" />
                                 </button>

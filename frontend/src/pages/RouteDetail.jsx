@@ -15,6 +15,9 @@ import { routeService } from "@/api/routeService";
 import FrappeSearchSelect from "@/components/FrappeSearchSelect";
 import { Trash2, ChevronUp, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { apiRequest } from "@/api/client";
 
 export default function RouteDetail() {
     const { id } = useParams();
@@ -30,6 +33,8 @@ export default function RouteDetail() {
     const [experienceToAdd, setExperienceToAdd] = useState("");
     const [experienceIds, setExperienceIds] = useState([]);
     const [isSavingExperiences, setIsSavingExperiences] = useState(false);
+    const [renameOpen, setRenameOpen] = useState(false);
+    const [newId, setNewId] = useState("");
 
     // Reset local form when fetched data changes
     useEffect(() => {
@@ -179,6 +184,31 @@ export default function RouteDetail() {
             toast.error(err?.message || "Failed to update route");
         } finally {
             setIsSavingExperiences(false);
+        }
+    };
+
+    const handleRename = async () => {
+        const targetId = (newId || "").trim();
+        if (!targetId) {
+            toast.error("New ID is required");
+            return;
+        }
+        try {
+            await apiRequest("/api/method/frappe.model.rename_doc.rename_doc", {
+                method: "POST",
+                body: JSON.stringify({
+                    doctype: "Cheese Route",
+                    old_name: id,
+                    new_name: targetId,
+                    force: 1,
+                    merge: 0,
+                }),
+            });
+            toast.success("Route ID renamed");
+            setRenameOpen(false);
+            navigate(`/cheese/routes/${encodeURIComponent(targetId)}`);
+        } catch (e) {
+            toast.error(e?.message || "Failed to rename route");
         }
     };
 
@@ -495,7 +525,7 @@ export default function RouteDetail() {
                                                 <Label className="text-xs text-muted-foreground">Add experience</Label>
                                                 <FrappeSearchSelect
                                                     doctype="Cheese Experience"
-                                                    label="experience_info"
+                                                label="name"
                                                     value={experienceToAdd}
                                                     onChange={setExperienceToAdd}
                                                     placeholder="Select an experience..."
@@ -516,6 +546,11 @@ export default function RouteDetail() {
                             </Card>
                         </TabsContent>
                     </Tabs>
+                    <div className="flex gap-2">
+                        <Button type="button" variant="outline" onClick={() => { setNewId(id); setRenameOpen(true); }}>
+                            Rename Route ID
+                        </Button>
+                    </div>
                 </div>
 
                 {/* Right Column - Metadata */}
@@ -560,6 +595,21 @@ export default function RouteDetail() {
                     </Card>
                 </div>
             </div>
+            <Dialog open={renameOpen} onOpenChange={setRenameOpen}>
+                <DialogContent className="max-w-md">
+                    <DialogHeader>
+                        <DialogTitle>Rename Route ID</DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-3">
+                        <Label>New ID</Label>
+                        <Input value={newId} onChange={(e) => setNewId(e.target.value)} placeholder="Enter new document ID" />
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setRenameOpen(false)}>Cancel</Button>
+                        <Button onClick={handleRename}>Rename</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </DetailPageLayout>
     );
 }

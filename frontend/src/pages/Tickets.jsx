@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { motion } from "framer-motion";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -24,6 +24,7 @@ import { ticketService } from "@/api/ticketService";
 import { experienceService } from "@/api/experienceService";
 import { routeService } from "@/api/routeService";
 import { extractData } from "@/lib/useApiData";
+import { useFrappeDoc } from "@/lib/useApiData";
 
 const STATUSES = ["PENDING", "CONFIRMED", "CHECKED_IN", "COMPLETED", "CANCELLED", "NO_SHOW", "EXPIRED", "REJECTED"];
 
@@ -42,7 +43,11 @@ const emptyForm = { contact_id: "", experience_id: "", slot_id: "", party_size: 
 
 export default function Tickets() {
     const navigate = useNavigate();
+    const [searchParams] = useSearchParams();
     const queryClient = useQueryClient();
+    const experienceFilter = searchParams.get("experience") || "";
+    const routeFilter = searchParams.get("route") || "";
+    const bookingFilter = searchParams.get("booking") || "";
     const [searchTerm, setSearchTerm] = useState("");
     const [filterStatus, setFilterStatus] = useState("all");
     const [selectedTicket, setSelectedTicket] = useState(null);
@@ -83,6 +88,15 @@ export default function Tickets() {
     const experiences = Array.isArray(experiencesData) ? experiencesData : [];
     const routes = Array.isArray(routesData) ? routesData : [];
 
+    const { data: bookingDoc } = useFrappeDoc("Cheese Route Booking", bookingFilter, {
+        enabled: !!bookingFilter,
+    });
+    const bookingTicketIds = new Set(
+        (bookingDoc?.tickets || [])
+            .map((row) => row?.ticket)
+            .filter(Boolean)
+    );
+
     // Status update mutation
     const updateStatusMutation = useMutation({
         mutationFn: ({ ticketId, newStatus, reason }) =>
@@ -117,6 +131,9 @@ export default function Tickets() {
 
     // Filter tickets
     const filteredTickets = allTickets.filter(t => {
+        if (experienceFilter && t.experience !== experienceFilter) return false;
+        if (routeFilter && t.route !== routeFilter) return false;
+        if (bookingFilter && !bookingTicketIds.has(t.name)) return false;
         if (filterStatus !== "all" && t.status !== filterStatus) return false;
         if (searchTerm) {
             const term = searchTerm.toLowerCase();
@@ -175,6 +192,15 @@ export default function Tickets() {
                     <p className="text-sm text-muted-foreground mt-1">
                         {isLoading ? '...' : `${boardData?.total_tickets || 0} tickets`} • Drag to change status
                     </p>
+                    {(experienceFilter || routeFilter || bookingFilter) && (
+                        <p className="text-xs text-muted-foreground mt-1">
+                            Filtered by {
+                                bookingFilter
+                                    ? `Reservation: ${bookingFilter}`
+                                    : (experienceFilter ? `Experience: ${experienceFilter}` : `Route: ${routeFilter}`)
+                            }
+                        </p>
+                    )}
                 </div>
                 <div className="flex gap-2">
                     <div className="relative">

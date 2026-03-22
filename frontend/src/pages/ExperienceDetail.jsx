@@ -9,6 +9,10 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Building2, DollarSign, Settings, MapPin, Info, Link as LinkIcon } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { apiRequest } from "@/api/client";
 
 export default function ExperienceDetail() {
     const { id } = useParams();
@@ -21,6 +25,8 @@ export default function ExperienceDetail() {
     // Local State for Edit Mode
     const [editMode, setEditMode] = useState(false);
     const [form, setForm] = useState({});
+    const [renameOpen, setRenameOpen] = useState(false);
+    const [newId, setNewId] = useState("");
 
     // Reset local form when fetched data changes
     useEffect(() => {
@@ -82,6 +88,44 @@ export default function ExperienceDetail() {
             },
             onError: (err) => toast.error(err?.message || "Failed to update experience")
         });
+    };
+
+    const handleRename = async () => {
+        const targetId = (newId || "").trim();
+        if (!targetId) {
+            toast.error("New ID is required");
+            return;
+        }
+        try {
+            await apiRequest("/api/method/frappe.model.rename_doc.rename_doc", {
+                method: "POST",
+                body: JSON.stringify({
+                    doctype: "Cheese Experience",
+                    old_name: id,
+                    new_name: targetId,
+                    force: 1,
+                    merge: 0,
+                }),
+            });
+            toast.success("Experience ID renamed");
+            setRenameOpen(false);
+            navigate(`/cheese/experiences/${encodeURIComponent(targetId)}`);
+        } catch (e) {
+            toast.error(e?.message || "Failed to rename experience");
+        }
+    };
+
+    const handleSetStatus = (nextStatus) => {
+        updateMutation.mutate(
+            { name: id, data: { status: nextStatus } },
+            {
+                onSuccess: () => {
+                    setForm((prev) => ({ ...prev, status: nextStatus }));
+                    toast.success(`Experience is now ${nextStatus}`);
+                },
+                onError: (err) => toast.error(err?.message || "Failed to update status"),
+            }
+        );
     };
 
     const getStatusBadge = (status) => {
@@ -282,6 +326,11 @@ export default function ExperienceDetail() {
                             </Card>
                         </TabsContent>
                     </Tabs>
+                    <div className="flex gap-2">
+                        <Button type="button" variant="outline" onClick={() => { setNewId(id); setRenameOpen(true); }}>
+                            Rename Experience ID
+                        </Button>
+                    </div>
                 </div>
 
                 {/* Right Column - Metadata */}
@@ -338,22 +387,46 @@ export default function ExperienceDetail() {
                         <CardContent className="space-y-2 p-4 pt-0">
                             <div className="flex flex-col gap-2">
                                 {exp?.status === "ONLINE" ? (
-                                    <button onClick={() => updateMutation.mutate({ name: id, data: { status: "OFFLINE" } })} disabled={updateMutation.isPending} className="text-sm text-left px-3 py-2 rounded-md hover:bg-primary/10 transition-colors text-primary font-medium flex items-center justify-between">
+                                    <button onClick={() => handleSetStatus("OFFLINE")} disabled={updateMutation.isPending} className="text-sm text-left px-3 py-2 rounded-md hover:bg-primary/10 transition-colors text-primary font-medium flex items-center justify-between">
                                         <span>Take Experience Offline</span>
                                     </button>
                                 ) : (
-                                    <button onClick={() => updateMutation.mutate({ name: id, data: { status: "ONLINE" } })} disabled={updateMutation.isPending} className="text-sm text-left px-3 py-2 rounded-md hover:bg-primary/10 transition-colors text-primary font-medium flex items-center justify-between">
+                                    <button onClick={() => handleSetStatus("ONLINE")} disabled={updateMutation.isPending} className="text-sm text-left px-3 py-2 rounded-md hover:bg-primary/10 transition-colors text-primary font-medium flex items-center justify-between">
                                         <span>Publish Experience Online</span>
                                     </button>
                                 )}
-                                <button className="text-sm text-left px-3 py-2 rounded-md hover:bg-primary/10 transition-colors text-primary font-medium flex items-center justify-between">
+                                <button onClick={() => navigate(`/cheese/routes?add_experience=${encodeURIComponent(id)}`)} className="text-sm text-left px-3 py-2 rounded-md hover:bg-primary/10 transition-colors text-primary font-medium flex items-center justify-between">
                                     <span className="flex items-center"><LinkIcon className="w-4 h-4 mr-2" /> Add to Route Template</span>
+                                </button>
+                                <button onClick={() => navigate(`/cheese/tickets?experience=${encodeURIComponent(id)}`)} className="text-sm text-left px-3 py-2 rounded-md hover:bg-primary/10 transition-colors text-primary font-medium">
+                                    View Tickets for this Experience
+                                </button>
+                                <button onClick={() => navigate(`/cheese/booking-policy?experience=${encodeURIComponent(id)}`)} className="text-sm text-left px-3 py-2 rounded-md hover:bg-primary/10 transition-colors text-primary font-medium">
+                                    Booking Policy
+                                </button>
+                                <button onClick={() => navigate(`/cheese/documents?entity_type=${encodeURIComponent("Cheese Experience")}&entity_id=${encodeURIComponent(id)}`)} className="text-sm text-left px-3 py-2 rounded-md hover:bg-primary/10 transition-colors text-primary font-medium">
+                                    Documents for this Experience
                                 </button>
                             </div>
                         </CardContent>
                     </Card>
                 </div>
             </div>
+            <Dialog open={renameOpen} onOpenChange={setRenameOpen}>
+                <DialogContent className="max-w-md">
+                    <DialogHeader>
+                        <DialogTitle>Rename Experience ID</DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-3">
+                        <Label>New ID</Label>
+                        <Input value={newId} onChange={(e) => setNewId(e.target.value)} placeholder="Enter new document ID" />
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setRenameOpen(false)}>Cancel</Button>
+                        <Button onClick={handleRename}>Rename</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </DetailPageLayout>
     );
 }

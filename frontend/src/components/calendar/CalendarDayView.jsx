@@ -11,7 +11,9 @@ export default function CalendarDayView({ date, slots, onSlotClick, onEmptyClick
     const hours = getHours();
     const today = isToday(date);
     const dayKey = format(date, "yyyy-MM-dd");
-    const daySlots = slots.filter((s) => s.date_from === dayKey);
+    const daySlots = slots
+        .filter((s) => s.date_from <= dayKey && s.date_to >= dayKey)
+        .sort((a, b) => (a.time_from || "").localeCompare(b.time_from || ""));
 
     // Update now indicator every minute
     useEffect(() => {

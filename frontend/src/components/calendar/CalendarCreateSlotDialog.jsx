@@ -35,6 +35,11 @@ export default function CalendarCreateSlotDialog({ open, onClose, prefillDate, p
 
     const createMutation = useFrappeCreate("Cheese Experience Slot");
 
+    const toApiTime = (value) => {
+        if (!value) return null;
+        return value.length === 5 ? `${value}:00` : value;
+    };
+
     // Pre-fill from click context
     useEffect(() => {
         if (open) {
@@ -107,8 +112,8 @@ export default function CalendarCreateSlotDialog({ open, onClose, prefillDate, p
                     experience_id: experience,
                     date_from: dateFrom,
                     date_to: dateTo || dateFrom,
-                    time_from: timeFrom || null,
-                    time_to: timeTo || null,
+                    time_from: toApiTime(timeFrom),
+                    time_to: toApiTime(timeTo),
                     max_capacity: parseInt(maxCapacity, 10) || 10,
                     slot_status: "OPEN",
                     recurrence_config: recurrenceConfig,
@@ -122,8 +127,8 @@ export default function CalendarCreateSlotDialog({ open, onClose, prefillDate, p
                     experience,
                     date_from: dateFrom,
                     date_to: dateTo || dateFrom,
-                    time_from: timeFrom || null,
-                    time_to: timeTo || null,
+                    time_from: toApiTime(timeFrom),
+                    time_to: toApiTime(timeTo),
                     max_capacity: parseInt(maxCapacity, 10) || 10,
                     slot_status: "OPEN",
                 });

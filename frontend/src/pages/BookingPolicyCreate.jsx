@@ -47,7 +47,7 @@ export default function BookingPolicyCreate() {
                     <Label>Experience <span className="text-red-500">*</span></Label>
                     <FrappeSearchSelect
                         doctype="Cheese Experience"
-                        label="experience_info"
+                        label="name"
                         value={form.experience}
                         onChange={(v) => setForm(f => ({ ...f, experience: v }))}
                         placeholder="Select an experience..."

@@ -73,13 +73,20 @@ export default function CalendarPage() {
     const { data: slotsRaw = [], isLoading, error, refetch } = useFrappeList("Cheese Experience Slot", {
         filters: {
             ...slotFilters,
-            date_from: ["between", [from, to]],
+            date_from: ["<=", to],
+            date_to: [">=", from],
         },
         fields: ["name", "experience", "date_from", "date_to", "time_from", "time_to", "max_capacity", "reserved_capacity", "slot_status"],
         pageSize: 500,
     });
 
-    const slots = Array.isArray(slotsRaw) ? slotsRaw : [];
+    const slots = (Array.isArray(slotsRaw) ? slotsRaw : []).slice().sort((a, b) => {
+        const dateCmp = (a.date_from || "").localeCompare(b.date_from || "");
+        if (dateCmp !== 0) return dateCmp;
+        const timeCmp = (a.time_from || "").localeCompare(b.time_from || "");
+        if (timeCmp !== 0) return timeCmp;
+        return (a.name || "").localeCompare(b.name || "");
+    });
 
     // Navigation
     const handlePrev = () => setCurrentDate(nav[view].prev(currentDate));

@@ -70,6 +70,25 @@ export default function ContactDetail() {
         });
     };
 
+    if (!isLoading && !contact) {
+        return (
+            <DetailPageLayout
+                title="Contact not found"
+                subtitle={`Contact • ${id || "Unknown"}`}
+                backPath="/cheese/contacts"
+                isLoading={false}
+            >
+                <div className="p-6">
+                    <Card className="border-border/60 shadow-sm">
+                        <CardContent className="p-8 text-center text-muted-foreground">
+                            The requested contact was not found or is no longer available.
+                        </CardContent>
+                    </Card>
+                </div>
+            </DetailPageLayout>
+        );
+    }
+
     return (
         <DetailPageLayout
             title={contact?.full_name || contact?.phone || "Loading Contact..."}

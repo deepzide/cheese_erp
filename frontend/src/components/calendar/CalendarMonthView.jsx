@@ -13,10 +13,17 @@ export default function CalendarMonthView({ date, slots, onDayClick }) {
     // Group slots by date
     const slotsByDate = {};
     slots.forEach((slot) => {
-        const key = slot.date_from;
-        if (!key) return;
-        if (!slotsByDate[key]) slotsByDate[key] = [];
-        slotsByDate[key].push(slot);
+        if (!slot.date_from || !slot.date_to) return;
+        const from = new Date(slot.date_from);
+        const to = new Date(slot.date_to);
+        for (let cur = new Date(from); cur <= to; cur.setDate(cur.getDate() + 1)) {
+            const key = format(cur, "yyyy-MM-dd");
+            if (!slotsByDate[key]) slotsByDate[key] = [];
+            slotsByDate[key].push(slot);
+        }
+    });
+    Object.keys(slotsByDate).forEach((key) => {
+        slotsByDate[key].sort((a, b) => (a.time_from || "").localeCompare(b.time_from || ""));
     });
 
     return (

@@ -32,52 +32,69 @@ export default function BookingCreate() {
     }, [initialValues.route]);
 
     const handleSubmit = async () => {
-        if (!ticketId || !initialValues.contact || !routeId) {
-            toast.error("Ticket, contact, and route are required");
+        if (!ticketId || !initialValues.contact) {
+            toast.error("Ticket and contact are required");
             return;
         }
 
         try {
-            const selectedDate = ticket?.selected_date;
-            const reservationPayload = {
-                contact_id: initialValues.contact,
-                route_id: routeId,
-                party_size: initialValues.party_size,
-                conversation_id: ticket?.conversation,
-            };
-
-            // If we have a selected date, let the backend auto-select OPEN slots for ALL experiences in the route.
-            // This prevents validation errors when the route contains multiple experiences.
-            if (selectedDate) {
-                reservationPayload.date_from = selectedDate;
-            } else {
-                reservationPayload.experiences_with_slots = [
+            // If no route, convert to single-experience reservation by confirming the ticket
+            if (!routeId) {
+                const res = await apiRequest(
+                    "/api/method/cheese.api.v1.ticket_controller.confirm_ticket",
                     {
-                        experience_id: ticket.experience,
-                        slot_id: ticket.slot,
-                    },
-                ];
-            }
-
-            const res = await apiRequest(
-                "/api/method/cheese.api.v1.route_booking_controller.create_route_reservation",
-                {
-                method: "POST",
-                body: JSON.stringify({
-                    ...reservationPayload,
-                }),
+                        method: "POST",
+                        body: JSON.stringify({ ticket_id: ticketId }),
+                    }
+                );
+                const payload = res?.data?.message || res?.data || res;
+                if (payload?.success === false) {
+                    throw new Error(payload?.message || "Failed to confirm ticket");
                 }
-            );
-
-            const payload = res?.data?.message || res?.data || res;
-            const bookingId =
-                payload?.data?.route_booking_id || payload?.route_booking_id;
-
-            toast.success("Route reservation created");
-            if (bookingId) {
-                navigate(`/cheese/bookings?highlight=${bookingId}`);
+                toast.success("Ticket confirmed as reservation");
+                navigate(`/cheese/tickets/${encodeURIComponent(ticketId)}`);
             } else {
-                navigate("/cheese/bookings");
+                const selectedDate = ticket?.selected_date;
+                const reservationPayload = {
+                    contact_id: initialValues.contact,
+                    route_id: routeId,
+                    party_size: initialValues.party_size,
+                    conversation_id: ticket?.conversation,
+                };
+
+                // If we have a selected date, let the backend auto-select OPEN slots for ALL experiences in the route.
+                // This prevents validation errors when the route contains multiple experiences.
+                if (selectedDate) {
+                    reservationPayload.date_from = selectedDate;
+                } else {
+                    reservationPayload.experiences_with_slots = [
+                        {
+                            experience_id: ticket.experience,
+                            slot_id: ticket.slot,
+                        },
+                    ];
+                }
+
+                const res = await apiRequest(
+                    "/api/method/cheese.api.v1.route_booking_controller.create_route_reservation",
+                    {
+                        method: "POST",
+                        body: JSON.stringify({
+                            ...reservationPayload,
+                        }),
+                    }
+                );
+
+                const payload = res?.data?.message || res?.data || res;
+                const bookingId =
+                    payload?.data?.route_booking_id || payload?.route_booking_id;
+
+                toast.success("Route reservation created");
+                if (bookingId) {
+                    navigate(`/cheese/bookings?highlight=${bookingId}`);
+                } else {
+                    navigate("/cheese/bookings");
+                }
             }
         } catch (err) {
             toast.error(err?.message || "Failed to create reservation");
@@ -130,7 +147,7 @@ export default function BookingCreate() {
                         </p>
                         <FrappeSearchSelect
                             doctype="Cheese Route"
-                            label="route_info"
+                            label="short_description"
                             value={routeId}
                             onChange={(v) => setRouteId(v)}
                             placeholder="Select a route..."

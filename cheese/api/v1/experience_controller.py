@@ -657,13 +657,14 @@ def list_time_slots(experience_id, date_from=None, date_to=None, slot_status=Non
 		
 		filters = {"experience": experience_id}
 		
-		if date_from:
-			filters["date_from"] = [">=", getdate(date_from)]
-		if date_to:
-			if "date_from" in filters and isinstance(filters["date_from"], list):
-				filters["date_from"].append(["<=", getdate(date_to)])
-			else:
-				filters["date_from"] = ["<=", getdate(date_to)]
+		date_from_obj = getdate(date_from) if date_from else None
+		date_to_obj = getdate(date_to) if date_to else None
+		if date_from_obj and date_to_obj:
+			filters["date_from"] = ["between", [date_from_obj, date_to_obj]]
+		elif date_from_obj:
+			filters["date_from"] = [">=", date_from_obj]
+		elif date_to_obj:
+			filters["date_from"] = ["<=", date_to_obj]
 		if slot_status:
 			filters["slot_status"] = slot_status
 		

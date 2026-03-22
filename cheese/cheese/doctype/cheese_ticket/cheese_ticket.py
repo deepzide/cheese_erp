@@ -67,6 +67,7 @@ class CheeseTicket(Document):
 
 		# Create snapshots on creation
 		if self.is_new():
+			self.apply_experience_deposit_policy()
 			self.create_snapshots()
 			self.set_expires_at()
 			# Update slot capacity when ticket is created
@@ -153,6 +154,22 @@ class CheeseTicket(Document):
 			"route_price": experience.route_price,
 		}
 		self.price_snapshot = json.dumps(price_data)
+
+	def apply_experience_deposit_policy(self):
+		"""Always derive ticket deposit settings from the linked experience policy."""
+		if not self.experience:
+			return
+		experience = frappe.get_doc("Cheese Experience", self.experience)
+		self.deposit_required = 1 if experience.deposit_required else 0
+		self.deposit_amount = 0
+		if not experience.deposit_required:
+			return
+		if experience.deposit_type == "Amount":
+			self.deposit_amount = experience.deposit_value or 0
+		elif experience.deposit_type == "%":
+			price_per_person = experience.route_price if self.route else experience.individual_price
+			row_total = (price_per_person or 0) * (self.party_size or 1)
+			self.deposit_amount = row_total * (experience.deposit_value or 0) / 100.0
 
 	def set_expires_at(self):
 		"""Set expiration time for PENDING tickets"""

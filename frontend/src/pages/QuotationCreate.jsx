@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -6,7 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Button } from "@/components/ui/button";
 import { FileText, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
-import { useFrappeCreate } from "@/lib/useApiData";
+import { useFrappeCreate, useFrappeDoc, useFrappeList } from "@/lib/useApiData";
 import CreatePageLayout from "@/components/CreatePageLayout";
 import FrappeSearchSelect from "@/components/FrappeSearchSelect";
 import { experienceService } from "@/api/experienceService";
@@ -33,7 +33,38 @@ export default function QuotationCreate() {
     });
     const [experiences, setExperiences] = useState([]);
     const [experienceDetailsById, setExperienceDetailsById] = useState({});
+    const [availableDatesByRow, setAvailableDatesByRow] = useState({});
+    const [availableSlotsByRow, setAvailableSlotsByRow] = useState({});
     const createMutation = useFrappeCreate("Cheese Quotation");
+    const { data: routeDoc } = useFrappeDoc("Cheese Route", form.route, { enabled: !!form.route });
+    const { data: routesRaw = [] } = useFrappeList("Cheese Route", {
+        fields: ["name", "short_description", "status"],
+        pageSize: 200,
+    });
+    const { data: experiencesRaw = [] } = useFrappeList("Cheese Experience", {
+        fields: ["name", "experience_info", "company", "status"],
+        pageSize: 500,
+    });
+    const routeExperienceIds = useMemo(() => {
+        if (!form.route || !routeDoc?.experiences) return [];
+        return routeDoc.experiences.map((row) => row.experience).filter(Boolean);
+    }, [form.route, routeDoc]);
+
+    const routeOptions = useMemo(() => {
+        return (Array.isArray(routesRaw) ? routesRaw : []).filter((r) => r.status === "ONLINE");
+    }, [routesRaw]);
+
+    const experienceOptions = useMemo(() => {
+        const allOnline = (Array.isArray(experiencesRaw) ? experiencesRaw : []).filter((exp) => exp.status === "ONLINE");
+        if (form.route) {
+            const allowed = new Set(routeExperienceIds);
+            return allOnline.filter((exp) => allowed.has(exp.name));
+        }
+        if (form.establishment) {
+            return allOnline.filter((exp) => exp.company === form.establishment);
+        }
+        return allOnline;
+    }, [experiencesRaw, routeExperienceIds, form.route, form.establishment]);
 
     const addExperience = () => {
         setExperiences(prev => [...prev, { experience: "", slot: "", date: "", sequence: prev.length + 1 }]);
@@ -41,14 +72,16 @@ export default function QuotationCreate() {
 
     const ensureExperienceDetails = async (experienceId) => {
         if (!experienceId) return;
-        if (experienceDetailsById[experienceId]) return;
+        if (experienceDetailsById[experienceId]) return experienceDetailsById[experienceId];
         try {
             const result = await experienceService.getExperienceDetail(experienceId);
             const payload = result?.data?.message || result?.data || result;
             const details = payload?.data || payload;
             setExperienceDetailsById(prev => ({ ...prev, [experienceId]: details }));
+            return details;
         } catch (err) {
             toast.error(err?.message || "Failed to load experience details");
+            return null;
         }
     };
 
@@ -89,15 +122,72 @@ export default function QuotationCreate() {
         }
     };
 
+    const loadDateAndSlotOptions = async (rowIndex, experienceId) => {
+        if (!experienceId) {
+            setAvailableDatesByRow((prev) => ({ ...prev, [rowIndex]: [] }));
+            setAvailableSlotsByRow((prev) => ({ ...prev, [rowIndex]: [] }));
+            return [];
+        }
+        const partySizeForFilter = parseInt(form.party_size, 10) || 1;
+        try {
+            const result = await experienceService.listTimeSlots(experienceId, {
+                slot_status: "OPEN",
+                page: 1,
+                page_size: 500,
+            });
+            const payload = result?.data?.message || result?.data || result;
+            const slots = payload?.data || [];
+            const filteredSlots = slots
+                .filter((s) => (s.available_capacity ?? 0) >= partySizeForFilter)
+                .sort((a, b) => {
+                    const dateCmp = (a.date_from || "").localeCompare(b.date_from || "");
+                    if (dateCmp !== 0) return dateCmp;
+                    return (a.time_from || "").localeCompare(b.time_from || "");
+                });
+            const uniqueDates = [...new Set(filteredSlots.map((s) => s.date_from).filter(Boolean))];
+            setAvailableDatesByRow((prev) => ({ ...prev, [rowIndex]: uniqueDates }));
+            setAvailableSlotsByRow((prev) => ({ ...prev, [rowIndex]: filteredSlots }));
+            return uniqueDates;
+        } catch (err) {
+            toast.error(err?.message || "Failed to load available dates");
+            setAvailableDatesByRow((prev) => ({ ...prev, [rowIndex]: [] }));
+            setAvailableSlotsByRow((prev) => ({ ...prev, [rowIndex]: [] }));
+            return [];
+        }
+    };
+
     const handleExperienceChange = async (index, experienceId) => {
         const rowDate = experiences[index]?.date || "";
+        if (form.route && routeDoc?.experiences?.length) {
+            const allowed = new Set(routeDoc.experiences.map((row) => row.experience));
+            if (experienceId && !allowed.has(experienceId)) {
+                toast.error("Selected experience does not belong to the chosen route.");
+                return;
+            }
+        }
         setExperiences(prev =>
-            prev.map((exp, i) => (i === index ? { ...exp, experience: experienceId, slot: "" } : exp))
+            prev.map((exp, i) => (i === index ? { ...exp, experience: experienceId, slot: "", date: "" } : exp))
         );
 
-        await ensureExperienceDetails(experienceId);
-        if (experienceId && rowDate) {
-            fetchSlotForDate(index, experienceId, rowDate);
+        const details = await ensureExperienceDetails(experienceId);
+        if (form.establishment && details?.company && details.company !== form.establishment) {
+            toast.error("Experience does not belong to selected establishment.");
+            setExperiences(prev =>
+                prev.map((exp, i) => (i === index ? { ...exp, experience: "", slot: "" } : exp))
+            );
+            return;
+        }
+        if (experienceId) {
+            const dates = await loadDateAndSlotOptions(index, experienceId);
+            const preferredDate = rowDate && dates.includes(rowDate) ? rowDate : dates[0];
+            if (preferredDate) {
+                setExperiences(prev =>
+                    prev.map((exp, i) => (i === index ? { ...exp, date: preferredDate, slot: "" } : exp))
+                );
+                fetchSlotForDate(index, experienceId, preferredDate);
+            } else {
+                toast.error("No available slot dates for the selected experience.");
+            }
         }
     };
 
@@ -111,13 +201,19 @@ export default function QuotationCreate() {
         }
     };
 
-    const handleSlotChange = (index, slotId) => {
-        setExperiences(prev => prev.map((exp, i) => (i === index ? { ...exp, slot: slotId } : exp)));
-    };
-
     const removeExperience = (index) => {
         setExperiences(prev => prev.filter((_, i) => i !== index).map((exp, i) => ({ ...exp, sequence: i + 1 })));
+        setAvailableDatesByRow({});
+        setAvailableSlotsByRow({});
     };
+
+    useEffect(() => {
+        if (!form.route) return;
+        if (!routeOptions.some((r) => r.name === form.route)) {
+            setForm((prev) => ({ ...prev, route: "" }));
+            setExperiences((prev) => prev.map((row) => ({ ...row, experience: "", date: "", slot: "" })));
+        }
+    }, [form.route, routeOptions]);
 
     const partySize = parseInt(form.party_size, 10) || 1;
     const computedTotals = useMemo(() => {
@@ -148,6 +244,10 @@ export default function QuotationCreate() {
 
     const handleSubmit = () => {
         if (!form.lead || !form.route) { toast.error("Lead and route are required"); return; }
+        if (form.valid_until && new Date(form.valid_until) < new Date()) {
+            toast.error("Quotation cannot be created with an expired validity date.");
+            return;
+        }
 
         const filledExperiences = experiences.filter(exp => exp.experience && exp.slot);
         if (filledExperiences.length === 0) {
@@ -217,13 +317,22 @@ export default function QuotationCreate() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                     <div className="space-y-2">
                         <Label>Route <span className="text-red-500">*</span></Label>
-                        <FrappeSearchSelect
-                            doctype="Cheese Route"
-                            label="route_info"
-                            value={form.route}
-                            onChange={(v) => setForm(f => ({ ...f, route: v }))}
-                            placeholder="Select a route..."
-                        />
+                        <Select
+                            value={form.route || "none"}
+                            onValueChange={(v) => setForm(f => ({ ...f, route: v === "none" ? "" : v }))}
+                        >
+                            <SelectTrigger>
+                                <SelectValue placeholder="Select a route..." />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="none">Select a route...</SelectItem>
+                                {routeOptions.map((route) => (
+                                    <SelectItem key={route.name} value={route.name}>
+                                        {route.short_description || route.name}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
                     </div>
                     <div className="space-y-2">
                         <Label>Conversation</Label>
@@ -290,32 +399,51 @@ export default function QuotationCreate() {
                                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                                         <div className="space-y-1">
                                             <Label className="text-xs">Experience *</Label>
-                                            <FrappeSearchSelect
-                                                doctype="Cheese Experience"
-                                                label="experience_info"
-                                                value={exp.experience}
-                                                onChange={(v) => handleExperienceChange(index, v)}
-                                                placeholder="Select..."
-                                            />
+                                            <Select
+                                                value={exp.experience || "none"}
+                                                onValueChange={(v) => handleExperienceChange(index, v === "none" ? "" : v)}
+                                            >
+                                                <SelectTrigger className="h-9">
+                                                    <SelectValue placeholder="Select..." />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    <SelectItem value="none">Select...</SelectItem>
+                                                    {experienceOptions.map((eOpt) => (
+                                                        <SelectItem key={eOpt.name} value={eOpt.name}>
+                                                            {eOpt.experience_info || eOpt.name}
+                                                        </SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
                                         </div>
                                         <div className="space-y-1">
-                                            <Label className="text-xs">Slot</Label>
-                                            <FrappeSearchSelect
-                                                doctype="Cheese Experience Slot"
-                                                label="name"
-                                                value={exp.slot}
-                                                onChange={(v) => handleSlotChange(index, v)}
-                                                placeholder="Select slot..."
+                                            <Label className="text-xs">Slot (auto)</Label>
+                                            <Input
+                                                value={exp.slot || ""}
+                                                readOnly
+                                                placeholder={exp.date ? "Auto-selected from available slots" : "Select date first"}
+                                                className="h-9"
                                             />
                                         </div>
                                         <div className="space-y-1">
                                             <Label className="text-xs">Date</Label>
-                                            <Input
-                                                type="date"
-                                                value={exp.date}
-                                                onChange={(e) => handleDateChange(index, e.target.value)}
-                                                className="h-9"
-                                            />
+                                            <Select
+                                                value={exp.date || "none"}
+                                                onValueChange={(v) => handleDateChange(index, v === "none" ? "" : v)}
+                                                disabled={!exp.experience}
+                                            >
+                                                <SelectTrigger className="h-9">
+                                                    <SelectValue placeholder={exp.experience ? "Select date" : "Select experience first"} />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    <SelectItem value="none">Select date</SelectItem>
+                                                    {(availableDatesByRow[index] || []).map((dateValue) => (
+                                                        <SelectItem key={dateValue} value={dateValue}>
+                                                            {dateValue}
+                                                        </SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
                                         </div>
                                     </div>
                                 </div>
