@@ -3,9 +3,33 @@
 
 import frappe
 from frappe import _
-from frappe.utils import cint, now_datetime
+from frappe.utils import cint
 from cheese.api.common.responses import success, created, error, not_found, validation_error, paginated_response
 import json
+
+
+def _normalize_entity_type(entity_type):
+	"""Accept legacy aliases and normalize to Cheese Document values."""
+	mapping = {
+		"Experience": "Cheese Experience",
+		"Route": "Cheese Route",
+		"Cheese Experience": "Cheese Experience",
+		"Cheese Route": "Cheese Route",
+		"Company": "Company",
+	}
+	return mapping.get(entity_type, entity_type)
+
+
+def _normalize_document_type(document_type):
+	"""Normalize common casing variants."""
+	mapping = {
+		"PDF": "PDF",
+		"Image": "Image",
+		"IMAGE": "Image",
+		"Link": "Link",
+		"LINK": "Link",
+	}
+	return mapping.get(document_type, document_type)
 
 
 @frappe.whitelist()
@@ -36,12 +60,15 @@ def upload_document(entity_type, entity_id, file_url, title, document_type="PDF"
 			return validation_error("file_url is required")
 		if not title:
 			return validation_error("title is required")
+
+		entity_type = _normalize_entity_type(entity_type)
+		document_type = _normalize_document_type(document_type)
 		
 		# Validate entity exists
-		if entity_type == "Experience":
+		if entity_type == "Cheese Experience":
 			if not frappe.db.exists("Cheese Experience", entity_id):
 				return not_found("Experience", entity_id)
-		elif entity_type == "Route":
+		elif entity_type == "Cheese Route":
 			if not frappe.db.exists("Cheese Route", entity_id):
 				return not_found("Route", entity_id)
 		elif entity_type == "Company":
@@ -49,24 +76,6 @@ def upload_document(entity_type, entity_id, file_url, title, document_type="PDF"
 				return not_found("Company", entity_id)
 		else:
 			return validation_error(f"Invalid entity_type: {entity_type}")
-		
-		# Create document record
-		# Using a custom doctype or storing metadata in File doctype
-		# For now, we'll create a simple reference
-		# In production, you might want a Cheese Document doctype
-		
-		# Store document metadata
-		# This is a simplified version - in production, use a proper DocType
-		document_data = {
-			"entity_type": entity_type,
-			"entity_id": entity_id,
-			"file_url": file_url,
-			"title": title,
-			"tags": tags,
-			"language": language,
-			"status": status,
-			"created_at": now_datetime()
-		}
 		
 		# If Cheese Document doctype exists, use it
 		# Otherwise, store as File attachment with custom fields
@@ -146,6 +155,8 @@ def list_documents(entity_type=None, entity_id=None, status=None, document_type=
 	try:
 		page = cint(page) or 1
 		page_size = cint(page_size) or 20
+		entity_type = _normalize_entity_type(entity_type) if entity_type else None
+		document_type = _normalize_document_type(document_type) if document_type else None
 		
 		# Try to use Cheese Document doctype
 		try:

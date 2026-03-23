@@ -4,7 +4,7 @@
 import frappe
 from frappe import _
 from frappe.model.document import Document
-from frappe.utils import now_datetime, getdate
+from frappe.utils import now_datetime, getdate, get_datetime
 import json
 
 
@@ -51,7 +51,8 @@ class CheeseDeposit(Document):
 					self.paid_at = now_datetime()
 
 		# Check overdue
-		if self.status == "PENDING" and self.due_at and self.due_at < now_datetime():
+		due_at_dt = get_datetime(self.due_at) if self.due_at else None
+		if self.status == "PENDING" and due_at_dt and due_at_dt < now_datetime():
 			self.status = "OVERDUE"
 
 	def validate_unique_active_deposit(self):

@@ -4,7 +4,7 @@
 import frappe
 from frappe import _
 from frappe.model.document import Document
-from frappe.utils import get_datetime, now_datetime
+from frappe.utils import get_datetime, now_datetime, getdate, today
 
 
 class CheeseQuotation(Document):
@@ -32,16 +32,12 @@ class CheeseQuotation(Document):
 		self.validate_relationships()
 		self.validate_slots_not_expired()
 
-		# Check expiration
+		# Enforce validity date in present/future processing window
 		if self.valid_until and get_datetime(self.valid_until) < now_datetime():
-			has_selected_slot = any((exp_row.slot for exp_row in (self.experiences or [])))
-			if has_selected_slot:
-				frappe.throw(
-					"Cannot save a quotation with selected slots when `valid_until` is expired.",
-					frappe.ValidationError,
-				)
-			if self.status != "EXPIRED":
-				self.status = "EXPIRED"
+			frappe.throw(
+				_("Quotation validity date cannot be in the past."),
+				frappe.ValidationError,
+			)
 
 	def validate_relationships(self):
 		"""Validate route/experience/slot/establishment relationships."""
@@ -85,6 +81,11 @@ class CheeseQuotation(Document):
 		"""Prevent quotations from using past/expired slot date-time."""
 		now_dt = now_datetime()
 		for row in self.experiences or []:
+			if row.date and getdate(row.date) < getdate(today()):
+				frappe.throw(
+					_("Experience date {0} cannot be in the past.").format(row.date),
+					frappe.ValidationError,
+				)
 			if not row.slot:
 				continue
 			slot_doc = frappe.get_doc("Cheese Experience Slot", row.slot)

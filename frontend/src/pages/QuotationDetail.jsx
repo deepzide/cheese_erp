@@ -21,6 +21,7 @@ export default function QuotationDetail() {
     // Local State for Edit Mode
     const [editMode, setEditMode] = useState(false);
     const [form, setForm] = useState({});
+    const nowLocal = new Date().toISOString().slice(0, 16);
 
     // Reset local form when fetched data changes
     useEffect(() => {
@@ -159,6 +160,7 @@ export default function QuotationDetail() {
                                                     type="datetime-local"
                                                     value={form.valid_until ? form.valid_until.substring(0, 16) : ""}
                                                     onChange={(e) => handleFieldChange("valid_until", e.target.value)}
+                                                    min={nowLocal}
                                                     className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
                                                 />
                                             </div>
@@ -255,8 +257,7 @@ export default function QuotationDetail() {
                                 )}
                                 <button
                                     onClick={() => {
-                                        const base = `/printview?doctype=${encodeURIComponent("Cheese Quotation")}&name=${encodeURIComponent(id)}`;
-                                        const url = quotation?.route ? `${base}&format=${encodeURIComponent("ERP_CheeseQTYPDF")}` : base;
+                                        const url = `/printview?doctype=${encodeURIComponent("Cheese Quotation")}&name=${encodeURIComponent(id)}&format=${encodeURIComponent("ERP_CheeseQTYPDF")}`;
                                         window.open(url, "_blank");
                                     }}
                                     className="text-sm text-left px-3 py-2 rounded-md hover:bg-primary/10 transition-colors text-primary font-medium flex items-center justify-between"
@@ -265,8 +266,7 @@ export default function QuotationDetail() {
                                 </button>
                                 <button
                                     onClick={() => {
-                                        const base = `/printview?doctype=${encodeURIComponent("Cheese Quotation")}&name=${encodeURIComponent(id)}&format=${encodeURIComponent("ERP_CheeseQTYPDF")}`;
-                                        const url = quotation?.route ? base : `/printview?doctype=${encodeURIComponent("Cheese Quotation")}&name=${encodeURIComponent(id)}&format=pdf`;
+                                        const url = `/printview?doctype=${encodeURIComponent("Cheese Quotation")}&name=${encodeURIComponent(id)}&format=${encodeURIComponent("ERP_CheeseQTYPDF")}`;
                                         window.open(url, "_blank");
                                     }}
                                     className="text-sm text-left px-3 py-2 rounded-md hover:bg-primary/10 transition-colors text-primary font-medium flex items-center justify-between"

@@ -234,6 +234,58 @@ def record_deposit_payment(ticket_id, amount, verification_method="Manual", ocr_
 
 
 @frappe.whitelist()
+def verify_deposit(deposit_id):
+	"""
+	Manual verification helper used by backoffice UI.
+	If deposit is still pending, mark it as fully paid and verified.
+	"""
+	try:
+		if not deposit_id:
+			return validation_error("deposit_id is required")
+
+		if not frappe.db.exists("Cheese Deposit", deposit_id):
+			return not_found("Deposit", deposit_id)
+
+		deposit = frappe.get_doc("Cheese Deposit", deposit_id)
+		old_status = deposit.status
+
+		if deposit.status in ["PAID", "REFUNDED"]:
+			return success(
+				"Deposit already verified",
+				{
+					"deposit_id": deposit.name,
+					"old_status": old_status,
+					"new_status": deposit.status,
+					"amount_required": deposit.amount_required,
+					"amount_paid": deposit.amount_paid or 0,
+				},
+			)
+
+		deposit.amount_paid = deposit.amount_required
+		deposit.verification_method = "Manual"
+		deposit.status = "PAID"
+		deposit.paid_at = now_datetime()
+		deposit.save()
+		frappe.db.commit()
+
+		return success(
+			"Deposit verified successfully",
+			{
+				"deposit_id": deposit.name,
+				"old_status": old_status,
+				"new_status": deposit.status,
+				"amount_required": deposit.amount_required,
+				"amount_paid": deposit.amount_paid or 0,
+			},
+		)
+	except frappe.ValidationError as e:
+		return validation_error(str(e))
+	except Exception as e:
+		frappe.log_error(f"Error in verify_deposit: {str(e)}")
+		return error("Failed to verify deposit", "SERVER_ERROR", {"error": str(e)}, 500)
+
+
+@frappe.whitelist()
 def get_deposit_status(deposit_id):
 	"""
 	Get deposit status and details (US-13)
@@ -410,7 +462,7 @@ def adjust_deposit(deposit_id, adjustment_reason, refund_amount=None):
 
 
 @frappe.whitelist()
-def list_deposits(page=1, page_size=20, status=None, entity_type=None, entity_id=None):
+def list_deposits(page=1, page_size=20, status=None, entity_type=None, entity_id=None, route_id=None, company_id=None):
 	"""
 	List deposits with filters (US-13)
 	
@@ -438,24 +490,78 @@ def list_deposits(page=1, page_size=20, status=None, entity_type=None, entity_id
 			filters["entity_type"] = entity_type
 		if entity_id:
 			filters["entity_id"] = entity_id
-		
+
 		deposits = frappe.get_all(
 			"Cheese Deposit",
 			filters=filters,
 			fields=["name", "entity_type", "entity_id", "amount_required", "amount_paid", "status", "due_at", "paid_at", "modified"],
-			limit_start=(page - 1) * page_size,
-			limit_page_length=page_size,
 			order_by="modified desc"
 		)
-		
-		# Calculate remaining amounts
+
+		# Enrich with contact and relation info for UI filtering and display.
+		enriched = []
 		for deposit in deposits:
 			deposit["amount_remaining"] = deposit.amount_required - (deposit.amount_paid or 0)
-		
-		total = frappe.db.count("Cheese Deposit", filters=filters)
+			deposit["contact"] = None
+			deposit["contact_name"] = None
+			deposit["route"] = None
+			deposit["company"] = None
+			deposit["linked_ticket_id"] = None
+
+			if deposit.entity_type == "Cheese Ticket":
+				ticket = frappe.db.get_value(
+					"Cheese Ticket",
+					deposit.entity_id,
+					["name", "contact", "route", "company"],
+					as_dict=True,
+				)
+				if ticket:
+					deposit["contact"] = ticket.contact
+					deposit["route"] = ticket.route
+					deposit["company"] = ticket.company
+					deposit["linked_ticket_id"] = ticket.name
+			elif deposit.entity_type == "Cheese Route Booking":
+				booking = frappe.db.get_value(
+					"Cheese Route Booking",
+					deposit.entity_id,
+					["contact", "route"],
+					as_dict=True,
+				)
+				if booking:
+					deposit["contact"] = booking.contact
+					deposit["route"] = booking.route
+					# Route doctype has no direct company field; derive establishment from linked tickets.
+					first_ticket_id = frappe.db.get_value(
+						"Cheese Route Booking Ticket",
+						{"parent": deposit.entity_id},
+						"ticket",
+						order_by="idx asc",
+					)
+					if first_ticket_id:
+						deposit["company"] = frappe.db.get_value("Cheese Ticket", first_ticket_id, "company")
+					deposit["linked_ticket_id"] = frappe.db.get_value(
+						"Cheese Route Booking Ticket",
+						{"parent": deposit.entity_id},
+						"ticket",
+						order_by="idx asc",
+					)
+
+			if deposit.get("contact"):
+				deposit["contact_name"] = frappe.db.get_value("Cheese Contact", deposit["contact"], "full_name")
+
+			if route_id and deposit.get("route") != route_id:
+				continue
+			if company_id and deposit.get("company") != company_id:
+				continue
+			enriched.append(deposit)
+
+		total = len(enriched)
+		start = (page - 1) * page_size
+		end = start + page_size
+		deposits_page = enriched[start:end]
 		
 		return paginated_response(
-			deposits,
+			deposits_page,
 			"Deposits retrieved successfully",
 			page=page,
 			page_size=page_size,

@@ -119,8 +119,8 @@ export default function DocumentCreate() {
                             <SelectTrigger><SelectValue /></SelectTrigger>
                             <SelectContent>
                                 <SelectItem value="PDF">PDF</SelectItem>
-                                <SelectItem value="IMAGE">Image</SelectItem>
-                                <SelectItem value="LINK">Link</SelectItem>
+                                <SelectItem value="Image">Image</SelectItem>
+                                <SelectItem value="Link">Link</SelectItem>
                             </SelectContent>
                         </Select>
                     </div>
@@ -142,16 +142,22 @@ export default function DocumentCreate() {
 
                 {/* File Upload */}
                 <div className="space-y-3 p-4 rounded-lg border-2 border-dashed border-border bg-muted/30">
-                    <Label className="font-semibold">Attachment</Label>
-                    <div className="flex items-center gap-3">
-                        <label className="flex items-center gap-2 px-4 py-2 rounded-md bg-background border border-input hover:bg-muted cursor-pointer transition-colors text-sm">
-                            <Upload className="w-4 h-4" />
-                            {uploading ? "Uploading..." : "Choose File"}
-                            <input type="file" className="hidden" onChange={handleFileUpload} disabled={uploading} />
-                        </label>
-                        <span className="text-xs text-muted-foreground">or paste a URL below</span>
-                    </div>
-                    <Input placeholder="https://..." value={form.file_url} onChange={(e) => setForm(f => ({ ...f, file_url: e.target.value }))} />
+                    <Label className="font-semibold">{form.document_type === "Link" ? "Link URL" : "Attachment"}</Label>
+                    {form.document_type !== "Link" && (
+                        <div className="flex items-center gap-3">
+                            <label className="flex items-center gap-2 px-4 py-2 rounded-md bg-background border border-input hover:bg-muted cursor-pointer transition-colors text-sm">
+                                <Upload className="w-4 h-4" />
+                                {uploading ? "Uploading..." : "Choose File"}
+                                <input type="file" className="hidden" onChange={handleFileUpload} disabled={uploading} />
+                            </label>
+                            <span className="text-xs text-muted-foreground">or paste a URL below</span>
+                        </div>
+                    )}
+                    <Input
+                        placeholder={form.document_type === "Link" ? "https://example.com/resource" : "https://..."}
+                        value={form.file_url}
+                        onChange={(e) => setForm(f => ({ ...f, file_url: e.target.value }))}
+                    />
                     {form.file_url && <p className="text-xs text-emerald-600 font-medium">✓ {form.file_url}</p>}
                 </div>
             </div>

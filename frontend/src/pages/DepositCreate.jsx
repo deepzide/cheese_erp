@@ -1,176 +1,188 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { DollarSign } from "lucide-react";
 import { toast } from "sonner";
 import CreatePageLayout from "@/components/CreatePageLayout";
-import { useFrappeDoc } from "@/lib/useApiData";
-import { apiRequest } from "@/api/client";
+import FrappeSearchSelect from "@/components/FrappeSearchSelect";
+import { useFrappeCreate, useFrappeDoc } from "@/lib/useApiData";
 
 export default function DepositCreate() {
     const [searchParams] = useSearchParams();
     const navigate = useNavigate();
     const ticketId = searchParams.get("ticket") || "";
+    const bookingId = searchParams.get("booking") || "";
+    const defaultEntityType = ticketId ? "Cheese Ticket" : (bookingId ? "Cheese Route Booking" : "");
 
-    const { data: ticket, isLoading } = useFrappeDoc("Cheese Ticket", ticketId, {
+    const [form, setForm] = useState({
+        contact: "",
+        entity_type: defaultEntityType,
+        entity_id: ticketId || bookingId || "",
+        amount_required: "",
+        due_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().slice(0, 16),
+    });
+
+    const createMutation = useFrappeCreate("Cheese Deposit");
+
+    const { data: ticket, isLoading: ticketLoading } = useFrappeDoc("Cheese Ticket", form.entity_type === "Cheese Ticket" ? form.entity_id : "", {
+        enabled: form.entity_type === "Cheese Ticket" && !!form.entity_id,
+    });
+    const { data: booking, isLoading: bookingLoading } = useFrappeDoc("Cheese Route Booking", form.entity_type === "Cheese Route Booking" ? form.entity_id : "", {
+        enabled: form.entity_type === "Cheese Route Booking" && !!form.entity_id,
+    });
+    const isLoading = ticketLoading || bookingLoading;
+
+    const { data: prefilledTicket } = useFrappeDoc("Cheese Ticket", ticketId, {
         enabled: !!ticketId,
     });
 
-    const [amount, setAmount] = useState("");
-    const [depositInfo, setDepositInfo] = useState(null);
-
-    const baseInfo = useMemo(
-        () => ({
-            contact: ticket?.contact || "",
-            experience: ticket?.experience || "",
-            deposit_required: ticket?.deposit_required,
-            deposit_amount: ticket?.deposit_amount,
-        }),
-        [ticket]
-    );
-
-    const loadDeposit = async () => {
-        try {
-            const res = await apiRequest(
-                "/api/method/cheese.api.v1.deposit_controller.get_deposit_instructions",
-                {
-                method: "POST",
-                body: JSON.stringify({ ticket_id: ticketId }),
-                }
-            );
-            const payload = res?.data?.message || res?.data || res;
-            const data = payload?.data || payload;
-            setDepositInfo(data);
-            if (data?.amount_remaining != null) {
-                setAmount(String(data.amount_remaining));
-            }
-        } catch (err) {
-            toast.error(err?.message || "Failed to load deposit information");
+    useEffect(() => {
+        if (prefilledTicket?.contact) {
+            setForm((prev) => ({ ...prev, contact: prefilledTicket.contact }));
         }
-    };
+    }, [prefilledTicket]);
 
-    const handleSubmit = async () => {
-        if (!ticketId) {
-            toast.error("Missing ticket ID");
+    useEffect(() => {
+        if (form.entity_type === "Cheese Ticket" && ticket) {
+            setForm((prev) => ({
+                ...prev,
+                contact: ticket.contact || prev.contact,
+                amount_required: ticket.deposit_amount != null ? String(ticket.deposit_amount) : prev.amount_required,
+            }));
+        }
+        if (form.entity_type === "Cheese Route Booking" && booking) {
+            setForm((prev) => ({
+                ...prev,
+                contact: booking.contact || prev.contact,
+                amount_required: booking.deposit_amount != null ? String(booking.deposit_amount) : prev.amount_required,
+            }));
+        }
+    }, [form.entity_type, ticket, booking]);
+
+    const handleSubmit = () => {
+        if (!form.entity_type || !form.entity_id) {
+            toast.error("Select a reservation or ticket");
             return;
         }
-        if (!amount || Number(amount) <= 0) {
-            toast.error("Amount must be greater than 0");
+        if (!form.amount_required || Number(form.amount_required) <= 0) {
+            toast.error("Amount required must be greater than 0");
             return;
         }
 
-        try {
-            // Ensure we have a deposit created
-            if (!depositInfo) {
-                await loadDeposit();
-            }
-
-            await apiRequest(
-                "/api/method/cheese.api.v1.deposit_controller.record_deposit_payment",
-                {
-                method: "POST",
-                body: JSON.stringify({
-                    ticket_id: ticketId,
-                    amount: Number(amount),
-                    verification_method: "Manual",
-                }),
-                }
-            );
-
-            toast.success("Deposit payment recorded");
+        createMutation.mutate({
+            entity_type: form.entity_type,
+            entity_id: form.entity_id,
+            amount_required: Number(form.amount_required),
+            amount_paid: 0,
+            status: "PENDING",
+            due_at: form.due_at || undefined,
+        }, {
+            onSuccess: () => {
+            toast.success("Deposit created");
             navigate(`/cheese/deposits`);
-        } catch (err) {
-            toast.error(err?.message || "Failed to record deposit payment");
-        }
+            },
+            onError: (err) => toast.error(err?.message || "Failed to create deposit"),
+        });
     };
 
     return (
         <CreatePageLayout
-            title="Register Deposit Payment"
+            title="Create Deposit"
             description={
-                ticketId
-                    ? `Record a deposit payment for ticket ${ticketId}`
-                    : "Missing ticket ID in URL"
+                "Create a new deposit linked to a ticket or reservation."
             }
             icon={DollarSign}
-            backPath={ticketId ? `/cheese/tickets/${ticketId}` : "/cheese/tickets"}
+            backPath="/cheese/deposits"
             onSubmit={handleSubmit}
-            isSubmitting={false}
-            submitLabel="Record Payment"
-            isLoading={isLoading && !!ticketId}
+            isSubmitting={createMutation.isPending}
+            submitLabel="Create Deposit"
+            isLoading={isLoading}
         >
-            {ticketId ? (
-                <div className="space-y-5">
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-                        <div className="space-y-1">
-                            <p className="text-xs text-muted-foreground">Ticket</p>
-                            <p className="text-sm font-mono">{ticketId}</p>
-                        </div>
-                        <div className="space-y-1">
-                            <p className="text-xs text-muted-foreground">Experience</p>
-                            <p className="text-sm font-medium">
-                                {baseInfo.experience || "—"}
-                            </p>
-                        </div>
-                        <div className="space-y-1">
-                            <p className="text-xs text-muted-foreground">Deposit Required</p>
-                            <p className="text-sm font-medium">
-                                {baseInfo.deposit_required ? "Yes" : "No"}
-                            </p>
-                        </div>
-                        <div className="space-y-1">
-                            <p className="text-xs text-muted-foreground">Configured Amount</p>
-                            <p className="text-sm font-medium">
-                                {baseInfo.deposit_amount != null
-                                    ? `${baseInfo.deposit_amount}`
-                                    : "—"}
-                            </p>
-                        </div>
-                    </div>
-
-                    <button
-                        type="button"
-                        onClick={loadDeposit}
-                        className="text-xs text-left px-3 py-2 rounded-md border border-dashed border-border hover:bg-muted/40 transition-colors"
-                    >
-                        Load deposit details
-                    </button>
-
-                    {depositInfo && (
-                        <div className="text-xs text-muted-foreground space-y-1">
-                            <p>Deposit ID: {depositInfo.deposit_id}</p>
-                            <p>
-                                Required: {depositInfo.amount_required} • Paid:{" "}
-                                {depositInfo.amount_paid} • Remaining:{" "}
-                                {depositInfo.amount_remaining}
-                            </p>
-                            <p>Status: {depositInfo.status}</p>
-                        </div>
-                    )}
-
+            <div className="space-y-5">
+                <p className="text-xs text-muted-foreground">
+                    Deposits are created here only. Payment registration/modification/cancellation is not available from Deposits.
+                </p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                     <div className="space-y-2">
-                        <label className="text-xs text-muted-foreground">
-                            Payment Amount
-                        </label>
+                        <p className="text-xs text-muted-foreground">Contact</p>
+                        <FrappeSearchSelect
+                            doctype="Cheese Contact"
+                            label="full_name"
+                            value={form.contact}
+                            onChange={(v) => setForm((prev) => ({ ...prev, contact: v, entity_id: "" }))}
+                            placeholder="Select contact..."
+                        />
+                    </div>
+                    <div className="space-y-2">
+                        <p className="text-xs text-muted-foreground">Type</p>
+                        <select
+                            value={form.entity_type}
+                            onChange={(e) => setForm((prev) => ({ ...prev, entity_type: e.target.value, entity_id: "" }))}
+                            className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm"
+                        >
+                            <option value="">Select type...</option>
+                            <option value="Cheese Ticket">Ticket</option>
+                            <option value="Cheese Route Booking">Reservation</option>
+                        </select>
+                    </div>
+                    <div className="space-y-2">
+                        <p className="text-xs text-muted-foreground">Ticket / Reservation</p>
+                        {form.entity_type === "Cheese Ticket" ? (
+                            <FrappeSearchSelect
+                                doctype="Cheese Ticket"
+                                label="name"
+                                value={form.entity_id}
+                                onChange={(v) => setForm((prev) => ({ ...prev, entity_id: v }))}
+                                filters={{ contact: form.contact }}
+                                placeholder={form.contact ? "Select ticket..." : "Select contact first..."}
+                                disabled={!form.contact}
+                            />
+                        ) : form.entity_type === "Cheese Route Booking" ? (
+                            <FrappeSearchSelect
+                                doctype="Cheese Route Booking"
+                                label="name"
+                                value={form.entity_id}
+                                onChange={(v) => setForm((prev) => ({ ...prev, entity_id: v }))}
+                                filters={{ contact: form.contact }}
+                                placeholder={form.contact ? "Select reservation..." : "Select contact first..."}
+                                disabled={!form.contact}
+                            />
+                        ) : (
+                            <input
+                                disabled
+                                className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm"
+                                placeholder="Select type first..."
+                            />
+                        )}
+                    </div>
+                    <div className="space-y-2">
+                        <p className="text-xs text-muted-foreground">Amount Required</p>
                         <input
                             type="number"
                             min="0"
                             step="0.01"
-                            value={amount}
-                            onChange={(e) => setAmount(e.target.value)}
-                            className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                            value={form.amount_required}
+                            onChange={(e) => setForm((prev) => ({ ...prev, amount_required: e.target.value }))}
+                            className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm"
                         />
-                        <p className="text-[11px] text-muted-foreground">
-                            You can record partial payments; the backend enforces that the total
-                            paid cannot exceed the required amount.
-                        </p>
+                    </div>
+                    <div className="space-y-2">
+                        <p className="text-xs text-muted-foreground">Due At</p>
+                        <input
+                            type="datetime-local"
+                            value={form.due_at}
+                            onChange={(e) => setForm((prev) => ({ ...prev, due_at: e.target.value }))}
+                            className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm"
+                        />
                     </div>
                 </div>
-            ) : (
-                <p className="text-sm text-red-500">
-                    No ticket specified. Please go back to the ticket and use
-                    \"Register Deposit\" again.
-                </p>
-            )}
+                <div className="text-xs text-muted-foreground">
+                    {form.entity_type && form.entity_id && (
+                        <p>
+                            Linked to: <span className="font-mono">{form.entity_id}</span>
+                        </p>
+                    )}
+                </div>
+            </div>
         </CreatePageLayout>
     );
 }

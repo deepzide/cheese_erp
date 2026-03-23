@@ -14,6 +14,7 @@ import { experienceService } from "@/api/experienceService";
 export default function QuotationCreate() {
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
+    const todayStr = new Date().toISOString().slice(0, 10);
 
     const toDatetimeLocal = (d) => {
         const pad = (n) => String(n).padStart(2, "0");
@@ -87,6 +88,10 @@ export default function QuotationCreate() {
 
     const fetchSlotForDate = async (rowIndex, experienceId, date) => {
         if (!experienceId || !date) return;
+        if (date < todayStr) {
+            toast.error("Past dates are not allowed.");
+            return;
+        }
         const partySize = parseInt(form.party_size, 10) || 1;
 
         try {
@@ -131,6 +136,7 @@ export default function QuotationCreate() {
         const partySizeForFilter = parseInt(form.party_size, 10) || 1;
         try {
             const result = await experienceService.listTimeSlots(experienceId, {
+                date_from: todayStr,
                 slot_status: "OPEN",
                 page: 1,
                 page_size: 500,
@@ -192,6 +198,10 @@ export default function QuotationCreate() {
     };
 
     const handleDateChange = (index, date) => {
+        if (date && date < todayStr) {
+            toast.error("Past dates are not allowed.");
+            return;
+        }
         const rowExperience = experiences[index]?.experience || "";
         setExperiences(prev =>
             prev.map((exp, i) => (i === index ? { ...exp, date, slot: "" } : exp))
@@ -354,6 +364,7 @@ export default function QuotationCreate() {
                             type="datetime-local"
                             value={form.valid_until}
                             onChange={(e) => setForm(f => ({ ...f, valid_until: e.target.value }))}
+                            min={toDatetimeLocal(new Date())}
                         />
                         <p className="text-xs text-muted-foreground">When this quote expires</p>
                     </div>

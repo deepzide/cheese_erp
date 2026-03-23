@@ -34,6 +34,7 @@ export default function CalendarCreateSlotDialog({ open, onClose, prefillDate, p
     const [customEndOccurrences, setCustomEndOccurrences] = useState("10");
 
     const createMutation = useFrappeCreate("Cheese Experience Slot");
+    const todayStr = new Date().toISOString().slice(0, 10);
 
     const toApiTime = (value) => {
         if (!value) return null;
@@ -99,6 +100,10 @@ export default function CalendarCreateSlotDialog({ open, onClose, prefillDate, p
         }
         if (!dateFrom) {
             toast.error("Please select a date");
+            return;
+        }
+        if (dateFrom < todayStr || (dateTo && dateTo < todayStr)) {
+            toast.error("Cannot create slots on past dates.");
             return;
         }
         
@@ -178,6 +183,7 @@ export default function CalendarCreateSlotDialog({ open, onClose, prefillDate, p
                                     setDateFrom(e.target.value);
                                     if (!dateTo || dateTo < e.target.value) setDateTo(e.target.value);
                                 }}
+                                min={todayStr}
                                 required
                                 className="h-9"
                             />
@@ -188,7 +194,7 @@ export default function CalendarCreateSlotDialog({ open, onClose, prefillDate, p
                                 type="date"
                                 value={dateTo}
                                 onChange={(e) => setDateTo(e.target.value)}
-                                min={dateFrom}
+                                min={dateFrom || todayStr}
                                 className="h-9"
                             />
                         </div>

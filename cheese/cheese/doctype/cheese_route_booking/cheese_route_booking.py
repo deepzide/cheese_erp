@@ -5,6 +5,7 @@ import frappe
 from frappe import _
 from frappe.model.document import Document
 from frappe.utils import now_datetime, add_to_date
+from cheese.cheese.utils.pricing import calculate_route_price
 
 
 class CheeseRouteBooking(Document):
@@ -42,6 +43,9 @@ class CheeseRouteBooking(Document):
 		# Only auto-calculate when status was not explicitly changed by the user
 		if self.tickets and len(self.tickets) > 0 and not self.has_value_changed("status"):
 			self.calculate_status()
+
+		# Keep booking total price tied to route pricing * number of people.
+		self.recalculate_total_price()
 
 		# Set expiration if status is PENDING
 		if self.status == "PENDING" and not self.expires_at:
@@ -86,6 +90,15 @@ class CheeseRouteBooking(Document):
 			self.status = "PARTIALLY_CONFIRMED"
 		else:
 			self.status = "PENDING"
+
+	def recalculate_total_price(self):
+		"""Recompute total price from route and party size."""
+		if not self.route:
+			return
+		party_size = 1
+		if self.tickets and len(self.tickets) > 0:
+			party_size = int((self.tickets[0].party_size or 1))
+		self.total_price = calculate_route_price(self.route, party_size)
 
 	def on_update(self):
 		"""Handle post-update logic"""

@@ -48,6 +48,7 @@ export default function Tickets() {
     const experienceFilter = searchParams.get("experience") || "";
     const routeFilter = searchParams.get("route") || "";
     const bookingFilter = searchParams.get("booking") || "";
+    const slotFilter = searchParams.get("slot") || "";
     const [searchTerm, setSearchTerm] = useState("");
     const [filterStatus, setFilterStatus] = useState("all");
     const [selectedTicket, setSelectedTicket] = useState(null);
@@ -134,6 +135,7 @@ export default function Tickets() {
         if (experienceFilter && t.experience !== experienceFilter) return false;
         if (routeFilter && t.route !== routeFilter) return false;
         if (bookingFilter && !bookingTicketIds.has(t.name)) return false;
+        if (slotFilter && t.slot !== slotFilter) return false;
         if (filterStatus !== "all" && t.status !== filterStatus) return false;
         if (searchTerm) {
             const term = searchTerm.toLowerCase();
@@ -192,10 +194,12 @@ export default function Tickets() {
                     <p className="text-sm text-muted-foreground mt-1">
                         {isLoading ? '...' : `${boardData?.total_tickets || 0} tickets`} • Drag to change status
                     </p>
-                    {(experienceFilter || routeFilter || bookingFilter) && (
+                    {(experienceFilter || routeFilter || bookingFilter || slotFilter) && (
                         <p className="text-xs text-muted-foreground mt-1">
                             Filtered by {
-                                bookingFilter
+                                slotFilter
+                                    ? `Slot: ${slotFilter}`
+                                    : bookingFilter
                                     ? `Reservation: ${bookingFilter}`
                                     : (experienceFilter ? `Experience: ${experienceFilter}` : `Route: ${routeFilter}`)
                             }
@@ -269,7 +273,6 @@ export default function Tickets() {
                                                                     <DropdownMenuContent align="end">
                                                                         <DropdownMenuItem onClick={() => navigate(`/cheese/tickets/${ticket.name}`)}><Eye className="w-3 h-3 mr-2" /> View Details</DropdownMenuItem>
                                                                         <DropdownMenuSeparator />
-                                                                        <DropdownMenuItem onClick={() => navigate(`/cheese/bookings/new?ticket=${ticket.name}`)}>Convert to Booking</DropdownMenuItem>
                                                                         <DropdownMenuItem onClick={() => navigate(`/cheese/deposits/new?ticket=${ticket.name}`)}>Register Deposit</DropdownMenuItem>
                                                                         <DropdownMenuSeparator />
                                                                         {ticket.status === "PENDING" && <DropdownMenuItem onClick={(e) => { e.stopPropagation(); updateStatus(ticket.name, "CONFIRMED"); }}><CheckCircle className="w-3 h-3 mr-2" /> Confirm</DropdownMenuItem>}

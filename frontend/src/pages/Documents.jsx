@@ -14,8 +14,8 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { toast } from "sonner";
 import { useFrappeList, useFrappeCreate } from "@/lib/useApiData";
 
-const TYPE_BADGE = { PDF: "bg-red-500/15 text-red-700", IMAGE: "bg-blue-500/15 text-blue-700", LINK: "bg-purple-500/15 text-purple-700" };
-const STATUS_BADGE = { ACTIVE: "bg-emerald-500/15 text-emerald-700", ARCHIVED: "bg-gray-500/15 text-gray-600", EXPIRED: "bg-red-500/15 text-red-600" };
+const TYPE_BADGE = { PDF: "bg-red-500/15 text-red-700", Image: "bg-blue-500/15 text-blue-700", Link: "bg-purple-500/15 text-purple-700" };
+const STATUS_BADGE = { DRAFT: "bg-yellow-500/15 text-yellow-700", PUBLISHED: "bg-emerald-500/15 text-emerald-700", ARCHIVED: "bg-gray-500/15 text-gray-600" };
 
 export default function Documents() {
     const navigate = useNavigate();
@@ -86,7 +86,7 @@ export default function Documents() {
                                     <p className="text-xs text-muted-foreground">{doc.entity_type}: {doc.entity_id || '—'} {doc.language ? `• ${doc.language}` : ''} {doc.version ? `• v${doc.version}` : ''}</p>
                                 </div>
                                 <Badge className={TYPE_BADGE[doc.document_type] || TYPE_BADGE.PDF}>{doc.document_type || '—'}</Badge>
-                                <Badge className={STATUS_BADGE[doc.status] || STATUS_BADGE.ACTIVE}>{doc.status || 'ACTIVE'}</Badge>
+                                <Badge className={STATUS_BADGE[doc.status] || STATUS_BADGE.DRAFT}>{doc.status || 'DRAFT'}</Badge>
                                 {doc.validity_date && <span className="text-[10px] text-muted-foreground hidden sm:block">Valid: {doc.validity_date}</span>}
                                 <DropdownMenu>
                                     <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8 opacity-0 group-hover:opacity-100"><MoreHorizontal className="w-4 h-4" /></Button></DropdownMenuTrigger>
@@ -123,7 +123,7 @@ export default function Documents() {
                             <div className="space-y-2"><Label>Type</Label>
                                 <Select value={form.document_type} onValueChange={(v) => setForm(f => ({ ...f, document_type: v }))}>
                                     <SelectTrigger><SelectValue /></SelectTrigger>
-                                    <SelectContent><SelectItem value="PDF">PDF</SelectItem><SelectItem value="IMAGE">Image</SelectItem><SelectItem value="LINK">Link</SelectItem></SelectContent>
+                                    <SelectContent><SelectItem value="PDF">PDF</SelectItem><SelectItem value="Image">Image</SelectItem><SelectItem value="Link">Link</SelectItem></SelectContent>
                                 </Select>
                             </div>
                             <div className="space-y-2"><Label>File URL</Label><Input value={form.file_url} onChange={(e) => setForm(f => ({ ...f, file_url: e.target.value }))} /></div>

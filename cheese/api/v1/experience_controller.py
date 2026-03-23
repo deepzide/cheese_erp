@@ -5,7 +5,7 @@ import frappe
 from frappe import _
 from frappe.utils import getdate, get_time, cint, get_datetime, get_url, add_days, add_months
 from cheese.api.common.responses import success, created, error, not_found, validation_error, paginated_response
-from cheese.cheese.utils.capacity import get_available_capacity, update_slot_capacity
+from cheese.cheese.utils.capacity import get_available_capacity
 
 
 @frappe.whitelist()
@@ -302,6 +302,9 @@ def create_time_slot(experience_id, date, time, max_capacity, slot_status="OPEN"
 		
 		if not frappe.db.exists("Cheese Experience", experience_id):
 			return not_found("Experience", experience_id)
+
+		if getdate(date) < getdate(now_datetime()):
+			return validation_error("Cannot create a slot on an expired date")
 		
 		slot = frappe.get_doc({
 			"doctype": "Cheese Experience Slot",
@@ -512,9 +515,12 @@ def create_recurring_slots(experience_id, date_from, date_to, time_from=None, ti
 		
 		start_date = getdate(date_from)
 		end_date = getdate(date_to)
+		today_date = getdate(now_datetime())
 		
 		if start_date > end_date:
 			return validation_error("date_from must be before or equal to date_to")
+		if start_date < today_date or end_date < today_date:
+			return validation_error("Cannot create recurring slots on expired dates")
 		
 		# Parse recurrence config if it's a string (JSON)
 		if isinstance(recurrence_config, str):
@@ -582,46 +588,7 @@ def update_time_slot(slot_id, max_capacity=None, slot_status=None):
 		Success response
 	"""
 	try:
-		if not slot_id:
-			return validation_error("slot_id is required")
-		
-		if not frappe.db.exists("Cheese Experience Slot", slot_id):
-			return not_found("Slot", slot_id)
-		
-		slot = frappe.get_doc("Cheese Experience Slot", slot_id)
-		
-		if max_capacity is not None:
-			if max_capacity < 1:
-				return validation_error("max_capacity must be at least 1")
-			
-			# Check if reducing capacity would conflict with existing bookings
-			current_reserved = slot.reserved_capacity or 0
-			if max_capacity < current_reserved:
-				return validation_error(
-					f"Cannot reduce capacity below reserved capacity. "
-					f"Current reserved: {current_reserved}, Requested: {max_capacity}"
-				)
-			
-			slot.max_capacity = max_capacity
-		
-		if slot_status is not None:
-			if slot_status not in ["OPEN", "CLOSED", "BLOCKED"]:
-				return validation_error(f"Invalid slot_status: {slot_status}")
-			slot.slot_status = slot_status
-		
-		slot.save()
-		update_slot_capacity(slot_id)
-		frappe.db.commit()
-		
-		return success(
-			"Time slot updated successfully",
-			{
-				"slot_id": slot.name,
-				"max_capacity": slot.max_capacity,
-				"slot_status": slot.slot_status,
-				"reserved_capacity": slot.reserved_capacity
-			}
-		)
+		return validation_error("Slots cannot be modified")
 	except frappe.ValidationError as e:
 		return validation_error(str(e))
 	except Exception as e:

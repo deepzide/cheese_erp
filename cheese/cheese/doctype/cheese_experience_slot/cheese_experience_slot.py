@@ -5,6 +5,7 @@ import frappe
 from frappe import _
 from frappe.model.document import Document
 from frappe.query_builder import functions as fn
+from frappe.utils import getdate, today
 
 
 class CheeseExperienceSlot(Document):
@@ -39,6 +40,13 @@ class CheeseExperienceSlot(Document):
 
 		if not self.date_to:
 			frappe.throw(_("Date To is required"))
+
+		# Do not allow creating slots on past dates
+		today_date = getdate(today())
+		if self.date_from and getdate(self.date_from) < today_date:
+			frappe.throw(_("Date From cannot be in the past"))
+		if self.date_to and getdate(self.date_to) < today_date:
+			frappe.throw(_("Date To cannot be in the past"))
 
 		# Validate date range
 		if self.date_from and self.date_to:
@@ -114,3 +122,7 @@ class CheeseExperienceSlot(Document):
 	def get_available_capacity(self):
 		"""Get available capacity for this slot"""
 		return self.max_capacity - (self.reserved_capacity or 0)
+
+	def on_trash(self):
+		"""Slots are immutable records and cannot be deleted."""
+		frappe.throw(_("Slots cannot be deleted."), frappe.ValidationError)

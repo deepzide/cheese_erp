@@ -8,10 +8,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Wallet, Search, Filter, DollarSign, Clock, CheckCircle, AlertTriangle, XCircle, AlertCircle, RefreshCw, Ticket, MoreHorizontal } from "lucide-react";
+import { Wallet, Search, Filter, DollarSign, Clock, CheckCircle, AlertTriangle, XCircle, AlertCircle, RefreshCw, Ticket, MoreHorizontal, Plus } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
 import { depositService } from "@/api/depositService";
+import FrappeSearchSelect from "@/components/FrappeSearchSelect";
 
 const STATUS_CONFIG = {
     PENDING: { label: "Pending", badge: "bg-yellow-500/15 text-yellow-700 dark:text-yellow-400", icon: Clock },
@@ -27,12 +28,16 @@ export default function Deposits() {
     const queryClient = useQueryClient();
     const [searchTerm, setSearchTerm] = useState("");
     const [filterStatus, setFilterStatus] = useState("all");
+    const [routeId, setRouteId] = useState("");
+    const [companyId, setCompanyId] = useState("");
 
     const { data: depositsRaw, isLoading, error, refetch } = useQuery({
-        queryKey: ['deposits', filterStatus],
+        queryKey: ['deposits', filterStatus, routeId, companyId],
         queryFn: async () => {
             const params = {};
             if (filterStatus !== "all") params.status = filterStatus;
+            if (routeId) params.route_id = routeId;
+            if (companyId) params.company_id = companyId;
             const result = await depositService.listDeposits(params);
             const payload = result?.data?.message || result?.data || result;
             return payload?.data || [];
@@ -50,7 +55,10 @@ export default function Deposits() {
     const filtered = deposits.filter(d => {
         if (searchTerm) {
             const term = searchTerm.toLowerCase();
-            return (d.name || '').toLowerCase().includes(term) || (d.entity_id || '').toLowerCase().includes(term);
+            return (d.name || '').toLowerCase().includes(term)
+                || (d.entity_id || '').toLowerCase().includes(term)
+                || (d.contact_name || '').toLowerCase().includes(term)
+                || (d.contact || '').toLowerCase().includes(term);
         }
         return true;
     });
@@ -82,6 +90,25 @@ export default function Deposits() {
                             {Object.entries(STATUS_CONFIG).map(([k, v]) => <SelectItem key={k} value={k}>{v.label}</SelectItem>)}
                         </SelectContent>
                     </Select>
+                    <div className="w-48">
+                        <FrappeSearchSelect
+                            doctype="Cheese Route"
+                            label="route_info"
+                            value={routeId}
+                            onChange={setRouteId}
+                            placeholder="Route..."
+                        />
+                    </div>
+                    <div className="w-48">
+                        <FrappeSearchSelect
+                            doctype="Company"
+                            label="name"
+                            value={companyId}
+                            onChange={setCompanyId}
+                            placeholder="Establishment..."
+                        />
+                    </div>
+                    <Button className="cheese-gradient text-black font-semibold border-0 h-9" onClick={() => navigate("/cheese/deposits/new")}><Plus className="w-4 h-4 mr-1" /> Create New</Button>
                     <Button variant="ghost" size="icon" onClick={() => refetch()} className="h-9 w-9"><RefreshCw className="w-4 h-4" /></Button>
                 </div>
             </div>
@@ -107,7 +134,7 @@ export default function Deposits() {
                                             <h3 className="font-semibold text-sm text-foreground">{deposit.name}</h3>
                                             <Badge variant="outline" className="text-[10px]">{deposit.entity_type || '—'}</Badge>
                                         </div>
-                                        <p className="text-xs text-muted-foreground">Entity: {deposit.entity_id || '—'} • Due: {deposit.due_at || '—'}</p>
+                                        <p className="text-xs text-muted-foreground">Entity: {deposit.entity_id || '—'} • Customer: {deposit.contact_name || deposit.contact || '—'} • Due: {deposit.due_at || '—'}</p>
                                     </div>
                                     <div className="text-right">
                                         <p className="font-bold text-lg text-foreground flex items-center justify-end"><DollarSign className="w-4 h-4" />{Number(deposit.amount_required || 0).toLocaleString()}</p>
@@ -121,7 +148,7 @@ export default function Deposits() {
                                         </DropdownMenuTrigger>
                                         <DropdownMenuContent align="end">
                                             {deposit.status === "PENDING" && <DropdownMenuItem onClick={() => verifyMutation.mutate(deposit.name)}><CheckCircle className="w-3 h-3 mr-2" /> Verify</DropdownMenuItem>}
-                                            {deposit.entity_id && <DropdownMenuItem onClick={() => navigate(`/cheese/tickets?search=${deposit.entity_id}`)}><Ticket className="w-3 h-3 mr-2" /> View Related Ticket</DropdownMenuItem>}
+                                            {deposit.linked_ticket_id && <DropdownMenuItem onClick={() => navigate(`/cheese/tickets/${encodeURIComponent(deposit.linked_ticket_id)}`)}><Ticket className="w-3 h-3 mr-2" /> View Related Ticket</DropdownMenuItem>}
                                         </DropdownMenuContent>
                                     </DropdownMenu>
                                 </CardContent>
