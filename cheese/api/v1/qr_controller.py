@@ -76,8 +76,25 @@ def get_checkin_status(reservation_id):
 		return error("Failed to get check-in status", "SERVER_ERROR", {"error": str(e)}, 500)
 
 
+def _pending_confirmation_allowed(ticket):
+	if not ticket.deposit_required or (ticket.deposit_amount or 0) <= 0:
+		return True
+
+	deposit_status = frappe.db.get_value(
+		"Cheese Deposit",
+		{"entity_type": "Cheese Ticket", "entity_id": ticket.name},
+		"status",
+	)
+	return deposit_status == "PAID"
+
+
+def _can_use_pending_qr_flow():
+	allowed_roles = {"System Manager", "Cheese Booking Manager", "Cheese Booking Operator"}
+	return bool(set(frappe.get_roles()) & allowed_roles)
+
+
 @frappe.whitelist()
-def get_qr(ticket_id):
+def get_qr(ticket_id, allow_pending=0):
 	"""
 	Get or generate QR token for a ticket
 	
@@ -96,10 +113,15 @@ def get_qr(ticket_id):
 
 		ticket = frappe.get_doc("Cheese Ticket", ticket_id)
 		
-		if ticket.status not in ["CONFIRMED", "CHECKED_IN"]:
+		allow_pending = int(allow_pending or 0)
+		allowed_statuses = ["CONFIRMED", "CHECKED_IN"]
+		if allow_pending and _can_use_pending_qr_flow() and _pending_confirmation_allowed(ticket):
+			allowed_statuses.append("PENDING")
+
+		if ticket.status not in allowed_statuses:
 			return validation_error(
-				f"QR code can only be generated for CONFIRMED or CHECKED_IN tickets. Current status: {ticket.status}",
-				{"current_status": ticket.status, "allowed_statuses": ["CONFIRMED", "CHECKED_IN"]}
+				f"QR code can only be generated for {', '.join(allowed_statuses)} tickets. Current status: {ticket.status}",
+				{"current_status": ticket.status, "allowed_statuses": allowed_statuses}
 			)
 
 		# Get or create QR token
@@ -203,7 +225,16 @@ def validate_qr(token):
 
 		# Get ticket
 		ticket = frappe.get_doc("Cheese Ticket", qr_token.ticket)
-		
+
+		if ticket.status == "PENDING":
+			if not _pending_confirmation_allowed(ticket):
+				return validation_error(
+					"Ticket is PENDING and cannot be auto-confirmed yet. Deposit must be paid first.",
+					{"ticket_id": ticket.name}
+				)
+			ticket.confirm()
+			ticket.reload()
+
 		if ticket.status != "CONFIRMED":
 			return validation_error(
 				f"Ticket must be CONFIRMED to check in. Current status: {ticket.status}",

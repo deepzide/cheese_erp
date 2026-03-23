@@ -15,6 +15,7 @@ import { Shield, Search, Plus, Filter, User, Ticket, Clock, AlertCircle, Refresh
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
 import { supportService } from "@/api/supportService";
+import FrappeSearchSelect from "@/components/FrappeSearchSelect";
 
 const STATUS_CONFIG = {
     OPEN: { label: "Open", badge: "bg-red-500/15 text-red-700 dark:text-red-400" },
@@ -34,6 +35,8 @@ export default function Support() {
     const queryClient = useQueryClient();
     const [searchTerm, setSearchTerm] = useState("");
     const [filterStatus, setFilterStatus] = useState("all");
+    const [routeId, setRouteId] = useState("");
+    const [companyId, setCompanyId] = useState("");
     const [createOpen, setCreateOpen] = useState(false);
     const [form, setForm] = useState({
         contact_id: searchParams.get('contact') || "",
@@ -42,10 +45,12 @@ export default function Support() {
     });
 
     const { data: casesRaw, isLoading, error, refetch } = useQuery({
-        queryKey: ['support-cases', filterStatus],
+        queryKey: ['support-cases', filterStatus, routeId, companyId],
         queryFn: async () => {
             const params = {};
             if (filterStatus !== "all") params.status = filterStatus;
+            if (routeId) params.route_id = routeId;
+            if (companyId) params.company_id = companyId;
             const result = await supportService.listSupportCases(params);
             const payload = result?.data?.message || result?.data || result;
             return payload?.data || [];
@@ -96,7 +101,7 @@ export default function Support() {
                     <h1 className="text-2xl font-bold text-foreground flex items-center gap-2"><Shield className="w-6 h-6 text-cheese-600" /> Support Cases</h1>
                     <p className="text-sm text-muted-foreground mt-1">{isLoading ? '...' : `${filtered.length} cases`}</p>
                 </div>
-                <div className="flex gap-2">
+                <div className="flex gap-2 flex-wrap">
                     <div className="relative"><Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" /><Input placeholder="Search..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-9 w-56 h-9" /></div>
                     <Select value={filterStatus} onValueChange={setFilterStatus}>
                         <SelectTrigger className="w-40 h-9"><Filter className="w-3 h-3 mr-1" /><SelectValue /></SelectTrigger>
@@ -105,6 +110,12 @@ export default function Support() {
                             {Object.entries(STATUS_CONFIG).map(([k, v]) => <SelectItem key={k} value={k}>{v.label}</SelectItem>)}
                         </SelectContent>
                     </Select>
+                    <div className="w-48">
+                        <FrappeSearchSelect doctype="Cheese Route" label="name" value={routeId} onChange={setRouteId} placeholder="Route..." />
+                    </div>
+                    <div className="w-48">
+                        <FrappeSearchSelect doctype="Company" label="name" value={companyId} onChange={setCompanyId} placeholder="Establishment..." />
+                    </div>
                     <Button className="cheese-gradient text-black font-semibold border-0 h-9" onClick={() => navigate("/cheese/support/new")}><Plus className="w-4 h-4 mr-1" /> New Case</Button>
                     <Button variant="ghost" size="icon" onClick={() => refetch()} className="h-9 w-9"><RefreshCw className="w-4 h-4" /></Button>
                 </div>
@@ -132,6 +143,8 @@ export default function Support() {
                                         <p className="text-xs text-muted-foreground">
                                             <User className="w-3 h-3 inline mr-1" />{c.contact || '—'}
                                             {c.ticket && <> • <Ticket className="w-3 h-3 inline mx-1" />{c.ticket}</>}
+                                            {c.route && <> • Route: {c.route}</>}
+                                            {c.company && <> • Est: {c.company}</>}
                                             {c.assigned_to && <> • Assigned: {c.assigned_to}</>}
                                         </p>
                                     </div>

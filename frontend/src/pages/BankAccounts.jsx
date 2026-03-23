@@ -12,6 +12,7 @@ import { Landmark, Search, Plus, AlertCircle, RefreshCw, Loader2, MoreHorizontal
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
 import { useFrappeList, useFrappeCreate } from "@/lib/useApiData";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 const STATUS_BADGE = {
     ACTIVE: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400",
@@ -24,10 +25,10 @@ export default function BankAccounts() {
     const [searchParams] = useSearchParams();
     const [searchTerm, setSearchTerm] = useState("");
     const [createOpen, setCreateOpen] = useState(false);
-    const [form, setForm] = useState({ route: searchParams.get('route') || "", holder: "", bank: "", account: "", iban: "", currency: "EUR" });
+    const [form, setForm] = useState({ entity_type: "Cheese Route", entity_id: searchParams.get('route') || "", holder: "", bank: "", account: "", iban: "", currency: "EUR" });
 
     const { data: accounts = [], isLoading, error, refetch } = useFrappeList("Cheese Bank Account", {
-        fields: ["name", "route", "status", "holder", "bank", "account", "iban", "currency", "creation"],
+        fields: ["name", "entity_type", "entity_id", "route", "status", "holder", "bank", "account", "iban", "currency", "creation"],
         pageSize: 100,
     });
 
@@ -36,7 +37,9 @@ export default function BankAccounts() {
     const filtered = (Array.isArray(accounts) ? accounts : []).filter(a => {
         if (searchTerm) {
             const term = searchTerm.toLowerCase();
-            return (a.holder || '').toLowerCase().includes(term) || (a.bank || '').toLowerCase().includes(term) || (a.route || '').toLowerCase().includes(term);
+            return (a.holder || '').toLowerCase().includes(term)
+                || (a.bank || '').toLowerCase().includes(term)
+                || (a.entity_id || a.route || '').toLowerCase().includes(term);
         }
         return true;
     });
@@ -83,7 +86,9 @@ export default function BankAccounts() {
                                     <DropdownMenu>
                                         <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8 opacity-0 group-hover:opacity-100"><MoreHorizontal className="w-4 h-4" /></Button></DropdownMenuTrigger>
                                         <DropdownMenuContent align="end">
-                                            <DropdownMenuItem onClick={() => navigate(`/cheese/routes?search=${account.route}`)}><Route className="w-3 h-3 mr-2" /> View Route</DropdownMenuItem>
+                                            {account.entity_type === "Cheese Route" && (
+                                                <DropdownMenuItem onClick={() => navigate(`/cheese/routes?search=${account.entity_id || account.route}`)}><Route className="w-3 h-3 mr-2" /> View Route</DropdownMenuItem>
+                                            )}
                                         </DropdownMenuContent>
                                     </DropdownMenu>
                                 </div>
@@ -95,7 +100,9 @@ export default function BankAccounts() {
                                     <Badge className={STATUS_BADGE[account.status] || STATUS_BADGE.PENDING}>{account.status || 'PENDING'}</Badge>
                                     <div className="flex items-center gap-1">
                                         <Badge variant="outline" className="text-[10px]">{account.currency || 'EUR'}</Badge>
-                                        <span className="text-[10px] text-muted-foreground">Route: {account.route || '—'}</span>
+                                        <span className="text-[10px] text-muted-foreground">
+                                            {account.entity_type === "Company" ? "Est" : "Route"}: {account.entity_id || account.route || '—'}
+                                        </span>
                                     </div>
                                 </div>
                             </CardContent>
@@ -110,9 +117,19 @@ export default function BankAccounts() {
 
             <Dialog open={createOpen} onOpenChange={setCreateOpen}>
                 <DialogContent className="max-w-md">
-                    <DialogHeader><DialogTitle className="flex items-center gap-2"><Plus className="w-5 h-5 text-cheese-600" /> Add Bank Account</DialogTitle><DialogDescription>Link a bank account to a route</DialogDescription></DialogHeader>
+                    <DialogHeader><DialogTitle className="flex items-center gap-2"><Plus className="w-5 h-5 text-cheese-600" /> Add Bank Account</DialogTitle><DialogDescription>Link a bank account to a route or establishment</DialogDescription></DialogHeader>
                     <div className="space-y-4">
-                        <div className="space-y-2"><Label>Route *</Label><Input placeholder="Route ID" value={form.route} onChange={(e) => setForm(f => ({ ...f, route: e.target.value }))} /></div>
+                        <div className="space-y-2">
+                            <Label>Link To *</Label>
+                            <Select value={form.entity_type} onValueChange={(v) => setForm(f => ({ ...f, entity_type: v, entity_id: "" }))}>
+                                <SelectTrigger><SelectValue /></SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="Cheese Route">Route</SelectItem>
+                                    <SelectItem value="Company">Establishment</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <div className="space-y-2"><Label>{form.entity_type === "Company" ? "Establishment" : "Route"} *</Label><Input placeholder={form.entity_type === "Company" ? "Company ID" : "Route ID"} value={form.entity_id} onChange={(e) => setForm(f => ({ ...f, entity_id: e.target.value }))} /></div>
                         <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-2"><Label>Holder</Label><Input value={form.holder} onChange={(e) => setForm(f => ({ ...f, holder: e.target.value }))} /></div>
                             <div className="space-y-2"><Label>Bank</Label><Input value={form.bank} onChange={(e) => setForm(f => ({ ...f, bank: e.target.value }))} /></div>
@@ -125,7 +142,7 @@ export default function BankAccounts() {
                     </div>
                     <DialogFooter>
                         <Button variant="outline" onClick={() => setCreateOpen(false)}>Cancel</Button>
-                        <Button className="cheese-gradient text-black font-semibold border-0" onClick={() => createMutation.mutate(form, { onSuccess: () => { setCreateOpen(false); toast.success("Account added"); } })} disabled={createMutation.isPending}>
+                        <Button className="cheese-gradient text-black font-semibold border-0" onClick={() => createMutation.mutate({ ...form, route: form.entity_type === "Cheese Route" ? form.entity_id : undefined }, { onSuccess: () => { setCreateOpen(false); toast.success("Account added"); } })} disabled={createMutation.isPending}>
                             {createMutation.isPending ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Plus className="w-4 h-4 mr-1" />} Create
                         </Button>
                     </DialogFooter>

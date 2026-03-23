@@ -12,15 +12,25 @@ import FrappeSearchSelect from "@/components/FrappeSearchSelect";
 export default function BankAccountCreate() {
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
+    const initialRoute = searchParams.get('route') || "";
+    const initialCompany = searchParams.get('company') || "";
     const [form, setForm] = useState({
-        route: searchParams.get('route') || "",
+        entity_type: initialCompany ? "Company" : "Cheese Route",
+        entity_id: initialCompany || initialRoute,
         holder: "", bank: "", account: "", iban: "", currency: "EUR",
     });
     const createMutation = useFrappeCreate("Cheese Bank Account");
 
     const handleSubmit = () => {
-        if (!form.route) { toast.error("Route is required"); return; }
-        createMutation.mutate(form, {
+        if (!form.entity_type || !form.entity_id) {
+            toast.error("Route/Establishment is required");
+            return;
+        }
+        const payload = {
+            ...form,
+            route: form.entity_type === "Cheese Route" ? form.entity_id : undefined,
+        };
+        createMutation.mutate(payload, {
             onSuccess: () => { toast.success("Bank account added"); navigate("/cheese/bank-accounts"); },
             onError: (err) => toast.error(err?.message || "Failed"),
         });
@@ -29,7 +39,7 @@ export default function BankAccountCreate() {
     return (
         <CreatePageLayout
             title="New Bank Account"
-            description="Link a bank account to a route"
+            description="Link a bank account to a route or establishment"
             icon={Landmark}
             backPath="/cheese/bank-accounts"
             onSubmit={handleSubmit}
@@ -38,14 +48,34 @@ export default function BankAccountCreate() {
         >
             <div className="space-y-5">
                 <div className="space-y-2">
-                    <Label>Route <span className="text-red-500">*</span></Label>
-                    <FrappeSearchSelect
-                        doctype="Cheese Route"
-                        label="route_info"
-                        value={form.route}
-                        onChange={(v) => setForm(f => ({ ...f, route: v }))}
-                        placeholder="Select a route..."
-                    />
+                    <Label>Link To <span className="text-red-500">*</span></Label>
+                    <Select value={form.entity_type} onValueChange={(v) => setForm(f => ({ ...f, entity_type: v, entity_id: "" }))}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="Cheese Route">Route</SelectItem>
+                            <SelectItem value="Company">Establishment</SelectItem>
+                        </SelectContent>
+                    </Select>
+                </div>
+                <div className="space-y-2">
+                    <Label>{form.entity_type === "Company" ? "Establishment" : "Route"} <span className="text-red-500">*</span></Label>
+                    {form.entity_type === "Company" ? (
+                        <FrappeSearchSelect
+                            doctype="Company"
+                            label="name"
+                            value={form.entity_id}
+                            onChange={(v) => setForm(f => ({ ...f, entity_id: v }))}
+                            placeholder="Select an establishment..."
+                        />
+                    ) : (
+                        <FrappeSearchSelect
+                            doctype="Cheese Route"
+                            label="name"
+                            value={form.entity_id}
+                            onChange={(v) => setForm(f => ({ ...f, entity_id: v }))}
+                            placeholder="Select a route..."
+                        />
+                    )}
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                     <div className="space-y-2">

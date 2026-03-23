@@ -5,6 +5,7 @@ import frappe
 from frappe import _
 from frappe.utils import add_to_date, now_datetime
 from cheese.api.common.responses import success, created, error, not_found, validation_error
+from cheese.api.v1.bank_account_controller import get_active_bank_account_doc
 
 
 @frappe.whitelist()
@@ -98,6 +99,11 @@ def get_deposit_instructions(ticket_id):
 			return not_found("Ticket", ticket_id)
 
 		ticket = frappe.get_doc("Cheese Ticket", ticket_id)
+		bank_account = None
+		if ticket.route:
+			bank_account = get_active_bank_account_doc("Cheese Route", ticket.route)
+		if not bank_account and ticket.company:
+			bank_account = get_active_bank_account_doc("Company", ticket.company)
 		
 		if not ticket.deposit_required:
 			return success(
@@ -145,7 +151,19 @@ def get_deposit_instructions(ticket_id):
 				"amount_remaining": deposit_doc.amount_required - (deposit_doc.amount_paid or 0),
 				"due_at": str(deposit_doc.due_at) if deposit_doc.due_at else None,
 				"status": deposit_doc.status,
-				"instructions": "Please make payment to complete your booking"
+				"bank_account": {
+					"holder": bank_account.holder,
+					"bank": bank_account.bank,
+					"account": bank_account.account,
+					"iban": bank_account.iban,
+					"currency": bank_account.currency
+				} if bank_account else None,
+				"instructions": (
+					f"Please transfer {deposit_doc.amount_required} {bank_account.currency} "
+					f"to account {bank_account.account} ({bank_account.bank})"
+					if bank_account
+					else "Please make payment to complete your booking"
+				)
 			}
 		)
 	except Exception as e:

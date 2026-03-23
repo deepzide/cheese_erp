@@ -2,7 +2,7 @@
  "actions": [],
  "allow_import": 1,
  "allow_rename": 1,
- "autoname": "field:route",
+ "autoname": "hash",
  "creation": "2024-01-01 00:00:00",
  "doctype": "DocType",
  "name": "Cheese Bank Account",
@@ -10,6 +10,8 @@
  "engine": "InnoDB",
  "field_order": [
   "bank_account_info",
+  "entity_type",
+  "entity_id",
   "route",
   "status",
   "account_details_section",
@@ -26,14 +28,30 @@
    "label": "Bank Account Information"
   },
   {
+   "fieldname": "entity_type",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Entity Type",
+   "options": "Cheese Route\nCompany",
+   "reqd": 1
+  },
+  {
+   "fieldname": "entity_id",
+   "fieldtype": "Dynamic Link",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Entity",
+   "options": "entity_type",
+   "reqd": 1
+  },
+  {
    "fieldname": "route",
    "fieldtype": "Link",
    "in_list_view": 1,
    "in_standard_filter": 1,
    "label": "Route",
-   "options": "Cheese Route",
-   "reqd": 1,
-   "unique": 1
+   "options": "Cheese Route"
   },
   {
    "fieldname": "status",

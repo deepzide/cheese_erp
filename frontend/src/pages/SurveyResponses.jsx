@@ -8,21 +8,30 @@ import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Star, Search, AlertCircle, RefreshCw, Ticket, MoreHorizontal, MessageSquare } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useFrappeList } from "@/lib/useApiData";
+import FrappeSearchSelect from "@/components/FrappeSearchSelect";
 
 export default function SurveyResponses() {
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
     const [searchTerm, setSearchTerm] = useState(searchParams.get('experience') || "");
+    const [routeId, setRouteId] = useState("");
+    const [companyId, setCompanyId] = useState("");
+    const [ratingFilter, setRatingFilter] = useState("all");
+    const [selected, setSelected] = useState(null);
 
     const { data: responses = [], isLoading, error, refetch } = useFrappeList("Cheese Survey Response", {
-        fields: ["name", "ticket", "rating", "comment", "sent_at", "answered_at", "creation"],
+        fields: ["name", "ticket", "route", "company", "rating", "comment", "sent_at", "answered_at", "creation"],
         pageSize: 100,
         orderBy: "creation desc",
     });
 
     const filtered = (Array.isArray(responses) ? responses : []).filter(r => {
-        if (searchTerm) return (r.ticket || r.name || r.comment || '').toLowerCase().includes(searchTerm.toLowerCase());
+        if (searchTerm && !(r.ticket || r.name || r.comment || '').toLowerCase().includes(searchTerm.toLowerCase())) return false;
+        if (routeId && r.route !== routeId) return false;
+        if (companyId && r.company !== companyId) return false;
+        if (ratingFilter !== "all" && String(r.rating || "") !== ratingFilter) return false;
         return true;
     });
 
@@ -44,8 +53,11 @@ export default function SurveyResponses() {
                     <h1 className="text-2xl font-bold text-foreground flex items-center gap-2"><Star className="w-6 h-6 text-cheese-600" /> Survey Responses</h1>
                     <p className="text-sm text-muted-foreground mt-1">{isLoading ? '...' : `${filtered.length} responses • Avg: ${avgRating}/5`}</p>
                 </div>
-                <div className="flex gap-2">
+                <div className="flex gap-2 flex-wrap">
                     <div className="relative"><Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" /><Input placeholder="Search ticket..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-9 w-56 h-9" /></div>
+                    <div className="w-44"><FrappeSearchSelect doctype="Cheese Route" label="name" value={routeId} onChange={setRouteId} placeholder="Route..." /></div>
+                    <div className="w-44"><FrappeSearchSelect doctype="Company" label="name" value={companyId} onChange={setCompanyId} placeholder="Establishment..." /></div>
+                    <Input placeholder="Rating 1-5" value={ratingFilter === "all" ? "" : ratingFilter} onChange={(e) => setRatingFilter(e.target.value ? e.target.value : "all")} className="w-24 h-9" />
                     <Button variant="ghost" size="icon" onClick={() => refetch()} className="h-9 w-9"><RefreshCw className="w-4 h-4" /></Button>
                 </div>
             </div>
@@ -99,6 +111,7 @@ export default function SurveyResponses() {
                                     <DropdownMenu>
                                         <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8 opacity-0 group-hover:opacity-100"><MoreHorizontal className="w-4 h-4" /></Button></DropdownMenuTrigger>
                                         <DropdownMenuContent align="end">
+                                            <DropdownMenuItem onClick={() => setSelected(resp)}><MessageSquare className="w-3 h-3 mr-2" /> View Details</DropdownMenuItem>
                                             <DropdownMenuItem onClick={() => navigate(`/cheese/tickets?search=${resp.ticket}`)}><Ticket className="w-3 h-3 mr-2" /> View Ticket</DropdownMenuItem>
                                         </DropdownMenuContent>
                                     </DropdownMenu>
@@ -112,6 +125,23 @@ export default function SurveyResponses() {
             {!isLoading && filtered.length === 0 && (
                 <div className="text-center py-16"><Star className="w-16 h-16 text-muted-foreground/20 mx-auto mb-4" /><p className="text-muted-foreground">No survey responses</p></div>
             )}
+            <Dialog open={!!selected} onOpenChange={(open) => !open && setSelected(null)}>
+                <DialogContent>
+                    <DialogHeader><DialogTitle>Survey Details</DialogTitle></DialogHeader>
+                    {selected && (
+                        <div className="space-y-2 text-sm">
+                            <p><span className="text-muted-foreground">Ticket:</span> {selected.ticket || "—"}</p>
+                            <p><span className="text-muted-foreground">Route:</span> {selected.route || "—"}</p>
+                            <p><span className="text-muted-foreground">Establishment:</span> {selected.company || "—"}</p>
+                            <p><span className="text-muted-foreground">Rating:</span> {selected.rating || "—"}</p>
+                            <p><span className="text-muted-foreground">Comment:</span> {selected.comment || "No comment"}</p>
+                            <div className="pt-2 flex gap-2">
+                                <Button size="sm" variant="outline" onClick={() => navigate(`/cheese/tickets?search=${selected.ticket}`)}>View Ticket</Button>
+                            </div>
+                        </div>
+                    )}
+                </DialogContent>
+            </Dialog>
         </motion.div>
     );
 }

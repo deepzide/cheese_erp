@@ -28,8 +28,7 @@ def create_complaint(contact_id, description, ticket_id=None, route_booking_id=N
 			return validation_error("contact_id is required")
 		if not description:
 			return validation_error("description is required")
-		if not incident_type:
-			return validation_error("incident_type is required (LOCAL or GENERAL)")
+		incident_type = incident_type or "GENERAL"
 		
 		if incident_type not in ["LOCAL", "GENERAL"]:
 			return validation_error("incident_type must be LOCAL or GENERAL")
@@ -64,6 +63,8 @@ def create_complaint(contact_id, description, ticket_id=None, route_booking_id=N
 				"route_booking_id": route_booking_id,
 				"incident_type": support_case.incident_type,
 				"status": support_case.status,
+				"route_id": support_case.route,
+				"company_id": support_case.company,
 				"created_at": str(support_case.creation) if support_case.creation else None
 			}
 		)
@@ -135,7 +136,7 @@ def update_support_case_status(support_case_id, status, notes=None, assigned_to=
 
 
 @frappe.whitelist()
-def list_support_cases(status=None, contact_id=None, assigned_to=None, page=1, page_size=20):
+def list_support_cases(status=None, contact_id=None, assigned_to=None, route_id=None, company_id=None, page=1, page_size=20):
 	"""
 	List support cases with filters (US-SUR-02)
 	
@@ -143,6 +144,8 @@ def list_support_cases(status=None, contact_id=None, assigned_to=None, page=1, p
 		status: Filter by status
 		contact_id: Filter by contact
 		assigned_to: Filter by assigned user
+		route_id: Filter by route
+		company_id: Filter by establishment/company
 		page: Page number
 		page_size: Page size
 		
@@ -157,11 +160,24 @@ def list_support_cases(status=None, contact_id=None, assigned_to=None, page=1, p
 			filters["contact"] = contact_id
 		if assigned_to:
 			filters["assigned_to"] = assigned_to
+
+		if route_id or company_id:
+			ticket_filters = {}
+			if route_id:
+				ticket_filters["route"] = route_id
+			if company_id:
+				ticket_filters["company"] = company_id
+
+			ticket_ids = frappe.get_all("Cheese Ticket", filters=ticket_filters, pluck="name")
+			if not ticket_ids:
+				from cheese.api.common.responses import paginated_response
+				return paginated_response([], "Support cases retrieved successfully", page=page, page_size=page_size, total=0)
+			filters["ticket"] = ["in", ticket_ids]
 		
 		support_cases = frappe.get_all(
 			"Cheese Support Case",
 			filters=filters,
-			fields=["name", "contact", "ticket", "status", "priority", "assigned_to", "creation", "modified"],
+			fields=["name", "contact", "ticket", "route", "company", "status", "priority", "assigned_to", "creation", "modified"],
 			limit_start=(page - 1) * page_size,
 			limit_page_length=page_size,
 			order_by="modified desc"

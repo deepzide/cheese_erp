@@ -5,6 +5,7 @@ import frappe
 from frappe import _
 from frappe.utils import add_to_date, now_datetime, cint
 from cheese.api.common.responses import success, created, error, not_found, validation_error, paginated_response
+from cheese.api.v1.bank_account_controller import get_active_bank_account_doc
 import json
 
 
@@ -669,22 +670,16 @@ def get_route_deposit_instructions(route_booking_id):
 				}
 			)
 		
-		# Get bank account for route
-		bank_account_name = frappe.db.get_value(
-			"Cheese Bank Account",
-			{"route": route.name, "status": "ACTIVE"},
-			"name"
-		)
-		
-		if not bank_account_name:
+		# Resolve bank account with route-level precedence.
+		bank_account = get_active_bank_account_doc("Cheese Route", route.name)
+
+		if not bank_account:
 			return error(
 				"Bank account not configured for this route",
 				"CONFIGURATION_ERROR",
 				{"route_id": route.name},
 				400
 			)
-		
-		bank_account = frappe.get_doc("Cheese Bank Account", bank_account_name)
 		
 		# Get or create deposit
 		deposit_name = frappe.db.get_value(
@@ -835,17 +830,9 @@ def get_route_bank_account(route_id):
 		if not frappe.db.exists("Cheese Route", route_id):
 			return not_found("Route", route_id)
 		
-		# Get bank account
-		bank_account_name = frappe.db.get_value(
-			"Cheese Bank Account",
-			{"route": route_id, "status": "ACTIVE"},
-			"name"
-		)
-		
-		if not bank_account_name:
+		bank_account = get_active_bank_account_doc("Cheese Route", route_id)
+		if not bank_account:
 			return not_found("Bank Account", f"for route {route_id}")
-		
-		bank_account = frappe.get_doc("Cheese Bank Account", bank_account_name)
 		
 		return success(
 			"Bank account retrieved successfully",

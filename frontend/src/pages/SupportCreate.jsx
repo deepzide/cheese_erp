@@ -21,6 +21,9 @@ export default function SupportCreate() {
         ticket_id: searchParams.get('ticket') || "",
         description: "",
         priority: "Medium",
+        incident_type: "GENERAL",
+        route_id: "",
+        company_id: "",
     });
 
     const createMutation = useMutation({
@@ -68,6 +71,38 @@ export default function SupportCreate() {
                             value={form.ticket_id}
                             onChange={(v) => setForm(f => ({ ...f, ticket_id: v }))}
                             placeholder="Select ticket (optional)..."
+                        />
+                    </div>
+                </div>
+                <div className="space-y-2">
+                    <Label>Incident Type</Label>
+                    <Select value={form.incident_type} onValueChange={(v) => setForm(f => ({ ...f, incident_type: v }))}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="GENERAL">General</SelectItem>
+                            <SelectItem value="LOCAL">Local</SelectItem>
+                        </SelectContent>
+                    </Select>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                    <div className="space-y-2">
+                        <Label>Route (optional)</Label>
+                        <FrappeSearchSelect
+                            doctype="Cheese Route"
+                            label="name"
+                            value={form.route_id}
+                            onChange={(v) => setForm(f => ({ ...f, route_id: v }))}
+                            placeholder="Filter context by route..."
+                        />
+                    </div>
+                    <div className="space-y-2">
+                        <Label>Establishment (optional)</Label>
+                        <FrappeSearchSelect
+                            doctype="Company"
+                            label="name"
+                            value={form.company_id}
+                            onChange={(v) => setForm(f => ({ ...f, company_id: v }))}
+                            placeholder="Filter context by establishment..."
                         />
                     </div>
                 </div>

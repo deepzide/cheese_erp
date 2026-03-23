@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -9,7 +10,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Skeleton } from "@/components/ui/skeleton";
 import { UserCheck, Search, Filter, Clock, AlertCircle, RefreshCw, Ticket, QrCode, MoreHorizontal } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { useFrappeList } from "@/lib/useApiData";
+import { apiRequest } from "@/api/client";
+import FrappeSearchSelect from "@/components/FrappeSearchSelect";
 
 const STATUS_CONFIG = {
     PRESENT: { label: "Present", badge: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400" },
@@ -23,12 +25,24 @@ export default function Attendance() {
     const navigate = useNavigate();
     const [searchTerm, setSearchTerm] = useState("");
     const [filterStatus, setFilterStatus] = useState("all");
+    const [routeId, setRouteId] = useState("");
+    const [companyId, setCompanyId] = useState("");
 
-    const statusFilter = filterStatus !== "all" ? { status: filterStatus } : {};
-    const { data: records = [], isLoading, error, refetch } = useFrappeList("Cheese Attendance", {
-        filters: statusFilter,
-        fields: ["name", "ticket", "checked_in_at", "method", "status", "creation"],
-        pageSize: 100,
+    const { data: records = [], isLoading, error, refetch } = useQuery({
+        queryKey: ["attendance", filterStatus, routeId, companyId],
+        queryFn: async () => {
+            const payload = {};
+            payload.page_size = 100;
+            if (filterStatus !== "all") payload.status = filterStatus;
+            if (routeId) payload.route_id = routeId;
+            if (companyId) payload.company_id = companyId;
+            const res = await apiRequest("/api/method/cheese.api.v1.attendance_controller.list_attendance", {
+                method: "POST",
+                body: JSON.stringify(payload),
+            });
+            const message = res?.data?.message || res?.data || res;
+            return message?.data || [];
+        },
     });
 
     const filtered = (Array.isArray(records) ? records : []).filter(r => {
@@ -53,7 +67,7 @@ export default function Attendance() {
                     <h1 className="text-2xl font-bold text-foreground flex items-center gap-2"><UserCheck className="w-6 h-6 text-cheese-600" /> Attendance</h1>
                     <p className="text-sm text-muted-foreground mt-1">{isLoading ? '...' : `${filtered.length} records`}</p>
                 </div>
-                <div className="flex gap-2">
+                <div className="flex gap-2 flex-wrap">
                     <div className="relative"><Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" /><Input placeholder="Search ticket..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-9 w-56 h-9" /></div>
                     <Select value={filterStatus} onValueChange={setFilterStatus}>
                         <SelectTrigger className="w-36 h-9"><Filter className="w-3 h-3 mr-1" /><SelectValue /></SelectTrigger>
@@ -63,9 +77,18 @@ export default function Attendance() {
                             <SelectItem value="NO_SHOW">No-Show</SelectItem>
                         </SelectContent>
                     </Select>
+                    <div className="w-48">
+                        <FrappeSearchSelect doctype="Cheese Route" label="name" value={routeId} onChange={setRouteId} placeholder="Route..." />
+                    </div>
+                    <div className="w-48">
+                        <FrappeSearchSelect doctype="Company" label="name" value={companyId} onChange={setCompanyId} placeholder="Establishment..." />
+                    </div>
                     <Button variant="ghost" size="icon" onClick={() => refetch()} className="h-9 w-9"><RefreshCw className="w-4 h-4" /></Button>
                 </div>
             </div>
+            <p className="text-xs text-muted-foreground">
+                Record attendance by scanning QR from reservation details, or use manual check-in in Operations.
+            </p>
 
             <div className="space-y-3">
                 {isLoading ? Array.from({ length: 5 }).map((_, i) => (
@@ -84,6 +107,8 @@ export default function Attendance() {
                                     <p className="text-xs text-muted-foreground flex items-center gap-2">
                                         <Ticket className="w-3 h-3" /> {rec.ticket || '—'}
                                         <Clock className="w-3 h-3 ml-2" /> {rec.checked_in_at || '—'}
+                                        {rec.route_id && <> • Route: {rec.route_id}</>}
+                                        {rec.company_id && <> • Est: {rec.company_id}</>}
                                     </p>
                                 </div>
                                 <Badge className={METHOD_BADGE[rec.method] || METHOD_BADGE.MANUAL}>{rec.method === 'QR' ? <><QrCode className="w-3 h-3 mr-1" />QR</> : rec.method || '—'}</Badge>
