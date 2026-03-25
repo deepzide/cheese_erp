@@ -7,12 +7,13 @@ import EditableField from "@/components/EditableField";
 import { Label } from "@/components/ui/label";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Building2, DollarSign, Settings, MapPin, Info, Link as LinkIcon } from "lucide-react";
+import { Building2, DollarSign, Settings, MapPin, Info, Link as LinkIcon, Trash2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { apiRequest } from "@/api/client";
+import { experienceService } from "@/api/experienceService";
 
 export default function ExperienceDetail() {
     const { id } = useParams();
@@ -406,6 +407,18 @@ export default function ExperienceDetail() {
                                 </button>
                                 <button onClick={() => navigate(`/cheese/documents?entity_type=${encodeURIComponent("Cheese Experience")}&entity_id=${encodeURIComponent(id)}`)} className="text-sm text-left px-3 py-2 rounded-md hover:bg-primary/10 transition-colors text-primary font-medium">
                                     Documents for this Experience
+                                </button>
+                                <button
+                                    onClick={() => {
+                                        if (window.confirm("Delete this experience? This will also delete its slots. This cannot be undone.")) {
+                                            experienceService.deleteExperience(id)
+                                                .then(() => { toast.success("Experience deleted"); navigate("/cheese/experiences"); })
+                                                .catch((err) => toast.error(err?.message || "Failed to delete experience"));
+                                        }
+                                    }}
+                                    className="text-sm text-left px-3 py-2 rounded-md hover:bg-red-500/10 transition-colors text-red-600 dark:text-red-400 font-medium flex items-center"
+                                >
+                                    <Trash2 className="w-4 h-4 mr-2" /> Delete Experience
                                 </button>
                             </div>
                         </CardContent>

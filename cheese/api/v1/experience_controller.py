@@ -575,20 +575,76 @@ def create_recurring_slots(experience_id, date_from, date_to, time_from=None, ti
 
 
 @frappe.whitelist()
-def update_time_slot(slot_id, max_capacity=None, slot_status=None):
+def update_time_slot(slot_id, max_capacity=None, slot_status=None, date_from=None, date_to=None, time_from=None, time_to=None):
 	"""
-	Update time slot capacity or status (US-10)
-	
+	Update time slot capacity, status, or schedule
+
 	Args:
 		slot_id: Slot ID
 		max_capacity: New maximum capacity
 		slot_status: New slot status
-		
+		date_from: New start date
+		date_to: New end date
+		time_from: New start time
+		time_to: New end time
+
 	Returns:
 		Success response
 	"""
 	try:
-		return validation_error("Slots cannot be modified")
+		if not slot_id:
+			return validation_error("slot_id is required")
+
+		if not frappe.db.exists("Cheese Experience Slot", slot_id):
+			return not_found("Slot", slot_id)
+
+		slot = frappe.get_doc("Cheese Experience Slot", slot_id)
+
+		if max_capacity is not None:
+			max_capacity = int(max_capacity)
+			reserved = slot.reserved_capacity or 0
+			if max_capacity < reserved:
+				return validation_error(
+					f"Cannot reduce capacity below reserved amount ({reserved})"
+				)
+			slot.max_capacity = max_capacity
+
+		if slot_status is not None:
+			if slot_status not in ["OPEN", "CLOSED", "BLOCKED"]:
+				return validation_error(f"Invalid slot_status: {slot_status}")
+			slot.slot_status = slot_status
+
+		if date_from is not None:
+			slot.date_from = getdate(date_from)
+			# Also set date_to to date_from if date_to not explicitly provided
+			if date_to is None:
+				slot.date_to = getdate(date_from)
+
+		if date_to is not None:
+			slot.date_to = getdate(date_to)
+
+		# Assign time values as strings to avoid timedelta/time type mismatch
+		if time_from is not None:
+			slot.time_from = str(time_from)
+
+		if time_to is not None:
+			slot.time_to = str(time_to)
+
+		slot.save()
+		frappe.db.commit()
+
+		return success(
+			"Time slot updated successfully",
+			{
+				"slot_id": slot.name,
+				"max_capacity": slot.max_capacity,
+				"slot_status": slot.slot_status,
+				"date_from": str(slot.date_from),
+				"date_to": str(slot.date_to) if slot.date_to else None,
+				"time_from": str(slot.time_from) if slot.time_from else None,
+				"time_to": str(slot.time_to) if slot.time_to else None,
+			}
+		)
 	except frappe.ValidationError as e:
 		return validation_error(str(e))
 	except Exception as e:
@@ -771,3 +827,96 @@ def update_booking_policy(experience_id, cancel_until_hours_before=None, modify_
 	except Exception as e:
 		frappe.log_error(f"Error in update_booking_policy: {str(e)}")
 		return error("Failed to update booking policy", "SERVER_ERROR", {"error": str(e)}, 500)
+
+
+@frappe.whitelist()
+def delete_time_slot(slot_id):
+	"""
+	Delete a time slot after checking for dependencies.
+
+	Args:
+		slot_id: Slot ID
+
+	Returns:
+		Success response
+	"""
+	try:
+		if not slot_id:
+			return validation_error("slot_id is required")
+
+		if not frappe.db.exists("Cheese Experience Slot", slot_id):
+			return not_found("Slot", slot_id)
+
+		# Check for active tickets on this slot
+		active_tickets = frappe.db.count(
+			"Cheese Ticket",
+			filters={"slot": slot_id, "status": ["in", ["PENDING", "CONFIRMED", "CHECKED_IN"]]}
+		)
+		if active_tickets > 0:
+			return validation_error(
+				f"Cannot delete slot with {active_tickets} active ticket(s). Cancel them first."
+			)
+
+		frappe.delete_doc("Cheese Experience Slot", slot_id, force=True)
+		frappe.db.commit()
+
+		return success("Time slot deleted successfully", {"slot_id": slot_id})
+	except frappe.ValidationError as e:
+		return validation_error(str(e))
+	except Exception as e:
+		frappe.log_error(f"Error in delete_time_slot: {str(e)}")
+		return error("Failed to delete time slot", "SERVER_ERROR", {"error": str(e)}, 500)
+
+
+@frappe.whitelist()
+def delete_experience(experience_id):
+	"""
+	Delete an experience after checking for dependencies (active tickets, routes).
+
+	Args:
+		experience_id: Experience ID
+
+	Returns:
+		Success response
+	"""
+	try:
+		if not experience_id:
+			return validation_error("experience_id is required")
+
+		if not frappe.db.exists("Cheese Experience", experience_id):
+			return not_found("Experience", experience_id)
+
+		# Check for active tickets
+		active_tickets = frappe.db.count(
+			"Cheese Ticket",
+			filters={"experience": experience_id, "status": ["in", ["PENDING", "CONFIRMED", "CHECKED_IN"]]}
+		)
+		if active_tickets > 0:
+			return validation_error(
+				f"Cannot delete experience with {active_tickets} active ticket(s). Cancel them first."
+			)
+
+		# Check for route references
+		route_refs = frappe.db.count(
+			"Cheese Route Experience",
+			filters={"experience": experience_id}
+		)
+		if route_refs > 0:
+			return validation_error(
+				f"Cannot delete experience referenced by {route_refs} route(s). Remove from routes first."
+			)
+
+		# Delete related slots first
+		slots = frappe.get_all("Cheese Experience Slot", filters={"experience": experience_id}, pluck="name")
+		for slot_name in slots:
+			frappe.delete_doc("Cheese Experience Slot", slot_name, force=True)
+
+		frappe.delete_doc("Cheese Experience", experience_id, force=True)
+		frappe.db.commit()
+
+		return success("Experience deleted successfully", {"experience_id": experience_id})
+	except frappe.ValidationError as e:
+		return validation_error(str(e))
+	except Exception as e:
+		frappe.log_error(f"Error in delete_experience: {str(e)}")
+		return error("Failed to delete experience", "SERVER_ERROR", {"error": str(e)}, 500)

@@ -1,5 +1,6 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Ticket } from "lucide-react";
@@ -7,6 +8,8 @@ import { toast } from "sonner";
 import { useFrappeCreate } from "@/lib/useApiData";
 import CreatePageLayout from "@/components/CreatePageLayout";
 import FrappeSearchSelect from "@/components/FrappeSearchSelect";
+import { routeService } from "@/api/routeService";
+import { extractData } from "@/lib/useApiData";
 
 export default function TicketCreate() {
     const navigate = useNavigate();
@@ -24,6 +27,25 @@ export default function TicketCreate() {
         selected_date: searchParams.get("date") || "",
     });
     const createMutation = useFrappeCreate("Cheese Ticket");
+
+    // Cascading filter: fetch experiences for the selected route
+    const { data: routeExperiences } = useQuery({
+        queryKey: ["route-experiences", form.route],
+        queryFn: async () => {
+            const res = await routeService.getExperiencesByRoute(form.route);
+            return extractData(res)?.experience_ids || [];
+        },
+        enabled: !!form.route,
+        staleTime: 30000,
+    });
+
+    // Experience filter: restrict to route's experiences when a route is selected
+    const experienceFilters = useMemo(() => {
+        if (form.route && routeExperiences && routeExperiences.length > 0) {
+            return { name: ["in", routeExperiences] };
+        }
+        return {};
+    }, [form.route, routeExperiences]);
 
     const handleSubmit = () => {
         if (!form.contact || !form.experience || !form.slot) {
@@ -81,21 +103,8 @@ export default function TicketCreate() {
                     </div>
                 </div>
 
-                {/* Experience & Route */}
+                {/* Route & Experience (cascading) */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-                    <div className="space-y-2">
-                        <Label>Experience <span className="text-red-500">*</span></Label>
-                        <FrappeSearchSelect
-                            doctype="Cheese Experience"
-                            label="name"
-                            value={form.experience}
-                            onChange={(v) => setForm(f => ({ ...f, experience: v, slot: "" }))}
-                            placeholder="Select an experience..."
-                            // Note: filtering experiences by route requires a backend join via a controller.
-                            // Avoid passing unsupported filters to /api/resource to prevent empty results.
-                            filters={{}}
-                        />
-                    </div>
                     <div className="space-y-2">
                         <Label>Route</Label>
                         <FrappeSearchSelect
@@ -104,6 +113,18 @@ export default function TicketCreate() {
                             value={form.route}
                             onChange={(v) => setForm(f => ({ ...f, route: v, experience: "", slot: "" }))}
                             placeholder="Select a route..."
+                        />
+                        <p className="text-xs text-muted-foreground">Selecting a route filters the experiences below</p>
+                    </div>
+                    <div className="space-y-2">
+                        <Label>Experience <span className="text-red-500">*</span></Label>
+                        <FrappeSearchSelect
+                            doctype="Cheese Experience"
+                            label="name"
+                            value={form.experience}
+                            onChange={(v) => setForm(f => ({ ...f, experience: v, slot: "" }))}
+                            placeholder={form.route ? "Select from route experiences..." : "Select an experience..."}
+                            filters={experienceFilters}
                         />
                     </div>
                 </div>

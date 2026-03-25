@@ -1,13 +1,14 @@
 import React from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useFrappeDoc } from "@/lib/useApiData";
 import DetailPageLayout from "@/components/DetailPageLayout";
 import { apiRequest } from "@/api/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Calendar, Clock, MapPin, ShoppingCart, Users, Wallet, Shield, Ticket } from "lucide-react";
+import { Calendar, Clock, MapPin, ShoppingCart, Users, Wallet, Shield, Ticket, XCircle } from "lucide-react";
+import { toast } from "sonner";
 
 const STATUS_CONFIG = {
     PENDING: { label: "Pending", badge: "bg-yellow-500/15 text-yellow-700 dark:text-yellow-400" },
@@ -19,6 +20,7 @@ const STATUS_CONFIG = {
 export default function BookingDetail() {
     const { id } = useParams();
     const navigate = useNavigate();
+    const queryClient = useQueryClient();
 
     const { data: booking, isLoading: isBookingLoading } = useFrappeDoc("Cheese Route Booking", id, {
         enabled: !!id,
@@ -185,6 +187,25 @@ export default function BookingDetail() {
                                 >
                                     <Ticket className="w-4 h-4 mr-2" /> Tickets
                                 </Button>
+                                {(status === "PENDING" || status === "CONFIRMED" || status === "PARTIALLY_CONFIRMED") && (
+                                    <Button
+                                        type="button"
+                                        variant="destructive"
+                                        onClick={() => {
+                                            if (window.confirm("Cancel this booking? This cannot be undone.")) {
+                                                apiRequest("/api/method/cheese.api.v1.route_booking_controller.cancel_route_booking", {
+                                                    method: "POST",
+                                                    body: JSON.stringify({ route_booking_id: booking.name }),
+                                                }).then(() => {
+                                                    toast.success("Booking cancelled");
+                                                    queryClient.invalidateQueries(["frappe-doc"]);
+                                                }).catch((err) => toast.error(err?.message || "Failed to cancel booking"));
+                                            }
+                                        }}
+                                    >
+                                        <XCircle className="w-4 h-4 mr-2" /> Cancel Booking
+                                    </Button>
+                                )}
                             </div>
                         </CardContent>
                     </Card>

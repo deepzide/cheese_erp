@@ -52,7 +52,14 @@ export default function FrappeSearchSelect({
             const frappeFilters = [];
             // Add custom filters
             Object.entries(filters).forEach(([key, val]) => {
-                if (val != null && val !== '') frappeFilters.push([doctype, key, '=', val]);
+                if (val != null && val !== '') {
+                    // Support array filter syntax like ["in", [...ids]]
+                    if (Array.isArray(val) && val.length === 2) {
+                        frappeFilters.push([doctype, key, val[0], val[1]]);
+                    } else {
+                        frappeFilters.push([doctype, key, '=', val]);
+                    }
+                }
             });
             // Add search term filter
             if (searchTerm) {

@@ -525,7 +525,7 @@ export default function RouteDetail() {
                                                 <Label className="text-xs text-muted-foreground">Add experience</Label>
                                                 <FrappeSearchSelect
                                                     doctype="Cheese Experience"
-                                                label="name"
+                                                    label="name"
                                                     value={experienceToAdd}
                                                     onChange={setExperienceToAdd}
                                                     placeholder="Select an experience..."
@@ -590,6 +590,18 @@ export default function RouteDetail() {
                                         <span>Publish Route Online</span>
                                     </button>
                                 )}
+                                <button
+                                    onClick={() => {
+                                        if (window.confirm("Delete this route? This cannot be undone.")) {
+                                            routeService.deleteRoute(id)
+                                                .then(() => { toast.success("Route deleted"); navigate("/cheese/routes"); })
+                                                .catch((err) => toast.error(err?.message || "Failed to delete route"));
+                                        }
+                                    }}
+                                    className="text-sm text-left px-3 py-2 rounded-md hover:bg-red-500/10 transition-colors text-red-600 dark:text-red-400 font-medium flex items-center"
+                                >
+                                    <Trash2 className="w-4 h-4 mr-2" /> Delete Route
+                                </button>
                             </div>
                         </CardContent>
                     </Card>

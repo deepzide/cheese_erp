@@ -850,3 +850,85 @@ def get_route_bank_account(route_id):
 	except Exception as e:
 		frappe.log_error(f"Error in get_route_bank_account: {str(e)}")
 		return error("Failed to get route bank account", "SERVER_ERROR", {"error": str(e)}, 500)
+
+
+@frappe.whitelist()
+def get_experiences_by_route(route_id):
+	"""
+	Get the list of experience IDs belonging to a route.
+	Used by the frontend for cascading/dependent filters.
+
+	Args:
+		route_id: Route ID
+
+	Returns:
+		Success response with list of experience IDs
+	"""
+	try:
+		if not route_id:
+			return validation_error("route_id is required")
+
+		if not frappe.db.exists("Cheese Route", route_id):
+			return not_found("Route", route_id)
+
+		experiences = frappe.get_all(
+			"Cheese Route Experience",
+			filters={"parent": route_id},
+			fields=["experience", "sequence"],
+			order_by="sequence asc"
+		)
+
+		experience_ids = [e.experience for e in experiences]
+
+		return success(
+			"Route experiences retrieved successfully",
+			{
+				"route_id": route_id,
+				"experience_ids": experience_ids,
+				"experiences": experiences,
+				"count": len(experience_ids)
+			}
+		)
+	except Exception as e:
+		frappe.log_error(f"Error in get_experiences_by_route: {str(e)}")
+		return error("Failed to get route experiences", "SERVER_ERROR", {"error": str(e)}, 500)
+
+
+@frappe.whitelist()
+def delete_route(route_id):
+	"""
+	Delete a route after checking for active bookings.
+
+	Args:
+		route_id: Route ID
+
+	Returns:
+		Success response
+	"""
+	try:
+		if not route_id:
+			return validation_error("route_id is required")
+
+		if not frappe.db.exists("Cheese Route", route_id):
+			return not_found("Route", route_id)
+
+		# Check for active bookings
+		active_bookings = frappe.db.count(
+			"Cheese Route Booking",
+			filters={"route": route_id, "status": ["in", ["PENDING", "CONFIRMED"]]}
+		)
+		if active_bookings > 0:
+			return validation_error(
+				f"Cannot delete route with {active_bookings} active booking(s). Cancel them first."
+			)
+
+		frappe.delete_doc("Cheese Route", route_id, force=True)
+		frappe.db.commit()
+
+		return success("Route deleted successfully", {"route_id": route_id})
+	except frappe.ValidationError as e:
+		return validation_error(str(e))
+	except Exception as e:
+		frappe.log_error(f"Error in delete_route: {str(e)}")
+		return error("Failed to delete route", "SERVER_ERROR", {"error": str(e)}, 500)
+

@@ -40,4 +40,12 @@ export const routeService = {
     getRouteBankAccount: async (routeId) => {
         return apiRequest(`${BASE}.get_route_bank_account?route_id=${routeId}`);
     },
+
+    getExperiencesByRoute: async (routeId) => {
+        return apiRequest(`${BASE}.get_experiences_by_route?route_id=${routeId}`);
+    },
+
+    deleteRoute: async (routeId) => {
+        return apiRequest(`${BASE}.delete_route`, { method: 'POST', body: JSON.stringify({ route_id: routeId }) });
+    },
 };
