@@ -81,7 +81,7 @@ export default function CalendarSlotDetail({ slot, open, onClose }) {
                         <Button
                             size="sm"
                             className="bg-cheese-500 hover:bg-cheese-600 text-black"
-                            onClick={() => navigate(`/cheese/tickets/new?experience=${encodeURIComponent(slot.experience || "")}&slot=${encodeURIComponent(slot.name)}`)}
+                            onClick={() => navigate(`/cheese/tickets/new?experience=${encodeURIComponent(slot.experience || "")}&slot=${encodeURIComponent(slot.name)}&date=${encodeURIComponent(slot.date_from || "")}`)}
                         >
                             <Ticket className="w-3.5 h-3.5 mr-1.5" />
                             Create Ticket

@@ -21,6 +21,7 @@ export default function TicketCreate() {
         slot: searchParams.get("slot") || "",
         party_size: searchParams.get("party_size") || "1",
         conversation: searchParams.get("conversation") || "",
+        selected_date: searchParams.get("date") || "",
     });
     const createMutation = useFrappeCreate("Cheese Ticket");
 
@@ -38,6 +39,7 @@ export default function TicketCreate() {
             party_size: parseInt(form.party_size) || 1,
             status: "PENDING",
             conversation: form.conversation || undefined,
+            selected_date: form.selected_date || undefined,
         }, {
             onSuccess: () => { toast.success("Ticket created"); navigate("/cheese/tickets"); },
             onError: (err) => toast.error(err?.message || "Failed to create ticket"),
@@ -126,6 +128,17 @@ export default function TicketCreate() {
                         <p className="text-xs text-muted-foreground">Number of guests</p>
                     </div>
                 </div>
+
+                {/* Selected Date */}
+                {form.selected_date && (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                        <div className="space-y-2">
+                            <Label>Selected Date</Label>
+                            <Input type="date" value={form.selected_date} onChange={(e) => setForm(f => ({ ...f, selected_date: e.target.value }))} />
+                            <p className="text-xs text-muted-foreground">Date from the calendar slot</p>
+                        </div>
+                    </div>
+                )}
 
                 {/* Conversation */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">

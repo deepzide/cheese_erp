@@ -6,7 +6,7 @@ from frappe import _
 from frappe.utils import add_to_date, now_datetime, get_datetime, cint
 from cheese.cheese.utils.pricing import calculate_ticket_price, calculate_deposit_amount
 from cheese.cheese.utils.validation import validate_booking_policy
-from cheese.cheese.utils.capacity import update_slot_capacity
+from cheese.cheese.utils.capacity import update_slot_capacity, get_available_capacity
 from cheese.api.common.responses import success, created, error, not_found, validation_error
 import json
 
@@ -1124,3 +1124,154 @@ def get_establishment_ticket_board(establishment_id, date=None):
 	except Exception as e:
 		frappe.log_error(f"Error in get_establishment_ticket_board: {str(e)}")
 		return error("Failed to get establishment ticket board", "SERVER_ERROR", {"error": str(e)}, 500)
+
+
+@frappe.whitelist()
+def convert_ticket_to_booking(ticket_id, route_id=None):
+	"""
+	Convert an existing ticket into a booking (used by the frontend only).
+	
+	- If no route_id: confirms the ticket as a single-experience reservation.
+	- If route_id: creates a Cheese Route Booking with tickets for every
+	  experience on the route, auto-selecting OPEN slots on the ticket's
+	  selected_date (or slot.date_from as fallback).
+	
+	This function is intentionally standalone — it does NOT call
+	confirm_ticket or create_route_reservation to avoid side-effects
+	on endpoints used by the WhatsApp chat-bot API.
+	
+	Args:
+		ticket_id: The Cheese Ticket to convert
+		route_id: (optional) Cheese Route to book
+	
+	Returns:
+		Success response with booking data
+	"""
+	try:
+		if not ticket_id:
+			return validation_error("ticket_id is required")
+
+		if not frappe.db.exists("Cheese Ticket", ticket_id):
+			return not_found("Ticket", ticket_id)
+
+		ticket = frappe.get_doc("Cheese Ticket", ticket_id)
+
+		if ticket.status not in ("PENDING", "CONFIRMED"):
+			return validation_error(
+				f"Only PENDING or CONFIRMED tickets can be converted. Current status: {ticket.status}",
+				{"current_status": ticket.status}
+			)
+
+		# ── single-experience (no route) ──────────────────────────
+		if not route_id:
+			if ticket.status == "CONFIRMED":
+				return validation_error("Ticket is already confirmed")
+
+			# Check TTL
+			if ticket.expires_at and ticket.expires_at < now_datetime():
+				return validation_error("Cannot confirm expired ticket")
+
+			ticket.status = "CONFIRMED"
+			ticket.save()
+			update_slot_capacity(ticket.slot)
+			frappe.db.commit()
+
+			return success(
+				"Ticket confirmed as single-experience reservation",
+				{
+					"ticket_id": ticket.name,
+					"status": ticket.status,
+				}
+			)
+
+		# ── route booking ─────────────────────────────────────────
+		if not frappe.db.exists("Cheese Route", route_id):
+			return not_found("Route", route_id)
+
+		route = frappe.get_doc("Cheese Route", route_id)
+
+		if route.status != "ONLINE":
+			return validation_error(f"Route {route_id} is not ONLINE. Current status: {route.status}")
+
+		contact_id = ticket.contact
+		party_size = ticket.party_size
+		conversation_id = ticket.conversation
+
+		# Calculate total route price
+		from cheese.cheese.utils.pricing import calculate_route_price
+		total_price = calculate_route_price(route_id, party_size)
+
+		# Create Route Booking using the ticket's existing experience + slot
+		route_booking = frappe.get_doc({
+			"doctype": "Cheese Route Booking",
+			"contact": contact_id,
+			"route": route_id,
+			"status": "PENDING",
+			"total_price": total_price,
+			"deposit_required": False,
+			"deposit_amount": 0,
+			"conversation": conversation_id,
+		})
+		route_booking.insert()
+
+		# Link the existing ticket to the route booking
+		ticket.route = route_id
+		if conversation_id:
+			ticket.conversation = conversation_id
+		ticket.save()
+
+		route_booking.append("tickets", {
+			"ticket": ticket.name,
+			"experience": ticket.experience,
+			"slot": ticket.slot,
+			"party_size": party_size,
+			"status": ticket.status,
+		})
+
+		# Compute deposit from the ticket
+		deposit_amount = ticket.deposit_amount or 0
+		deposit_required = deposit_amount > 0
+		route_booking.deposit_required = deposit_required
+		route_booking.deposit_amount = deposit_amount
+
+		route_booking.calculate_status()
+		route_booking.save()
+
+		# Create deposit if required
+		if deposit_required and deposit_amount > 0:
+			reservation_now = now_datetime()
+			exp_doc = frappe.get_doc("Cheese Experience", ticket.experience)
+			hours = exp_doc.deposit_ttl_hours or 24
+			deposit_due_at = add_to_date(reservation_now, hours=hours, as_string=False)
+			frappe.get_doc({
+				"doctype": "Cheese Deposit",
+				"entity_type": "Cheese Route Booking",
+				"entity_id": route_booking.name,
+				"amount_required": deposit_amount,
+				"status": "PENDING",
+				"due_at": deposit_due_at,
+			}).insert()
+
+		frappe.db.commit()
+
+		return created(
+			"Ticket converted to route booking successfully",
+			{
+				"route_booking_id": route_booking.name,
+				"route_id": route_id,
+				"contact_id": contact_id,
+				"party_size": party_size,
+				"status": route_booking.status,
+				"total_price": total_price,
+				"deposit_required": deposit_required,
+				"deposit_amount": deposit_amount,
+				"tickets": [ticket.name],
+				"tickets_count": 1,
+			}
+		)
+	except frappe.ValidationError as e:
+		return validation_error(str(e))
+	except Exception as e:
+		frappe.log_error(f"Error in convert_ticket_to_booking: {str(e)}")
+		return error("Failed to convert ticket to booking", "SERVER_ERROR", {"error": str(e)}, 500)
+

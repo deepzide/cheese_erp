@@ -31,6 +31,7 @@ export default function TicketDetail() {
                 experience: ticket.experience || "",
                 route: ticket.route || "",
                 slot: ticket.slot || "",
+                selected_date: ticket.selected_date || "",
                 party_size: ticket.party_size || 1,
                 status: ticket.status || "PENDING",
                 expires_at: ticket.expires_at || "",
@@ -164,6 +165,20 @@ export default function TicketDetail() {
                                         <EditableField label="Experience" value={form.experience} onChange={(v) => handleFieldChange("experience", v)} editMode={editMode} doctype="Cheese Experience" searchLabel="name" />
                                         <EditableField label="Route" value={form.route} onChange={(v) => handleFieldChange("route", v)} editMode={editMode} doctype="Cheese Route" searchLabel="short_description" />
                                         <EditableField label="Slot" value={form.slot} onChange={(v) => handleFieldChange("slot", v)} editMode={editMode} doctype="Cheese Experience Slot" searchLabel="name" />
+
+                                        {editMode ? (
+                                            <div className="space-y-1.5 animate-in fade-in zoom-in-95 duration-200">
+                                                <label className="text-xs text-muted-foreground">Selected Date</label>
+                                                <input
+                                                    type="date"
+                                                    value={form.selected_date || ""}
+                                                    onChange={(e) => handleFieldChange("selected_date", e.target.value)}
+                                                    className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                                                />
+                                            </div>
+                                        ) : (
+                                            <EditableField label="Selected Date" value={form.selected_date ? new Date(form.selected_date + "T00:00:00").toLocaleDateString() : "—"} editMode={false} />
+                                        )}
 
                                         {editMode ? (
                                             <div className="space-y-1.5 animate-in fade-in zoom-in-95 duration-200">

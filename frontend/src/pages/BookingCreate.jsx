@@ -1,6 +1,6 @@
 import React, { useMemo, useState, useEffect } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
-import { Ticket } from "lucide-react";
+import { Ticket, CalendarDays } from "lucide-react";
 import { toast } from "sonner";
 import CreatePageLayout from "@/components/CreatePageLayout";
 import FrappeSearchSelect from "@/components/FrappeSearchSelect";
@@ -26,10 +26,13 @@ export default function BookingCreate() {
     );
 
     const [routeId, setRouteId] = useState("");
+    const [submitting, setSubmitting] = useState(false);
 
     useEffect(() => {
         setRouteId(initialValues.route || "");
     }, [initialValues.route]);
+
+    const selectedDate = ticket?.selected_date || "";
 
     const handleSubmit = async () => {
         if (!ticketId || !initialValues.contact) {
@@ -37,67 +40,37 @@ export default function BookingCreate() {
             return;
         }
 
+        setSubmitting(true);
         try {
-            // If no route, convert to single-experience reservation by confirming the ticket
-            if (!routeId) {
-                const res = await apiRequest(
-                    "/api/method/cheese.api.v1.ticket_controller.confirm_ticket",
-                    {
-                        method: "POST",
-                        body: JSON.stringify({ ticket_id: ticketId }),
-                    }
-                );
-                const payload = res?.data?.message || res?.data || res;
-                if (payload?.success === false) {
-                    throw new Error(payload?.message || "Failed to confirm ticket");
+            const res = await apiRequest(
+                "/api/method/cheese.api.v1.ticket_controller.convert_ticket_to_booking",
+                {
+                    method: "POST",
+                    body: JSON.stringify({
+                        ticket_id: ticketId,
+                        route_id: routeId || undefined,
+                    }),
                 }
+            );
+
+            const payload = res?.data?.message || res?.data || res;
+            if (payload?.success === false) {
+                throw new Error(payload?.error?.message || payload?.message || "Failed to convert ticket");
+            }
+
+            const bookingId = payload?.data?.route_booking_id;
+
+            if (routeId && bookingId) {
+                toast.success("Route reservation created");
+                navigate(`/cheese/bookings?highlight=${bookingId}`);
+            } else {
                 toast.success("Ticket confirmed as reservation");
                 navigate(`/cheese/tickets/${encodeURIComponent(ticketId)}`);
-            } else {
-                const selectedDate = ticket?.selected_date;
-                const reservationPayload = {
-                    contact_id: initialValues.contact,
-                    route_id: routeId,
-                    party_size: initialValues.party_size,
-                    conversation_id: ticket?.conversation,
-                };
-
-                // If we have a selected date, let the backend auto-select OPEN slots for ALL experiences in the route.
-                // This prevents validation errors when the route contains multiple experiences.
-                if (selectedDate) {
-                    reservationPayload.date_from = selectedDate;
-                } else {
-                    reservationPayload.experiences_with_slots = [
-                        {
-                            experience_id: ticket.experience,
-                            slot_id: ticket.slot,
-                        },
-                    ];
-                }
-
-                const res = await apiRequest(
-                    "/api/method/cheese.api.v1.route_booking_controller.create_route_reservation",
-                    {
-                        method: "POST",
-                        body: JSON.stringify({
-                            ...reservationPayload,
-                        }),
-                    }
-                );
-
-                const payload = res?.data?.message || res?.data || res;
-                const bookingId =
-                    payload?.data?.route_booking_id || payload?.route_booking_id;
-
-                toast.success("Route reservation created");
-                if (bookingId) {
-                    navigate(`/cheese/bookings?highlight=${bookingId}`);
-                } else {
-                    navigate("/cheese/bookings");
-                }
             }
         } catch (err) {
             toast.error(err?.message || "Failed to create reservation");
+        } finally {
+            setSubmitting(false);
         }
     };
 
@@ -112,7 +85,7 @@ export default function BookingCreate() {
             icon={Ticket}
             backPath={ticketId ? `/cheese/tickets/${ticketId}` : "/cheese/tickets"}
             onSubmit={handleSubmit}
-            isSubmitting={false}
+            isSubmitting={submitting}
             submitLabel="Create Reservation"
             isLoading={isLoading && !!ticketId}
         >
@@ -139,6 +112,21 @@ export default function BookingCreate() {
                                 {initialValues.party_size || 1}
                             </p>
                         </div>
+                        {selectedDate && (
+                            <div className="space-y-1">
+                                <p className="text-xs text-muted-foreground flex items-center gap-1">
+                                    <CalendarDays className="w-3 h-3" /> Selected Date
+                                </p>
+                                <p className="text-sm font-semibold text-primary">
+                                    {new Date(selectedDate + "T00:00:00").toLocaleDateString(undefined, {
+                                        weekday: "short",
+                                        year: "numeric",
+                                        month: "short",
+                                        day: "numeric",
+                                    })}
+                                </p>
+                            </div>
+                        )}
                     </div>
 
                     <div className="space-y-2">
@@ -153,7 +141,7 @@ export default function BookingCreate() {
                             placeholder="Select a route..."
                         />
                         <p className="text-[11px] text-muted-foreground">
-                            Required. Pre-filled from the ticket if a route was set.
+                            Optional. Leave empty to confirm as a single-experience reservation.
                         </p>
                     </div>
                 </div>
@@ -166,4 +154,3 @@ export default function BookingCreate() {
         </CreatePageLayout>
     );
 }
-
