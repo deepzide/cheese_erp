@@ -7,7 +7,7 @@ import EditableField from "@/components/EditableField";
 import { Label } from "@/components/ui/label";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Map, MapPin, DollarSign, Calendar, Info, Shield, Layers, FileText } from "lucide-react";
+import { Map, MapPin, DollarSign, Calendar, Info, Shield, Layers, FileText, Landmark } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { useQuery } from "@tanstack/react-query";
 import { experienceService } from "@/api/experienceService";
@@ -18,6 +18,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { apiRequest } from "@/api/client";
+import DocumentGallery from "@/components/DocumentGallery";
 
 export default function RouteDetail() {
     const { id } = useParams();
@@ -103,6 +104,17 @@ export default function RouteDetail() {
             entity_id: id,
         },
         fields: ["name", "title", "document_type", "file_url", "status", "language", "version", "validity_date", "creation"],
+        pageSize: 20,
+        orderBy: "creation desc",
+    });
+
+    const { data: bankAccounts = [], isLoading: bankAccountsLoading } = useFrappeList("Cheese Bank Account", {
+        enabled: !!id,
+        filters: {
+            entity_type: "Cheese Route",
+            entity_id: id,
+        },
+        fields: ["name", "holder", "bank", "account", "iban", "currency", "status", "creation"],
         pageSize: 20,
         orderBy: "creation desc",
     });
@@ -328,38 +340,49 @@ export default function RouteDetail() {
                                     </CardTitle>
                                 </CardHeader>
                                 <CardContent className="p-0">
-                                    {documentsLoading ? (
+                                    <DocumentGallery
+                                        documents={documents}
+                                        isLoading={documentsLoading}
+                                        onAddClick={() => navigate(`/cheese/documents/new?entity_type=${encodeURIComponent("Cheese Route")}&entity_id=${encodeURIComponent(id)}`)}
+                                    />
+                                </CardContent>
+                            </Card>
+
+                            {/* Route Bank Accounts */}
+                            <Card className="border-border/60 shadow-sm">
+                                <CardHeader className="border-b bg-muted/20 pb-4">
+                                    <CardTitle className="text-sm font-semibold text-muted-foreground uppercase flex items-center">
+                                        <Landmark className="w-4 h-4 mr-2" /> Bank Accounts
+                                    </CardTitle>
+                                </CardHeader>
+                                <CardContent className="p-0">
+                                    {bankAccountsLoading ? (
                                         <div className="p-6 text-sm text-muted-foreground">Loading...</div>
-                                    ) : documents && documents.length > 0 ? (
+                                    ) : bankAccounts && bankAccounts.length > 0 ? (
                                         <div className="divide-y divide-border/50">
-                                            {documents.slice(0, 10).map((doc) => (
-                                                <div key={doc.name} className="p-4 flex items-center justify-between gap-3 hover:bg-muted/10 transition-colors">
+                                            {bankAccounts.map((acct) => (
+                                                <div key={acct.name} className="p-4 flex items-center justify-between gap-3 hover:bg-muted/10 transition-colors cursor-pointer" onClick={() => navigate(`/cheese/bank-accounts/${encodeURIComponent(acct.name)}`)}>
                                                     <div className="min-w-0">
-                                                        <p className="font-medium text-sm truncate">{doc.title || doc.name}</p>
+                                                        <p className="font-medium text-sm truncate">{acct.holder || acct.name}</p>
                                                         <p className="text-xs text-muted-foreground">
-                                                            {doc.document_type || "FILE"} {doc.language ? `• ${doc.language}` : ""}
+                                                            {acct.bank || "—"} {acct.iban ? `• IBAN: ${acct.iban}` : ""} {acct.currency ? `• ${acct.currency}` : ""}
                                                         </p>
                                                     </div>
-                                                    {doc.file_url ? (
-                                                        <Button
-                                                            type="button"
-                                                            variant="outline"
-                                                            onClick={() => window.open(doc.file_url, "_blank")}
-                                                        >
-                                                            Open
-                                                        </Button>
-                                                    ) : (
-                                                        <span className="text-xs text-muted-foreground">—</span>
-                                                    )}
+                                                    <Badge variant="outline" className="text-[10px]">{acct.status || "PENDING"}</Badge>
                                                 </div>
                                             ))}
                                         </div>
                                     ) : (
                                         <div className="p-12 text-center text-muted-foreground flex flex-col items-center">
-                                            <FileText className="w-8 h-8 mb-4 opacity-20" />
-                                            <p>No documents attached to this route yet.</p>
+                                            <Landmark className="w-8 h-8 mb-4 opacity-20" />
+                                            <p>No bank accounts linked to this route yet.</p>
                                         </div>
                                     )}
+                                    <div className="p-3 border-t border-border bg-muted/10">
+                                        <Button type="button" variant="outline" size="sm" onClick={() => navigate(`/cheese/bank-accounts/new?route=${encodeURIComponent(id)}`)}>
+                                            Add Bank Account
+                                        </Button>
+                                    </div>
                                 </CardContent>
                             </Card>
                         </TabsContent>

@@ -45,7 +45,7 @@ export default function FrappeSearchSelect({
         queryFn: async () => {
             const params = new URLSearchParams();
             params.append('fields', JSON.stringify(["name", label]));
-            params.append('limit_page_length', '20');
+            params.append('limit_page_length', '10');
             params.append('order_by', 'modified desc');
 
             // Build filters array

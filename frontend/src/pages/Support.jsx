@@ -130,7 +130,7 @@ export default function Support() {
                     const config = STATUS_CONFIG[c.status] || STATUS_CONFIG.OPEN;
                     return (
                         <motion.div key={c.name} whileHover={{ x: 4 }}>
-                            <Card className="border border-border shadow-sm hover:shadow-md transition-all group">
+                            <Card className="border border-border shadow-sm hover:shadow-md transition-all group cursor-pointer" onClick={() => navigate(`/cheese/support/${encodeURIComponent(c.name)}`)}>
                                 <CardContent className="p-4 flex items-center gap-4">
                                     <div className="w-10 h-10 rounded-lg bg-red-50 dark:bg-red-950/30 flex items-center justify-center">
                                         <Shield className="w-5 h-5 text-red-600 dark:text-red-400" />
@@ -157,8 +157,8 @@ export default function Support() {
                                             {c.status === "IN_PROGRESS" && <DropdownMenuItem onClick={() => statusMutation.mutate({ id: c.name, status: "RESOLVED" })}><CheckCircle className="w-3 h-3 mr-2" /> Resolve</DropdownMenuItem>}
                                             {c.status === "RESOLVED" && <DropdownMenuItem onClick={() => statusMutation.mutate({ id: c.name, status: "CLOSED" })}>Close</DropdownMenuItem>}
                                             <DropdownMenuSeparator />
-                                            {c.contact && <DropdownMenuItem onClick={() => navigate(`/cheese/contacts?search=${c.contact}`)}>View Contact</DropdownMenuItem>}
-                                            {c.ticket && <DropdownMenuItem onClick={() => navigate(`/cheese/tickets?search=${c.ticket}`)}>View Ticket</DropdownMenuItem>}
+                                            {c.contact && <DropdownMenuItem onClick={() => navigate(`/cheese/contacts/${encodeURIComponent(c.contact)}`)}>View Contact</DropdownMenuItem>}
+                                            {c.ticket && <DropdownMenuItem onClick={() => navigate(`/cheese/tickets/${encodeURIComponent(c.ticket)}`)}>View Ticket</DropdownMenuItem>}
                                         </DropdownMenuContent>
                                     </DropdownMenu>
                                 </CardContent>

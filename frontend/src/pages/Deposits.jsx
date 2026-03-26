@@ -124,7 +124,7 @@ export default function Deposits() {
                     const remaining = (deposit.amount_required || 0) - (deposit.amount_paid || 0);
                     return (
                         <motion.div key={deposit.name} whileHover={{ x: 4 }}>
-                            <Card className="border border-border shadow-sm hover:shadow-md transition-all group">
+                            <Card className="border border-border shadow-sm hover:shadow-md transition-all group cursor-pointer" onClick={() => navigate(`/cheese/deposits/${encodeURIComponent(deposit.name)}`)}>
                                 <CardContent className="p-4 flex items-center gap-4">
                                     <div className="w-10 h-10 rounded-lg bg-cheese-100 dark:bg-cheese-900/30 flex items-center justify-center">
                                         <Wallet className="w-5 h-5 text-cheese-700 dark:text-cheese-400" />

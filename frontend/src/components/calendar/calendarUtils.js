@@ -65,6 +65,83 @@ export function getSlotPosition(timeFrom, timeTo) {
 }
 
 /**
+ * Calculate slot layout preventing overlaps (side-by-side rendering)
+ * Returns slots with added _style prop { top, height, left, width }
+ */
+export function calculateSlotLayout(slots) {
+    if (!slots || slots.length === 0) return [];
+
+    // 1. Calculate top and height for all slots
+    const positionedSlots = slots.map(slot => ({
+        ...slot,
+        _pos: getSlotPosition(slot.time_from, slot.time_to)
+    }));
+
+    // Sort by start time, then by end time (longest first)
+    positionedSlots.sort((a, b) => {
+        if (a._pos.top !== b._pos.top) return a._pos.top - b._pos.top;
+        return (b._pos.top + b._pos.height) - (a._pos.top + a._pos.height);
+    });
+
+    // 2. Group slots into overlapping clusters
+    const clusters = [];
+    let currentCluster = [];
+    let clusterEnd = 0;
+
+    positionedSlots.forEach(slot => {
+        const start = slot._pos.top;
+        const end = slot._pos.top + slot._pos.height;
+
+        // Give a tiny 1px margin of error for contiguous slots
+        if (currentCluster.length > 0 && start >= clusterEnd - 1) {
+            clusters.push(currentCluster);
+            currentCluster = [];
+        }
+
+        currentCluster.push(slot);
+        clusterEnd = Math.max(clusterEnd, end);
+    });
+    if (currentCluster.length > 0) {
+        clusters.push(currentCluster);
+    }
+
+    // 3. For each cluster, assign columns
+    clusters.forEach(cluster => {
+        const columns = [];
+        cluster.forEach(slot => {
+            let placed = false;
+            for (let i = 0; i < columns.length; i++) {
+                const col = columns[i];
+                const lastInCol = col[col.length - 1];
+                // Again, 1px margin
+                if (lastInCol._pos.top + lastInCol._pos.height <= slot._pos.top + 1) {
+                    col.push(slot);
+                    slot._colIndex = i;
+                    placed = true;
+                    break;
+                }
+            }
+            if (!placed) {
+                columns.push([slot]);
+                slot._colIndex = columns.length - 1;
+            }
+        });
+
+        const numCols = columns.length;
+        cluster.forEach(slot => {
+            slot._style = {
+                top: slot._pos.top,
+                height: slot._pos.height,
+                width: `calc(${100 / numCols}% - 4px)`,
+                left: `calc(${(100 / numCols) * slot._colIndex}% + 2px)`,
+            };
+        });
+    });
+
+    return positionedSlots;
+}
+
+/**
  * Get occupancy percentage
  */
 export function getOccupancy(reserved, max) {

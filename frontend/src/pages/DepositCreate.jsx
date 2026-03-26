@@ -77,8 +77,8 @@ export default function DepositCreate() {
             due_at: form.due_at || undefined,
         }, {
             onSuccess: () => {
-            toast.success("Deposit created");
-            navigate(`/cheese/deposits`);
+                toast.success("Deposit created");
+                navigate(`/cheese/deposits`);
             },
             onError: (err) => toast.error(err?.message || "Failed to create deposit"),
         });
@@ -172,6 +172,16 @@ export default function DepositCreate() {
                             value={form.due_at}
                             onChange={(e) => setForm((prev) => ({ ...prev, due_at: e.target.value }))}
                             className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm"
+                        />
+                    </div>
+                    <div className="space-y-2">
+                        <p className="text-xs text-muted-foreground">Bank Account (for route deposits)</p>
+                        <FrappeSearchSelect
+                            doctype="Cheese Bank Account"
+                            label="holder"
+                            value={form.bank_account || ""}
+                            onChange={(v) => setForm((prev) => ({ ...prev, bank_account: v }))}
+                            placeholder="Select bank account..."
                         />
                     </div>
                 </div>

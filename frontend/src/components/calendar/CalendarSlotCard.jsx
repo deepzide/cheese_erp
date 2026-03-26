@@ -17,10 +17,12 @@ export default function CalendarSlotCard({ slot, style, onClick, compact = false
                 e.stopPropagation();
                 onClick?.(slot, e);
             }}
-            className={`absolute left-1 right-1 rounded-md border-l-[3px] px-2 py-1 text-left transition-all
+            className={`absolute rounded-md border-l-[3px] px-2 py-1 text-left transition-all
                 hover:shadow-md hover:scale-[1.02] hover:z-30 cursor-pointer overflow-hidden group
                 ${colors.bg} ${colors.border}`}
             style={{
+                left: style?.left || "4px",
+                width: style?.width || "calc(100% - 8px)",
                 ...style,
                 zIndex: 10,
             }}

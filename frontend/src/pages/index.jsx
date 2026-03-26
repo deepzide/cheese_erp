@@ -40,6 +40,9 @@ import TicketCreate from './TicketCreate';
 import BookingCreate from './BookingCreate';
 import BookingDetail from './BookingDetail';
 import DepositCreate from './DepositCreate';
+import DepositDetail from './DepositDetail';
+import BankAccountDetail from './BankAccountDetail';
+import SupportDetail from './SupportDetail';
 
 export default function Pages() {
     return (
@@ -74,15 +77,18 @@ export default function Pages() {
                                         <Route path="/quotations/:id" element={<QuotationDetail />} />
                                         <Route path="/deposits" element={<Deposits />} />
                                         <Route path="/deposits/new" element={<DepositCreate />} />
+                                        <Route path="/deposits/:id" element={<DepositDetail />} />
                                         <Route path="/bookings" element={<Bookings />} />
                                         <Route path="/bookings/new" element={<BookingCreate />} />
                                         <Route path="/bookings/:id" element={<BookingDetail />} />
                                         <Route path="/support" element={<Support />} />
                                         <Route path="/support/new" element={<SupportCreate />} />
+                                        <Route path="/support/:id" element={<SupportDetail />} />
                                         <Route path="/booking-policy" element={<BookingPolicy />} />
                                         <Route path="/booking-policy/new" element={<BookingPolicyCreate />} />
                                         <Route path="/bank-accounts" element={<BankAccounts />} />
                                         <Route path="/bank-accounts/new" element={<BankAccountCreate />} />
+                                        <Route path="/bank-accounts/:id" element={<BankAccountDetail />} />
                                         <Route path="/attendance" element={<Attendance />} />
                                         <Route path="/documents" element={<Documents />} />
                                         <Route path="/documents/new" element={<DocumentCreate />} />

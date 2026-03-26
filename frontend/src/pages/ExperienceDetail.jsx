@@ -1,13 +1,14 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { useFrappeDoc, useFrappeUpdate } from "@/lib/useApiData";
+import { useFrappeDoc, useFrappeUpdate, useFrappeList } from "@/lib/useApiData";
 import { toast } from "sonner";
+import DocumentGallery from "@/components/DocumentGallery";
 import DetailPageLayout from "@/components/DetailPageLayout";
 import EditableField from "@/components/EditableField";
 import { Label } from "@/components/ui/label";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Building2, DollarSign, Settings, MapPin, Info, Link as LinkIcon, Trash2 } from "lucide-react";
+import { Building2, DollarSign, Settings, MapPin, Info, Link as LinkIcon, Trash2, FileText } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
@@ -22,6 +23,17 @@ export default function ExperienceDetail() {
     // Fetch Data
     const { data: exp, isLoading } = useFrappeDoc("Cheese Experience", id);
     const updateMutation = useFrappeUpdate("Cheese Experience");
+
+    const { data: documents = [], isLoading: documentsLoading } = useFrappeList("Cheese Document", {
+        enabled: !!id,
+        filters: {
+            entity_type: "Cheese Experience",
+            entity_id: id,
+        },
+        fields: ["name", "title", "document_type", "file_url", "status", "language", "version", "validity_date", "creation"],
+        pageSize: 20,
+        orderBy: "creation desc",
+    });
 
     // Local State for Edit Mode
     const [editMode, setEditMode] = useState(false);
@@ -234,6 +246,22 @@ export default function ExperienceDetail() {
                                     )}
                                 </CardContent>
                             </Card>
+
+                            {/* Experience Documents */}
+                            <Card className="border-border/60 shadow-sm">
+                                <CardHeader className="border-b bg-muted/20 pb-4">
+                                    <CardTitle className="text-sm font-semibold text-muted-foreground uppercase flex items-center">
+                                        <FileText className="w-4 h-4 mr-2" /> Attached Documents
+                                    </CardTitle>
+                                </CardHeader>
+                                <CardContent className="p-0">
+                                    <DocumentGallery
+                                        documents={documents}
+                                        isLoading={documentsLoading}
+                                        onAddClick={() => navigate(`/cheese/documents/new?entity_type=${encodeURIComponent("Cheese Experience")}&entity_id=${encodeURIComponent(id)}`)}
+                                    />
+                                </CardContent>
+                            </Card>
                         </TabsContent>
 
                         <TabsContent value="pricing" className="pt-4 space-y-6">
@@ -404,9 +432,6 @@ export default function ExperienceDetail() {
                                 </button>
                                 <button onClick={() => navigate(`/cheese/booking-policy?experience=${encodeURIComponent(id)}`)} className="text-sm text-left px-3 py-2 rounded-md hover:bg-primary/10 transition-colors text-primary font-medium">
                                     Booking Policy
-                                </button>
-                                <button onClick={() => navigate(`/cheese/documents?entity_type=${encodeURIComponent("Cheese Experience")}&entity_id=${encodeURIComponent(id)}`)} className="text-sm text-left px-3 py-2 rounded-md hover:bg-primary/10 transition-colors text-primary font-medium">
-                                    Documents for this Experience
                                 </button>
                                 <button
                                     onClick={() => {

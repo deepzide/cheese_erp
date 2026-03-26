@@ -22,7 +22,7 @@ export default function SurveyResponses() {
     const [selected, setSelected] = useState(null);
 
     const { data: responses = [], isLoading, error, refetch } = useFrappeList("Cheese Survey Response", {
-        fields: ["name", "ticket", "route", "company", "rating", "comment", "sent_at", "answered_at", "creation"],
+        fields: ["name", "ticket", "contact", "route", "company", "rating", "comment", "sent_at", "answered_at", "creation"],
         pageSize: 100,
         orderBy: "creation desc",
     });
@@ -104,7 +104,7 @@ export default function SurveyResponses() {
                                         {[1, 2, 3, 4, 5].map(i => <Star key={i} className={`w-3.5 h-3.5 ${i <= (resp.rating || 0) ? 'text-cheese-500 fill-cheese-500' : 'text-muted-foreground/20'}`} />)}
                                     </div>
                                     <div className="flex-1 min-w-0">
-                                        <p className="text-xs text-muted-foreground mb-1"><Ticket className="w-3 h-3 inline mr-1" />{resp.ticket || '—'} • {resp.answered_at || resp.creation || '—'}</p>
+                                        <p className="text-xs text-muted-foreground mb-1"><Ticket className="w-3 h-3 inline mr-1" />{resp.ticket || '—'} • {resp.contact ? `Customer: ${resp.contact}` : ''} • {resp.answered_at || resp.creation || '—'}</p>
                                         {resp.comment && <p className="text-sm text-foreground">{resp.comment}</p>}
                                         {!resp.comment && !resp.answered_at && <p className="text-sm text-muted-foreground italic">Survey sent, awaiting response</p>}
                                     </div>
@@ -130,6 +130,7 @@ export default function SurveyResponses() {
                     <DialogHeader><DialogTitle>Survey Details</DialogTitle></DialogHeader>
                     {selected && (
                         <div className="space-y-2 text-sm">
+                            <p><span className="text-muted-foreground">Customer:</span> {selected.contact || "—"}</p>
                             <p><span className="text-muted-foreground">Ticket:</span> {selected.ticket || "—"}</p>
                             <p><span className="text-muted-foreground">Route:</span> {selected.route || "—"}</p>
                             <p><span className="text-muted-foreground">Establishment:</span> {selected.company || "—"}</p>

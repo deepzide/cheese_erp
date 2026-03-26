@@ -73,7 +73,7 @@ export default function BankAccounts() {
                     <Card key={i} className="border border-border"><CardContent className="p-5 space-y-3"><Skeleton className="h-5 w-40" /><Skeleton className="h-4 w-full" /></CardContent></Card>
                 )) : filtered.map((account) => (
                     <motion.div key={account.name} whileHover={{ y: -3 }}>
-                        <Card className="border border-border shadow-sm hover:shadow-md transition-all group">
+                        <Card className="border border-border shadow-sm hover:shadow-md transition-all group cursor-pointer" onClick={() => navigate(`/cheese/bank-accounts/${encodeURIComponent(account.name)}`)}>
                             <CardContent className="p-5">
                                 <div className="flex items-start justify-between mb-3">
                                     <div className="flex items-center gap-3">

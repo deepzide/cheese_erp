@@ -120,7 +120,8 @@ export default function Dashboard() {
         queryKey: ["pending-actions", period],
         queryFn: async () => {
             const result = await dashboardService.getPendingActions(null, dateFrom, dateTo);
-            return result?.data?.data || result?.data || result || {};
+            const payload = result?.data?.message || result?.data || result;
+            return payload?.data || payload || {};
         },
     });
 

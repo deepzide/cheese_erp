@@ -56,8 +56,8 @@ def get_central_dashboard(period="today", date_from=None, date_to=None):
 			slots = frappe.get_all(
 				"Cheese Experience Slot",
 				filters={
-					"date": [">=", start_date],
-					"date": ["<=", end_date]
+					"date_from": [">=", start_date],
+					"date_to": ["<=", end_date]
 				},
 				fields=["name"]
 			)
@@ -194,8 +194,8 @@ def get_establishment_dashboard(establishment_id, period="today", date_from=None
 		slots = frappe.get_all(
 			"Cheese Experience Slot",
 			filters={
-				"date": [">=", date_from_obj],
-				"date": ["<=", date_to_obj]
+				"date_from": [">=", date_from_obj],
+				"date_to": ["<=", date_to_obj]
 			},
 			fields=["name", "experience"]
 		)
@@ -334,8 +334,8 @@ def get_dashboard_kpis(establishment_id=None, period="today"):
 		slots = frappe.get_all(
 			"Cheese Experience Slot",
 			filters={
-				"date": [">=", date_from_obj],
-				"date": ["<=", date_to_obj]
+				"date_from": [">=", date_from_obj],
+				"date_to": ["<=", date_to_obj]
 			},
 			fields=["name", "experience"]
 		)

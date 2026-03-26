@@ -428,15 +428,6 @@ export default function QuotationCreate() {
                                             </Select>
                                         </div>
                                         <div className="space-y-1">
-                                            <Label className="text-xs">Slot (auto)</Label>
-                                            <Input
-                                                value={exp.slot || ""}
-                                                readOnly
-                                                placeholder={exp.date ? "Auto-selected from available slots" : "Select date first"}
-                                                className="h-9"
-                                            />
-                                        </div>
-                                        <div className="space-y-1">
                                             <Label className="text-xs">Date</Label>
                                             <Select
                                                 value={exp.date || "none"}
@@ -453,6 +444,32 @@ export default function QuotationCreate() {
                                                             {dateValue}
                                                         </SelectItem>
                                                     ))}
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
+                                        <div className="space-y-1">
+                                            <Label className="text-xs">Time Slot</Label>
+                                            <Select
+                                                value={exp.slot || "none"}
+                                                onValueChange={(v) => {
+                                                    setExperiences(prev =>
+                                                        prev.map((e, i) => (i === index ? { ...e, slot: v === "none" ? "" : v } : e))
+                                                    );
+                                                }}
+                                                disabled={!exp.date}
+                                            >
+                                                <SelectTrigger className="h-9">
+                                                    <SelectValue placeholder={exp.date ? "Select time slot" : "Select date first"} />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    <SelectItem value="none">Select time slot</SelectItem>
+                                                    {(availableSlotsByRow[index] || [])
+                                                        .filter((s) => s.date_from === exp.date)
+                                                        .map((s) => (
+                                                            <SelectItem key={s.name} value={s.name}>
+                                                                {s.time_from || "All day"} – {s.time_to || ""} ({s.available_capacity ?? 0} avail.)
+                                                            </SelectItem>
+                                                        ))}
                                                 </SelectContent>
                                             </Select>
                                         </div>

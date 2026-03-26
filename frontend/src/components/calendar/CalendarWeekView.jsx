@@ -1,7 +1,7 @@
 import React, { useRef, useEffect, useState } from "react";
 import {
     isToday, isSameDay, format, getWeekDays, getHours,
-    getSlotPosition, getNowPosition, HOUR_HEIGHT, TOTAL_HOURS, formatHour,
+    getSlotPosition, getNowPosition, HOUR_HEIGHT, TOTAL_HOURS, formatHour, calculateSlotLayout,
 } from "./calendarUtils";
 import CalendarSlotCard from "./CalendarSlotCard";
 
@@ -30,14 +30,19 @@ export default function CalendarWeekView({ date, slots, onSlotClick, onEmptyClic
         }
     }, [date]);
 
-    // Group slots by date
+    // Group slots by date, splitting timed vs untimed
     const slotsByDay = {};
+    const untimedByDay = {};
     weekDays.forEach((d) => {
         const key = format(d, "yyyy-MM-dd");
-        slotsByDay[key] = slots
+        const daySlots = slots
             .filter((s) => s.date_from <= key && s.date_to >= key)
             .sort((a, b) => (a.time_from || "").localeCompare(b.time_from || ""));
+        slotsByDay[key] = daySlots.filter((s) => s.time_from);
+        untimedByDay[key] = daySlots.filter((s) => !s.time_from);
     });
+
+    const hasAnyUntimed = weekDays.some((d) => (untimedByDay[format(d, "yyyy-MM-dd")] || []).length > 0);
 
     const handleColumnClick = (day, e) => {
         const col = e.currentTarget;
@@ -75,6 +80,33 @@ export default function CalendarWeekView({ date, slots, onSlotClick, onEmptyClic
                     );
                 })}
             </div>
+
+            {/* All-day row */}
+            {hasAnyUntimed && (
+                <div className="flex border-b border-border bg-muted/20">
+                    <div className="w-16 flex-shrink-0 border-r border-border text-[10px] text-muted-foreground font-medium flex items-center justify-end pr-2">
+                        ALL DAY
+                    </div>
+                    {weekDays.map((day) => {
+                        const key = format(day, "yyyy-MM-dd");
+                        const untimed = untimedByDay[key] || [];
+                        return (
+                            <div key={key} className="flex-1 border-r border-border/30 last:border-r-0 px-0.5 py-1 flex flex-col gap-0.5 min-h-[28px]">
+                                {untimed.map((slot) => (
+                                    <button
+                                        key={slot.name}
+                                        type="button"
+                                        onClick={(e) => { e.stopPropagation(); onSlotClick?.(slot); }}
+                                        className="text-[9px] leading-tight px-1 py-0.5 rounded bg-cheese-100 dark:bg-cheese-900/40 text-cheese-700 dark:text-cheese-400 truncate hover:bg-cheese-200 transition-colors text-left"
+                                    >
+                                        {slot.experience || slot.name}
+                                    </button>
+                                ))}
+                            </div>
+                        );
+                    })}
+                </div>
+            )}
 
             {/* Scrollable grid */}
             <div ref={containerRef} className="overflow-auto max-h-[calc(100vh-310px)]">
@@ -128,13 +160,12 @@ export default function CalendarWeekView({ date, slots, onSlotClick, onEmptyClic
                                 )}
 
                                 {/* Slot events */}
-                                {daySlots.map((slot) => {
-                                    const pos = getSlotPosition(slot.time_from, slot.time_to);
+                                {calculateSlotLayout(daySlots).map((slot) => {
                                     return (
                                         <CalendarSlotCard
                                             key={slot.name}
                                             slot={slot}
-                                            style={{ top: pos.top, height: pos.height }}
+                                            style={slot._style}
                                             onClick={onSlotClick}
                                             compact
                                         />
