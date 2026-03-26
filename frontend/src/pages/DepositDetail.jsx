@@ -9,6 +9,7 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { DollarSign, Ticket, Users, Clock, CreditCard, CheckCircle, XCircle, AlertTriangle } from "lucide-react";
+import FrappeSearchSelect from "@/components/FrappeSearchSelect";
 
 const STATUS_CONFIG = {
     PENDING: { label: "Pending", class: "bg-yellow-500/15 text-yellow-700 border-yellow-300 dark:text-yellow-400 dark:border-yellow-700" },
@@ -34,6 +35,7 @@ export default function DepositDetail() {
                 status: deposit.status || "PENDING",
                 amount_paid: deposit.amount_paid || 0,
                 amount_required: deposit.amount_required || 0,
+                bank_account: deposit.bank_account || "",
                 notes: deposit.notes || "",
             });
         }
@@ -43,6 +45,7 @@ export default function DepositDetail() {
         const changes = {};
         if (form.status !== deposit.status) changes.status = form.status;
         if (Number(form.amount_paid) !== Number(deposit.amount_paid)) changes.amount_paid = Number(form.amount_paid);
+        if (form.bank_account !== (deposit.bank_account || "")) changes.bank_account = form.bank_account;
         if (form.notes !== (deposit.notes || "")) changes.notes = form.notes;
 
         if (Object.keys(changes).length === 0) {
@@ -132,6 +135,20 @@ export default function DepositDetail() {
                                 <EditableField label="Entity ID" value={deposit?.entity_id || "—"} editMode={false} />
                                 <EditableField label="Contact" value={deposit?.contact || "—"} editMode={false} />
                                 <EditableField label="Due At" value={deposit?.due_at ? new Date(deposit.due_at).toLocaleString() : "—"} editMode={false} />
+                                {editMode ? (
+                                    <div className="space-y-1.5 flex flex-col justify-end">
+                                        <Label className="text-xs text-muted-foreground">Bank Account</Label>
+                                        <FrappeSearchSelect
+                                            doctype="Cheese Bank Account"
+                                            label="name"
+                                            value={form.bank_account || ""}
+                                            onChange={(v) => setForm(f => ({ ...f, bank_account: v }))}
+                                            placeholder="Select bank account..."
+                                        />
+                                    </div>
+                                ) : (
+                                    <EditableField label="Bank Account" value={deposit?.bank_account || "—"} editMode={false} />
+                                )}
                             </div>
                         </CardContent>
                     </Card>

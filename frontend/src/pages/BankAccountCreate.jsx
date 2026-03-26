@@ -17,7 +17,7 @@ export default function BankAccountCreate() {
     const [form, setForm] = useState({
         entity_type: initialCompany ? "Company" : "Cheese Route",
         entity_id: initialCompany || initialRoute,
-        holder: "", bank: "", account: "", iban: "", currency: "EUR",
+        holder: "", bank: "", account: "", description: "", iban: "", currency: "UYU",
     });
     const createMutation = useFrappeCreate("Cheese Bank Account");
 
@@ -97,10 +97,17 @@ export default function BankAccountCreate() {
                         <Input placeholder="Account number" value={form.account} onChange={(e) => setForm(f => ({ ...f, account: e.target.value }))} className="font-mono" />
                     </div>
                     <div className="space-y-2">
+                        <Label>Description</Label>
+                        <Input placeholder="e.g. Primary Account" value={form.description} onChange={(e) => setForm(f => ({ ...f, description: e.target.value }))} />
+                    </div>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                    <div className="space-y-2">
                         <Label>Currency</Label>
                         <Select value={form.currency} onValueChange={(v) => setForm(f => ({ ...f, currency: v }))}>
                             <SelectTrigger><SelectValue /></SelectTrigger>
                             <SelectContent>
+                                <SelectItem value="UYU">UYU</SelectItem>
                                 <SelectItem value="EUR">EUR</SelectItem>
                                 <SelectItem value="USD">USD</SelectItem>
                                 <SelectItem value="GBP">GBP</SelectItem>

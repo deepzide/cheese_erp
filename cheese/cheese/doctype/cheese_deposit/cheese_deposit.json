@@ -15,6 +15,7 @@
         "amount_section",
         "amount_required",
         "amount_paid",
+        "bank_account",
         "status",
         "timing_section",
         "due_at",
@@ -63,6 +64,13 @@
             "fieldtype": "Currency",
             "in_list_view": 1,
             "label": "Amount Paid"
+        },
+        {
+            "fieldname": "bank_account",
+            "fieldtype": "Link",
+            "label": "Bank Account",
+            "options": "Cheese Bank Account",
+            "in_list_view": 1
         },
         {
             "fieldname": "status",

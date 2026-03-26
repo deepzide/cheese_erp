@@ -23,8 +23,9 @@ export default function BankAccountDetail() {
                 holder: account.holder || "",
                 bank: account.bank || "",
                 account: account.account || "",
+                description: account.description || "",
                 iban: account.iban || "",
-                currency: account.currency || "EUR",
+                currency: account.currency || "UYU",
                 status: account.status || "PENDING",
             });
         }
@@ -32,7 +33,7 @@ export default function BankAccountDetail() {
 
     const handleSave = () => {
         const changes = {};
-        ["holder", "bank", "account", "iban", "currency", "status"].forEach(key => {
+        ["holder", "bank", "account", "description", "iban", "currency", "status"].forEach(key => {
             if (form[key] !== (account[key] || "")) changes[key] = form[key];
         });
 
@@ -81,6 +82,7 @@ export default function BankAccountDetail() {
                                 <EditableField label="Account Holder" value={form.holder} onChange={(v) => setForm(f => ({ ...f, holder: v }))} editMode={editMode} />
                                 <EditableField label="Bank" value={form.bank} onChange={(v) => setForm(f => ({ ...f, bank: v }))} editMode={editMode} />
                                 <EditableField label="Account Number" value={form.account} onChange={(v) => setForm(f => ({ ...f, account: v }))} editMode={editMode} />
+                                <EditableField label="Description" value={form.description} onChange={(v) => setForm(f => ({ ...f, description: v }))} editMode={editMode} />
                                 <EditableField label="IBAN" value={form.iban} onChange={(v) => setForm(f => ({ ...f, iban: v }))} editMode={editMode} />
                                 {editMode ? (
                                     <div className="space-y-1.5">
@@ -92,6 +94,7 @@ export default function BankAccountDetail() {
                                         >
                                             <option value="EUR">EUR</option>
                                             <option value="USD">USD</option>
+                                            <option value="UYU">UYU</option>
                                             <option value="GBP">GBP</option>
                                             <option value="MAD">MAD</option>
                                         </select>

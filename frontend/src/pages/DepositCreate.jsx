@@ -75,6 +75,7 @@ export default function DepositCreate() {
             amount_paid: 0,
             status: "PENDING",
             due_at: form.due_at || undefined,
+            bank_account: form.bank_account || undefined,
         }, {
             onSuccess: () => {
                 toast.success("Deposit created");
