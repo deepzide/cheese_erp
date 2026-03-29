@@ -43,6 +43,9 @@ import DepositCreate from './DepositCreate';
 import DepositDetail from './DepositDetail';
 import BankAccountDetail from './BankAccountDetail';
 import SupportDetail from './SupportDetail';
+import Establishments from './Establishments';
+import EstablishmentCreate from './EstablishmentCreate';
+import EstablishmentDetail from './EstablishmentDetail';
 
 export default function Pages() {
     return (
@@ -65,6 +68,9 @@ export default function Pages() {
                                         <Route path="/experiences" element={<Experiences />} />
                                         <Route path="/experiences/new" element={<ExperienceCreate />} />
                                         <Route path="/experiences/:id" element={<ExperienceDetail />} />
+                                        <Route path="/establishments" element={<Establishments />} />
+                                        <Route path="/establishments/new" element={<EstablishmentCreate />} />
+                                        <Route path="/establishments/:id" element={<EstablishmentDetail />} />
                                         <Route path="/calendar" element={<Calendar />} />
                                         <Route path="/contacts" element={<Contacts />} />
                                         <Route path="/contacts/new" element={<ContactCreate />} />

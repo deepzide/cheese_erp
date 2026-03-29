@@ -5,6 +5,10 @@ import frappe
 from frappe import _
 from frappe.utils import getdate, get_time, cint, get_datetime, get_url, add_days, add_months
 from cheese.api.common.responses import success, created, error, not_found, validation_error, paginated_response
+from cheese.api.v1.bank_account_controller import (
+	get_active_company_bank_accounts_list,
+	get_active_company_bank_accounts_map,
+)
 from cheese.cheese.utils.capacity import get_available_capacity
 
 
@@ -80,7 +84,12 @@ def list_experiences(page=1, page_size=20, status=None, company=None, establishm
 		)
 		
 		total = frappe.db.count("Cheese Experience", filters=filters)
-		
+
+		company_ids = list({e.get("company") for e in experiences if e.get("company")})
+		bank_map = get_active_company_bank_accounts_map(company_ids)
+		for row in experiences:
+			row["bank_account"] = bank_map.get(row.get("company"), [])
+
 		return paginated_response(
 			experiences,
 			"Experiences retrieved successfully",
@@ -174,6 +183,10 @@ def get_experience_detail(experience_id, include_next_availability=True):
 					}
 					break
 
+		bank_account = (
+			get_active_company_bank_accounts_list(experience.company) if experience.company else []
+		)
+
 		return success(
 			"Experience details retrieved successfully",
 			{
@@ -203,7 +216,8 @@ def get_experience_detail(experience_id, include_next_availability=True):
 				"settings": {
 					"manual_confirmation": experience.manual_confirmation
 				},
-				"booking_policy": policy
+				"booking_policy": policy,
+				"bank_account": bank_account,
 			}
 		)
 	except Exception as e:

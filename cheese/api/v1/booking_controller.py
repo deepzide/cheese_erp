@@ -608,8 +608,16 @@ def register_payment_for_booking(booking_id, amount, verification_method="Manual
 		registered_payments = []
 		amount_per_reservation = amount / len(individual_reservations) if individual_reservations else 0
 		
+		attach_receipt_to_first_only = True
 		for ticket_id in individual_reservations:
-			result = record_deposit_payment(ticket_id, amount_per_reservation, verification_method, ocr_payload)
+			result = record_deposit_payment(
+				ticket_id,
+				amount_per_reservation,
+				verification_method,
+				ocr_payload,
+				attach_receipt=attach_receipt_to_first_only,
+			)
+			attach_receipt_to_first_only = False
 			if result.get("success"):
 				registered_payments.append(ticket_id)
 			else:

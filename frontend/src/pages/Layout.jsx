@@ -6,7 +6,7 @@ import {
     Users, UserPlus, FileText, Wallet, ShoppingCart,
     Bell, Menu, LogOut, ChevronDown, ChevronRight, X,
     Zap, Settings, Sun, Moon,
-    Shield, Landmark, UserCheck, QrCode, Star, Activity, MessageSquare
+    Shield, Landmark, UserCheck, QrCode, Star, Activity, MessageSquare, Building2
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -18,12 +18,28 @@ import {
 import { getStoredCredentials } from "@/api/client";
 import { useTheme } from "@/components/ThemeProvider";
 
+const URL_ESTABLISHMENTS = createPageUrl("establishments");
+const URL_ESTABLISHMENTS_NEW = createPageUrl("establishments/new");
+
+/** Establishments nav active on list and detail, not on the create page */
+function isEstablishmentsNavActive(pathname) {
+    if (pathname === URL_ESTABLISHMENTS_NEW) return false;
+    if (pathname === URL_ESTABLISHMENTS) return true;
+    return pathname.startsWith(`${URL_ESTABLISHMENTS}/`);
+}
+
+function isNavItemActive(item, pathname) {
+    if (item.url === URL_ESTABLISHMENTS) return isEstablishmentsNavActive(pathname);
+    return pathname === item.url;
+}
+
 const navigationItems = [
     { title: "Dashboard", url: createPageUrl("dashboard"), icon: LayoutDashboard, section: "main" },
     { title: "Tickets", url: createPageUrl("tickets"), icon: Ticket, section: "flow" },
     { title: "Routes", url: createPageUrl("routes"), icon: Route, section: "flow" },
     { title: "Bookings", url: createPageUrl("bookings"), icon: ShoppingCart, section: "flow" },
     { title: "Experiences", url: createPageUrl("experiences"), icon: Sparkles, section: "catalog" },
+    { title: "Establishments", url: URL_ESTABLISHMENTS, icon: Building2, section: "catalog" },
     { title: "Calendar", url: createPageUrl("calendar"), icon: CalendarDays, section: "catalog" },
     { title: "Booking Policy", url: createPageUrl("booking-policy"), icon: Shield, section: "catalog" },
     { title: "Contacts", url: createPageUrl("contacts"), icon: Users, section: "crm" },
@@ -98,7 +114,7 @@ export default function Layout({ children }) {
                 {Object.entries(sections).map(([key, section]) => {
                     const items = navigationItems.filter(item => item.section === key);
                     if (items.length === 0) return null;
-                    const isGroupActive = items.some(item => location.pathname === item.url);
+                    const isGroupActive = items.some(item => isNavItemActive(item, location.pathname));
                     const isCollapsed = collapsedSections[key] && !isGroupActive;
 
                     return (
@@ -122,7 +138,7 @@ export default function Layout({ children }) {
                             {!isCollapsed && (
                                 <div className="mt-1 space-y-0.5">
                                     {items.map((item) => {
-                                        const isActive = location.pathname === item.url;
+                                        const isActive = isNavItemActive(item, location.pathname);
                                         return (
                                             <Link
                                                 key={item.title}

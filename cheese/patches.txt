@@ -6,3 +6,4 @@
 # Patches added in this section will be executed after doctypes are migrated
 cheese.patches.v1_0.rename_cheese_doctypes
 cheese.patches.v1_0.add_entity_fields_to_bank_account
+cheese.patches.v1_0.add_company_cheese_archived

@@ -1,8 +1,54 @@
 # Copyright (c) 2024
 # License: MIT
 
+from collections import defaultdict
+
 import frappe
 from cheese.api.common.responses import error, not_found, success, validation_error
+
+
+def serialize_company_bank_account_row(row):
+	"""API/bot shape: account_number, bank_name, currency (+ optional ids)."""
+	return {
+		"bank_account_id": row.get("name"),
+		"account_number": (row.get("account") or "") or "",
+		"bank_name": (row.get("bank") or "") or "",
+		"currency": (row.get("currency") or "") or "",
+		"holder": row.get("holder"),
+		"iban": row.get("iban") or None,
+	}
+
+
+def get_active_company_bank_accounts_list(company_id):
+	"""All ACTIVE Cheese Bank Account rows for a Company (establishment)."""
+	if not company_id:
+		return []
+	rows = frappe.get_all(
+		"Cheese Bank Account",
+		filters={"entity_type": "Company", "entity_id": company_id, "status": "ACTIVE"},
+		fields=["name", "account", "bank", "currency", "holder", "iban"],
+		order_by="modified asc",
+	)
+	return [serialize_company_bank_account_row(r) for r in rows]
+
+
+def get_active_company_bank_accounts_map(company_ids):
+	"""Batch: company_id -> list of serialized bank account dicts."""
+	if not company_ids:
+		return {}
+	ids = list({c for c in company_ids if c})
+	if not ids:
+		return {}
+	rows = frappe.get_all(
+		"Cheese Bank Account",
+		filters={"entity_type": "Company", "entity_id": ["in", ids], "status": "ACTIVE"},
+		fields=["name", "entity_id", "account", "bank", "currency", "holder", "iban"],
+		order_by="entity_id asc, modified asc",
+	)
+	out = defaultdict(list)
+	for r in rows:
+		out[r.entity_id].append(serialize_company_bank_account_row(r))
+	return dict(out)
 
 
 def get_active_bank_account_doc(entity_type, entity_id):

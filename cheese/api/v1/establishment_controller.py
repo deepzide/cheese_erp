@@ -5,11 +5,31 @@ import frappe
 from frappe import _
 from frappe.utils import getdate, cint
 from cheese.api.common.responses import success, error, not_found, validation_error, paginated_response
+from cheese.api.v1.bank_account_controller import (
+	get_active_company_bank_accounts_list,
+	get_active_company_bank_accounts_map,
+)
 import json
 
 
+def _company_has_cheese_archived():
+	return bool(frappe.get_meta("Company").get_field("cheese_archived"))
+
+
+def _establishment_delete_blockers(company_id):
+	"""Return list of human-readable blockers if establishment cannot be deleted."""
+	blockers = []
+	if frappe.db.exists("Cheese Experience", {"company": company_id}):
+		blockers.append(_("Linked Cheese Experience records exist"))
+	if frappe.db.exists("Cheese Ticket", {"company": company_id}):
+		blockers.append(_("Linked Cheese Ticket records exist"))
+	if frappe.db.exists("Cheese Bank Account", {"entity_type": "Company", "entity_id": company_id}):
+		blockers.append(_("Linked Cheese Bank Account records exist"))
+	return blockers
+
+
 @frappe.whitelist()
-def list_establishments(page=1, page_size=20, search=None, status=None, locality=None, tags=None):
+def list_establishments(page=1, page_size=20, search=None, status=None, locality=None, tags=None, include_archived=0):
 	"""
 	List establishments with pagination, search, and filters
 	
@@ -27,19 +47,19 @@ def list_establishments(page=1, page_size=20, search=None, status=None, locality
 	try:
 		page = cint(page) or 1
 		page_size = cint(page_size) or 20
-		
+		include_archived = cint(include_archived)
+
 		# Build filters
 		filters = {}
-		
-		if status:
-			# Map status to company disabled field
-			# NOTE: Company doctype does not have disabled field, ignoring filter to prevent error
-			pass
-			# if status.upper() == "INACTIVE":
-			# 	filters["disabled"] = 1
-			# elif status.upper() == "ACTIVE":
-			# 	filters["disabled"] = 0
-		
+
+		if _company_has_cheese_archived() and not include_archived:
+			filters["cheese_archived"] = 0
+
+		if status and str(status).upper() == "ARCHIVED" and _company_has_cheese_archived():
+			filters["cheese_archived"] = 1
+		elif status and str(status).upper() == "ACTIVE" and _company_has_cheese_archived():
+			filters["cheese_archived"] = 0
+
 		# Build search query
 		search_fields = ["company_name"]
 		or_filters = []
@@ -67,6 +87,8 @@ def list_establishments(page=1, page_size=20, search=None, status=None, locality
 			)
 			if tagged_companies:
 				filters["name"] = ["in", [tc.document_name for tc in tagged_companies]]
+				if _company_has_cheese_archived() and not include_archived:
+					filters["cheese_archived"] = 0
 			else:
 				# No companies match tags, return empty
 				return paginated_response(
@@ -80,6 +102,9 @@ def list_establishments(page=1, page_size=20, search=None, status=None, locality
 		# Get companies - try with administrator_contact, fallback without it if field doesn't exist
 		company_fields_with_contact = ["name", "company_name", "email", "phone_no", "website", "company_description", "administrator_contact"]
 		company_fields_without_contact = ["name", "company_name", "email", "phone_no", "website", "company_description"]
+		if _company_has_cheese_archived():
+			company_fields_with_contact.append("cheese_archived")
+			company_fields_without_contact.append("cheese_archived")
 		
 		try:
 			companies = frappe.get_all(
@@ -106,30 +131,36 @@ def list_establishments(page=1, page_size=20, search=None, status=None, locality
 		
 		# Get total count
 		total = frappe.db.count("Company", filters=filters)
-		
+
+		company_names = [c.name for c in companies]
+		bank_map = get_active_company_bank_accounts_map(company_names)
+
 		# Enrich with experiences count and status
 		result = []
 		for company in companies:
 			# Get experiences count
 			experiences_count = frappe.db.count("Cheese Experience", {"company": company.name})
-			
+
 			# Get online experiences count
 			online_experiences = frappe.db.count(
 				"Cheese Experience",
 				{"company": company.name, "status": "ONLINE"}
 			)
-			
+
+			archived = bool(getattr(company, "cheese_archived", 0)) if _company_has_cheese_archived() else False
+
 			result.append({
 				"company_id": company.name,
 				"company_name": company.company_name,
-				"status": "ACTIVE", # "INACTIVE" if company.disabled else "ACTIVE",
+				"status": "ARCHIVED" if archived else "ACTIVE",
 				"email": company.email,
 				"phone": company.phone_no,
 				"website": company.website,
 				"description": company.company_description,
 				"administrator_contact": getattr(company, "administrator_contact", None),
 				"experiences_count": experiences_count,
-				"online_experiences_count": online_experiences
+				"online_experiences_count": online_experiences,
+				"bank_account": bank_map.get(company.name, []),
 			})
 		
 		return paginated_response(
@@ -249,13 +280,16 @@ def get_establishment_details(company_id):
 		except Exception:
 			# Cheese Document doctype may not exist yet, continue without documents
 			pass
-		
+
+		archived = bool(getattr(company, "cheese_archived", 0)) if _company_has_cheese_archived() else False
+		bank_account = get_active_company_bank_accounts_list(company_id)
+
 		return success(
 			"Establishment details retrieved successfully",
 			{
 				"company_id": company.name,
 				"company_name": company.company_name,
-				"status": "ACTIVE", # "INACTIVE" if company.disabled else "ACTIVE",
+				"status": "ARCHIVED" if archived else "ACTIVE",
 				"email": company.email,
 				"phone": company.phone_no,
 				"website": company.website,
@@ -269,12 +303,153 @@ def get_establishment_details(company_id):
 				"documents": documents,
 				"photos": photos,
 				"links": links,
-				"pdfs": pdfs
+				"pdfs": pdfs,
+				"bank_account": bank_account,
 			}
 		)
 	except Exception as e:
 		frappe.log_error(f"Error in get_establishment_details: {str(e)}")
 		return error("Failed to get establishment details", "SERVER_ERROR", {"error": str(e)}, 500)
+
+
+@frappe.whitelist()
+def create_establishment(
+	company_name,
+	abbr=None,
+	default_currency=None,
+	country=None,
+	email=None,
+	phone_no=None,
+	website=None,
+):
+	"""
+	Create a new establishment (ERPNext Company) by copying chart of accounts from an existing company.
+	"""
+	try:
+		if not company_name or not str(company_name).strip():
+			return validation_error("company_name is required")
+
+		company_name = str(company_name).strip()
+		if frappe.db.exists("Company", company_name):
+			return validation_error(_("A company with this name already exists"))
+
+		template_company = frappe.defaults.get_global_default("company")
+		if not template_company:
+			existing = frappe.get_all("Company", fields=["name"], limit=1)
+			template_company = existing[0].name if existing else None
+		if not template_company:
+			return validation_error(
+				_("No existing company found to copy chart of accounts. Complete ERPNext company setup first.")
+			)
+
+		defaults = frappe.defaults.get_defaults()
+		currency = default_currency or defaults.get("currency") or "USD"
+		country_val = country or frappe.db.get_value("Company", template_company, "country")
+		if not country_val:
+			country_row = frappe.get_all("Country", fields=["name"], limit=1)
+			country_val = country_row[0].name if country_row else None
+		if not country_val:
+			return validation_error(_("country is required (no default country on template company)"))
+
+		doc = frappe.get_doc(
+			{
+				"doctype": "Company",
+				"company_name": company_name,
+				"abbr": abbr,
+				"default_currency": currency,
+				"country": country_val,
+				"create_chart_of_accounts_based_on": "Existing Company",
+				"existing_company": template_company,
+				"email": email,
+				"phone_no": phone_no,
+				"website": website,
+			}
+		)
+		doc.insert()
+		frappe.db.commit()
+
+		return success(
+			"Establishment created successfully",
+			{
+				"company_id": doc.name,
+				"company_name": doc.company_name,
+				"status": "ACTIVE",
+				"bank_account": [],
+			},
+		)
+	except frappe.ValidationError as e:
+		return validation_error(str(e))
+	except Exception as e:
+		frappe.log_error(f"Error in create_establishment: {str(e)}")
+		return error("Failed to create establishment", "SERVER_ERROR", {"error": str(e)}, 500)
+
+
+@frappe.whitelist()
+def delete_establishment(company_id):
+	"""Delete establishment only when no Cheese-linked records exist."""
+	try:
+		if not company_id:
+			return validation_error("company_id is required")
+		if not frappe.db.exists("Company", company_id):
+			return not_found("Company", company_id)
+
+		blockers = _establishment_delete_blockers(company_id)
+		if blockers:
+			return validation_error(
+				_("Cannot delete establishment: {0}. Use archive instead.").format("; ".join(blockers))
+			)
+
+		frappe.delete_doc("Company", company_id, ignore_permissions=False)
+		frappe.db.commit()
+		return success("Establishment deleted successfully", {"company_id": company_id})
+	except frappe.ValidationError as e:
+		return validation_error(str(e))
+	except Exception as e:
+		frappe.log_error(f"Error in delete_establishment: {str(e)}")
+		return error("Failed to delete establishment", "SERVER_ERROR", {"error": str(e)}, 500)
+
+
+@frappe.whitelist()
+def archive_establishment(company_id):
+	"""Soft-archive: hide from default Cheese lists."""
+	try:
+		if not company_id:
+			return validation_error("company_id is required")
+		if not frappe.db.exists("Company", company_id):
+			return not_found("Company", company_id)
+		if not _company_has_cheese_archived():
+			return validation_error(_("Cheese archive field is not installed. Run bench migrate."))
+
+		frappe.db.set_value("Company", company_id, "cheese_archived", 1)
+		frappe.db.commit()
+		return success(
+			"Establishment archived successfully",
+			{"company_id": company_id, "status": "ARCHIVED"},
+		)
+	except Exception as e:
+		frappe.log_error(f"Error in archive_establishment: {str(e)}")
+		return error("Failed to archive establishment", "SERVER_ERROR", {"error": str(e)}, 500)
+
+
+@frappe.whitelist()
+def unarchive_establishment(company_id):
+	try:
+		if not company_id:
+			return validation_error("company_id is required")
+		if not frappe.db.exists("Company", company_id):
+			return not_found("Company", company_id)
+		if not _company_has_cheese_archived():
+			return validation_error(_("Cheese archive field is not installed. Run bench migrate."))
+
+		frappe.db.set_value("Company", company_id, "cheese_archived", 0)
+		frappe.db.commit()
+		return success(
+			"Establishment unarchived successfully",
+			{"company_id": company_id, "status": "ACTIVE"},
+		)
+	except Exception as e:
+		frappe.log_error(f"Error in unarchive_establishment: {str(e)}")
+		return error("Failed to unarchive establishment", "SERVER_ERROR", {"error": str(e)}, 500)
 
 
 @frappe.whitelist()

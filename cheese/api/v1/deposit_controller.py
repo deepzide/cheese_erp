@@ -3,9 +3,39 @@
 
 import frappe
 from frappe import _
-from frappe.utils import add_to_date, now_datetime
+from frappe.utils import add_to_date, flt, now_datetime
 from cheese.api.common.responses import success, created, error, not_found, validation_error
-from cheese.api.v1.bank_account_controller import get_active_bank_account_doc
+from cheese.api.v1.bank_account_controller import get_active_company_bank_accounts_list
+
+
+def _instructions_for_deposit(amount_required, bank_accounts):
+	if not bank_accounts:
+		return _("Please make payment to complete your booking")
+	parts = []
+	for ba in bank_accounts:
+		parts.append(
+			_("{0} — {1} ({2})").format(
+				ba.get("bank_name") or "",
+				ba.get("account_number") or "",
+				ba.get("currency") or "",
+			)
+		)
+	accounts_txt = "; ".join(parts)
+	first_cur = bank_accounts[0].get("currency") or ""
+	return _("Please transfer {0} {1}. Pay to one of: {2}").format(
+		amount_required, first_cur, accounts_txt
+	)
+
+
+def _bank_accounts_for_ticket(ticket):
+	if not ticket.experience:
+		return []
+	if not frappe.db.exists("Cheese Experience", ticket.experience):
+		return []
+	establishment_company = frappe.db.get_value("Cheese Experience", ticket.experience, "company")
+	if not establishment_company:
+		return []
+	return get_active_company_bank_accounts_list(establishment_company)
 
 
 @frappe.whitelist()
@@ -54,13 +84,28 @@ def get_payment_link_or_instructions(ticket_id=None, deposit_id=None):
 		
 		if not deposit_doc:
 			return not_found("Deposit", deposit_id or f"for ticket {ticket_id}")
-		
+
+		bank_account = []
+		if ticket_id and frappe.db.exists("Cheese Ticket", ticket_id):
+			ticket_doc = frappe.get_doc("Cheese Ticket", ticket_id)
+			bank_account = _bank_accounts_for_ticket(ticket_doc)
+
 		# Generate payment link (simplified - would integrate with payment gateway in production)
 		payment_link = None
 		if deposit_doc.status == "PENDING":
 			# In production, this would generate a real payment link
 			payment_link = f"/api/method/cheese.api.v1.deposit_controller.record_deposit_payment?ticket_id={ticket_id}&amount={deposit_doc.amount_required}"
-		
+
+		instructions = (
+			_instructions_for_deposit(deposit_doc.amount_required, bank_account)
+			if bank_account
+			else (
+				_("Use the payment link to complete payment")
+				if payment_link
+				else _("Please make payment to complete your booking")
+			)
+		)
+
 		return success(
 			"Payment instructions retrieved successfully",
 			{
@@ -72,7 +117,8 @@ def get_payment_link_or_instructions(ticket_id=None, deposit_id=None):
 				"due_at": str(deposit_doc.due_at) if deposit_doc.due_at else None,
 				"status": deposit_doc.status,
 				"payment_link": payment_link,
-				"instructions": "Please make payment to complete your booking" if not payment_link else "Use the payment link to complete payment"
+				"bank_account": bank_account,
+				"instructions": instructions,
 			}
 		)
 	except Exception as e:
@@ -99,18 +145,15 @@ def get_deposit_instructions(ticket_id):
 			return not_found("Ticket", ticket_id)
 
 		ticket = frappe.get_doc("Cheese Ticket", ticket_id)
-		bank_account = None
-		if ticket.route:
-			bank_account = get_active_bank_account_doc("Cheese Route", ticket.route)
-		if not bank_account and ticket.company:
-			bank_account = get_active_bank_account_doc("Company", ticket.company)
-		
+		bank_account = _bank_accounts_for_ticket(ticket)
+
 		if not ticket.deposit_required:
 			return success(
 				"No deposit required for this ticket",
 				{
 					"deposit_required": False,
-					"ticket_id": ticket_id
+					"ticket_id": ticket_id,
+					"bank_account": bank_account,
 				}
 			)
 
@@ -151,19 +194,8 @@ def get_deposit_instructions(ticket_id):
 				"amount_remaining": deposit_doc.amount_required - (deposit_doc.amount_paid or 0),
 				"due_at": str(deposit_doc.due_at) if deposit_doc.due_at else None,
 				"status": deposit_doc.status,
-				"bank_account": {
-					"holder": bank_account.holder,
-					"bank": bank_account.bank,
-					"account": bank_account.account,
-					"iban": bank_account.iban,
-					"currency": bank_account.currency
-				} if bank_account else None,
-				"instructions": (
-					f"Please transfer {deposit_doc.amount_required} {bank_account.currency} "
-					f"to account {bank_account.account} ({bank_account.bank})"
-					if bank_account
-					else "Please make payment to complete your booking"
-				)
+				"bank_account": bank_account,
+				"instructions": _instructions_for_deposit(deposit_doc.amount_required, bank_account),
 			}
 		)
 	except Exception as e:
@@ -171,25 +203,70 @@ def get_deposit_instructions(ticket_id):
 		return error("Failed to get deposit instructions", "SERVER_ERROR", {"error": str(e)}, 500)
 
 
+def _extract_receipt_upload():
+	if not frappe.request or not getattr(frappe.request, "files", None):
+		return None
+	for key in ("receipt", "payment_receipt", "file"):
+		f = frappe.request.files.get(key)
+		if f and getattr(f, "filename", None):
+			return f
+	return None
+
+
+def _attach_receipt_to_deposit(deposit_name, file_storage):
+	content = file_storage.stream.read()
+	if not content:
+		frappe.throw(_("Uploaded file is empty"))
+	filename = (file_storage.filename or "receipt").strip()
+	ext = filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
+	if ext not in ("pdf", "png", "jpg", "jpeg", "webp"):
+		frappe.throw(_("Unsupported file type. Use PDF, PNG, JPG, JPEG, or WEBP."))
+	max_bytes = 10 * 1024 * 1024
+	if len(content) > max_bytes:
+		frappe.throw(_("File exceeds maximum size of {0} MB").format(10))
+
+	file_doc = frappe.get_doc(
+		{
+			"doctype": "File",
+			"file_name": filename,
+			"attached_to_doctype": "Cheese Deposit",
+			"attached_to_name": deposit_name,
+			"content": content,
+			"is_private": 1,
+		}
+	)
+	file_doc.save(ignore_permissions=True)
+	return file_doc
+
+
 @frappe.whitelist()
-def record_deposit_payment(ticket_id, amount, verification_method="Manual", ocr_payload=None):
+def record_deposit_payment(
+	ticket_id, amount, verification_method="Manual", ocr_payload=None, attach_receipt=True
+):
 	"""
 	Record a deposit payment
-	
+
 	Args:
 		ticket_id: ID of the ticket
 		amount: Payment amount
 		verification_method: Verification method (Manual/OCR)
 		ocr_payload: Optional OCR payload JSON
-		
+		attach_receipt: If true (default), accept multipart file field receipt/payment_receipt/file
+
 	Returns:
 		Success response with updated deposit data
 	"""
 	try:
 		if not ticket_id:
 			return validation_error("ticket_id is required")
+		amount = flt(amount)
 		if not amount or amount <= 0:
 			return validation_error("amount must be greater than 0")
+
+		if attach_receipt in (0, "0", False, "false", "False"):
+			do_attach = False
+		else:
+			do_attach = True
 
 		if not frappe.db.exists("Cheese Ticket", ticket_id):
 			return not_found("Ticket", ticket_id)
@@ -206,26 +283,37 @@ def record_deposit_payment(ticket_id, amount, verification_method="Manual", ocr_
 
 		deposit = frappe.get_doc("Cheese Deposit", deposit_name)
 		old_status = deposit.status
-		old_amount_paid = deposit.amount_paid or 0
-		
+
 		deposit.record_payment(amount, verification_method, ocr_payload)
+
+		receipt_file_id = None
+		receipt_file_url = None
+		if do_attach:
+			upload = _extract_receipt_upload()
+			if upload:
+				file_doc = _attach_receipt_to_deposit(deposit.name, upload)
+				receipt_file_id = file_doc.name
+				receipt_file_url = file_doc.file_url
+
 		frappe.db.commit()
 
-		return success(
-			"Deposit payment recorded successfully",
-			{
-				"deposit_id": deposit.name,
-				"ticket_id": ticket_id,
-				"amount_paid": amount,
-				"total_amount_paid": deposit.amount_paid or 0,
-				"amount_required": deposit.amount_required,
-				"amount_remaining": deposit.amount_required - (deposit.amount_paid or 0),
-				"old_status": old_status,
-				"new_status": deposit.status,
-				"verification_method": verification_method,
-				"is_complete": deposit.status == "PAID"
-			}
-		)
+		payload = {
+			"deposit_id": deposit.name,
+			"ticket_id": ticket_id,
+			"amount_paid": amount,
+			"total_amount_paid": deposit.amount_paid or 0,
+			"amount_required": deposit.amount_required,
+			"amount_remaining": deposit.amount_required - (deposit.amount_paid or 0),
+			"old_status": old_status,
+			"new_status": deposit.status,
+			"verification_method": verification_method,
+			"is_complete": deposit.status == "PAID",
+		}
+		if receipt_file_id:
+			payload["receipt_file_id"] = receipt_file_id
+			payload["receipt_file_url"] = receipt_file_url
+
+		return success("Deposit payment recorded successfully", payload)
 	except frappe.ValidationError as e:
 		return validation_error(str(e))
 	except Exception as e:
