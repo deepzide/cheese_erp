@@ -22,6 +22,8 @@
         "snapshots_section",
         "policy_snapshot",
         "price_snapshot",
+        "pricing_section",
+        "total_price",
         "deposit_section",
         "deposit_required",
         "deposit_amount"
@@ -121,6 +123,16 @@
             "fieldname": "price_snapshot",
             "fieldtype": "JSON",
             "label": "Price Snapshot (JSON)"
+        },
+        {
+            "fieldname": "pricing_section",
+            "fieldtype": "Section Break",
+            "label": "Pricing"
+        },
+        {
+            "fieldname": "total_price",
+            "fieldtype": "Currency",
+            "label": "Total Price"
         },
         {
             "fieldname": "deposit_section",

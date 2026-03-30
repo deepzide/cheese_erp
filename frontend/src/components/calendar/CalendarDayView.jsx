@@ -49,7 +49,7 @@ export default function CalendarDayView({ date, slots, onSlotClick, onEmptyClick
                         <button
                             key={slot.name}
                             type="button"
-                            onClick={(e) => { e.stopPropagation(); onSlotClick?.(slot); }}
+                            onClick={(e) => { e.stopPropagation(); onSlotClick?.({ ...slot, _viewDate: dayKey }); }}
                             className="text-[10px] px-2 py-0.5 rounded bg-cheese-100 dark:bg-cheese-900/40 text-cheese-700 dark:text-cheese-400 truncate max-w-[180px] hover:bg-cheese-200 transition-colors"
                         >
                             {slot.experience || slot.name} ({slot.reserved_capacity ?? 0}/{slot.max_capacity ?? 0})
@@ -103,7 +103,7 @@ export default function CalendarDayView({ date, slots, onSlotClick, onEmptyClick
                                     key={slot.name}
                                     slot={slot}
                                     style={slot._style}
-                                    onClick={onSlotClick}
+                                    onClick={(s) => onSlotClick?.({ ...s, _viewDate: dayKey })}
                                 />
                             );
                         })}

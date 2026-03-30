@@ -25,13 +25,19 @@ const CHANNEL_BADGE = {
 export default function Conversations() {
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
-    const [searchTerm, setSearchTerm] = useState(searchParams.get('contact') || searchParams.get('lead') || "");
+    const contactParam = searchParams.get('contact') || "";
+    const leadParam = searchParams.get('lead') || "";
+    const [searchTerm, setSearchTerm] = useState("");
     const [filterChannel, setFilterChannel] = useState("all");
     const [selectedConvo, setSelectedConvo] = useState(null);
 
-    const channelFilter = filterChannel !== "all" ? { channel: filterChannel } : {};
+    const serverFilters = {};
+    if (filterChannel !== "all") serverFilters.channel = filterChannel;
+    if (contactParam) serverFilters.contact = contactParam;
+    if (leadParam) serverFilters.lead = leadParam;
+
     const { data: convos = [], isLoading, error, refetch } = useFrappeList("Conversation", {
-        filters: channelFilter,
+        filters: serverFilters,
         fields: ["name", "contact", "channel", "status", "summary", "highlights_json", "transcript_url", "lead", "ticket", "route_booking", "creation", "modified"],
         pageSize: 100,
         orderBy: "modified desc",
@@ -79,7 +85,7 @@ export default function Conversations() {
                     <Card key={i} className="border border-border"><CardContent className="p-4 flex items-center gap-4"><Skeleton className="w-10 h-10 rounded-full" /><div className="flex-1"><Skeleton className="h-4 w-40 mb-2" /><Skeleton className="h-3 w-full" /></div></CardContent></Card>
                 )) : filtered.map((convo) => (
                     <motion.div key={convo.name} whileHover={{ x: 4 }}>
-                        <Card className="border border-border shadow-sm hover:shadow-md transition-all group cursor-pointer" onClick={() => setSelectedConvo(convo)}>
+                        <Card className="border border-border shadow-sm hover:shadow-md transition-all group cursor-pointer" onClick={() => navigate(`/cheese/conversations/${convo.name}`)}>
                             <CardContent className="p-4 flex items-center gap-4">
                                 <div className="w-10 h-10 rounded-full bg-green-50 dark:bg-green-950/30 flex items-center justify-center">
                                     <MessageSquare className="w-5 h-5 text-green-600 dark:text-green-400" />

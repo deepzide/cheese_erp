@@ -26,6 +26,7 @@ import QRTokens from './QRTokens';
 import SurveyResponses from './SurveyResponses';
 import SystemEvents from './SystemEvents';
 import Conversations from './Conversations';
+import ConversationDetail from './ConversationDetail';
 import ContactDetail from './ContactDetail';
 import ContactCreate from './ContactCreate';
 import LeadDetail from './LeadDetail';
@@ -102,6 +103,7 @@ export default function Pages() {
                                         <Route path="/surveys" element={<SurveyResponses />} />
                                         <Route path="/events" element={<SystemEvents />} />
                                         <Route path="/conversations" element={<Conversations />} />
+                                        <Route path="/conversations/:id" element={<ConversationDetail />} />
                                         <Route path="/" element={<Navigate to="/cheese/dashboard" replace />} />
                                         <Route path="*" element={<Navigate to="/cheese/dashboard" replace />} />
                                     </Routes>

@@ -140,6 +140,14 @@ after_install = "cheese.install.after_install"
 doc_events = {
 	"Cheese Ticket": {
 		"on_update": "cheese.cheese.utils.events.update_route_booking_status",
+		"after_insert": "cheese.cheese.utils.lead_automation.on_ticket_insert",
+	},
+	"Conversation": {
+		"on_update": "cheese.cheese.utils.lead_automation.on_conversation_update",
+		"after_insert": "cheese.cheese.utils.lead_automation.on_conversation_update",
+	},
+	"Cheese Deposit": {
+		"on_update": "cheese.cheese.utils.qr_on_payment.on_deposit_paid",
 	},
 }
 
@@ -151,6 +159,7 @@ scheduler_events = {
 		"0/15 * * * *": [
 			"cheese.cheese.scheduler.expiration.expire_pending_tickets",
 			"cheese.cheese.scheduler.deposit_overdue.process_overdue_deposits",
+			"cheese.cheese.scheduler.completion.auto_complete_checked_in_tickets",
 		],
 	},
 	"hourly": [

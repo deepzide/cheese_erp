@@ -1,14 +1,15 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { useFrappeDoc, useFrappeUpdate } from "@/lib/useApiData";
+import { useFrappeDoc, useFrappeUpdate, useFrappeList } from "@/lib/useApiData";
 import { toast } from "sonner";
 import DetailPageLayout from "@/components/DetailPageLayout";
 import EditableField from "@/components/EditableField";
 import { Label } from "@/components/ui/label";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { User, Mail, Phone, Calendar, Globe, MapPin, Search } from "lucide-react";
+import { User, Mail, Phone, Calendar, Globe, MapPin, Search, Ticket, MessageSquare, ShoppingCart, UserCheck } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export default function ContactDetail() {
     const { id } = useParams();
@@ -18,7 +19,30 @@ export default function ContactDetail() {
     const { data: contact, isLoading } = useFrappeDoc("Cheese Contact", id);
     const updateMutation = useFrappeUpdate("Cheese Contact");
 
-    // Local State for Edit Mode
+    const { data: tickets = [], isLoading: ticketsLoading } = useFrappeList("Cheese Ticket", {
+        filters: { contact: id },
+        fields: ["name", "status", "experience", "party_size", "creation", "slot", "route"],
+        pageSize: 50,
+        orderBy: "creation desc",
+        enabled: !!id,
+    });
+
+    const { data: conversations = [], isLoading: convsLoading } = useFrappeList("Conversation", {
+        filters: { contact: id },
+        fields: ["name", "channel", "status", "summary", "modified"],
+        pageSize: 20,
+        orderBy: "modified desc",
+        enabled: !!id,
+    });
+
+    const { data: leads = [], isLoading: leadsLoading } = useFrappeList("Cheese Lead", {
+        filters: { contact: id },
+        fields: ["name", "status", "interest_type", "creation"],
+        pageSize: 20,
+        orderBy: "creation desc",
+        enabled: !!id,
+    });
+
     const [editMode, setEditMode] = useState(false);
     const [form, setForm] = useState({});
 
@@ -164,11 +188,91 @@ export default function ContactDetail() {
                             </Card>
                         </TabsContent>
 
-                        <TabsContent value="activity" className="pt-4">
+                        <TabsContent value="activity" className="pt-4 space-y-6">
+                            {/* Tickets */}
                             <Card className="border-border/60 shadow-sm">
-                                <CardContent className="p-12 text-center text-muted-foreground flex flex-col items-center">
-                                    <Search className="w-8 h-8 mb-4 opacity-20" />
-                                    <p>Activity history will be populated here as tickets and bookings are made for {contact?.full_name || "this contact"}.</p>
+                                <CardHeader className="border-b bg-muted/20 pb-4">
+                                    <CardTitle className="text-sm font-semibold text-muted-foreground uppercase flex items-center">
+                                        <Ticket className="w-4 h-4 mr-2" /> Tickets ({tickets.length})
+                                    </CardTitle>
+                                </CardHeader>
+                                <CardContent className="p-4">
+                                    {ticketsLoading ? (
+                                        <div className="space-y-2">{[1,2].map(i => <Skeleton key={i} className="h-10 w-full" />)}</div>
+                                    ) : tickets.length === 0 ? (
+                                        <p className="text-sm text-muted-foreground text-center py-4">No tickets for this contact</p>
+                                    ) : (
+                                        <div className="space-y-2">
+                                            {tickets.map(t => (
+                                                <div key={t.name} className="flex items-center justify-between p-3 rounded-lg border border-border hover:bg-muted/50 cursor-pointer transition-colors" onClick={() => navigate(`/cheese/tickets/${t.name}`)}>
+                                                    <div className="min-w-0">
+                                                        <p className="text-sm font-medium">{t.name}</p>
+                                                        <p className="text-xs text-muted-foreground">{t.experience || "—"} · {t.party_size || 1} guests</p>
+                                                    </div>
+                                                    <Badge variant="outline" className="text-xs shrink-0 ml-2">{t.status}</Badge>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                </CardContent>
+                            </Card>
+
+                            {/* Conversations */}
+                            <Card className="border-border/60 shadow-sm">
+                                <CardHeader className="border-b bg-muted/20 pb-4">
+                                    <CardTitle className="text-sm font-semibold text-muted-foreground uppercase flex items-center">
+                                        <MessageSquare className="w-4 h-4 mr-2" /> Conversations ({conversations.length})
+                                    </CardTitle>
+                                </CardHeader>
+                                <CardContent className="p-4">
+                                    {convsLoading ? (
+                                        <div className="space-y-2">{[1,2].map(i => <Skeleton key={i} className="h-10 w-full" />)}</div>
+                                    ) : conversations.length === 0 ? (
+                                        <p className="text-sm text-muted-foreground text-center py-4">No conversations for this contact</p>
+                                    ) : (
+                                        <div className="space-y-2">
+                                            {conversations.map(c => (
+                                                <div key={c.name} className="flex items-center justify-between p-3 rounded-lg border border-border hover:bg-muted/50 cursor-pointer transition-colors" onClick={() => navigate(`/cheese/conversations?contact=${id}`)}>
+                                                    <div className="min-w-0">
+                                                        <p className="text-sm font-medium">{c.name}</p>
+                                                        <p className="text-xs text-muted-foreground truncate">{c.summary || "No summary"}</p>
+                                                    </div>
+                                                    <div className="flex items-center gap-2 shrink-0 ml-2">
+                                                        <Badge variant="outline" className="text-xs">{c.channel}</Badge>
+                                                        <Badge variant="outline" className="text-xs">{c.status}</Badge>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                </CardContent>
+                            </Card>
+
+                            {/* Leads */}
+                            <Card className="border-border/60 shadow-sm">
+                                <CardHeader className="border-b bg-muted/20 pb-4">
+                                    <CardTitle className="text-sm font-semibold text-muted-foreground uppercase flex items-center">
+                                        <UserCheck className="w-4 h-4 mr-2" /> Leads ({leads.length})
+                                    </CardTitle>
+                                </CardHeader>
+                                <CardContent className="p-4">
+                                    {leadsLoading ? (
+                                        <div className="space-y-2">{[1,2].map(i => <Skeleton key={i} className="h-10 w-full" />)}</div>
+                                    ) : leads.length === 0 ? (
+                                        <p className="text-sm text-muted-foreground text-center py-4">No leads for this contact</p>
+                                    ) : (
+                                        <div className="space-y-2">
+                                            {leads.map(l => (
+                                                <div key={l.name} className="flex items-center justify-between p-3 rounded-lg border border-border hover:bg-muted/50 cursor-pointer transition-colors" onClick={() => navigate(`/cheese/leads/${l.name}`)}>
+                                                    <div className="min-w-0">
+                                                        <p className="text-sm font-medium">{l.name}</p>
+                                                        <p className="text-xs text-muted-foreground">{l.interest_type || "—"}</p>
+                                                    </div>
+                                                    <Badge variant="outline" className="text-xs shrink-0 ml-2">{l.status}</Badge>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
                                 </CardContent>
                             </Card>
                         </TabsContent>

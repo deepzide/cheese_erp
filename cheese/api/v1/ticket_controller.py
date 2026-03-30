@@ -94,7 +94,6 @@ def create_pending_ticket(contact_id, experience_id, slot_id, party_size, select
 		# Calculate deposit
 		deposit_amount = calculate_deposit_amount(experience_id, price_data["total_price"])
 
-		# Create ticket
 		ticket_data = {
 			"doctype": "Cheese Ticket",
 			"contact": contact_id,
@@ -103,6 +102,7 @@ def create_pending_ticket(contact_id, experience_id, slot_id, party_size, select
 			"slot": slot_id,
 			"party_size": party_size,
 			"status": "PENDING",
+			"total_price": price_data["total_price"],
 			"deposit_required": bool(deposit_amount > 0),
 			"deposit_amount": deposit_amount
 		}
@@ -673,13 +673,12 @@ def list_tickets(page=1, page_size=20, status=None, route_id=None, establishment
 		tickets = frappe.get_all(
 			"Cheese Ticket",
 			filters=filters,
-			fields=["name", "contact", "company", "experience", "slot", "route", "party_size", "status", "creation", "modified"],
+			fields=["name", "contact", "company", "experience", "slot", "route", "party_size", "status", "selected_date", "creation", "modified"],
 			limit_start=(page - 1) * page_size,
 			limit_page_length=page_size,
 			order_by="modified desc"
 		)
 		
-		# Enrich with slot date/time
 		for ticket in tickets:
 			if ticket.slot:
 				slot = frappe.db.get_value(
@@ -689,7 +688,7 @@ def list_tickets(page=1, page_size=20, status=None, route_id=None, establishment
 					as_dict=True
 				)
 				if slot:
-					ticket["slot_date"] = str(slot.date_from)
+					ticket["slot_date"] = str(ticket.selected_date) if ticket.selected_date else str(slot.date_from)
 					ticket["slot_time"] = str(slot.time_from)
 		
 		total = frappe.db.count("Cheese Ticket", filters=filters)
@@ -756,7 +755,7 @@ def get_reservations_by_phone(phone, page=1, page_size=20, status=None):
 		tickets = frappe.get_all(
 			"Cheese Ticket",
 			filters=filters,
-			fields=["name", "company", "experience", "slot", "route", "party_size", "status", "creation", "modified"],
+			fields=["name", "company", "experience", "slot", "route", "party_size", "status", "selected_date", "creation", "modified"],
 			limit_start=(page - 1) * page_size,
 			limit_page_length=page_size,
 			order_by="modified desc"
@@ -779,7 +778,7 @@ def get_reservations_by_phone(phone, page=1, page_size=20, status=None):
 					as_dict=True
 				)
 				if slot:
-					ticket["slot_date"] = str(slot.date_from)
+					ticket["slot_date"] = str(ticket.selected_date) if ticket.selected_date else str(slot.date_from)
 					ticket["slot_time"] = str(slot.time_from)
 
 		total = frappe.db.count("Cheese Ticket", filters=filters)
@@ -858,14 +857,12 @@ def get_ticket_board(filters=None, status=None, route_id=None, establishment_id=
 					board[status_val] = {"status": status_val, "tickets": [], "count": 0}
 				return success("Ticket board retrieved successfully", {"board": board, "total_tickets": 0})
 		
-		# Get all tickets matching filters
 		tickets = frappe.get_all(
 			"Cheese Ticket",
 			filters=filter_dict,
-			fields=["name", "status", "contact", "experience", "slot", "route", "party_size", "company", "creation", "modified"]
+			fields=["name", "status", "contact", "experience", "slot", "route", "party_size", "company", "total_price", "deposit_amount", "selected_date", "creation", "modified"]
 		)
 		
-		# Enrich tickets with slot date/time and contact info
 		for ticket in tickets:
 			if ticket.slot:
 				slot = frappe.db.get_value(
@@ -875,7 +872,7 @@ def get_ticket_board(filters=None, status=None, route_id=None, establishment_id=
 					as_dict=True
 				)
 				if slot:
-					ticket["slot_date"] = str(slot.date_from)
+					ticket["slot_date"] = str(ticket.selected_date) if ticket.selected_date else str(slot.date_from)
 					ticket["slot_time"] = str(slot.time_from)
 			
 			if ticket.contact:

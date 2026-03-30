@@ -41,12 +41,13 @@ class CheeseExperienceSlot(Document):
 		if not self.date_to:
 			frappe.throw(_("Date To is required"))
 
-		# Do not allow creating slots on past dates
-		today_date = getdate(today())
-		if self.date_from and getdate(self.date_from) < today_date:
-			frappe.throw(_("Date From cannot be in the past"))
-		if self.date_to and getdate(self.date_to) < today_date:
-			frappe.throw(_("Date To cannot be in the past"))
+		# Only enforce past-date checks when creating a new slot or when dates are changed
+		if self.is_new() or self.has_value_changed("date_from") or self.has_value_changed("date_to"):
+			today_date = getdate(today())
+			if self.date_from and getdate(self.date_from) < today_date:
+				frappe.throw(_("Date From cannot be in the past"))
+			if self.date_to and getdate(self.date_to) < today_date:
+				frappe.throw(_("Date To cannot be in the past"))
 
 		# Validate date range
 		if self.date_from and self.date_to:

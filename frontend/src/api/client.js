@@ -119,6 +119,14 @@ export const extractErrorMessage = (error) => {
     return 'An error occurred';
 };
 
+const doFetch = async (url, config) => {
+    const response = await fetch(url, config);
+    const contentType = response.headers.get('content-type');
+    const isJson = contentType && contentType.includes('application/json');
+    const data = isJson ? await response.json() : await response.text();
+    return { response, data };
+};
+
 export const apiRequest = async (endpoint, options = {}) => {
     const baseUrl = getBaseUrl();
     const isAbsoluteUrl = /^https?:\/\//i.test(endpoint);
@@ -126,29 +134,34 @@ export const apiRequest = async (endpoint, options = {}) => {
     const cleanBaseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
     const url = isAbsoluteUrl ? endpoint : `${cleanBaseUrl}${cleanEndpoint}`;
 
-    const credentials = getStoredCredentials();
-    const defaultHeaders = { 'Accept': 'application/json' };
-
-    if (options.body && !(options.body instanceof FormData)) {
-        defaultHeaders['Content-Type'] = 'application/json';
-    }
-    if (credentials?.api_key && credentials?.api_secret) {
-        defaultHeaders['Authorization'] = `token ${credentials.api_key}:${credentials.api_secret}`;
-    }
-
-    const config = { ...options, headers: { ...defaultHeaders, ...options.headers } };
+    const buildConfig = () => {
+        const credentials = getStoredCredentials();
+        const defaultHeaders = { 'Accept': 'application/json' };
+        if (options.body && !(options.body instanceof FormData)) {
+            defaultHeaders['Content-Type'] = 'application/json';
+        }
+        if (credentials?.api_key && credentials?.api_secret) {
+            defaultHeaders['Authorization'] = `token ${credentials.api_key}:${credentials.api_secret}`;
+        }
+        return { ...options, headers: { ...defaultHeaders, ...options.headers } };
+    };
 
     try {
-        const response = await fetch(url, config);
-        const contentType = response.headers.get('content-type');
-        const isJson = contentType && contentType.includes('application/json');
-        const data = isJson ? await response.json() : await response.text();
+        let { response, data } = await doFetch(url, buildConfig());
 
-        if (!response.ok) {
-            if (response.status === 401 && !endpoint.includes('auth_controller.token')) {
+        if (response.status === 401 && !endpoint.includes('auth_controller.token')) {
+            // Single retry: re-read credentials (another tab may have refreshed them)
+            const retried = await doFetch(url, buildConfig());
+            response = retried.response;
+            data = retried.data;
+
+            if (response.status === 401) {
                 clearStoredCredentials();
                 throw { message: 'Session expired. Please login again.', code: 'UNAUTHENTICATED', status: 401 };
             }
+        }
+
+        if (!response.ok) {
             const errorMessage = extractErrorMessage(data) || `HTTP error! status: ${response.status}`;
             throw { message: errorMessage, code: data?.error?.code || `HTTP_${response.status}`, details: data?.error?.details || {}, status: response.status };
         }

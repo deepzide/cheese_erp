@@ -13,7 +13,8 @@
   "ticket",
   "token",
   "status",
-  "expires_at"
+  "expires_at",
+  "qr_image"
  ],
  "fields": [
   {
@@ -52,6 +53,11 @@
    "fieldname": "expires_at",
    "fieldtype": "Datetime",
    "label": "Expires At"
+  },
+  {
+   "fieldname": "qr_image",
+   "fieldtype": "Attach Image",
+   "label": "QR Image"
   }
  ],
  "index_web_pages_for_search": 1,

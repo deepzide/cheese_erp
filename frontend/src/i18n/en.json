@@ -1,0 +1,147 @@
+{
+  "nav": {
+    "dashboard": "Dashboard",
+    "tickets": "Tickets",
+    "routes": "Routes",
+    "bookings": "Bookings",
+    "experiences": "Experiences",
+    "establishments": "Establishments",
+    "calendar": "Calendar",
+    "bookingPolicy": "Booking Policy",
+    "contacts": "Contacts",
+    "leads": "Leads",
+    "quotations": "Quotations",
+    "conversations": "Conversations",
+    "deposits": "Deposits",
+    "bankAccounts": "Bank Accounts",
+    "support": "Support",
+    "attendance": "Attendance",
+    "qrTokens": "QR Tokens",
+    "documents": "Documents",
+    "surveys": "Surveys",
+    "systemEvents": "System Events"
+  },
+  "sections": {
+    "commandCenter": "Command Center",
+    "flowControl": "Flow Control",
+    "catalog": "Catalog",
+    "crm": "CRM",
+    "finance": "Finance",
+    "operations": "Operations",
+    "system": "System"
+  },
+  "common": {
+    "search": "Search",
+    "filter": "Filter",
+    "create": "Create",
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "edit": "Edit",
+    "back": "Back",
+    "loading": "Loading...",
+    "noResults": "No results found",
+    "retry": "Retry",
+    "confirm": "Confirm",
+    "reject": "Reject",
+    "status": "Status",
+    "date": "Date",
+    "time": "Time",
+    "all": "All",
+    "actions": "Actions",
+    "viewDetails": "View Details",
+    "logout": "Logout",
+    "notifications": "Notifications",
+    "noNotifications": "No new notifications"
+  },
+  "ticket": {
+    "board": "Ticket Board",
+    "newTicket": "New Ticket",
+    "createTicket": "Create Ticket",
+    "ticketCreated": "Ticket created",
+    "contact": "Contact",
+    "experience": "Experience",
+    "route": "Route",
+    "slot": "Slot",
+    "partySize": "Party Size",
+    "totalPrice": "Total Price",
+    "depositRequired": "Deposit Required",
+    "depositAmount": "Deposit Amount",
+    "status": {
+      "pending": "Pending",
+      "confirmed": "Confirmed",
+      "checkedIn": "Checked-In",
+      "completed": "Completed",
+      "cancelled": "Cancelled",
+      "noShow": "No-Show",
+      "expired": "Expired",
+      "rejected": "Rejected"
+    },
+    "checkIn": "Check In",
+    "complete": "Complete",
+    "registerDeposit": "Register Deposit",
+    "createSupportCase": "Create Support Case",
+    "convertToBooking": "Convert to Final Booking",
+    "markConfirmed": "Mark as Confirmed"
+  },
+  "conversation": {
+    "title": "Conversations",
+    "noMessages": "No messages in this conversation",
+    "viewTranscript": "View external transcript",
+    "channel": "Channel",
+    "summary": "Summary"
+  },
+  "contact": {
+    "title": "Contacts",
+    "personalInfo": "Personal Information",
+    "fullName": "Full Name",
+    "phone": "Phone Number",
+    "email": "Email Address",
+    "preferences": "Preferences & Address",
+    "notes": "Internal Notes",
+    "activity": "Activity & Bookings",
+    "createLead": "Create Lead for Contact",
+    "createTicket": "Create Ticket",
+    "logSupport": "Log Support Case"
+  },
+  "lead": {
+    "title": "Leads",
+    "status": {
+      "open": "Open",
+      "inProgress": "In Progress",
+      "converted": "Converted",
+      "lost": "Lost",
+      "discarded": "Discarded"
+    }
+  },
+  "survey": {
+    "title": "Survey Responses",
+    "viewTicket": "View Ticket",
+    "viewDetails": "View Details",
+    "noComment": "No comment",
+    "awaitingResponse": "Survey sent, awaiting response"
+  },
+  "qr": {
+    "title": "QR Tokens",
+    "active": "Active",
+    "used": "Used",
+    "expired": "Expired",
+    "revoked": "Revoked",
+    "qrCode": "QR Code"
+  },
+  "auth": {
+    "sessionExpired": "Session expired. Please login again.",
+    "loginTitle": "Sign in to Cheese",
+    "username": "Username",
+    "password": "Password",
+    "signIn": "Sign In"
+  },
+  "deposit": {
+    "title": "Deposits",
+    "pricing": "Pricing",
+    "depositStatus": "Deposit Status"
+  },
+  "booking": {
+    "title": "Bookings"
+  }
+}

@@ -15,13 +15,18 @@ import FrappeSearchSelect from "@/components/FrappeSearchSelect";
 export default function SurveyResponses() {
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
+    const ticketParam = searchParams.get('ticket') || "";
     const [searchTerm, setSearchTerm] = useState(searchParams.get('experience') || "");
     const [routeId, setRouteId] = useState("");
     const [companyId, setCompanyId] = useState("");
     const [ratingFilter, setRatingFilter] = useState("all");
     const [selected, setSelected] = useState(null);
 
+    const serverFilters = {};
+    if (ticketParam) serverFilters.ticket = ticketParam;
+
     const { data: responses = [], isLoading, error, refetch } = useFrappeList("Cheese Survey Response", {
+        filters: serverFilters,
         fields: ["name", "ticket", "contact", "route", "company", "rating", "comment", "sent_at", "answered_at", "creation"],
         pageSize: 100,
         orderBy: "creation desc",
@@ -112,7 +117,7 @@ export default function SurveyResponses() {
                                         <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8 opacity-0 group-hover:opacity-100"><MoreHorizontal className="w-4 h-4" /></Button></DropdownMenuTrigger>
                                         <DropdownMenuContent align="end">
                                             <DropdownMenuItem onClick={() => setSelected(resp)}><MessageSquare className="w-3 h-3 mr-2" /> View Details</DropdownMenuItem>
-                                            <DropdownMenuItem onClick={() => navigate(`/cheese/tickets?search=${resp.ticket}`)}><Ticket className="w-3 h-3 mr-2" /> View Ticket</DropdownMenuItem>
+                                            <DropdownMenuItem onClick={() => navigate(`/cheese/tickets/${resp.ticket}`)}><Ticket className="w-3 h-3 mr-2" /> View Ticket</DropdownMenuItem>
                                         </DropdownMenuContent>
                                     </DropdownMenu>
                                 </div>
@@ -137,7 +142,7 @@ export default function SurveyResponses() {
                             <p><span className="text-muted-foreground">Rating:</span> {selected.rating || "—"}</p>
                             <p><span className="text-muted-foreground">Comment:</span> {selected.comment || "No comment"}</p>
                             <div className="pt-2 flex gap-2">
-                                <Button size="sm" variant="outline" onClick={() => navigate(`/cheese/tickets?search=${selected.ticket}`)}>View Ticket</Button>
+                                <Button size="sm" variant="outline" onClick={() => navigate(`/cheese/tickets/${selected.ticket}`)}>View Ticket</Button>
                             </div>
                         </div>
                     )}

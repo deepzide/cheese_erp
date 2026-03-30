@@ -6,36 +6,31 @@ import frappe
 
 def calculate_ticket_price(experience_id, party_size, route_id=None):
 	"""
-	Calculate price for a ticket
+	Calculate price for a ticket.
 	
-	Args:
-		experience_id: ID of the experience
-		party_size: Number of people
-		route_id: Optional route ID
-		
-	Returns:
-		Dictionary with price details
+	- Individual ticket (no route): individual_price * party_size
+	- Route ticket, Manual mode: route.price (already the total for the route, per person)
+	  multiplied by party_size
+	- Route ticket, Sum mode: use experience.route_price (or individual_price) * party_size
 	"""
 	experience = frappe.get_doc("Cheese Experience", experience_id)
 	
-	# If route is provided, use route pricing
 	if route_id:
 		route = frappe.get_doc("Cheese Route", route_id)
 		if route.price_mode == "Manual":
+			per_person = route.price or 0
 			return {
-				"total_price": route.price,
+				"total_price": per_person * party_size,
 				"individual_price": None,
-				"route_price": route.price
+				"route_price": per_person
 			}
-		# Sum mode: calculate from route experiences
-		# This is simplified - in production, sum all experience prices
+		unit_price = experience.route_price or experience.individual_price or 0
 		return {
-			"total_price": experience.individual_price * party_size,
+			"total_price": unit_price * party_size,
 			"individual_price": experience.individual_price,
-			"route_price": None
+			"route_price": experience.route_price
 		}
 	
-	# Individual pricing - use individual price
 	return {
 		"total_price": (experience.individual_price or 0) * party_size,
 		"individual_price": experience.individual_price,
@@ -77,33 +72,19 @@ def calculate_deposit_amount(experience_id, total_price, route_id=None):
 
 def calculate_route_price(route_id, party_size):
 	"""
-	Calculate total price for a route booking
+	Calculate total price for a route booking.
 	
-	Args:
-		route_id: ID of the route
-		party_size: Number of people
-		
-	Returns:
-		Total price for the route
+	- Manual mode: route.price is the per-person price for the whole route.
+	- Sum mode: sum each experience's route_price (or individual_price) * party_size.
 	"""
 	route = frappe.get_doc("Cheese Route", route_id)
 	
 	if route.price_mode == "Manual" and route.price:
 		return route.price * party_size
-	elif route.price_mode == "Sum":
-		total = 0
-		for exp_row in route.experiences:
-			experience = frappe.get_doc("Cheese Experience", exp_row.experience)
-			if experience.route_price:
-				total += experience.route_price * party_size
-			elif experience.individual_price:
-				total += experience.individual_price * party_size
-		return total
-	else:
-		# Default: sum individual prices
-		total = 0
-		for exp_row in route.experiences:
-			experience = frappe.get_doc("Cheese Experience", exp_row.experience)
-			if experience.individual_price:
-				total += experience.individual_price * party_size
-		return total
+
+	total = 0
+	for exp_row in route.experiences:
+		experience = frappe.get_doc("Cheese Experience", exp_row.experience)
+		unit = experience.route_price or experience.individual_price or 0
+		total += unit * party_size
+	return total

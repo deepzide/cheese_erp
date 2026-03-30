@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Ticket } from "lucide-react";
@@ -13,6 +13,7 @@ import { extractData } from "@/lib/useApiData";
 
 export default function TicketCreate() {
     const navigate = useNavigate();
+    const queryClient = useQueryClient();
     const [searchParams] = useSearchParams();
     const contactId = searchParams.get("contact") || "";
     const backPath = contactId ? `/cheese/contacts/${contactId}` : "/cheese/tickets";
@@ -63,7 +64,7 @@ export default function TicketCreate() {
             conversation: form.conversation || undefined,
             selected_date: form.selected_date || undefined,
         }, {
-            onSuccess: () => { toast.success("Ticket created"); navigate("/cheese/tickets"); },
+            onSuccess: () => { toast.success("Ticket created"); queryClient.invalidateQueries({ queryKey: ['ticket-board'] }); navigate("/cheese/tickets"); },
             onError: (err) => toast.error(err?.message || "Failed to create ticket"),
         });
     };

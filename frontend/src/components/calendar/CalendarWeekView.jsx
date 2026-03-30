@@ -96,7 +96,7 @@ export default function CalendarWeekView({ date, slots, onSlotClick, onEmptyClic
                                     <button
                                         key={slot.name}
                                         type="button"
-                                        onClick={(e) => { e.stopPropagation(); onSlotClick?.(slot); }}
+                                        onClick={(e) => { e.stopPropagation(); onSlotClick?.({ ...slot, _viewDate: key }); }}
                                         className="text-[9px] leading-tight px-1 py-0.5 rounded bg-cheese-100 dark:bg-cheese-900/40 text-cheese-700 dark:text-cheese-400 truncate hover:bg-cheese-200 transition-colors text-left"
                                     >
                                         {slot.experience || slot.name}
@@ -166,7 +166,7 @@ export default function CalendarWeekView({ date, slots, onSlotClick, onEmptyClic
                                             key={slot.name}
                                             slot={slot}
                                             style={slot._style}
-                                            onClick={onSlotClick}
+                                            onClick={(s) => onSlotClick?.({ ...s, _viewDate: key })}
                                             compact
                                         />
                                     );

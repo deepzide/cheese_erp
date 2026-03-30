@@ -64,6 +64,9 @@ export default function Tickets() {
             const payload = result?.data?.message || result?.data || result;
             return payload?.data || payload;
         },
+        staleTime: 0,
+        refetchOnMount: 'always',
+        refetchInterval: 30000,
     });
 
     // Fetch experiences for create form
@@ -102,10 +105,13 @@ export default function Tickets() {
     const updateStatusMutation = useMutation({
         mutationFn: ({ ticketId, newStatus, reason }) =>
             ticketService.updateTicketStatus(ticketId, newStatus, reason),
-        onSuccess: () => {
+        onSuccess: (_data, variables) => {
             queryClient.invalidateQueries({ queryKey: ['ticket-board'] });
             setDetailOpen(false);
+            const label = STATUS_CONFIG[variables.newStatus]?.label || variables.newStatus;
+            toast.success(`Ticket ${variables.ticketId} → ${label}`);
         },
+        onError: (err) => toast.error(err?.message || "Failed to update ticket status"),
     });
 
     // Create ticket mutation
@@ -168,7 +174,6 @@ export default function Tickets() {
 
     const updateStatus = (ticketId, newStatus) => {
         updateStatusMutation.mutate({ ticketId, newStatus });
-        toast.success(`Ticket ${ticketId} → ${STATUS_CONFIG[newStatus]?.label || newStatus}`);
     };
 
     if (error) {
@@ -292,7 +297,7 @@ export default function Tickets() {
                                                             <p className="text-xs text-muted-foreground mb-2 truncate">{ticket.experience || '—'}</p>
                                                             <div className="flex items-center justify-between text-xs">
                                                                 <span className="flex items-center gap-1 text-muted-foreground">
-                                                                    <Clock className="w-3 h-3" /> {ticket.slot_time || '—'}
+                                                                    <Clock className="w-3 h-3" /> {ticket.slot_date || '—'} {ticket.slot_time ? `· ${ticket.slot_time}` : ''}
                                                                 </span>
                                                                 <span className="flex items-center gap-1 text-muted-foreground">
                                                                     <UsersIcon className="w-3 h-3" /> {ticket.party_size || 1}
@@ -383,6 +388,7 @@ export default function Tickets() {
                                 <div><p className="text-xs text-muted-foreground">Time</p><p className="font-medium text-sm">{selectedTicket.slot_time || '—'}</p></div>
                                 <div><p className="text-xs text-muted-foreground">Date</p><p className="font-medium text-sm">{selectedTicket.slot_date || '—'}</p></div>
                                 <div><p className="text-xs text-muted-foreground">Party Size</p><p className="font-medium text-sm">{selectedTicket.party_size || 1} people</p></div>
+                                <div><p className="text-xs text-muted-foreground">Total Price</p><p className="font-medium text-sm">{selectedTicket.total_price != null ? `$${Number(selectedTicket.total_price).toFixed(2)}` : '—'}</p></div>
                                 <div><p className="text-xs text-muted-foreground">Company</p><p className="font-medium text-sm">{selectedTicket.company || '—'}</p></div>
                             </div>
                             <DialogFooter className="gap-2">

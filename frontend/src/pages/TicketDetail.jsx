@@ -10,13 +10,28 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Ticket, DollarSign, Calendar, Users, MapPin, Clock, MessageSquare, Briefcase } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
+const formatSlotDateTime = (slot, selectedDate) => {
+    if (!slot) return { date: "—", time: "—" };
+    const rawDate = selectedDate || slot.date_from;
+    const date = rawDate ? new Date(rawDate + "T00:00:00").toLocaleDateString() : "—";
+    const timeFrom = slot.time_from ? slot.time_from.substring(0, 5) : "";
+    const timeTo = slot.time_to ? slot.time_to.substring(0, 5) : "";
+    const time = timeFrom ? (timeTo ? `${timeFrom} – ${timeTo}` : timeFrom) : "—";
+    return { date, time };
+};
+
 export default function TicketDetail() {
     const { id } = useParams();
     const navigate = useNavigate();
 
-    // Fetch Data
     const { data: ticket, isLoading } = useFrappeDoc("Cheese Ticket", id);
     const updateMutation = useFrappeUpdate("Cheese Ticket");
+
+    const { data: slotDoc } = useFrappeDoc(
+        "Cheese Experience Slot",
+        ticket?.slot,
+        { enabled: !!ticket?.slot }
+    );
 
     // Local State for Edit Mode
     const [editMode, setEditMode] = useState(false);
@@ -36,6 +51,7 @@ export default function TicketDetail() {
                 status: ticket.status || "PENDING",
                 expires_at: ticket.expires_at || "",
                 conversation: ticket.conversation || "",
+                total_price: ticket.total_price || 0,
                 deposit_required: ticket.deposit_required || 0,
                 deposit_amount: ticket.deposit_amount || 0,
             });
@@ -164,20 +180,25 @@ export default function TicketDetail() {
                                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-6 gap-x-8">
                                         <EditableField label="Experience" value={form.experience} onChange={(v) => handleFieldChange("experience", v)} editMode={editMode} doctype="Cheese Experience" searchLabel="name" />
                                         <EditableField label="Route" value={form.route} onChange={(v) => handleFieldChange("route", v)} editMode={editMode} doctype="Cheese Route" searchLabel="short_description" />
-                                        <EditableField label="Slot" value={form.slot} onChange={(v) => handleFieldChange("slot", v)} editMode={editMode} doctype="Cheese Experience Slot" searchLabel="name" />
 
                                         {editMode ? (
-                                            <div className="space-y-1.5 animate-in fade-in zoom-in-95 duration-200">
-                                                <label className="text-xs text-muted-foreground">Selected Date</label>
-                                                <input
-                                                    type="date"
-                                                    value={form.selected_date || ""}
-                                                    onChange={(e) => handleFieldChange("selected_date", e.target.value)}
-                                                    className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                                                />
-                                            </div>
+                                            <>
+                                                <EditableField label="Slot" value={form.slot} onChange={(v) => handleFieldChange("slot", v)} editMode={editMode} doctype="Cheese Experience Slot" searchLabel="name" />
+                                                <div className="space-y-1.5 animate-in fade-in zoom-in-95 duration-200">
+                                                    <label className="text-xs text-muted-foreground">Selected Date</label>
+                                                    <input
+                                                        type="date"
+                                                        value={form.selected_date || ""}
+                                                        onChange={(e) => handleFieldChange("selected_date", e.target.value)}
+                                                        className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                                                    />
+                                                </div>
+                                            </>
                                         ) : (
-                                            <EditableField label="Selected Date" value={form.selected_date ? new Date(form.selected_date + "T00:00:00").toLocaleDateString() : "—"} editMode={false} />
+                                            <>
+                                                <EditableField label="Date" value={formatSlotDateTime(slotDoc, ticket?.selected_date).date} editMode={false} />
+                                                <EditableField label="Time" value={formatSlotDateTime(slotDoc, ticket?.selected_date).time} editMode={false} />
+                                            </>
                                         )}
 
                                         {editMode ? (
@@ -211,7 +232,21 @@ export default function TicketDetail() {
                         </TabsContent>
 
                         <TabsContent value="financials" className="pt-4 space-y-6">
-                            {/* Deposit & Pricing Information */}
+                            {/* Total Price */}
+                            <Card className="border-border/60 shadow-sm">
+                                <CardHeader className="border-b bg-muted/20 pb-4">
+                                    <CardTitle className="text-sm font-semibold text-muted-foreground uppercase flex items-center">
+                                        <DollarSign className="w-4 h-4 mr-2" /> Pricing
+                                    </CardTitle>
+                                </CardHeader>
+                                <CardContent className="p-6">
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-6 gap-x-8">
+                                        <EditableField label="Total Price" type="number" value={form.total_price} onChange={(v) => handleFieldChange("total_price", v)} editMode={editMode} />
+                                    </div>
+                                </CardContent>
+                            </Card>
+
+                            {/* Deposit */}
                             <Card className="border-border/60 shadow-sm">
                                 <CardHeader className="border-b bg-muted/20 pb-4">
                                     <CardTitle className="text-sm font-semibold text-muted-foreground uppercase flex items-center">

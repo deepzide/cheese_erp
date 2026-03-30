@@ -7,9 +7,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { QrCode, Search, Filter, Clock, AlertCircle, RefreshCw, Ticket, MoreHorizontal } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { useFrappeList } from "@/lib/useApiData";
+import { getBaseUrl } from "@/api/client";
 
 const STATUS_CONFIG = {
     ACTIVE: { label: "Active", badge: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400" },
@@ -25,9 +27,11 @@ export default function QRTokens() {
     const [filterStatus, setFilterStatus] = useState("all");
 
     const statusFilter = filterStatus !== "all" ? { status: filterStatus } : {};
+    const [selectedToken, setSelectedToken] = useState(null);
+
     const { data: tokens = [], isLoading, error, refetch } = useFrappeList("Cheese QR Token", {
         filters: statusFilter,
-        fields: ["name", "ticket", "token", "status", "expires_at", "creation"],
+        fields: ["name", "ticket", "token", "status", "expires_at", "qr_image", "creation"],
         pageSize: 100,
     });
 
@@ -72,8 +76,12 @@ export default function QRTokens() {
                     <motion.div key={token.name} whileHover={{ x: 4 }}>
                         <Card className="border border-border shadow-sm hover:shadow-md transition-all group">
                             <CardContent className="p-4 flex items-center gap-4">
-                                <div className="w-10 h-10 rounded-lg bg-violet-50 dark:bg-violet-950/30 flex items-center justify-center">
-                                    <QrCode className="w-5 h-5 text-violet-600 dark:text-violet-400" />
+                                <div className="w-10 h-10 rounded-lg bg-violet-50 dark:bg-violet-950/30 flex items-center justify-center cursor-pointer" onClick={() => setSelectedToken(token)}>
+                                    {token.qr_image ? (
+                                        <img src={`${getBaseUrl()}${token.qr_image}`} alt="QR" className="w-10 h-10 rounded-lg object-cover" />
+                                    ) : (
+                                        <QrCode className="w-5 h-5 text-violet-600 dark:text-violet-400" />
+                                    )}
                                 </div>
                                 <div className="flex-1 min-w-0">
                                     <h3 className="font-semibold text-sm text-foreground font-mono">{token.token ? `${token.token.slice(0, 8)}...${token.token.slice(-8)}` : token.name}</h3>
@@ -97,6 +105,30 @@ export default function QRTokens() {
             {!isLoading && filtered.length === 0 && (
                 <div className="text-center py-16"><QrCode className="w-16 h-16 text-muted-foreground/20 mx-auto mb-4" /><p className="text-muted-foreground">No QR tokens found</p></div>
             )}
+
+            <Dialog open={!!selectedToken} onOpenChange={(open) => !open && setSelectedToken(null)}>
+                <DialogContent className="max-w-sm">
+                    <DialogHeader>
+                        <DialogTitle className="flex items-center gap-2"><QrCode className="w-5 h-5 text-cheese-600" /> QR Code</DialogTitle>
+                    </DialogHeader>
+                    {selectedToken && (
+                        <div className="space-y-4 text-center">
+                            {selectedToken.qr_image ? (
+                                <img src={`${getBaseUrl()}${selectedToken.qr_image}`} alt="QR Code" className="mx-auto w-64 h-64 rounded-lg border" />
+                            ) : (
+                                <div className="mx-auto w-64 h-64 rounded-lg border flex items-center justify-center bg-muted">
+                                    <QrCode className="w-16 h-16 text-muted-foreground/30" />
+                                </div>
+                            )}
+                            <p className="text-xs text-muted-foreground font-mono break-all">{selectedToken.token}</p>
+                            <div className="flex items-center justify-center gap-2">
+                                <Badge className={STATUS_CONFIG[selectedToken.status]?.badge}>{STATUS_CONFIG[selectedToken.status]?.label}</Badge>
+                                <span className="text-xs text-muted-foreground">Ticket: {selectedToken.ticket}</span>
+                            </div>
+                        </div>
+                    )}
+                </DialogContent>
+            </Dialog>
         </motion.div>
     );
 }

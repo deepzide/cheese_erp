@@ -85,7 +85,7 @@ export default function CalendarSlotDetail({ slot, open, onClose }) {
                     </DialogTitle>
                     <DialogDescription className="flex items-center gap-2 text-xs">
                         <Clock className="w-3 h-3" />
-                        {slot.date_from && format(new Date(slot.date_from + "T00:00:00"), "EEE, MMM d, yyyy")}
+                        {(slot._viewDate || slot.date_from) && format(new Date((slot._viewDate || slot.date_from) + "T00:00:00"), "EEE, MMM d, yyyy")}
                         {" • "}
                         {formatTimeRange(slot.time_from, slot.time_to)}
                     </DialogDescription>
@@ -170,7 +170,7 @@ export default function CalendarSlotDetail({ slot, open, onClose }) {
                     ) : (
                         <div className="grid grid-cols-2 gap-2 w-full">
                             {slot.slot_status === "OPEN" && available > 0 && (
-                                <Button size="sm" className="bg-cheese-500 hover:bg-cheese-600 text-black" onClick={() => navigate(`/cheese/tickets/new?experience=${encodeURIComponent(slot.experience || "")}&slot=${encodeURIComponent(slot.name)}&date=${encodeURIComponent(slot.date_from || "")}`)}>
+                                <Button size="sm" className="bg-cheese-500 hover:bg-cheese-600 text-black" onClick={() => navigate(`/cheese/tickets/new?experience=${encodeURIComponent(slot.experience || "")}&slot=${encodeURIComponent(slot.name)}&date=${encodeURIComponent(slot._viewDate || slot.date_from || "")}`)}>
                                     <Ticket className="w-3.5 h-3.5 mr-1.5" /> Create Ticket
                                 </Button>
                             )}

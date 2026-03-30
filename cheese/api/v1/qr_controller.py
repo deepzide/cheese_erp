@@ -142,6 +142,7 @@ def get_qr(ticket_id, allow_pending=0):
 						"ticket_id": ticket_id,
 						"status": qr.status,
 						"expires_at": str(qr.expires_at) if qr.expires_at else None,
+						"qr_image_url": qr.qr_image or None,
 						"is_new": False
 					}
 				)
@@ -151,7 +152,6 @@ def get_qr(ticket_id, allow_pending=0):
 					{"qr_token_id": qr.name, "status": qr.status}
 				)
 
-		# Create new QR token
 		qr = frappe.get_doc({
 			"doctype": "Cheese QR Token",
 			"ticket": ticket_id,
@@ -160,12 +160,18 @@ def get_qr(ticket_id, allow_pending=0):
 		qr.insert()
 		frappe.db.commit()
 
-		# Send notification about QR generation
+		# Generate QR image and attach to token
+		qr_image_url = None
+		try:
+			from cheese.cheese.utils.qr_utils import generate_qr_image
+			qr_image_url = generate_qr_image(qr.token, ticket_id, qr.name)
+		except Exception as e:
+			frappe.log_error(f"Failed to generate QR image for ticket {ticket_id}: {e}", "QR Image Error")
+
 		try:
 			from cheese.cheese.utils.notifications import send_ticket_notification
 			send_ticket_notification(ticket_id, "qr_generated")
 		except Exception as e:
-			# Silently fail if notification fails
 			frappe.log_error(f"Failed to send QR notification for ticket {ticket_id}: {e}", "QR Notification Error")
 
 		return created(
@@ -176,6 +182,7 @@ def get_qr(ticket_id, allow_pending=0):
 				"ticket_id": ticket_id,
 				"status": qr.status,
 				"expires_at": str(qr.expires_at) if qr.expires_at else None,
+				"qr_image_url": qr_image_url,
 				"is_new": True
 			}
 		)

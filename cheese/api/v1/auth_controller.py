@@ -1,5 +1,5 @@
 import frappe
-from frappe.utils.password import check_password
+from frappe.utils.password import check_password, get_decrypted_password
 from cheese.api.common.responses import success, error, validation_error, unauthorized
 
 @frappe.whitelist(allow_guest=True, methods=["POST"])
@@ -7,8 +7,9 @@ def token():
     """
     POST /auth/token - Authenticate and obtain API key/secret.
     
-    If API key/secret don't exist, they will be created.
-    On each login, a new API secret is generated and returned.
+    Reuses existing api_secret when possible so that concurrent sessions
+    (multiple tabs / devices) are not invalidated on each login.
+    A new secret is only generated when one does not yet exist.
     
     Args:
         grant_type: Must be "password"
@@ -30,7 +31,6 @@ def token():
         return validation_error("username and password are required")
 
     try:
-        # Authenticate user
         check_password(username, password)
     except frappe.AuthenticationError:
         return unauthorized("Invalid credentials")
@@ -39,16 +39,21 @@ def token():
         return unauthorized("User account is disabled")
 
     try:
-        # Get or generate API key and secret
         user_doc = frappe.get_doc("User", username)
         
-        # Generate API key if not exists
         if not user_doc.api_key:
             user_doc.api_key = frappe.generate_hash(length=15)
         
-        # Always generate a new API secret on login to return the clear text version
-        api_secret = frappe.generate_hash(length=15)
-        user_doc.api_secret = api_secret
+        # Reuse existing secret so other sessions stay valid
+        api_secret = None
+        try:
+            api_secret = get_decrypted_password("User", username, "api_secret")
+        except Exception:
+            pass
+
+        if not api_secret:
+            api_secret = frappe.generate_hash(length=15)
+            user_doc.api_secret = api_secret
         
         user_doc.save(ignore_permissions=True)
         frappe.db.commit()
