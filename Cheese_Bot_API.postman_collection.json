@@ -1244,24 +1244,52 @@
 						"method": "POST",
 						"header": [
 							{
-								"key": "Content-Type",
-								"value": "application/json"
-							},
-							{
 								"key": "Authorization",
-								"value": "token {{token}}"
+								"value": "token {{api_key}}:{{api_secret}}"
 							}
 						],
 						"body": {
-							"mode": "raw",
-							"raw": "{\n  \"ticket_id\": \"TICKET-001\",\n  \"amount\": 50.00,\n  \"verification_method\": \"Manual\",\n  \"ocr_payload\": null\n}"
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "ticket_id",
+									"value": "TICKET-001",
+									"type": "text"
+								},
+								{
+									"key": "amount",
+									"value": "50.00",
+									"type": "text"
+								},
+								{
+									"key": "verification_method",
+									"value": "Manual",
+									"type": "text"
+								},
+								{
+									"key": "ocr_payload",
+									"value": "{\"account\":\"1234567890\",\"amount\":50.00,\"date\":\"2026-04-01\",\"reference\":\"DEP-001\"}",
+									"type": "text",
+									"disabled": true
+								},
+								{
+									"key": "attach_receipt",
+									"value": "true",
+									"type": "text"
+								},
+								{
+									"key": "receipt",
+									"type": "file",
+									"src": ""
+								}
+							]
 						},
 						"url": {
 							"raw": "{{base_url}}/api/method/cheese.api.v1.deposit_controller.record_deposit_payment",
 							"host": ["{{base_url}}"],
 							"path": ["api", "method", "cheese.api.v1.deposit_controller.record_deposit_payment"]
 						},
-						"description": "Record a deposit payment. Supports Manual and OCR verification methods."
+						"description": "Record a deposit payment with optional receipt upload (PDF/PNG/JPG/JPEG/WEBP, max 10MB). Use form-data field name 'receipt' (also accepts 'payment_receipt' or 'file')."
 					},
 					"response": []
 				},
@@ -1362,7 +1390,7 @@
 							},
 							{
 								"key": "Authorization",
-								"value": "token {{token}}"
+								"value": "token {{api_key}}:{{api_secret}}"
 							}
 						],
 						"body": {
