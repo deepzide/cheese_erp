@@ -14,17 +14,16 @@ import FrappeSearchSelect from "@/components/FrappeSearchSelect";
 const STATUS_CONFIG = {
     PENDING: { label: "Pending", class: "bg-yellow-500/15 text-yellow-700 border-yellow-300 dark:text-yellow-400 dark:border-yellow-700" },
     PAID: { label: "Paid", class: "bg-emerald-500/15 text-emerald-700 border-emerald-300 dark:text-emerald-400 dark:border-emerald-700" },
-    PARTIAL: { label: "Partial", class: "bg-blue-500/15 text-blue-700 border-blue-300 dark:text-blue-400 dark:border-blue-700" },
+    ADJUSTED: { label: "Adjusted", class: "bg-blue-500/15 text-blue-700 border-blue-300 dark:text-blue-400 dark:border-blue-700" },
     OVERDUE: { label: "Overdue", class: "bg-red-500/15 text-red-700 border-red-300 dark:text-red-400 dark:border-red-700" },
     REFUNDED: { label: "Refunded", class: "bg-purple-500/15 text-purple-700 border-purple-300 dark:text-purple-400 dark:border-purple-700" },
-    FORFEITED: { label: "Forfeited", class: "bg-slate-500/15 text-slate-700 border-slate-300 dark:text-slate-400 dark:border-slate-700" },
     CANCELLED: { label: "Cancelled", class: "bg-red-500/15 text-red-700 border-red-300 dark:text-red-400 dark:border-red-700" },
 };
 
 export default function DepositDetail() {
     const { id } = useParams();
     const navigate = useNavigate();
-    const { data: deposit, isLoading } = useFrappeDoc("Cheese Deposit", id);
+    const { data: deposit, isLoading, refetch } = useFrappeDoc("Cheese Deposit", id);
     const updateMutation = useFrappeUpdate("Cheese Deposit");
     const [editMode, setEditMode] = useState(false);
     const [form, setForm] = useState({});
@@ -54,14 +53,22 @@ export default function DepositDetail() {
         }
 
         updateMutation.mutate({ name: id, data: changes }, {
-            onSuccess: () => { toast.success("Deposit updated"); setEditMode(false); },
+            onSuccess: () => {
+                toast.success("Deposit updated");
+                setEditMode(false);
+                refetch();
+            },
             onError: (err) => toast.error(err?.message || "Failed to update"),
         });
     };
 
     const quickStatusChange = (newStatus) => {
         updateMutation.mutate({ name: id, data: { status: newStatus } }, {
-            onSuccess: () => toast.success(`Deposit marked as ${newStatus}`),
+            onSuccess: () => {
+                setForm((prev) => ({ ...prev, status: newStatus }));
+                toast.success(`Deposit marked as ${newStatus}`);
+                refetch();
+            },
             onError: (err) => toast.error(err?.message || "Failed"),
         });
     };
@@ -185,7 +192,7 @@ export default function DepositDetail() {
                                         <CheckCircle className="w-4 h-4 mr-2" /> Mark as Paid
                                     </Button>
                                 )}
-                                {(status === "PENDING" || status === "PARTIAL") && (
+                                {status === "PENDING" && (
                                     <Button variant="outline" size="sm" onClick={() => quickStatusChange("CANCELLED")} className="justify-start text-red-700">
                                         <XCircle className="w-4 h-4 mr-2" /> Cancel Deposit
                                     </Button>

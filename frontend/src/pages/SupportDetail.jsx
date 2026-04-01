@@ -18,17 +18,17 @@ const STATUS_CONFIG = {
 };
 
 const PRIORITY_CONFIG = {
-    LOW: "bg-slate-100 text-slate-600",
-    MEDIUM: "bg-yellow-100 text-yellow-700",
-    HIGH: "bg-orange-100 text-orange-700",
-    CRITICAL: "bg-red-100 text-red-700",
+    Low: "bg-slate-100 text-slate-600",
+    Medium: "bg-yellow-100 text-yellow-700",
+    High: "bg-orange-100 text-orange-700",
+    Urgent: "bg-red-100 text-red-700",
 };
 
 export default function SupportDetail() {
     const { id } = useParams();
     const navigate = useNavigate();
-    const { data: supportCase, isLoading } = useFrappeDoc("Cheese Complaint", id);
-    const updateMutation = useFrappeUpdate("Cheese Complaint");
+    const { data: supportCase, isLoading, refetch } = useFrappeDoc("Cheese Support Case", id);
+    const updateMutation = useFrappeUpdate("Cheese Support Case");
     const [editMode, setEditMode] = useState(false);
     const [form, setForm] = useState({});
 
@@ -36,9 +36,8 @@ export default function SupportDetail() {
         if (supportCase) {
             setForm({
                 status: supportCase.status || "OPEN",
-                priority: supportCase.priority || "MEDIUM",
+                priority: supportCase.priority || "Medium",
                 description: supportCase.description || "",
-                resolution: supportCase.resolution || "",
                 assigned_to: supportCase.assigned_to || "",
             });
         }
@@ -46,7 +45,7 @@ export default function SupportDetail() {
 
     const handleSave = () => {
         const changes = {};
-        ["status", "priority", "description", "resolution", "assigned_to"].forEach(key => {
+        ["status", "priority", "description", "assigned_to"].forEach(key => {
             if (form[key] !== (supportCase[key] || "")) changes[key] = form[key];
         });
 
@@ -56,26 +55,34 @@ export default function SupportDetail() {
         }
 
         updateMutation.mutate({ name: id, data: changes }, {
-            onSuccess: () => { toast.success("Support case updated"); setEditMode(false); },
+            onSuccess: () => {
+                toast.success("Support case updated");
+                setEditMode(false);
+                refetch();
+            },
             onError: (err) => toast.error(err?.message || "Failed to update"),
         });
     };
 
     const quickStatusChange = (newStatus) => {
         updateMutation.mutate({ name: id, data: { status: newStatus } }, {
-            onSuccess: () => toast.success(`Case marked as ${newStatus}`),
+            onSuccess: () => {
+                setForm((prev) => ({ ...prev, status: newStatus }));
+                toast.success(`Case marked as ${newStatus}`);
+                refetch();
+            },
             onError: (err) => toast.error(err?.message || "Failed"),
         });
     };
 
     const status = supportCase?.status || "OPEN";
     const config = STATUS_CONFIG[status] || STATUS_CONFIG.OPEN;
-    const priorityCls = PRIORITY_CONFIG[supportCase?.priority] || PRIORITY_CONFIG.MEDIUM;
+    const priorityCls = PRIORITY_CONFIG[supportCase?.priority] || PRIORITY_CONFIG.Medium;
 
     return (
         <DetailPageLayout
             title={id}
-            subtitle={`Support Case • ${supportCase?.subject || ""}`}
+            subtitle={`Support Case • ${supportCase?.incident_type || ""}`}
             backPath="/cheese/support"
             isLoading={isLoading}
             statusBadge={<Badge variant="outline" className={config.class}>{config.label}</Badge>}
@@ -95,7 +102,7 @@ export default function SupportDetail() {
                         </CardHeader>
                         <CardContent className="p-6">
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-6 gap-x-8">
-                                <EditableField label="Subject" value={supportCase?.subject || "—"} editMode={false} />
+                                <EditableField label="Case ID" value={supportCase?.name || "—"} editMode={false} />
                                 <div className="space-y-1">
                                     <Label className="text-xs text-muted-foreground">Priority</Label>
                                     {editMode ? (
@@ -104,13 +111,13 @@ export default function SupportDetail() {
                                             onChange={(e) => setForm(f => ({ ...f, priority: e.target.value }))}
                                             className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm"
                                         >
-                                            <option value="LOW">Low</option>
-                                            <option value="MEDIUM">Medium</option>
-                                            <option value="HIGH">High</option>
-                                            <option value="CRITICAL">Critical</option>
+                                            <option value="Low">Low</option>
+                                            <option value="Medium">Medium</option>
+                                            <option value="High">High</option>
+                                            <option value="Urgent">Urgent</option>
                                         </select>
                                     ) : (
-                                        <Badge className={priorityCls}>{supportCase?.priority || "MEDIUM"}</Badge>
+                                        <Badge className={priorityCls}>{supportCase?.priority || "Medium"}</Badge>
                                     )}
                                 </div>
                                 {editMode ? (
@@ -134,7 +141,7 @@ export default function SupportDetail() {
                         </CardContent>
                     </Card>
 
-                    {/* Description / Complaint */}
+                    {/* Description */}
                     <Card className="border-border/60 shadow-sm">
                         <CardHeader className="border-b bg-muted/20 pb-4">
                             <CardTitle className="text-sm font-semibold text-muted-foreground uppercase flex items-center">
@@ -156,27 +163,6 @@ export default function SupportDetail() {
                         </CardContent>
                     </Card>
 
-                    {/* Resolution / Observations */}
-                    <Card className="border-border/60 shadow-sm">
-                        <CardHeader className="border-b bg-muted/20 pb-4">
-                            <CardTitle className="text-sm font-semibold text-muted-foreground uppercase flex items-center">
-                                <CheckCircle className="w-4 h-4 mr-2" /> Resolution / Observations
-                            </CardTitle>
-                        </CardHeader>
-                        <CardContent className="p-6">
-                            {editMode ? (
-                                <textarea
-                                    value={form.resolution}
-                                    onChange={(e) => setForm(f => ({ ...f, resolution: e.target.value }))}
-                                    rows={4}
-                                    className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm"
-                                    placeholder="Record observations or resolution..."
-                                />
-                            ) : (
-                                <p className="text-sm whitespace-pre-wrap">{supportCase?.resolution || "No resolution recorded yet."}</p>
-                            )}
-                        </CardContent>
-                    </Card>
                 </div>
 
                 {/* Right Sidebar */}
@@ -229,6 +215,10 @@ export default function SupportDetail() {
                             <div className="space-y-1">
                                 <Label className="text-xs text-muted-foreground">Ticket</Label>
                                 <p className="text-sm font-medium">{supportCase?.ticket || "—"}</p>
+                            </div>
+                            <div className="space-y-1">
+                                <Label className="text-xs text-muted-foreground">Incident Type</Label>
+                                <p className="text-sm font-medium">{supportCase?.incident_type || "—"}</p>
                             </div>
                             <div className="space-y-1">
                                 <Label className="text-xs text-muted-foreground">Route</Label>

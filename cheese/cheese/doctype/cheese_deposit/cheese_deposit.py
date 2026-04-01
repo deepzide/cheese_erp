@@ -24,7 +24,7 @@ class CheeseDeposit(Document):
 		entity_type: DF.Literal["Cheese Ticket", "Cheese Route Booking"]
 		ocr_payload: DF.JSON | None
 		paid_at: DF.Datetime | None
-		status: DF.Literal["PENDING", "PAID", "OVERDUE", "ADJUSTED", "REFUNDED"]
+		status: DF.Literal["PENDING", "PAID", "OVERDUE", "ADJUSTED", "REFUNDED", "CANCELLED"]
 		verification_method: DF.Literal["", "Manual", "OCR"]
 	# end: auto-generated types
 
@@ -65,7 +65,7 @@ class CheeseDeposit(Document):
 			"entity_type": self.entity_type,
 			"entity_id": self.entity_id,
 			"name": ["!=", self.name] if self.name else ["!=", ""],
-			"status": ["not in", ["REFUNDED"]],
+			"status": ["not in", ["REFUNDED", "CANCELLED"]],
 		}
 
 		exists = frappe.db.exists("Cheese Deposit", filters)
@@ -100,7 +100,7 @@ class CheeseDeposit(Document):
 	@frappe.whitelist()
 	def record_payment(self, amount, verification_method="Manual", ocr_payload=None):
 		"""Record a payment for this deposit"""
-		if self.status in ["PAID", "REFUNDED"]:
+		if self.status in ["PAID", "REFUNDED", "CANCELLED"]:
 			frappe.throw(_("Cannot record payment for {0} deposit").format(self.status))
 
 		# Validate OCR payload if provided

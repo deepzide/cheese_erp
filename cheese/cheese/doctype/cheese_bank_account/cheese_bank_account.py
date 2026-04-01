@@ -80,13 +80,34 @@ class CheeseBankAccount(Document):
 		if not previous:
 			return
 
+		# Allow editing bank account details until a deposit is linked to this account.
+		if not self.has_linked_transactions():
+			return
+
 		for fieldname in ("holder", "bank", "account", "iban", "currency", "entity_type", "entity_id"):
 			if self.get(fieldname) != previous.get(fieldname):
 				frappe.throw(
-					_("Field {0} cannot be modified after creation").format(
+					_("Field {0} cannot be modified after this bank account is used in deposits").format(
 						frappe.bold(self.meta.get_label(fieldname))
 					)
 				)
+
+	def before_rename(self, old_name, new_name, merge=False):
+		"""Allow rename only when no deposit references this account yet."""
+		if self.has_linked_transactions():
+			frappe.throw(
+				_("This bank account cannot be renamed because it is already linked to deposit records.")
+			)
+
+	def has_linked_transactions(self):
+		return bool(
+			frappe.db.exists(
+				"Cheese Deposit",
+				{
+					"bank_account": self.name,
+				},
+			)
+		)
 
 	def validate_iban(self):
 		"""Validate IBAN format (basic validation)"""
