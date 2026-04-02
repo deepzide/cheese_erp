@@ -12,7 +12,7 @@ import json
 
 
 @frappe.whitelist()
-def create_pending_reservation(contact_id, experience_id, slot_id, party_size):
+def create_pending_reservation(contact_id, experience_id, slot_id, party_size, selected_date=None):
 	"""
 	Create pending reservation (individual) - alias for create_pending_ticket
 	
@@ -21,11 +21,14 @@ def create_pending_reservation(contact_id, experience_id, slot_id, party_size):
 		experience_id: ID of the experience
 		slot_id: ID of the slot
 		party_size: Number of people
+		selected_date: Optional specific date within the slot range chosen by the user (YYYY-MM-DD).
+		              This is important for multi-day slots: pass the date the user actually selected
+		              so that booking policy validation uses that date instead of slot.date_from.
 		
 	Returns:
 		Success response with reservation data
 	"""
-	return create_pending_ticket(contact_id, experience_id, slot_id, party_size)
+	return create_pending_ticket(contact_id, experience_id, slot_id, party_size, selected_date=selected_date)
 
 
 @frappe.whitelist()

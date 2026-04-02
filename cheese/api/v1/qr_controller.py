@@ -179,6 +179,15 @@ def get_qr(ticket_id=None, allow_pending=0):
 		if qr_token:
 			qr = frappe.get_doc("Cheese QR Token", qr_token)
 			if qr.status == "ACTIVE":
+				# Regenerate QR image if it was never created or the file is missing
+				qr_image_url = qr.qr_image or None
+				if not qr_image_url:
+					try:
+						from cheese.cheese.utils.qr_utils import generate_qr_image
+						qr_image_url = generate_qr_image(qr.token, ticket_id, qr.name)
+						frappe.db.commit()
+					except Exception as img_err:
+						frappe.log_error(f"Failed to regenerate QR image for ticket {ticket_id}: {img_err}", "QR Image Error")
 				return success(
 					"QR token retrieved successfully",
 					{
@@ -187,7 +196,7 @@ def get_qr(ticket_id=None, allow_pending=0):
 						"ticket_id": ticket_id,
 						"status": qr.status,
 						"expires_at": str(qr.expires_at) if qr.expires_at else None,
-						"qr_image_url": qr.qr_image or None,
+						"qr_image_url": qr_image_url,
 						"is_new": False
 					}
 				)

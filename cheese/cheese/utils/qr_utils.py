@@ -47,14 +47,9 @@ def _render_qr_png(data):
 
 
 def _svg_fallback_png(data):
-	"""Minimal SVG-based QR rendered to PNG via Frappe's wkhtmltoimage
-	or returned as an SVG wrapped in a minimal PNG-compatible container.
-	As a last resort, generate a simple placeholder."""
-	try:
-		import segno
-	except ImportError:
-		pass
-
+	"""Last-resort fallback: raises RuntimeError so callers can log the failure
+	rather than saving a corrupt/empty image file."""
+	# Try Frappe's built-in SVG QR code helper as a final attempt
 	try:
 		from frappe.www.qrcode import get_qr_svg_code
 		svg = get_qr_svg_code(data)
@@ -62,7 +57,7 @@ def _svg_fallback_png(data):
 	except Exception:
 		pass
 
-	placeholder = (
-		b'\x89PNG\r\n\x1a\n'
+	raise RuntimeError(
+		"No QR library available (segno, qrcode) and Frappe SVG fallback also failed. "
+		"Install segno or qrcode: pip install qrcode[pil]"
 	)
-	return placeholder
