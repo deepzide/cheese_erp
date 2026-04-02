@@ -69,6 +69,9 @@ def get_available_slots(experience_id=None, date=None, date_from=None, date_to=N
 		slots_with_availability = []
 		for slot in slots:
 			available = get_available_capacity(slot.name)
+			# Derive slot_status live from computed capacity so it stays consistent
+			# with the real available_capacity (stored slot_status can be stale).
+			live_status = "OPEN" if available > 0 else "CLOSED"
 			slot_data = {
 				"slot_id": slot.name,
 				"date_from": str(slot.date_from) if slot.date_from is not None else None,
@@ -77,7 +80,7 @@ def get_available_slots(experience_id=None, date=None, date_from=None, date_to=N
 				"time_to": str(slot.time_to) if slot.time_to is not None else None,
 				"max_capacity": slot.max_capacity,
 				"available_capacity": available,
-				"slot_status": slot.slot_status,
+				"slot_status": live_status,
 				"is_available": available > 0
 			}
 			

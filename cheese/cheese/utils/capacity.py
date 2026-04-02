@@ -7,23 +7,29 @@ from frappe.query_builder import functions as fn
 
 def calculate_reserved_capacity(slot_name):
 	"""
-	Calculate reserved capacity for a slot
-	
+	Calculate reserved capacity for a slot.
+
+	Counts party_size for all tickets that are actively occupying capacity:
+	PENDING, CONFIRMED, and CHECKED_IN. Terminal statuses (CANCELLED, EXPIRED,
+	REJECTED, NO_SHOW, COMPLETED) are excluded.
+
 	Args:
 		slot_name: Name of the slot
-		
+
 	Returns:
-		Reserved capacity (sum of party_size for PENDING tickets)
+		Reserved capacity (sum of party_size for active tickets)
 	"""
 	from frappe.query_builder import DocType
 
 	ticket = DocType("Cheese Ticket")
-	
+
+	active_statuses = ["PENDING", "CONFIRMED", "CHECKED_IN"]
+
 	result = (
 		frappe.qb.from_(ticket)
 		.select(fn.Sum(ticket.party_size).as_("total"))
 		.where(ticket.slot == slot_name)
-		.where(ticket.status == "PENDING")
+		.where(ticket.status.isin(active_statuses))
 	).run()
 
 	return result[0][0] if result and result[0][0] else 0
