@@ -55,20 +55,43 @@ export default function BookingDetail() {
                 <div className="lg:col-span-2 space-y-6">
                     <Card className="border-border/60 shadow-sm">
                         <CardContent className="p-6 space-y-4">
-                            <div className="flex items-center justify-between gap-4">
+                            {/* Price Summary */}
+                            {(() => {
+                                const totalPrice = Number(booking?.total_price || routeSummary?.total_price || 0);
+                                const depositAmount = Number(booking?.deposit_amount || 0);
+                                const remainingBalance = totalPrice - depositAmount;
+                                return (
+                                    <div className="rounded-lg border border-border/60 bg-muted/20 divide-y divide-border/50">
+                                        <div className="flex items-center justify-between px-4 py-3">
+                                            <p className="text-sm text-muted-foreground">Booking Total</p>
+                                            <p className="text-sm font-semibold">${totalPrice.toLocaleString()}</p>
+                                        </div>
+                                        {booking?.deposit_required ? (
+                                            <>
+                                                <div className="flex items-center justify-between px-4 py-3">
+                                                    <p className="text-sm text-muted-foreground flex items-center gap-1.5">
+                                                        <Wallet className="w-3.5 h-3.5" /> Deposit (paid)
+                                                    </p>
+                                                    <p className="text-sm font-semibold text-emerald-600 dark:text-emerald-400">
+                                                        −${depositAmount.toLocaleString()}
+                                                    </p>
+                                                </div>
+                                                <div className="flex items-center justify-between px-4 py-3 bg-muted/30">
+                                                    <p className="text-sm font-semibold">Remaining Balance</p>
+                                                    <p className="text-base font-bold text-cheese-600">
+                                                        ${remainingBalance.toLocaleString()}
+                                                    </p>
+                                                </div>
+                                            </>
+                                        ) : null}
+                                    </div>
+                                );
+                            })()}
+                            <div className="flex items-center justify-between gap-4 pt-1">
                                 <div className="space-y-1">
-                                    <p className="text-xs text-muted-foreground">Total Price</p>
-                                    <p className="text-lg font-bold">
-                                        ${Number(booking?.total_price || routeSummary?.total_price || 0).toLocaleString()}
-                                    </p>
-                                </div>
-                                <div className="space-y-1 text-right">
                                     <p className="text-xs text-muted-foreground">Deposit Required</p>
                                     <p className="text-sm font-medium">
                                         {booking?.deposit_required ? "Yes" : "No"}
-                                    </p>
-                                    <p className="text-xs text-muted-foreground">
-                                        Deposit: ${Number(booking?.deposit_amount || 0).toLocaleString()}
                                     </p>
                                 </div>
                             </div>
