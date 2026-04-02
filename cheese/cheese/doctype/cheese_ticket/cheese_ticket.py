@@ -95,7 +95,11 @@ class CheeseTicket(Document):
 				)
 
 	def validate_duplicate_active_ticket(self):
-		"""Prevent multiple active tickets with same contact+experience+slot"""
+		"""Prevent multiple active tickets with same contact+experience+slot+selected_date.
+		
+		If selected_date is set, two tickets on the same slot but different dates are allowed
+		(e.g. multi-day or recurring slots where the user picks a specific date).
+		"""
 		if not (self.contact and self.experience and self.slot):
 			return
 
@@ -109,6 +113,15 @@ class CheeseTicket(Document):
 			"name": ["!=", self.name] if self.name else ["!=", ""],
 			"status": ["not in", excluded_statuses],
 		}
+
+		# If this ticket has a selected_date, scope the check to the same date only.
+		# A booking for the same slot on a different selected_date is a distinct booking.
+		if self.selected_date:
+			filters["selected_date"] = self.selected_date
+		else:
+			# When no selected_date is set, only flag conflicts with other tickets
+			# that also have no selected_date (avoids blocking tickets that differ by date).
+			filters["selected_date"] = ["is", "not set"]
 
 		exists = frappe.db.exists("Cheese Ticket", filters)
 		if exists:
