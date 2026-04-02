@@ -241,24 +241,26 @@ def _attach_receipt_to_deposit(deposit_name, file_storage):
 
 @frappe.whitelist()
 def record_deposit_payment(
-	ticket_id, amount, verification_method="Manual", ocr_payload=None, attach_receipt=True
+	ticket_id=None, amount=None, verification_method="Manual", ocr_payload=None,
+	attach_receipt=True, deposit_id=None
 ):
 	"""
 	Record a deposit payment
 
 	Args:
-		ticket_id: ID of the ticket
+		ticket_id: ID of the ticket (required unless deposit_id is provided)
 		amount: Payment amount
 		verification_method: Verification method (Manual/OCR)
 		ocr_payload: Optional OCR payload JSON
 		attach_receipt: If true (default), accept multipart file field receipt/payment_receipt/file
+		deposit_id: Deposit ID (optional - if provided, looks up deposit directly)
 
 	Returns:
 		Success response with updated deposit data
 	"""
 	try:
-		if not ticket_id:
-			return validation_error("ticket_id is required")
+		if not ticket_id and not deposit_id:
+			return validation_error("Either ticket_id or deposit_id is required")
 		amount = flt(amount)
 		if not amount or amount <= 0:
 			return validation_error("amount must be greater than 0")
@@ -268,20 +270,45 @@ def record_deposit_payment(
 		else:
 			do_attach = True
 
-		if not frappe.db.exists("Cheese Ticket", ticket_id):
-			return not_found("Ticket", ticket_id)
+		# Resolve deposit directly by deposit_id if provided
+		if deposit_id:
+			if not frappe.db.exists("Cheese Deposit", deposit_id):
+				return not_found("Deposit", deposit_id)
+			deposit = frappe.get_doc("Cheese Deposit", deposit_id)
+			ticket_id = ticket_id or (deposit.entity_id if deposit.entity_type == "Cheese Ticket" else None)
+		else:
+			if not frappe.db.exists("Cheese Ticket", ticket_id):
+				return not_found("Ticket", ticket_id)
 
-		# Get deposit
-		deposit_name = frappe.db.get_value(
-			"Cheese Deposit",
-			{"entity_type": "Cheese Ticket", "entity_id": ticket_id},
-			"name"
-		)
+			# Get or auto-create deposit for this ticket
+			deposit_name = frappe.db.get_value(
+				"Cheese Deposit",
+				{"entity_type": "Cheese Ticket", "entity_id": ticket_id},
+				"name"
+			)
 
-		if not deposit_name:
-			return not_found("Deposit", f"for ticket {ticket_id}")
+			if not deposit_name:
+				# Auto-create deposit if it doesn't exist yet
+				ticket_doc = frappe.get_doc("Cheese Ticket", ticket_id)
+				if not ticket_doc.deposit_required:
+					return validation_error("This ticket does not require a deposit")
+				if not ticket_doc.experience:
+					return validation_error("Ticket has no experience linked; cannot determine deposit TTL")
+				experience = frappe.get_doc("Cheese Experience", ticket_doc.experience)
+				due_at = add_to_date(now_datetime(), hours=experience.deposit_ttl_hours or 24, as_string=False)
+				new_deposit = frappe.get_doc({
+					"doctype": "Cheese Deposit",
+					"entity_type": "Cheese Ticket",
+					"entity_id": ticket_id,
+					"amount_required": ticket_doc.deposit_amount,
+					"status": "PENDING",
+					"due_at": due_at,
+				})
+				new_deposit.insert()
+				frappe.db.commit()
+				deposit_name = new_deposit.name
 
-		deposit = frappe.get_doc("Cheese Deposit", deposit_name)
+			deposit = frappe.get_doc("Cheese Deposit", deposit_name)
 		old_status = deposit.status
 
 		deposit.record_payment(amount, verification_method, ocr_payload)
