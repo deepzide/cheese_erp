@@ -12,7 +12,7 @@ import json
 
 
 @frappe.whitelist()
-def create_pending_reservation(contact_id, experience_id, slot_id, party_size, selected_date=None):
+def create_pending_reservation(contact_id, experience_id, slot_id, party_size, selected_date=None, route_id=None):
 	"""
 	Create pending reservation (individual) - alias for create_pending_ticket
 	
@@ -28,7 +28,7 @@ def create_pending_reservation(contact_id, experience_id, slot_id, party_size, s
 	Returns:
 		Success response with reservation data
 	"""
-	return create_pending_ticket(contact_id, experience_id, slot_id, party_size, selected_date=selected_date)
+	return create_pending_ticket(contact_id, experience_id, slot_id, party_size, selected_date=selected_date, route_id=route_id)
 
 
 @frappe.whitelist()
@@ -46,7 +46,7 @@ def get_reservation_status(reservation_id):
 
 
 @frappe.whitelist()
-def create_pending_ticket(contact_id, experience_id, slot_id, party_size, selected_date=None):
+def create_pending_ticket(contact_id, experience_id, slot_id, party_size, selected_date=None, route_id=None):
 	"""
 	Create a pending ticket with TTL
 	
@@ -84,6 +84,11 @@ def create_pending_ticket(contact_id, experience_id, slot_id, party_size, select
 		slot = frappe.get_doc("Cheese Experience Slot", slot_id)
 		experience = frappe.get_doc("Cheese Experience", experience_id)
 
+		# Validation 1: Capacity check
+		available = get_available_capacity(slot_id)
+		if party_size > available:
+			return validation_error(f"Cannot book {party_size} tickets. Only {available} slots available.")
+
 		# Validate booking policy
 		try:
 			slot_datetime = get_datetime(f"{slot.date_from} {slot.time_from}")
@@ -92,10 +97,10 @@ def create_pending_ticket(contact_id, experience_id, slot_id, party_size, select
 			return validation_error(str(e))
 
 		# Calculate price
-		price_data = calculate_ticket_price(experience_id, party_size)
+		price_data = calculate_ticket_price(experience_id, party_size, route_id=route_id)
 		
 		# Calculate deposit
-		deposit_amount = calculate_deposit_amount(experience_id, price_data["total_price"])
+		deposit_amount = calculate_deposit_amount(experience_id, price_data["total_price"], route_id=route_id)
 
 		ticket_data = {
 			"doctype": "Cheese Ticket",
@@ -103,6 +108,7 @@ def create_pending_ticket(contact_id, experience_id, slot_id, party_size, select
 			"company": experience.company,
 			"experience": experience_id,
 			"slot": slot_id,
+			"route": route_id,
 			"party_size": party_size,
 			"status": "PENDING",
 			"total_price": price_data["total_price"],
@@ -300,10 +306,24 @@ def modify_ticket(ticket_id, new_slot=None, party_size=None):
 			ticket.slot = new_slot
 			changes.append("slot")
 
+			# Capacity check for new slot
+			req_size = party_size if party_size else ticket.party_size
+			available = get_available_capacity(new_slot)
+			if req_size > available:
+				return validation_error(f"Cannot move {req_size} tickets to new slot. Only {available} slots available.")
+
 		# Update party size if provided
 		if party_size:
 			if party_size < 1:
 				return validation_error("party_size must be at least 1")
+			
+			if not new_slot:
+				diff_size = party_size - ticket.party_size
+				if diff_size > 0:
+					available = get_available_capacity(ticket.slot)
+					if diff_size > available:
+						return validation_error(f"Cannot increase party size by {diff_size}. Only {available} more slots available.")
+
 			ticket.party_size = party_size
 			changes.append("party_size")
 
@@ -824,7 +844,10 @@ def get_ticket_board(filters=None, status=None, route_id=None, establishment_id=
 	"""
 	try:
 		import json
-		from frappe.utils import getdate
+		from frappe.utils import getdate, get_datetime, today, now_datetime
+		
+		current_date = getdate(today())
+		current_datetime = now_datetime()
 		
 		filter_dict = {}
 		if filters:
@@ -877,6 +900,21 @@ def get_ticket_board(filters=None, status=None, route_id=None, establishment_id=
 				if slot:
 					ticket["slot_date"] = str(ticket.selected_date) if ticket.selected_date else str(slot.date_from)
 					ticket["slot_time"] = str(slot.time_from)
+					
+					# Auto-expire past pending tickets
+					if ticket.status == "PENDING":
+						try:
+							slot_dt = get_datetime(f"{slot.date_from} {slot.time_from}")
+							if slot_dt < current_datetime:
+								frappe.db.set_value("Cheese Ticket", ticket.name, "status", "EXPIRED")
+								update_slot_capacity(ticket.slot)
+								ticket.status = "EXPIRED"
+						except Exception:
+							pass
+			else:
+				if ticket.status == "PENDING" and ticket.selected_date and getdate(ticket.selected_date) < current_date:
+					frappe.db.set_value("Cheese Ticket", ticket.name, "status", "EXPIRED")
+					ticket.status = "EXPIRED"
 			
 			if ticket.contact:
 				contact = frappe.db.get_value(

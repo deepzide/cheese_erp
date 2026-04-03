@@ -24,16 +24,30 @@ export default function ExperienceDetail() {
     const { data: exp, isLoading } = useFrappeDoc("Cheese Experience", id);
     const updateMutation = useFrappeUpdate("Cheese Experience");
 
-    const { data: documents = [], isLoading: documentsLoading } = useFrappeList("Cheese Document", {
+    const { data: expDocs = [], isLoading: expDocsLoading } = useFrappeList("Cheese Document", {
         enabled: !!id,
         filters: {
             entity_type: "Cheese Experience",
             entity_id: id,
         },
-        fields: ["name", "title", "document_type", "file_url", "status", "language", "version", "validity_date", "creation"],
+        fields: ["name", "title", "document_type", "file_url", "status", "language", "version", "validity_date", "creation", "entity_type"],
         pageSize: 20,
         orderBy: "creation desc",
     });
+
+    const { data: companyDocs = [], isLoading: companyDocsLoading } = useFrappeList("Cheese Document", {
+        enabled: !!exp?.company,
+        filters: {
+            entity_type: "Company",
+            entity_id: exp?.company,
+        },
+        fields: ["name", "title", "document_type", "file_url", "status", "language", "version", "validity_date", "creation", "entity_type"],
+        pageSize: 20,
+        orderBy: "creation desc",
+    });
+
+    const documents = [...expDocs, ...companyDocs].sort((a, b) => new Date(b.creation) - new Date(a.creation));
+    const documentsLoading = expDocsLoading || companyDocsLoading;
 
     // Local State for Edit Mode
     const [editMode, setEditMode] = useState(false);
@@ -200,6 +214,18 @@ export default function ExperienceDetail() {
                                             )}
                                         </div>
 
+                                        <div className="space-y-1 col-span-1 sm:col-span-2 border-t border-border/50 pt-4 mt-2">
+                                            <div className="flex items-center justify-between">
+                                                <div>
+                                                    <label className="text-xs font-medium text-muted-foreground">Experience Name / ID</label>
+                                                    <p className="font-semibold text-sm">{id}</p>
+                                                </div>
+                                                <Button type="button" variant="outline" size="sm" onClick={() => { setNewId(id); setRenameOpen(true); }}>
+                                                    Rename Experience Name
+                                                </Button>
+                                            </div>
+                                        </div>
+
                                         <EditableField
                                             label="Event Duration (Hours)"
                                             type="number"
@@ -260,6 +286,12 @@ export default function ExperienceDetail() {
                                         isLoading={documentsLoading}
                                         onAddClick={() => navigate(`/cheese/documents/new?entity_type=${encodeURIComponent("Cheese Experience")}&entity_id=${encodeURIComponent(id)}`)}
                                     />
+                                    <div className="p-4 bg-muted/20 border-t border-border flex justify-between items-center">
+                                        <p className="text-xs text-muted-foreground">To add documents to the Establishment instead, click here.</p>
+                                        <Button variant="outline" size="sm" onClick={() => navigate(`/cheese/documents/new?entity_type=${encodeURIComponent("Company")}&entity_id=${encodeURIComponent(exp?.company || "")}`)}>
+                                            Add Establishment Doc
+                                        </Button>
+                                    </div>
                                 </CardContent>
                             </Card>
                         </TabsContent>
@@ -355,11 +387,6 @@ export default function ExperienceDetail() {
                             </Card>
                         </TabsContent>
                     </Tabs>
-                    <div className="flex gap-2">
-                        <Button type="button" variant="outline" onClick={() => { setNewId(id); setRenameOpen(true); }}>
-                            Rename Experience ID
-                        </Button>
-                    </div>
                 </div>
 
                 {/* Right Column - Metadata */}
@@ -427,8 +454,11 @@ export default function ExperienceDetail() {
                                 <button onClick={() => navigate(`/cheese/routes?add_experience=${encodeURIComponent(id)}`)} className="text-sm text-left px-3 py-2 rounded-md hover:bg-primary/10 transition-colors text-primary font-medium flex items-center justify-between">
                                     <span className="flex items-center"><LinkIcon className="w-4 h-4 mr-2" /> Add to Route Template</span>
                                 </button>
+                                <button type="button" onClick={() => { setNewId(id); setRenameOpen(true); }} className="text-sm text-left px-3 py-2 rounded-md hover:bg-primary/10 transition-colors text-primary font-medium">
+                                    Rename Experience Name
+                                </button>
                                 <button onClick={() => navigate(`/cheese/tickets?experience=${encodeURIComponent(id)}`)} className="text-sm text-left px-3 py-2 rounded-md hover:bg-primary/10 transition-colors text-primary font-medium">
-                                    View Tickets for this Experience
+                                    View Tickets
                                 </button>
                                 <button onClick={() => navigate(`/cheese/booking-policy?experience=${encodeURIComponent(id)}`)} className="text-sm text-left px-3 py-2 rounded-md hover:bg-primary/10 transition-colors text-primary font-medium">
                                     Booking Policy

@@ -38,6 +38,17 @@ def get_available_slots(experience_id=None, date=None, date_from=None, date_to=N
 		if date_from_obj > date_to_obj:
 			return validation_error("date_from must be before or equal to date_to")
 
+		from frappe.utils import today
+		today_obj = getdate(today())
+		
+		# Prevent querying past dates
+		if date_to_obj < today_obj:
+			# If the whole range is in the past, return empty early
+			slots = []
+			date_from_obj = date_to_obj # Just to bypass logic, the query will return [] anyway
+		elif date_from_obj < today_obj:
+			date_from_obj = today_obj
+
 		# Build filters for slots
 		# Slots have date_from and date_to fields, so we need to check for overlap
 		# A slot overlaps if: slot.date_from <= date_to AND slot.date_to >= date_from
@@ -230,6 +241,13 @@ def get_route_availability(route_id, date=None, date_from=None, date_to=None, pa
 			
 			if date_from_obj > date_to_obj:
 				return validation_error("date_from must be before or equal to date_to")
+			
+			from frappe.utils import today
+			today_obj = getdate(today())
+			if date_to_obj < today_obj:
+				date_from_obj = date_to_obj  # Let it fail to find slots
+			elif date_from_obj < today_obj:
+				date_from_obj = today_obj
 			
 			availability_by_experience = []
 			all_available = True

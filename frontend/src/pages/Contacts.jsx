@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { motion } from "framer-motion";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -16,8 +16,9 @@ import { useFrappeList, useFrappeCreate, useFrappeDelete } from "@/lib/useApiDat
 
 export default function Contacts() {
     const navigate = useNavigate();
+    const [searchParams] = useSearchParams();
     const queryClient = useQueryClient();
-    const [searchTerm, setSearchTerm] = useState("");
+    const [searchTerm, setSearchTerm] = useState(searchParams.get("search") || "");
     const [createOpen, setCreateOpen] = useState(false);
     const [form, setForm] = useState({ full_name: "", phone: "", email: "" });
 

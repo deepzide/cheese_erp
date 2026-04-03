@@ -111,7 +111,7 @@ export default function Layout({ children }) {
                     </div>
                     <div>
                         <h2 className="font-bold text-cheese-400 text-lg tracking-tight">Cheese</h2>
-                        <p className="text-[11px] text-white/40 font-medium">Control Center</p>
+                        <p className="text-[11px] text-white/40 font-medium">{t("sections.commandCenter")}</p>
                     </div>
                 </div>
             </div>

@@ -26,9 +26,11 @@ export default function BankAccounts() {
     const [searchTerm, setSearchTerm] = useState("");
     const [createOpen, setCreateOpen] = useState(false);
     const [form, setForm] = useState({ entity_type: "Cheese Route", entity_id: searchParams.get('route') || "", holder: "", bank: "", account: "", iban: "", currency: "EUR" });
+    const routeFilter = searchParams.get('route');
 
     const { data: accounts = [], isLoading, error, refetch } = useFrappeList("Cheese Bank Account", {
         fields: ["name", "entity_type", "entity_id", "route", "status", "holder", "bank", "account", "iban", "currency", "creation"],
+        filters: routeFilter ? { entity_id: routeFilter } : undefined,
         pageSize: 100,
     });
 
@@ -59,7 +61,7 @@ export default function BankAccounts() {
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
                     <h1 className="text-2xl font-bold text-foreground flex items-center gap-2"><Landmark className="w-6 h-6 text-cheese-600" /> Bank Accounts</h1>
-                    <p className="text-sm text-muted-foreground mt-1">{isLoading ? '...' : `${filtered.length} accounts`}</p>
+                    <p className="text-sm text-muted-foreground mt-1">{isLoading ? '...' : `${filtered.length} accounts`}{routeFilter ? ` (Filtered by Route: ${routeFilter})` : ''}</p>
                 </div>
                 <div className="flex gap-2">
                     <div className="relative"><Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" /><Input placeholder="Search..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-9 w-56 h-9" /></div>

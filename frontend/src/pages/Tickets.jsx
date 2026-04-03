@@ -49,7 +49,8 @@ export default function Tickets() {
     const routeFilter = searchParams.get("route") || "";
     const bookingFilter = searchParams.get("booking") || "";
     const slotFilter = searchParams.get("slot") || "";
-    const [searchTerm, setSearchTerm] = useState("");
+    const contactFilter = searchParams.get("contact") || "";
+    const [searchTerm, setSearchTerm] = useState(searchParams.get("search") || "");
     const [filterStatus, setFilterStatus] = useState("all");
     const [selectedTicket, setSelectedTicket] = useState(null);
     const [detailOpen, setDetailOpen] = useState(false);
@@ -142,6 +143,7 @@ export default function Tickets() {
         if (routeFilter && t.route !== routeFilter) return false;
         if (bookingFilter && !bookingTicketIds.has(t.name)) return false;
         if (slotFilter && t.slot !== slotFilter) return false;
+        if (contactFilter && t.contact !== contactFilter && t.contact_name !== contactFilter) return false;
         if (filterStatus !== "all" && t.status !== filterStatus) return false;
         if (searchTerm) {
             const term = searchTerm.toLowerCase();
@@ -205,8 +207,8 @@ export default function Tickets() {
                                 slotFilter
                                     ? `Slot: ${slotFilter}`
                                     : bookingFilter
-                                    ? `Reservation: ${bookingFilter}`
-                                    : (experienceFilter ? `Experience: ${experienceFilter}` : `Route: ${routeFilter}`)
+                                        ? `Reservation: ${bookingFilter}`
+                                        : (experienceFilter ? `Experience: ${experienceFilter}` : `Route: ${routeFilter}`)
                             }
                         </p>
                     )}

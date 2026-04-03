@@ -25,6 +25,11 @@ def validate_booking_policy(experience_id, slot_datetime, action="booking"):
 		as_dict=True
 	)
 	
+	hours_until_slot = (get_datetime(slot_datetime) - now_datetime()).total_seconds() / 3600
+	
+	if hours_until_slot < 0 and action in ["booking", "modify"]:
+		frappe.throw(_("Cannot book or modify a slot that has already started or passed"))
+	
 	if not policy:
 		return True  # No policy, allow
 	

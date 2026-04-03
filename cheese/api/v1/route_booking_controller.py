@@ -181,7 +181,8 @@ def create_route_reservation(contact_id=None, route_id=None, experiences_with_sl
 				experience_id, 
 				slot_id, 
 				party_size,
-				selected_date=str(selected_date_for_tickets) if selected_date_for_tickets else None
+				selected_date=str(selected_date_for_tickets) if selected_date_for_tickets else None,
+				route_id=route_id
 			)
 			
 			if not ticket_result.get("success"):

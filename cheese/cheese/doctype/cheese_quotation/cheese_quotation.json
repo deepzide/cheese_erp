@@ -8,6 +8,7 @@
     "name": "Cheese Quotation",
     "document_type": "Document",
     "engine": "InnoDB",
+    "default_print_format": "ERP_CheeseQTYPDF",
     "field_order": [
         "quotation_info",
         "lead",

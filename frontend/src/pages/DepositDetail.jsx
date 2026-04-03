@@ -8,8 +8,9 @@ import { Label } from "@/components/ui/label";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { DollarSign, Ticket, Users, Clock, CreditCard, CheckCircle, XCircle, AlertTriangle } from "lucide-react";
+import { DollarSign, Ticket, Users, CreditCard, CheckCircle, XCircle, AlertTriangle, FileImage, Download } from "lucide-react";
 import FrappeSearchSelect from "@/components/FrappeSearchSelect";
+import { useFrappeList } from "@/lib/useApiData";
 
 const STATUS_CONFIG = {
     PENDING: { label: "Pending", class: "bg-yellow-500/15 text-yellow-700 border-yellow-300 dark:text-yellow-400 dark:border-yellow-700" },
@@ -27,6 +28,16 @@ export default function DepositDetail() {
     const updateMutation = useFrappeUpdate("Cheese Deposit");
     const [editMode, setEditMode] = useState(false);
     const [form, setForm] = useState({});
+
+    // Fetch attached files (receipts)
+    const { data: attachments = [], isLoading: attachmentsLoading } = useFrappeList("File", {
+        enabled: !!id,
+        filters: {
+            attached_to_doctype: "Cheese Deposit",
+            attached_to_name: id,
+        },
+        fields: ["name", "file_name", "file_url", "is_private"],
+    });
 
     useEffect(() => {
         if (deposit) {
@@ -157,6 +168,44 @@ export default function DepositDetail() {
                                     <EditableField label="Bank Account" value={deposit?.bank_account || "—"} editMode={false} />
                                 )}
                             </div>
+                        </CardContent>
+                    </Card>
+
+                    {/* Receipts / Attachments */}
+                    <Card className="border-border/60 shadow-sm">
+                        <CardHeader className="border-b bg-muted/20 pb-4">
+                            <CardTitle className="text-sm font-semibold text-muted-foreground uppercase flex items-center">
+                                <FileImage className="w-4 h-4 mr-2" /> Receipts & Attachments
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent className="p-0">
+                            {attachmentsLoading ? (
+                                <div className="p-6 text-sm text-muted-foreground">Loading attachments...</div>
+                            ) : attachments && attachments.length > 0 ? (
+                                <div className="divide-y divide-border/50">
+                                    {attachments.map((file) => (
+                                        <div key={file.name} className="p-4 flex items-center justify-between gap-3 hover:bg-muted/10 transition-colors">
+                                            <div className="flex items-center gap-3 overflow-hidden">
+                                                <div className="w-10 h-10 rounded bg-muted flex items-center justify-center shrink-0">
+                                                    <FileImage className="w-5 h-5 text-muted-foreground" />
+                                                </div>
+                                                <div className="min-w-0">
+                                                    <p className="font-medium text-sm truncate">{file.file_name}</p>
+                                                    <p className="text-xs text-muted-foreground">Attached Receipt</p>
+                                                </div>
+                                            </div>
+                                            <Button variant="outline" size="sm" onClick={() => window.open(file.file_url, '_blank')}>
+                                                <Download className="w-4 h-4 mr-2" /> View
+                                            </Button>
+                                        </div>
+                                    ))}
+                                </div>
+                            ) : (
+                                <div className="p-12 text-center text-muted-foreground flex flex-col items-center">
+                                    <FileImage className="w-8 h-8 mb-4 opacity-20" />
+                                    <p>No receipts or files attached to this deposit yet.</p>
+                                </div>
+                            )}
                         </CardContent>
                     </Card>
 

@@ -182,7 +182,9 @@ export default function DepositCreate() {
                             label="holder"
                             value={form.bank_account || ""}
                             onChange={(v) => setForm((prev) => ({ ...prev, bank_account: v }))}
-                            placeholder="Select bank account..."
+                            filters={form.entity_type === "Cheese Route Booking" && booking?.route ? { entity_type: "Cheese Route", entity_id: booking.route } : {}}
+                            placeholder={booking?.route ? "Select bank account..." : "Select reservation first..."}
+                            disabled={form.entity_type === "Cheese Route Booking" && !booking?.route}
                         />
                     </div>
                 </div>

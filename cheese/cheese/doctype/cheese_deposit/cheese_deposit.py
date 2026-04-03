@@ -65,7 +65,7 @@ class CheeseDeposit(Document):
 			"entity_type": self.entity_type,
 			"entity_id": self.entity_id,
 			"name": ["!=", self.name] if self.name else ["!=", ""],
-			"status": ["not in", ["REFUNDED", "CANCELLED"]],
+			"status": ["not in", ["REFUNDED", "CANCELLED", "PAID"]],
 		}
 
 		exists = frappe.db.exists("Cheese Deposit", filters)

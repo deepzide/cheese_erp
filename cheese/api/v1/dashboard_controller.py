@@ -96,6 +96,7 @@ def get_central_dashboard(period="today", date_from=None, date_to=None):
 		# Get leads
 		leads = frappe.get_all(
 			"Cheese Lead",
+			filters={"creation": ["between", [f"{date_from_obj} 00:00:00", f"{date_to_obj} 23:59:59"]]},
 			fields=["status"]
 		)
 		
@@ -107,6 +108,7 @@ def get_central_dashboard(period="today", date_from=None, date_to=None):
 		# Get deposits
 		deposits = frappe.get_all(
 			"Cheese Deposit",
+			filters={"creation": ["between", [f"{date_from_obj} 00:00:00", f"{date_to_obj} 23:59:59"]]},
 			fields=["status"]
 		)
 		
@@ -361,7 +363,7 @@ def get_dashboard_kpis(establishment_id=None, period="today"):
 		# Calculate conversion rates (leads → tickets → confirmed)
 		leads = frappe.get_all(
 			"Cheese Lead",
-			filters={},
+			filters={"creation": ["between", [f"{date_from_obj} 00:00:00", f"{date_to_obj} 23:59:59"]]},
 			fields=["name", "status"]
 		)
 		
@@ -385,7 +387,7 @@ def get_dashboard_kpis(establishment_id=None, period="today"):
 		# Calculate deposit collection rates
 		deposits = frappe.get_all(
 			"Cheese Deposit",
-			filters={},
+			filters={"creation": ["between", [f"{date_from_obj} 00:00:00", f"{date_to_obj} 23:59:59"]]},
 			fields=["name", "status", "amount_required", "amount_paid"]
 		)
 		
@@ -399,7 +401,7 @@ def get_dashboard_kpis(establishment_id=None, period="today"):
 		# Calculate average satisfaction rating
 		surveys = frappe.get_all(
 			"Cheese Survey Response",
-			filters={},
+			filters={"creation": ["between", [f"{date_from_obj} 00:00:00", f"{date_to_obj} 23:59:59"]]},
 			fields=["rating"]
 		)
 		

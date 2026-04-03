@@ -277,28 +277,39 @@ def record_deposit_payment(
 			deposit = frappe.get_doc("Cheese Deposit", deposit_id)
 			ticket_id = ticket_id or (deposit.entity_id if deposit.entity_type == "Cheese Ticket" else None)
 		else:
-			if not frappe.db.exists("Cheese Ticket", ticket_id):
-				return not_found("Ticket", ticket_id)
+			entity_type = "Cheese Ticket"
+			if frappe.db.exists("Cheese Route Booking", ticket_id):
+				entity_type = "Cheese Route Booking"
+			elif not frappe.db.exists("Cheese Ticket", ticket_id):
+				return not_found("Ticket or Route Booking", ticket_id)
 
 			# Get or auto-create deposit for this ticket
 			deposit_name = frappe.db.get_value(
 				"Cheese Deposit",
-				{"entity_type": "Cheese Ticket", "entity_id": ticket_id},
+				{
+					"entity_type": entity_type, 
+					"entity_id": ticket_id,
+					"status": ["in", ["PENDING", "OVERDUE"]]
+				},
 				"name"
 			)
 
 			if not deposit_name:
 				# Auto-create deposit if it doesn't exist yet
-				ticket_doc = frappe.get_doc("Cheese Ticket", ticket_id)
+				ticket_doc = frappe.get_doc(entity_type, ticket_id)
 				if not ticket_doc.deposit_required:
-					return validation_error("This ticket does not require a deposit")
-				if not ticket_doc.experience:
-					return validation_error("Ticket has no experience linked; cannot determine deposit TTL")
-				experience = frappe.get_doc("Cheese Experience", ticket_doc.experience)
-				due_at = add_to_date(now_datetime(), hours=experience.deposit_ttl_hours or 24, as_string=False)
+					return validation_error("This booking does not require a deposit")
+				
+				ttl = 24
+				if entity_type == "Cheese Ticket" and ticket_doc.get("experience"):
+					exp = frappe.get_doc("Cheese Experience", ticket_doc.experience)
+					ttl = exp.deposit_ttl_hours or 24
+					
+				due_at = add_to_date(now_datetime(), hours=ttl, as_string=False)
+				
 				new_deposit = frappe.get_doc({
 					"doctype": "Cheese Deposit",
-					"entity_type": "Cheese Ticket",
+					"entity_type": entity_type,
 					"entity_id": ticket_id,
 					"amount_required": ticket_doc.deposit_amount,
 					"status": "PENDING",
