@@ -98,7 +98,7 @@
             alloy:
               image: grafana/alloy:latest
               volumes:
-                - sites:/var/log/frappe:ro
+                - logs:/var/log/frappe:ro
                 - "{{ project_dir }}/alloy-config.alloy:/etc/alloy/config.alloy"
               command: ["run", "/etc/alloy/config.alloy"]
               restart: unless-stopped
