@@ -1,0 +1,20 @@
+// Grafana Alloy - Frappe log collector for cheese_erp
+
+local.file_match "frappe_logs" {
+  path_targets = [{
+    __path__  = "/var/log/frappe/*.log",
+    job       = "cheese_erp",
+    instance  = env("HOSTNAME"),
+  }]
+}
+
+loki.source.file "frappe" {
+  targets    = local.file_match.frappe_logs.targets
+  forward_to = [loki.write.default.receiver]
+}
+
+loki.write "default" {
+  endpoint {
+    url = "https://alloy.deepzide.com/loki/api/v1/push"
+  }
+}

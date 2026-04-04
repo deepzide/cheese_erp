@@ -81,6 +81,29 @@
         force: yes
 
     # ------------------------------------------------------------------------
+    # 📡 Configurar Alloy (log collector)
+    # ------------------------------------------------------------------------
+    - name: Copy Alloy configuration to server
+      ansible.builtin.copy:
+        src: alloy-config.alloy
+        dest: "{{ project_dir }}/alloy-config.alloy"
+        mode: "0644"
+
+    - name: Add Alloy log collector service to pwd.yml
+      ansible.builtin.blockinfile:
+        path: "{{ project_dir }}/frappe_docker/pwd.yml"
+        insertafter: "^services:"
+        marker: "  # {mark} ALLOY LOG COLLECTOR"
+        block: |2
+            alloy:
+              image: grafana/alloy:latest
+              volumes:
+                - sites:/var/log/frappe:ro
+                - "{{ project_dir }}/alloy-config.alloy:/etc/alloy/config.alloy"
+              command: ["run", "/etc/alloy/config.alloy"]
+              restart: unless-stopped
+
+    # ------------------------------------------------------------------------
     # 📋 Leer apps desde archivo custom.txt local
     # ------------------------------------------------------------------------
     - name: Leer apps desde custom.txt local
