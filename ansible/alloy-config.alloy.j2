@@ -1,10 +1,10 @@
-// Grafana Alloy - Frappe log collector for cheese_erp
+// Grafana Alloy - Frappe log collector for cheese_erp ({{ deploy_env }})
 
 local.file_match "frappe_logs" {
   path_targets = [{
-    __path__  = "/var/log/frappe/*.log",
-    job       = "cheese_erp",
-    instance  = env("HOSTNAME"),
+    __path__    = "/var/log/frappe/*.log",
+    job         = "cheese_erp",
+    environment = "{{ deploy_env }}",
   }]
 }
 

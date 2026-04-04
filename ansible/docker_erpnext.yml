@@ -6,6 +6,7 @@
     project_dir: /opt/erpnext
     repo_url: https://github.com/frappe/frappe_docker.git
     target_image: dcorps/cheese:latest
+    deploy_env: staging
     site_name: frontend
     admin_password: admin  # puedes cambiarla si quieres
 
@@ -83,9 +84,9 @@
     # ------------------------------------------------------------------------
     # 📡 Configurar Alloy (log collector)
     # ------------------------------------------------------------------------
-    - name: Copy Alloy configuration to server
-      ansible.builtin.copy:
-        src: alloy-config.alloy
+    - name: Render Alloy configuration to server
+      ansible.builtin.template:
+        src: alloy-config.alloy.j2
         dest: "{{ project_dir }}/alloy-config.alloy"
         mode: "0644"
 
