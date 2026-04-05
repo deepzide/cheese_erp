@@ -45,15 +45,7 @@ echo "Database:      $(basename "$DB_FILE")"
 echo "Public files:  $(basename "${FILES_FILE:-none}")"
 echo "Private files: $(basename "${PRIVATE_FILES:-none}")"
 
-# 4. Confirm before proceeding
-read -p "This will OVERWRITE all data on site '$SITE'. Continue? (yes/no): " CONFIRM
-if [ "$CONFIRM" != "yes" ]; then
-  echo "Aborted."
-  rm -rf "$RESTORE_DIR"
-  exit 0
-fi
-
-# 5. Copy backup files into the container
+# 4. Copy backup files into the container
 echo "Copying files to container..."
 cd {{ compose_dir }}
 docker compose -f {{ compose_file }} exec -T backend mkdir -p /tmp/restore/
