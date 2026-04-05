@@ -25,6 +25,12 @@
     name: unzip
     state: present
 
+- name: Ensure AWS config directory exists
+  ansible.builtin.file:
+    path: /root/.aws
+    state: directory
+    mode: "0700"
+
 - name: Configure AWS credentials
   ansible.builtin.copy:
     dest: /root/.aws/credentials
