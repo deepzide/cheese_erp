@@ -1,0 +1,69 @@
+---
+# Backup setup tasks — included from docker_erpnext.yml
+# Requires vars: project_dir, compose_file, site_name, project_name,
+#                deploy_env, s3_bucket, aws_access_key_id, aws_secret_access_key
+
+- name: Check if AWS CLI is installed
+  ansible.builtin.command:
+    cmd: aws --version
+  register: aws_cli_check
+  ignore_errors: true
+  changed_when: false
+
+- name: Install AWS CLI v2
+  ansible.builtin.shell: |
+    curl -fsSL "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o /tmp/awscliv2.zip
+    cd /tmp && unzip -qo awscliv2.zip
+    /tmp/aws/install --update
+    rm -rf /tmp/aws /tmp/awscliv2.zip
+  args:
+    executable: /bin/bash
+  when: aws_cli_check.rc != 0
+
+- name: Ensure unzip is installed
+  ansible.builtin.package:
+    name: unzip
+    state: present
+
+- name: Configure AWS credentials
+  ansible.builtin.copy:
+    dest: /root/.aws/credentials
+    mode: "0600"
+    content: |
+      [default]
+      aws_access_key_id = {{ aws_access_key_id }}
+      aws_secret_access_key = {{ aws_secret_access_key }}
+
+- name: Configure AWS region
+  ansible.builtin.copy:
+    dest: /root/.aws/config
+    mode: "0600"
+    content: |
+      [default]
+      region = us-east-1
+
+- name: Render backup script
+  ansible.builtin.template:
+    src: backup.sh.j2
+    dest: "{{ compose_dir }}/backup.sh"
+    mode: "0755"
+
+- name: Render restore script
+  ansible.builtin.template:
+    src: restore.sh.j2
+    dest: "{{ compose_dir }}/restore.sh"
+    mode: "0755"
+
+- name: Setup cron - backup at noon UTC
+  ansible.builtin.cron:
+    name: "frappe_backup_noon_{{ project_name }}"
+    minute: "0"
+    hour: "12"
+    job: "{{ compose_dir }}/backup.sh >> /var/log/frappe-backup.log 2>&1"
+
+- name: Setup cron - backup at midnight UTC
+  ansible.builtin.cron:
+    name: "frappe_backup_midnight_{{ project_name }}"
+    minute: "0"
+    hour: "0"
+    job: "{{ compose_dir }}/backup.sh >> /var/log/frappe-backup.log 2>&1"
