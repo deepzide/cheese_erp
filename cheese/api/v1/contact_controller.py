@@ -98,8 +98,11 @@ def resolve_or_create_contact(phone=None, email=None, name=None):
 @frappe.whitelist()
 def update_contact(contact_id, name=None, phone=None, email=None, preferred_language=None, notes=None, preferred_channel=None, idempotency_key=None):
 	"""
-	Update contact fields
-	
+	Update contact fields.
+
+	Document primary key (contact_id) is the phone number. full_name may duplicate;
+	updating name does not change contact_id. contact_id changes only when phone is updated.
+
 	Args:
 		contact_id: Contact ID
 		name: Full name
@@ -211,30 +214,12 @@ def update_contact(contact_id, name=None, phone=None, email=None, preferred_lang
 			if existing_by_phone:
 				return validation_error(f"Contact with phone number {new_phone} already exists: {existing_by_phone[0].name}")
 		
-		# Save first to trigger validation (which will check for duplicates)
+		# Save triggers CheeseContact.on_update to sync document name with phone only (not full_name).
 		contact.save()
 		frappe.db.commit()
-		
-		# Rename document if phone was updated and differs from current document name
-		# Since phone is the autoname field, the document name should match the phone number
-		# Do this AFTER save to ensure validation passes first
-		if new_phone is not None and new_phone and new_phone != contact.name:
-			try:
-				# Use frappe.rename_doc to rename the document to match the new phone
-				# This ensures the document name stays in sync with phone (the autoname field)
-				frappe.rename_doc("Cheese Contact", contact.name, new_phone, force=True, merge=False)
-				# Reload the contact with the new name
-				contact = frappe.get_doc("Cheese Contact", new_phone)
-				frappe.db.commit()
-			except frappe.DuplicateEntryError:
-				# If a document with the new name already exists, return error
-				return validation_error(f"Cannot rename contact {contact.name} to {new_phone}: document with that phone already exists")
-			except Exception as rename_error:
-				# Log rename errors and return error
-				frappe.log_error(f"Failed to rename contact {contact.name} to {new_phone}: {str(rename_error)}")
-				return error("Failed to rename contact", "RENAME_ERROR", {"error": str(rename_error)}, 500)
-		
-		# Get the final contact_id (may have changed if renamed)
+		contact.reload()
+
+		# contact_id only changes when phone changes (name is keyed to phone). Name-only updates keep the same id.
 		final_contact_id = contact.name
 		
 		return success(

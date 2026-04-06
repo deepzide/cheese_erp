@@ -56,11 +56,12 @@ class CheeseContact(Document):
 	# end: auto-generated types
 
 	def autoname(self):
-		"""Set document name to full_name if provided, otherwise phone"""
-		if self.full_name:
-			self.name = self.full_name
+		"""Primary key is phone — full_name may duplicate across contacts."""
+		if self.phone:
+			self.name = str(self.phone).strip()
 		else:
-			self.name = self.phone
+			# Phone is required before insert; fallback avoids empty name if autoname runs early.
+			self.name = frappe.generate_hash(length=12)
 
 	def validate(self):
 		"""Validate contact data and enforce deduplication rules"""
@@ -82,10 +83,12 @@ class CheeseContact(Document):
 		pass
 
 	def on_update(self):
-		"""Rename document if full_name changes"""
-		expected_name = self.full_name if self.full_name else self.phone
-		if expected_name and self.name != expected_name:
-			frappe.rename_doc("Cheese Contact", self.name, expected_name, merge=False)
+		"""Keep document name in sync with phone only — never rename when full_name changes."""
+		if not self.phone:
+			return
+		expected = str(self.phone).strip()
+		if expected and self.name != expected:
+			frappe.rename_doc("Cheese Contact", self.name, expected, merge=False, force=True)
 
 	def check_duplicates(self):
 		"""Check for duplicate contacts by phone or email"""
