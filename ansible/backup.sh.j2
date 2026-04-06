@@ -1,0 +1,52 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Frappe Backup Script — {{ project_name }} ({{ deploy_env }})
+# Runs inside cron, logs to /var/log/frappe-backup.log
+
+LOG="/var/log/frappe-backup.log"
+TIMESTAMP=$(date +%Y-%m-%d_%H%M%S)
+BACKUP_DIR="/tmp/frappe-backup-${TIMESTAMP}"
+S3_PREFIX="s3://{{ s3_bucket }}/backups/{{ project_name }}/{{ deploy_env }}/${TIMESTAMP}"
+
+log() { echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*" >> "$LOG"; }
+
+log "=== Starting backup ==="
+
+# 1. Run bench backup inside the backend container
+log "Running bench backup --with-files --compress..."
+cd {{ compose_dir }}
+docker compose -f {{ compose_file }} exec -T backend \
+  bench --site {{ site_name }} backup --with-files --compress >> "$LOG" 2>&1
+
+if [ $? -ne 0 ]; then
+  log "ERROR: bench backup failed"
+  exit 1
+fi
+
+# 2. Copy backup files from container to host
+log "Copying backup files from container..."
+mkdir -p "$BACKUP_DIR"
+docker compose -f {{ compose_file }} cp \
+  backend:/home/frappe/frappe-bench/sites/{{ site_name }}/private/backups/. \
+  "$BACKUP_DIR/" >> "$LOG" 2>&1
+
+# 3. Upload to S3
+log "Uploading to ${S3_PREFIX}..."
+aws s3 sync "$BACKUP_DIR/" "$S3_PREFIX/" >> "$LOG" 2>&1
+
+if [ $? -ne 0 ]; then
+  log "ERROR: S3 upload failed"
+  rm -rf "$BACKUP_DIR"
+  exit 1
+fi
+
+# 4. Clean up local temp files
+rm -rf "$BACKUP_DIR"
+
+# 5. Clean up old backups inside the container
+log "Cleaning up old backups inside container..."
+docker compose -f {{ compose_file }} exec -T backend \
+  bash -c "find /home/frappe/frappe-bench/sites/{{ site_name }}/private/backups/ -type f -mtime +2 -delete" >> "$LOG" 2>&1 || true
+
+log "=== Backup completed successfully ==="

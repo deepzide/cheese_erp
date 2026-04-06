@@ -135,4 +135,11 @@ jobs:
       - name: Deploy docker-compose via Ansible
         run: |
           TARGET_IMAGE="${{ secrets.DOCKER_USER }}/cheese:${{ github.ref_name == 'prod' && 'latest' || 'demo' }}"
-          ansible-playbook -i ./ansible/inventory.ini ./ansible/docker_erpnext.yml -e "target_image=${TARGET_IMAGE}" -v
+          DEPLOY_ENV="${{ github.ref_name == 'prod' && 'production' || 'staging' }}"
+          ansible-playbook -i ./ansible/inventory.ini ./ansible/docker_erpnext.yml \
+            -e "target_image=${TARGET_IMAGE} deploy_env=${DEPLOY_ENV}" \
+            -v
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_S3_BUCKET: ${{ secrets.AWS_S3_BUCKET }}

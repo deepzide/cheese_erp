@@ -6,8 +6,15 @@
     project_dir: /opt/erpnext
     repo_url: https://github.com/frappe/frappe_docker.git
     target_image: dcorps/cheese:latest
+    deploy_env: staging
+    project_name: cheese_erp
+    compose_dir: "{{ project_dir }}/frappe_docker"
+    compose_file: pwd.yml
     site_name: frontend
     admin_password: admin  # puedes cambiarla si quieres
+    s3_bucket: "{{ lookup('env', 'AWS_S3_BUCKET') | default('deepzide-backups', true) }}"
+    aws_access_key_id: "{{ lookup('env', 'AWS_ACCESS_KEY_ID') | default('', true) }}"
+    aws_secret_access_key: "{{ lookup('env', 'AWS_SECRET_ACCESS_KEY') | default('', true) }}"
 
   tasks:
     # ------------------------------------------------------------------------
@@ -79,6 +86,29 @@
         dest: "{{ project_dir }}/frappe_docker"
         version: main
         force: yes
+
+    # ------------------------------------------------------------------------
+    # 📡 Configurar Alloy (log collector)
+    # ------------------------------------------------------------------------
+    - name: Render Alloy configuration to server
+      ansible.builtin.template:
+        src: alloy-config.alloy.j2
+        dest: "{{ project_dir }}/alloy-config.alloy"
+        mode: "0644"
+
+    - name: Add Alloy log collector service to pwd.yml
+      ansible.builtin.blockinfile:
+        path: "{{ project_dir }}/frappe_docker/pwd.yml"
+        insertafter: "^services:"
+        marker: "  # {mark} ALLOY LOG COLLECTOR"
+        block: |2
+            alloy:
+              image: grafana/alloy:latest
+              volumes:
+                - logs:/var/log/frappe:ro
+                - "{{ project_dir }}/alloy-config.alloy:/etc/alloy/config.alloy"
+              command: ["run", "/etc/alloy/config.alloy"]
+              restart: unless-stopped
 
     # ------------------------------------------------------------------------
     # 📋 Leer apps desde archivo custom.txt local
@@ -286,3 +316,10 @@
           - "🌐 http://{{ ansible_host }}:8080"
           - "👤 Administrator / 🔑 {{ admin_password }}"
           - "=========================================="
+
+    # ------------------------------------------------------------------------
+    # 💾 Backup setup
+    # ------------------------------------------------------------------------
+    - name: Setup automated backups
+      ansible.builtin.include_tasks: backup_setup.yml
+      when: aws_access_key_id | length > 0
