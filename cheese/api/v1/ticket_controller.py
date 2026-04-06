@@ -61,6 +61,15 @@ def create_pending_ticket(contact_id, experience_id, slot_id, party_size, select
 		Success response with ticket data
 	"""
 	try:
+		# JSON body keys are not always bound to kwargs; read from form_dict as fallback (bot/Postman).
+		if selected_date is None:
+			selected_date = (
+				frappe.form_dict.get("selected_date")
+				or frappe.form_dict.get("date")
+			)
+		if isinstance(selected_date, str):
+			selected_date = selected_date.strip() or None
+
 		# Validate inputs
 		if not contact_id:
 			return validation_error("contact_id is required")
@@ -114,11 +123,28 @@ def create_pending_ticket(contact_id, experience_id, slot_id, party_size, select
 		if party_size > available:
 			return validation_error(f"Cannot book {party_size} tickets. Only {available} slots available.")
 
-		# Validate booking policy
+		# Validate booking policy (visit start + optional end-of-day for range slots)
 		try:
 			booking_date_for_policy = selected_date_obj or slot_start
-			slot_datetime = get_datetime(f"{booking_date_for_policy} {slot.time_from}")
-			validate_booking_policy(experience_id, slot_datetime, action="booking")
+			tf = slot.time_from
+			if tf is None:
+				time_part = "00:00:00"
+			else:
+				time_part = str(tf).split(".")[0]
+				if len(time_part) == 5:
+					time_part = f"{time_part}:00"
+			slot_datetime = get_datetime(f"{booking_date_for_policy} {time_part}")
+			event_end_datetime = None
+			# Explicit selected day: treat "already passed" as end of that calendar day, not time_from
+			# (fixes range slots and same-day bookings after the nominal start time).
+			if selected_date_obj:
+				event_end_datetime = get_datetime(f"{booking_date_for_policy} 23:59:59")
+			validate_booking_policy(
+				experience_id,
+				slot_datetime,
+				action="booking",
+				event_end_datetime=event_end_datetime,
+			)
 		except frappe.ValidationError as e:
 			return validation_error(str(e))
 
