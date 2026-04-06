@@ -3,7 +3,7 @@
 
 import frappe
 from frappe import _
-from frappe.utils import getdate, today, add_days, cint
+from frappe.utils import getdate, today, add_days, cint, now_datetime
 from cheese.api.common.responses import success, error, validation_error
 
 
@@ -227,8 +227,16 @@ def get_establishment_dashboard(establishment_id, period="today", date_from=None
 			status = ticket.status
 			status_counts[status] = status_counts.get(status, 0) + 1
 		
-		# Get pending confirmations
-		pending_confirmations = [t for t in tickets if t.status == "PENDING"]
+		# Get pending confirmations, excluding TTL-expired pending tickets.
+		now_dt = now_datetime()
+		pending_confirmations = []
+		for t in tickets:
+			if t.status != "PENDING":
+				continue
+			ticket_doc = frappe.db.get_value("Cheese Ticket", t.name, ["expires_at"], as_dict=True)
+			if ticket_doc and ticket_doc.expires_at and ticket_doc.expires_at < now_dt:
+				continue
+			pending_confirmations.append(t)
 		
 		# Get today's agenda
 		today_date = today()
@@ -464,7 +472,7 @@ def get_pending_actions(establishment_id=None, date_from=None, date_to=None):
 		Success response with pending actions
 	"""
 	try:
-		from frappe.utils import getdate
+		from frappe.utils import getdate, now_datetime
 
 		# Get experiences to build relevant slots.
 		# If establishment_id is not provided, return pending actions across all companies.
@@ -527,6 +535,12 @@ def get_pending_actions(establishment_id=None, date_from=None, date_to=None):
 				order_by="creation asc",
 				limit=20
 			)
+
+			now_dt = now_datetime()
+			pending_tickets = [
+				t for t in pending_tickets
+				if (not t.expires_at) or t.expires_at >= now_dt
+			]
 
 			# Attach slot date/time for UI convenience.
 			for t in pending_tickets:

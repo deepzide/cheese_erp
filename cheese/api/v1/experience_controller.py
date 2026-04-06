@@ -2,6 +2,7 @@
 # License: MIT
 
 import frappe
+from frappe.model.rename_doc import rename_doc
 from frappe import _
 from frappe.utils import getdate, get_time, cint, get_datetime, get_url, add_days, add_months
 from cheese.api.common.responses import success, created, error, not_found, validation_error, paginated_response
@@ -10,6 +11,38 @@ from cheese.api.v1.bank_account_controller import (
 	get_active_company_bank_accounts_map,
 )
 from cheese.cheese.utils.capacity import get_available_capacity
+
+
+@frappe.whitelist()
+def rename_experience(old_name, new_name):
+	"""Rename a Cheese Experience through an app-whitelisted endpoint."""
+	try:
+		if not old_name:
+			return validation_error("old_name is required")
+		if not new_name:
+			return validation_error("new_name is required")
+
+		old_name = str(old_name).strip()
+		new_name = str(new_name).strip()
+		if old_name == new_name:
+			return validation_error("new_name must be different from old_name")
+
+		if not frappe.db.exists("Cheese Experience", old_name):
+			return not_found("Experience", old_name)
+
+		if not frappe.has_permission("Cheese Experience", "write", old_name):
+			return error("Not permitted to rename this experience", "FORBIDDEN", {}, 403)
+
+		renamed = rename_doc("Cheese Experience", old_name, new_name, force=True, merge=False)
+		frappe.db.commit()
+		return success("Experience renamed successfully", {"old_name": old_name, "new_name": renamed})
+	except frappe.DuplicateEntryError:
+		return validation_error("A document with this ID already exists")
+	except frappe.ValidationError as e:
+		return validation_error(str(e))
+	except Exception as e:
+		frappe.log_error(f"Error in rename_experience: {str(e)}")
+		return error("Failed to rename experience", "SERVER_ERROR", {"error": str(e)}, 500)
 
 
 @frappe.whitelist()

@@ -1,9 +1,8 @@
-import React, { useMemo, useState, useEffect } from "react";
+import React, { useMemo, useState } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { Ticket, CalendarDays } from "lucide-react";
 import { toast } from "sonner";
 import CreatePageLayout from "@/components/CreatePageLayout";
-import FrappeSearchSelect from "@/components/FrappeSearchSelect";
 import { useFrappeDoc } from "@/lib/useApiData";
 import { apiRequest } from "@/api/client";
 
@@ -19,18 +18,12 @@ export default function BookingCreate() {
     const initialValues = useMemo(
         () => ({
             contact: ticket?.contact || "",
-            route: ticket?.route || "",
             party_size: ticket?.party_size || 1,
         }),
         [ticket]
     );
 
-    const [routeId, setRouteId] = useState("");
     const [submitting, setSubmitting] = useState(false);
-
-    useEffect(() => {
-        setRouteId(initialValues.route || "");
-    }, [initialValues.route]);
 
     const selectedDate = ticket?.selected_date || "";
 
@@ -48,7 +41,6 @@ export default function BookingCreate() {
                     method: "POST",
                     body: JSON.stringify({
                         ticket_id: ticketId,
-                        route_id: routeId || undefined,
                     }),
                 }
             );
@@ -58,15 +50,8 @@ export default function BookingCreate() {
                 throw new Error(payload?.error?.message || payload?.message || "Failed to convert ticket");
             }
 
-            const bookingId = payload?.data?.route_booking_id;
-
-            if (routeId && bookingId) {
-                toast.success("Route reservation created");
-                navigate(`/cheese/bookings?highlight=${bookingId}`);
-            } else {
-                toast.success("Ticket confirmed as reservation");
-                navigate(`/cheese/tickets/${encodeURIComponent(ticketId)}`);
-            }
+            toast.success("Ticket confirmed as single-experience reservation");
+            navigate(`/cheese/tickets/${encodeURIComponent(ticketId)}`);
         } catch (err) {
             toast.error(err?.message || "Failed to create reservation");
         } finally {
@@ -129,26 +114,14 @@ export default function BookingCreate() {
                         )}
                     </div>
 
-                    <div className="space-y-2">
-                        <p className="text-xs text-muted-foreground mb-1">
-                            Route for this reservation
-                        </p>
-                        <FrappeSearchSelect
-                            doctype="Cheese Route"
-                            label="short_description"
-                            value={routeId}
-                            onChange={(v) => setRouteId(v)}
-                            placeholder="Select a route..."
-                        />
-                        <p className="text-[11px] text-muted-foreground">
-                            Optional. Leave empty to confirm as a single-experience reservation.
-                        </p>
-                    </div>
+                    <p className="text-xs text-muted-foreground">
+                        This conversion always confirms the ticket as a single-experience reservation.
+                    </p>
                 </div>
             ) : (
                 <p className="text-sm text-red-500">
                     No ticket specified. Please go back to the ticket and use
-                    \"Convert to Booking\" again.
+                    "Convert to Booking" again.
                 </p>
             )}
         </CreatePageLayout>

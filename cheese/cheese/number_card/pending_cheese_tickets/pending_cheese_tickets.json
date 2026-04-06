@@ -5,7 +5,7 @@
  "module": "Cheese",
  "document_type": "Cheese Ticket",
  "function": "Count",
- "filters_json": "[[\"Cheese Ticket\",\"status\",\"=\",\"PENDING\",false]]",
+ "filters_json": "[[\"Cheese Ticket\",\"status\",\"=\",\"PENDING\",false],[\"Cheese Ticket\",\"expires_at\",\">=\",\"Now\",false]]",
  "is_public": 1,
  "is_standard": 1,
  "type": "Document Type",

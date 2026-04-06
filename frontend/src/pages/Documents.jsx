@@ -20,6 +20,8 @@ const STATUS_BADGE = { DRAFT: "bg-yellow-500/15 text-yellow-700", PUBLISHED: "bg
 export default function Documents() {
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
+    const companyFromQuery = searchParams.get("company") || "";
+    const includeCompanyDocs = searchParams.get("include_company_docs") !== "0";
     const [searchTerm, setSearchTerm] = useState("");
     const [createOpen, setCreateOpen] = useState(false);
     const [form, setForm] = useState({
@@ -36,9 +38,36 @@ export default function Documents() {
         pageSize: 100,
     });
 
+    const shouldLoadCompanyDocs =
+        includeCompanyDocs &&
+        form.entity_type === "Cheese Experience" &&
+        !!(companyFromQuery || searchParams.get("establishment_id"));
+    const companyEntityId = companyFromQuery || searchParams.get("establishment_id") || "";
+
+    const { data: companyDocs = [] } = useFrappeList("Cheese Document", {
+        enabled: shouldLoadCompanyDocs,
+        filters: {
+            entity_type: "Company",
+            entity_id: companyEntityId || undefined,
+        },
+        fields: ["name", "entity_type", "entity_id", "title", "document_type", "file_url", "status", "language", "version", "validity_date", "tags", "creation"],
+        pageSize: 100,
+    });
+
     const createMutation = useFrappeCreate("Cheese Document");
 
-    const filtered = (Array.isArray(docs) ? docs : []).filter(d => {
+    const mergedDocs = React.useMemo(() => {
+        const seen = new Set();
+        const result = [];
+        [...(Array.isArray(docs) ? docs : []), ...(Array.isArray(companyDocs) ? companyDocs : [])].forEach((d) => {
+            if (!d?.name || seen.has(d.name)) return;
+            seen.add(d.name);
+            result.push(d);
+        });
+        return result;
+    }, [docs, companyDocs]);
+
+    const filtered = mergedDocs.filter(d => {
         if (searchTerm) {
             const term = searchTerm.toLowerCase();
             return (d.title || d.name || '').toLowerCase().includes(term) || (d.entity_id || '').toLowerCase().includes(term);

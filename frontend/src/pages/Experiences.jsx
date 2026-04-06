@@ -189,7 +189,7 @@ export default function Experiences() {
                                             <DropdownMenuItem onClick={(e) => { e.stopPropagation(); navigate(`/cheese/tickets?experience=${exp.name}`); }}><Ticket className="w-3 h-3 mr-2" /> View Tickets</DropdownMenuItem>
                                             <DropdownMenuSeparator />
                                             <DropdownMenuItem onClick={(e) => { e.stopPropagation(); navigate(`/cheese/booking-policy?experience=${exp.name}`); }}><Shield className="w-3 h-3 mr-2" /> Booking Policy</DropdownMenuItem>
-                                            <DropdownMenuItem onClick={(e) => { e.stopPropagation(); navigate(`/cheese/documents?entity_type=Experience&entity_id=${exp.name}`); }}><FileText className="w-3 h-3 mr-2" /> Documents</DropdownMenuItem>
+                                            <DropdownMenuItem onClick={(e) => { e.stopPropagation(); navigate(`/cheese/documents?entity_type=${encodeURIComponent("Cheese Experience")}&entity_id=${encodeURIComponent(exp.name)}&company=${encodeURIComponent(exp.company || "")}`); }}><FileText className="w-3 h-3 mr-2" /> Documents</DropdownMenuItem>
                                             <DropdownMenuSeparator />
                                             {exp.status === "ONLINE" ? (
                                                 <DropdownMenuItem

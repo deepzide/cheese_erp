@@ -3,7 +3,7 @@
 
 import frappe
 from frappe import _
-from frappe.utils import add_to_date, now_datetime, get_datetime, cint
+from frappe.utils import now_datetime, get_datetime, cint, getdate
 from cheese.cheese.utils.pricing import calculate_ticket_price, calculate_deposit_amount
 from cheese.cheese.utils.validation import validate_booking_policy
 from cheese.cheese.utils.capacity import update_slot_capacity, get_available_capacity
@@ -84,6 +84,31 @@ def create_pending_ticket(contact_id, experience_id, slot_id, party_size, select
 		slot = frappe.get_doc("Cheese Experience Slot", slot_id)
 		experience = frappe.get_doc("Cheese Experience", experience_id)
 
+		selected_date_obj = None
+		today_date = getdate(now_datetime())
+		slot_start = getdate(slot.date_from)
+		slot_end = getdate(slot.date_to) if slot.date_to else slot_start
+		if selected_date:
+			try:
+				selected_date_obj = getdate(selected_date)
+			except Exception:
+				return validation_error("selected_date must be a valid date")
+			if selected_date_obj < today_date:
+				return validation_error("Cannot create tickets with past dates")
+			if selected_date_obj < slot_start or selected_date_obj > slot_end:
+				return validation_error("selected_date must be within the selected slot range")
+		else:
+			# For ranged slots, default booking date to today if still within the range.
+			# This keeps long-running slots bookable after date_from has passed.
+			if slot_start <= today_date <= slot_end:
+				selected_date_obj = today_date
+			else:
+				selected_date_obj = slot_start
+
+		# Hard stop for slots that are fully in the past.
+		if slot_end < today_date:
+			return validation_error("Cannot create tickets for expired slots")
+
 		# Validation 1: Capacity check
 		available = get_available_capacity(slot_id)
 		if party_size > available:
@@ -91,7 +116,8 @@ def create_pending_ticket(contact_id, experience_id, slot_id, party_size, select
 
 		# Validate booking policy
 		try:
-			slot_datetime = get_datetime(f"{slot.date_from} {slot.time_from}")
+			booking_date_for_policy = selected_date_obj or slot_start
+			slot_datetime = get_datetime(f"{booking_date_for_policy} {slot.time_from}")
 			validate_booking_policy(experience_id, slot_datetime, action="booking")
 		except frappe.ValidationError as e:
 			return validation_error(str(e))
@@ -117,13 +143,8 @@ def create_pending_ticket(contact_id, experience_id, slot_id, party_size, select
 		}
 		
 		# Store selected_date if provided
-		if selected_date:
-			from frappe.utils import getdate
-			try:
-				ticket_data["selected_date"] = getdate(selected_date)
-			except Exception:
-				# If date parsing fails, continue without selected_date
-				pass
+		if selected_date_obj:
+			ticket_data["selected_date"] = selected_date_obj
 		
 		ticket = frappe.get_doc(ticket_data)
 		ticket.insert()
@@ -886,7 +907,7 @@ def get_ticket_board(filters=None, status=None, route_id=None, establishment_id=
 		tickets = frappe.get_all(
 			"Cheese Ticket",
 			filters=filter_dict,
-			fields=["name", "status", "contact", "experience", "slot", "route", "party_size", "company", "total_price", "deposit_amount", "selected_date", "creation", "modified"]
+			fields=["name", "status", "contact", "experience", "slot", "route", "party_size", "company", "total_price", "deposit_amount", "selected_date", "expires_at", "creation", "modified"]
 		)
 		
 		for ticket in tickets:
@@ -901,18 +922,27 @@ def get_ticket_board(filters=None, status=None, route_id=None, establishment_id=
 					ticket["slot_date"] = str(ticket.selected_date) if ticket.selected_date else str(slot.date_from)
 					ticket["slot_time"] = str(slot.time_from)
 					
-					# Auto-expire past pending tickets
+					# Auto-expire pending tickets by TTL and effective booking date.
 					if ticket.status == "PENDING":
 						try:
-							slot_dt = get_datetime(f"{slot.date_from} {slot.time_from}")
-							if slot_dt < current_datetime:
+							selected_or_slot_date = ticket.selected_date or slot.date_from
+							slot_dt = get_datetime(f"{selected_or_slot_date} {slot.time_from}")
+							slot_end_date = getdate(slot.date_to) if slot.date_to else getdate(slot.date_from)
+							if (
+								(ticket.expires_at and ticket.expires_at < current_datetime)
+								or (slot_end_date < current_date)
+								or (slot_dt < current_datetime and getdate(selected_or_slot_date) == current_date)
+							):
 								frappe.db.set_value("Cheese Ticket", ticket.name, "status", "EXPIRED")
 								update_slot_capacity(ticket.slot)
 								ticket.status = "EXPIRED"
 						except Exception:
 							pass
 			else:
-				if ticket.status == "PENDING" and ticket.selected_date and getdate(ticket.selected_date) < current_date:
+				if ticket.status == "PENDING" and (
+					(ticket.expires_at and ticket.expires_at < current_datetime)
+					or (ticket.selected_date and getdate(ticket.selected_date) < current_date)
+				):
 					frappe.db.set_value("Cheese Ticket", ticket.name, "status", "EXPIRED")
 					ticket.status = "EXPIRED"
 			
@@ -1168,11 +1198,7 @@ def get_establishment_ticket_board(establishment_id, date=None):
 def convert_ticket_to_booking(ticket_id, route_id=None):
 	"""
 	Convert an existing ticket into a booking (used by the frontend only).
-	
-	- If no route_id: confirms the ticket as a single-experience reservation.
-	- If route_id: creates a Cheese Route Booking with tickets for every
-	  experience on the route, auto-selecting OPEN slots on the ticket's
-	  selected_date (or slot.date_from as fallback).
+	Always confirms the ticket as a single-experience reservation.
 	
 	This function is intentionally standalone — it does NOT call
 	confirm_ticket or create_route_reservation to avoid side-effects
@@ -1180,7 +1206,7 @@ def convert_ticket_to_booking(ticket_id, route_id=None):
 	
 	Args:
 		ticket_id: The Cheese Ticket to convert
-		route_id: (optional) Cheese Route to book
+		route_id: Ignored for backward compatibility
 	
 	Returns:
 		Success response with booking data
@@ -1200,111 +1226,23 @@ def convert_ticket_to_booking(ticket_id, route_id=None):
 				{"current_status": ticket.status}
 			)
 
-		# ── single-experience (no route) ──────────────────────────
-		if not route_id:
-			if ticket.status == "CONFIRMED":
-				return validation_error("Ticket is already confirmed")
+		if ticket.status == "CONFIRMED":
+			return validation_error("Ticket is already confirmed")
 
-			# Check TTL
-			if ticket.expires_at and ticket.expires_at < now_datetime():
-				return validation_error("Cannot confirm expired ticket")
+		# Check TTL
+		if ticket.expires_at and ticket.expires_at < now_datetime():
+			return validation_error("Cannot confirm expired ticket")
 
-			ticket.status = "CONFIRMED"
-			ticket.save()
-			update_slot_capacity(ticket.slot)
-			frappe.db.commit()
-
-			return success(
-				"Ticket confirmed as single-experience reservation",
-				{
-					"ticket_id": ticket.name,
-					"status": ticket.status,
-				}
-			)
-
-		# ── route booking ─────────────────────────────────────────
-		if not frappe.db.exists("Cheese Route", route_id):
-			return not_found("Route", route_id)
-
-		route = frappe.get_doc("Cheese Route", route_id)
-
-		if route.status != "ONLINE":
-			return validation_error(f"Route {route_id} is not ONLINE. Current status: {route.status}")
-
-		contact_id = ticket.contact
-		party_size = ticket.party_size
-		conversation_id = ticket.conversation
-
-		# Calculate total route price
-		from cheese.cheese.utils.pricing import calculate_route_price
-		total_price = calculate_route_price(route_id, party_size)
-
-		# Create Route Booking using the ticket's existing experience + slot
-		route_booking = frappe.get_doc({
-			"doctype": "Cheese Route Booking",
-			"contact": contact_id,
-			"route": route_id,
-			"status": "PENDING",
-			"total_price": total_price,
-			"deposit_required": False,
-			"deposit_amount": 0,
-			"conversation": conversation_id,
-		})
-		route_booking.insert()
-
-		# Link the existing ticket to the route booking
-		ticket.route = route_id
-		if conversation_id:
-			ticket.conversation = conversation_id
+		ticket.status = "CONFIRMED"
 		ticket.save()
-
-		route_booking.append("tickets", {
-			"ticket": ticket.name,
-			"experience": ticket.experience,
-			"slot": ticket.slot,
-			"party_size": party_size,
-			"status": ticket.status,
-		})
-
-		# Compute deposit from the ticket
-		deposit_amount = ticket.deposit_amount or 0
-		deposit_required = deposit_amount > 0
-		route_booking.deposit_required = deposit_required
-		route_booking.deposit_amount = deposit_amount
-
-		route_booking.calculate_status()
-		route_booking.save()
-
-		# Create deposit if required
-		if deposit_required and deposit_amount > 0:
-			reservation_now = now_datetime()
-			exp_doc = frappe.get_doc("Cheese Experience", ticket.experience)
-			hours = exp_doc.deposit_ttl_hours or 24
-			deposit_due_at = add_to_date(reservation_now, hours=hours, as_string=False)
-			frappe.get_doc({
-				"doctype": "Cheese Deposit",
-				"entity_type": "Cheese Route Booking",
-				"entity_id": route_booking.name,
-				"amount_required": deposit_amount,
-				"status": "PENDING",
-				"due_at": deposit_due_at,
-			}).insert()
-
+		update_slot_capacity(ticket.slot)
 		frappe.db.commit()
 
-		return created(
-			"Ticket converted to route booking successfully",
+		return success(
+			"Ticket confirmed as single-experience reservation",
 			{
-				"route_booking_id": route_booking.name,
-				"route_id": route_id,
-				"contact_id": contact_id,
-				"party_size": party_size,
-				"status": route_booking.status,
-				"total_price": total_price,
-				"deposit_required": deposit_required,
-				"deposit_amount": deposit_amount,
-				"tickets": [ticket.name],
-				"tickets_count": 1,
+				"ticket_id": ticket.name,
+				"status": ticket.status,
 			}
 		)
 	except frappe.ValidationError as e:

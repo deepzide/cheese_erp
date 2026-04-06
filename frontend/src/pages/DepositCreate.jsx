@@ -4,7 +4,8 @@ import { DollarSign } from "lucide-react";
 import { toast } from "sonner";
 import CreatePageLayout from "@/components/CreatePageLayout";
 import FrappeSearchSelect from "@/components/FrappeSearchSelect";
-import { useFrappeCreate, useFrappeDoc } from "@/lib/useApiData";
+import { useFrappeDoc } from "@/lib/useApiData";
+import { apiRequest } from "@/api/client";
 
 export default function DepositCreate() {
     const [searchParams] = useSearchParams();
@@ -18,10 +19,11 @@ export default function DepositCreate() {
         entity_type: defaultEntityType,
         entity_id: ticketId || bookingId || "",
         amount_required: "",
+        payment_amount: "",
         due_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().slice(0, 16),
     });
 
-    const createMutation = useFrappeCreate("Cheese Deposit");
+    const [submitting, setSubmitting] = useState(false);
 
     const { data: ticket, isLoading: ticketLoading } = useFrappeDoc("Cheese Ticket", form.entity_type === "Cheese Ticket" ? form.entity_id : "", {
         enabled: form.entity_type === "Cheese Ticket" && !!form.entity_id,
@@ -47,6 +49,7 @@ export default function DepositCreate() {
                 ...prev,
                 contact: ticket.contact || prev.contact,
                 amount_required: ticket.deposit_amount != null ? String(ticket.deposit_amount) : prev.amount_required,
+                payment_amount: prev.payment_amount || "",
             }));
         }
         if (form.entity_type === "Cheese Route Booking" && booking) {
@@ -54,35 +57,41 @@ export default function DepositCreate() {
                 ...prev,
                 contact: booking.contact || prev.contact,
                 amount_required: booking.deposit_amount != null ? String(booking.deposit_amount) : prev.amount_required,
+                payment_amount: prev.payment_amount || "",
             }));
         }
     }, [form.entity_type, ticket, booking]);
 
-    const handleSubmit = () => {
+    const handleSubmit = async () => {
         if (!form.entity_type || !form.entity_id) {
             toast.error("Select a reservation or ticket");
             return;
         }
-        if (!form.amount_required || Number(form.amount_required) <= 0) {
-            toast.error("Amount required must be greater than 0");
+        if (!form.payment_amount || Number(form.payment_amount) <= 0) {
+            toast.error("Payment amount must be greater than 0");
             return;
         }
-
-        createMutation.mutate({
-            entity_type: form.entity_type,
-            entity_id: form.entity_id,
-            amount_required: Number(form.amount_required),
-            amount_paid: 0,
-            status: "PENDING",
-            due_at: form.due_at || undefined,
-            bank_account: form.bank_account || undefined,
-        }, {
-            onSuccess: () => {
-                toast.success("Deposit created");
-                navigate(`/cheese/deposits`);
-            },
-            onError: (err) => toast.error(err?.message || "Failed to create deposit"),
-        });
+        setSubmitting(true);
+        try {
+            const res = await apiRequest("/api/method/cheese.api.v1.deposit_controller.record_deposit_payment", {
+                method: "POST",
+                body: JSON.stringify({
+                    ticket_id: form.entity_id,
+                    amount: Number(form.payment_amount),
+                    verification_method: "Manual",
+                }),
+            });
+            const payload = res?.data?.message || res?.data || res;
+            if (payload?.success === false) {
+                throw new Error(payload?.error?.message || payload?.message || "Failed to record deposit payment");
+            }
+            toast.success("Deposit payment recorded");
+            navigate(`/cheese/deposits`);
+        } catch (err) {
+            toast.error(err?.message || "Failed to record deposit payment");
+        } finally {
+            setSubmitting(false);
+        }
     };
 
     return (
@@ -94,13 +103,13 @@ export default function DepositCreate() {
             icon={DollarSign}
             backPath="/cheese/deposits"
             onSubmit={handleSubmit}
-            isSubmitting={createMutation.isPending}
-            submitLabel="Create Deposit"
+            isSubmitting={submitting}
+            submitLabel="Record Payment"
             isLoading={isLoading}
         >
             <div className="space-y-5">
                 <p className="text-xs text-muted-foreground">
-                    Deposits are created here only. Payment registration/modification/cancellation is not available from Deposits.
+                    This form records partial/full payments against the existing active deposit for the selected ticket/reservation.
                 </p>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                     <div className="space-y-2">
@@ -163,6 +172,18 @@ export default function DepositCreate() {
                             step="0.01"
                             value={form.amount_required}
                             onChange={(e) => setForm((prev) => ({ ...prev, amount_required: e.target.value }))}
+                            className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm"
+                            disabled
+                        />
+                    </div>
+                    <div className="space-y-2">
+                        <p className="text-xs text-muted-foreground">Payment Amount</p>
+                        <input
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            value={form.payment_amount}
+                            onChange={(e) => setForm((prev) => ({ ...prev, payment_amount: e.target.value }))}
                             className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm"
                         />
                     </div>

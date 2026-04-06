@@ -124,16 +124,17 @@ export default function ExperienceDetail() {
             return;
         }
         try {
-            await apiRequest("/api/method/frappe.model.rename_doc.rename_doc", {
+            const res = await apiRequest("/api/method/cheese.api.v1.experience_controller.rename_experience", {
                 method: "POST",
                 body: JSON.stringify({
-                    doctype: "Cheese Experience",
                     old_name: id,
                     new_name: targetId,
-                    force: 1,
-                    merge: 0,
                 }),
             });
+            const payload = res?.data?.message || res?.data || res;
+            if (payload?.success === false) {
+                throw new Error(payload?.error?.message || payload?.message || "Failed to rename experience");
+            }
             toast.success("Experience ID renamed");
             setRenameOpen(false);
             navigate(`/cheese/experiences/${encodeURIComponent(targetId)}`);

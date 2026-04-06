@@ -28,6 +28,7 @@ export default function TicketCreate() {
         selected_date: searchParams.get("date") || "",
     });
     const createMutation = useFrappeCreate("Cheese Ticket");
+    const todayStr = new Date().toISOString().slice(0, 10);
 
     // Cascading filter: fetch experiences for the selected route
     const { data: routeExperiences } = useQuery({
@@ -51,6 +52,10 @@ export default function TicketCreate() {
     const handleSubmit = () => {
         if (!form.contact || !form.experience || !form.slot) {
             toast.error("Contact, experience, and slot are required");
+            return;
+        }
+        if (form.selected_date && form.selected_date < todayStr) {
+            toast.error("Past dates are not allowed");
             return;
         }
         createMutation.mutate({
@@ -140,8 +145,12 @@ export default function TicketCreate() {
                             value={form.slot}
                             onChange={(v) => setForm(f => ({ ...f, slot: v }))}
                             placeholder="Select a slot..."
-                            // Only show slots for the selected experience
-                            filters={form.experience ? { experience: form.experience } : {}}
+                            // Slot must cover selected date (or today) within date_from..date_to range.
+                            filters={form.experience ? {
+                                experience: form.experience,
+                                date_from: ["<=", form.selected_date || todayStr],
+                                date_to: [">=", form.selected_date || todayStr],
+                            } : {}}
                         />
                     </div>
                     <div className="space-y-2">
@@ -152,15 +161,18 @@ export default function TicketCreate() {
                 </div>
 
                 {/* Selected Date */}
-                {form.selected_date && (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-                        <div className="space-y-2">
-                            <Label>Selected Date</Label>
-                            <Input type="date" value={form.selected_date} onChange={(e) => setForm(f => ({ ...f, selected_date: e.target.value }))} />
-                            <p className="text-xs text-muted-foreground">Date from the calendar slot</p>
-                        </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                    <div className="space-y-2">
+                        <Label>Selected Date</Label>
+                        <Input
+                            type="date"
+                            min={todayStr}
+                            value={form.selected_date}
+                            onChange={(e) => setForm(f => ({ ...f, selected_date: e.target.value, slot: "" }))}
+                        />
+                        <p className="text-xs text-muted-foreground">Only today or future dates are allowed</p>
                     </div>
-                )}
+                </div>
 
                 {/* Conversation */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">

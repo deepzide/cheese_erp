@@ -161,12 +161,19 @@ def create_pending_booking(contact_id, items, preferred_dates=None, conversation
 			elif item_type == "experience":
 				experience_id = item.get("experience_id")
 				slot_id = item.get("slot_id")
+				item_selected_date = item.get("selected_date") or item.get("date")
 				
 				if not experience_id or not slot_id:
 					return validation_error("experience_id and slot_id are required for experience items")
 				
 				# Create individual reservation
-				ticket_result = create_pending_ticket(contact_id, experience_id, slot_id, party_size)
+				ticket_result = create_pending_ticket(
+					contact_id,
+					experience_id,
+					slot_id,
+					party_size,
+					selected_date=item_selected_date,
+				)
 				
 				if not ticket_result.get("success"):
 					return ticket_result
