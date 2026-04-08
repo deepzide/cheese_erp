@@ -11,7 +11,8 @@
     compose_dir: "{{ project_dir }}/frappe_docker"
     compose_file: pwd.yml
     site_name: frontend
-    admin_password: admin  # puedes cambiarla si quieres
+    admin_password: admin
+    db_root_password: "123"
     s3_bucket: "{{ lookup('env', 'AWS_S3_BUCKET') | default('deepzide-backups', true) }}"
     aws_access_key_id: "{{ lookup('env', 'AWS_ACCESS_KEY_ID') | default('', true) }}"
     aws_secret_access_key: "{{ lookup('env', 'AWS_SECRET_ACCESS_KEY') | default('', true) }}"

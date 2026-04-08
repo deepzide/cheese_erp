@@ -33,7 +33,7 @@ aws s3 sync "${S3_PREFIX}/${RESTORE_DATE}/" "$RESTORE_DIR/"
 
 # 3. Identify backup files
 DB_FILE=$(ls "$RESTORE_DIR"/*-database.sql.gz 2>/dev/null | sort -r | head -1)
-FILES_FILE=$(ls "$RESTORE_DIR"/*-files.tgz 2>/dev/null | sort -r | head -1)
+FILES_FILE=$(ls "$RESTORE_DIR"/*-files.tgz 2>/dev/null | grep -v private | sort -r | head -1)
 PRIVATE_FILES=$(ls "$RESTORE_DIR"/*-private-files.tgz 2>/dev/null | sort -r | head -1)
 
 if [ -z "$DB_FILE" ]; then
@@ -69,7 +69,7 @@ if [ -n "${PRIVATE_FILES:-}" ]; then
   RESTORE_CMD="$RESTORE_CMD --with-private-files /tmp/restore/$(basename "$PRIVATE_FILES")"
 fi
 
-RESTORE_CMD="$RESTORE_CMD --force"
+RESTORE_CMD="$RESTORE_CMD --db-root-password {{ db_root_password }} --force"
 
 docker compose -f {{ compose_file }} exec -T backend $RESTORE_CMD
 
