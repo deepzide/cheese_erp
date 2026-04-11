@@ -810,3 +810,121 @@ def reconcile_deposit(deposit_id, bank_account_number=None):
 	except Exception as e:
 		frappe.log_error(f"Error in reconcile_deposit: {str(e)}")
 		return error("Failed to reconcile deposit", "SERVER_ERROR", {"error": str(e)}, 500)
+
+
+@frappe.whitelist()
+def create_remaining_balance_deposit(ticket_id=None, route_booking_id=None):
+	"""
+	Create a deposit for the remaining balance after the advance deposit has been paid.
+
+	The remaining balance = total ticket price − advance deposit amount.
+	This is only allowed when the advance deposit status is PAID.
+
+	Args:
+		ticket_id: Cheese Ticket ID (provide one of ticket_id or route_booking_id)
+		route_booking_id: Cheese Route Booking ID
+
+	Returns:
+		Success response with new deposit data
+	"""
+	try:
+		if not ticket_id and not route_booking_id:
+			return validation_error("Either ticket_id or route_booking_id is required")
+
+		if route_booking_id:
+			entity_type = "Cheese Route Booking"
+			entity_id = route_booking_id
+			if not frappe.db.exists(entity_type, entity_id):
+				return not_found("Route Booking", entity_id)
+			booking = frappe.get_doc(entity_type, entity_id)
+			total_price = booking.total_price or 0
+		else:
+			entity_type = "Cheese Ticket"
+			entity_id = ticket_id
+			if not frappe.db.exists(entity_type, entity_id):
+				return not_found("Ticket", entity_id)
+			ticket = frappe.get_doc(entity_type, entity_id)
+			# Calculate total price from experience pricing
+			from cheese.cheese.utils.pricing import calculate_ticket_price
+			price_data = calculate_ticket_price(
+				ticket.experience, ticket.party_size, ticket.route
+			)
+			total_price = price_data.get("total_price", 0)
+
+		# Get the advance deposit — must exist and be PAID
+		advance_deposit = frappe.db.get_value(
+			"Cheese Deposit",
+			{"entity_type": entity_type, "entity_id": entity_id, "status": "PAID"},
+			["name", "amount_required", "amount_paid"],
+			as_dict=True,
+		)
+		if not advance_deposit:
+			return validation_error(
+				"No PAID advance deposit found. The advance must be paid before creating a remaining-balance deposit."
+			)
+
+		advance_paid = advance_deposit.amount_paid or advance_deposit.amount_required or 0
+		remaining = total_price - advance_paid
+		if remaining <= 0:
+			return validation_error(
+				f"No remaining balance. Total price: {total_price}, already paid: {advance_paid}"
+			)
+
+		# Make sure there isn't already an active remaining-balance deposit
+		existing_pending = frappe.db.get_value(
+			"Cheese Deposit",
+			{
+				"entity_type": entity_type,
+				"entity_id": entity_id,
+				"status": ["in", ["PENDING", "OVERDUE"]],
+			},
+			"name",
+		)
+		if existing_pending:
+			return validation_error(
+				f"A pending deposit ({existing_pending}) already exists for this entity. "
+				"Pay or cancel it before creating another."
+			)
+
+		new_deposit = frappe.get_doc(
+			{
+				"doctype": "Cheese Deposit",
+				"entity_type": entity_type,
+				"entity_id": entity_id,
+				"amount_required": remaining,
+				"status": "PENDING",
+			}
+		)
+		new_deposit.insert()
+		frappe.db.commit()
+
+		bank_accounts = []
+		if entity_type == "Cheese Ticket":
+			ticket_doc = frappe.get_doc("Cheese Ticket", entity_id)
+			bank_accounts = _bank_accounts_for_ticket(ticket_doc)
+
+		return created(
+			"Remaining balance deposit created successfully",
+			{
+				"deposit_id": new_deposit.name,
+				"entity_type": entity_type,
+				"entity_id": entity_id,
+				"total_price": total_price,
+				"advance_paid": advance_paid,
+				"remaining_balance": remaining,
+				"amount_required": remaining,
+				"status": new_deposit.status,
+				"bank_account": bank_accounts,
+				"instructions": _instructions_for_deposit(remaining, bank_accounts),
+			},
+		)
+	except frappe.ValidationError as e:
+		return validation_error(str(e))
+	except Exception as e:
+		frappe.log_error(f"Error in create_remaining_balance_deposit: {str(e)}")
+		return error(
+			"Failed to create remaining balance deposit",
+			"SERVER_ERROR",
+			{"error": str(e)},
+			500,
+		)

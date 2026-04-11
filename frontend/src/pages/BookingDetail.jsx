@@ -1,21 +1,33 @@
 import React from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useFrappeDoc } from "@/lib/useApiData";
 import DetailPageLayout from "@/components/DetailPageLayout";
 import { apiRequest } from "@/api/client";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Calendar, Clock, MapPin, ShoppingCart, Users, Wallet, Shield, Ticket, XCircle } from "lucide-react";
+import {
+    Calendar, Clock, MapPin, ShoppingCart, Users, Wallet, Shield, Ticket,
+    XCircle, DollarSign, CreditCard, CheckCircle, AlertCircle
+} from "lucide-react";
 import { toast } from "sonner";
 
 const STATUS_CONFIG = {
-    PENDING: { label: "Pending", badge: "bg-yellow-500/15 text-yellow-700 dark:text-yellow-400" },
-    PARTIALLY_CONFIRMED: { label: "Partial", badge: "bg-blue-500/15 text-blue-700 dark:text-blue-400" },
-    CONFIRMED: { label: "Confirmed", badge: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400" },
-    CANCELLED: { label: "Cancelled", badge: "bg-red-500/15 text-red-700 dark:text-red-400" },
+    PENDING: { label: "Pending", badge: "bg-yellow-500/15 text-yellow-700 dark:text-yellow-400 border-yellow-200 dark:border-yellow-800" },
+    PARTIALLY_CONFIRMED: { label: "Partial", badge: "bg-blue-500/15 text-blue-700 dark:text-blue-400 border-blue-200 dark:border-blue-800" },
+    CONFIRMED: { label: "Confirmed", badge: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800" },
+    CANCELLED: { label: "Cancelled", badge: "bg-red-500/15 text-red-700 dark:text-red-400 border-red-200 dark:border-red-800" },
 };
+
+const DEPOSIT_STATUS_BADGE = {
+    PAID: "bg-emerald-500/15 text-emerald-700 border-emerald-200",
+    PENDING: "bg-yellow-500/15 text-yellow-700 border-yellow-200",
+    OVERDUE: "bg-red-500/15 text-red-700 border-red-200",
+    NONE: "bg-gray-500/15 text-gray-600 border-gray-200",
+};
+
+const fmt = (v) => `$${Number(v || 0).toLocaleString(undefined, { minimumFractionDigits: 0 })}`;
 
 export default function BookingDetail() {
     const { id } = useParams();
@@ -40,8 +52,8 @@ export default function BookingDetail() {
 
     const status = booking?.status || "PENDING";
     const config = STATUS_CONFIG[status] || STATUS_CONFIG.PENDING;
-
     const itinerary = routeSummary?.itinerary || [];
+    const ps = routeSummary?.payment_summary || {};
 
     return (
         <DetailPageLayout
@@ -53,167 +65,289 @@ export default function BookingDetail() {
         >
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 <div className="lg:col-span-2 space-y-6">
+
+                    {/* ─── General Details Table ─── */}
+                    <Card className="border-border/60 shadow-sm overflow-hidden">
+                        <CardHeader className="border-b bg-muted/20 pb-4">
+                            <CardTitle className="text-sm font-semibold text-muted-foreground uppercase flex items-center">
+                                <Ticket className="w-4 h-4 mr-2" /> General Details
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent className="p-0">
+                            {routeSummaryLoading ? (
+                                <div className="p-6 space-y-3">
+                                    {[1, 2].map(i => <div key={i} className="h-10 bg-muted/30 rounded animate-pulse" />)}
+                                </div>
+                            ) : (
+                                <div className="overflow-x-auto">
+                                    <table className="w-full text-sm">
+                                        <thead>
+                                            <tr className="bg-muted/30 text-muted-foreground text-xs uppercase">
+                                                <th className="text-left px-4 py-3 font-semibold">Experience</th>
+                                                <th className="text-left px-4 py-3 font-semibold">Ticket ID</th>
+                                                <th className="text-right px-4 py-3 font-semibold">Unit Cost</th>
+                                                <th className="text-center px-4 py-3 font-semibold">Party Size</th>
+                                                <th className="text-right px-4 py-3 font-semibold">Total</th>
+                                                <th className="text-right px-4 py-3 font-semibold">Advance</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-border/50">
+                                            {itinerary.map((it) => (
+                                                <tr key={it.ticket_id} className="hover:bg-muted/10 transition-colors">
+                                                    <td className="px-4 py-3 font-medium">
+                                                        <button
+                                                            className="text-left hover:text-cheese-600 transition-colors"
+                                                            onClick={() => navigate(`/cheese/experiences/${it.experience_id}`)}
+                                                        >
+                                                            {it.experience_name || it.experience_id}
+                                                        </button>
+                                                    </td>
+                                                    <td className="px-4 py-3">
+                                                        <button
+                                                            className="text-xs font-mono text-muted-foreground hover:text-cheese-600 transition-colors"
+                                                            onClick={() => navigate(`/cheese/tickets/${it.ticket_id}`)}
+                                                        >
+                                                            {it.ticket_id}
+                                                        </button>
+                                                    </td>
+                                                    <td className="px-4 py-3 text-right tabular-nums">{fmt(it.unit_cost)}</td>
+                                                    <td className="px-4 py-3 text-center">{it.party_size || 1}</td>
+                                                    <td className="px-4 py-3 text-right font-semibold tabular-nums">{fmt(it.total_per_ticket)}</td>
+                                                    <td className="px-4 py-3 text-right tabular-nums">{fmt(it.deposit_amount)}</td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                        <tfoot>
+                                            <tr className="bg-muted/20 font-semibold">
+                                                <td className="px-4 py-3" colSpan={4}>Total</td>
+                                                <td className="px-4 py-3 text-right tabular-nums">{fmt(ps.grand_total)}</td>
+                                                <td className="px-4 py-3 text-right tabular-nums">{fmt(ps.total_advance_required)}</td>
+                                            </tr>
+                                        </tfoot>
+                                    </table>
+                                </div>
+                            )}
+                        </CardContent>
+                    </Card>
+
+                    {/* ─── Payment Information ─── */}
+                    <Card className="border-border/60 shadow-sm overflow-hidden">
+                        <CardHeader className="border-b bg-muted/20 pb-4">
+                            <CardTitle className="text-sm font-semibold text-muted-foreground uppercase flex items-center">
+                                <DollarSign className="w-4 h-4 mr-2" /> Payment Information
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent className="p-0">
+                            {!routeSummaryLoading && (
+                                <div className="overflow-x-auto">
+                                    <table className="w-full text-sm">
+                                        <thead>
+                                            <tr className="bg-muted/30 text-muted-foreground text-xs uppercase">
+                                                <th className="text-left px-4 py-3 font-semibold">Concept</th>
+                                                <th className="text-right px-4 py-3 font-semibold">Total</th>
+                                                <th className="text-right px-4 py-3 font-semibold">Paid</th>
+                                                <th className="text-right px-4 py-3 font-semibold">Pending</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-border/50">
+                                            {/* Advance per experience */}
+                                            {itinerary.map((it) => {
+                                                const advancePaid = Math.min(it.deposit_paid || 0, it.deposit_amount || 0);
+                                                const advancePending = (it.deposit_amount || 0) - advancePaid;
+                                                return (
+                                                    <tr key={`adv-${it.ticket_id}`} className="hover:bg-muted/10">
+                                                        <td className="px-4 py-2.5">
+                                                            <span className="text-muted-foreground">Advance —</span> {it.experience_name}
+                                                        </td>
+                                                        <td className="px-4 py-2.5 text-right tabular-nums">{fmt(it.deposit_amount)}</td>
+                                                        <td className="px-4 py-2.5 text-right tabular-nums text-emerald-600">{fmt(advancePaid)}</td>
+                                                        <td className="px-4 py-2.5 text-right tabular-nums text-red-600">{fmt(advancePending)}</td>
+                                                    </tr>
+                                                );
+                                            })}
+                                            {/* Advance subtotal */}
+                                            <tr className="bg-muted/10 font-medium">
+                                                <td className="px-4 py-2.5">Señas (Advances)</td>
+                                                <td className="px-4 py-2.5 text-right tabular-nums">{fmt(ps.total_advance_required)}</td>
+                                                <td className="px-4 py-2.5 text-right tabular-nums text-emerald-600">{fmt(ps.total_advance_paid)}</td>
+                                                <td className="px-4 py-2.5 text-right tabular-nums text-red-600">{fmt(ps.advance_pending)}</td>
+                                            </tr>
+                                            {/* Remaining per experience */}
+                                            {itinerary.map((it) => {
+                                                const remainingTotal = (it.total_per_ticket || 0) - (it.deposit_amount || 0);
+                                                const remainingPaid = Math.max((it.deposit_paid || 0) - (it.deposit_amount || 0), 0);
+                                                const remainingPending = remainingTotal - remainingPaid;
+                                                return (
+                                                    <tr key={`rem-${it.ticket_id}`} className="hover:bg-muted/10">
+                                                        <td className="px-4 py-2.5">
+                                                            <span className="text-muted-foreground">Remaining —</span> {it.experience_name}
+                                                        </td>
+                                                        <td className="px-4 py-2.5 text-right tabular-nums">{fmt(remainingTotal)}</td>
+                                                        <td className="px-4 py-2.5 text-right tabular-nums text-emerald-600">{fmt(remainingPaid)}</td>
+                                                        <td className="px-4 py-2.5 text-right tabular-nums text-red-600">{fmt(remainingPending)}</td>
+                                                    </tr>
+                                                );
+                                            })}
+                                            {/* Remaining subtotal */}
+                                            <tr className="bg-muted/10 font-medium">
+                                                <td className="px-4 py-2.5">Remanentes</td>
+                                                <td className="px-4 py-2.5 text-right tabular-nums">
+                                                    {fmt((ps.grand_total || 0) - (ps.total_advance_required || 0))}
+                                                </td>
+                                                <td className="px-4 py-2.5 text-right tabular-nums text-emerald-600">
+                                                    {fmt(Math.max((ps.total_paid || 0) - (ps.total_advance_paid || 0), 0))}
+                                                </td>
+                                                <td className="px-4 py-2.5 text-right tabular-nums text-red-600">
+                                                    {fmt((ps.grand_total || 0) - (ps.total_advance_required || 0) - Math.max((ps.total_paid || 0) - (ps.total_advance_paid || 0), 0))}
+                                                </td>
+                                            </tr>
+                                        </tbody>
+                                        {/* Grand total */}
+                                        <tfoot>
+                                            <tr className="bg-muted/30 font-bold text-base">
+                                                <td className="px-4 py-3">Total</td>
+                                                <td className="px-4 py-3 text-right tabular-nums">{fmt(ps.grand_total)}</td>
+                                                <td className="px-4 py-3 text-right tabular-nums text-emerald-600">{fmt(ps.total_paid)}</td>
+                                                <td className="px-4 py-3 text-right tabular-nums text-red-600">{fmt(ps.total_pending)}</td>
+                                            </tr>
+                                        </tfoot>
+                                    </table>
+                                </div>
+                            )}
+                        </CardContent>
+                    </Card>
+
+                    {/* ─── Booking Card (Summary) ─── */}
+                    <Card className="border-border/60 shadow-sm overflow-hidden">
+                        <CardHeader className="border-b bg-muted/20 pb-4">
+                            <CardTitle className="text-sm font-semibold text-muted-foreground uppercase flex items-center">
+                                <CreditCard className="w-4 h-4 mr-2" /> Booking Card
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent className="p-0">
+                            {!routeSummaryLoading && (
+                                <table className="w-full text-sm">
+                                    <thead>
+                                        <tr className="bg-muted/30 text-muted-foreground text-xs uppercase">
+                                            <th className="text-left px-4 py-3 font-semibold">Concept</th>
+                                            <th className="text-right px-4 py-3 font-semibold">Paid</th>
+                                            <th className="text-right px-4 py-3 font-semibold">Pending</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-border/50">
+                                        <tr className="hover:bg-muted/10">
+                                            <td className="px-4 py-3 flex items-center gap-2">
+                                                <Wallet className="w-4 h-4 text-cheese-600" /> Advance Payment
+                                            </td>
+                                            <td className="px-4 py-3 text-right tabular-nums font-medium text-emerald-600">
+                                                {fmt(ps.total_advance_paid)}
+                                            </td>
+                                            <td className="px-4 py-3 text-right tabular-nums font-medium text-red-600">
+                                                {fmt(ps.advance_pending)}
+                                            </td>
+                                        </tr>
+                                        <tr className="hover:bg-muted/10">
+                                            <td className="px-4 py-3 flex items-center gap-2">
+                                                <DollarSign className="w-4 h-4 text-cheese-600" /> Remaining Balance
+                                            </td>
+                                            <td className="px-4 py-3 text-right tabular-nums font-medium text-emerald-600">
+                                                {fmt(Math.max((ps.total_paid || 0) - (ps.total_advance_paid || 0), 0))}
+                                            </td>
+                                            <td className="px-4 py-3 text-right tabular-nums font-medium text-red-600">
+                                                {fmt((ps.grand_total || 0) - (ps.total_advance_required || 0) - Math.max((ps.total_paid || 0) - (ps.total_advance_paid || 0), 0))}
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            )}
+                        </CardContent>
+                    </Card>
+
+                    {/* ─── Itinerary ─── */}
                     <Card className="border-border/60 shadow-sm">
-                        <CardContent className="p-6 space-y-4">
-                            {/* Price Summary */}
-                            {(() => {
-                                const totalPrice = Number(booking?.total_price || routeSummary?.total_price || 0);
-                                const depositAmount = Number(booking?.deposit_amount || 0);
-                                const remainingBalance = totalPrice - depositAmount;
-                                return (
-                                    <div className="rounded-lg border border-border/60 bg-muted/20 divide-y divide-border/50">
-                                        <div className="flex items-center justify-between px-4 py-3">
-                                            <p className="text-sm text-muted-foreground">Booking Total</p>
-                                            <p className="text-sm font-semibold">${totalPrice.toLocaleString()}</p>
-                                        </div>
-                                        {booking?.deposit_required ? (
-                                            <>
-                                                <div className="flex items-center justify-between px-4 py-3">
-                                                    <p className="text-sm text-muted-foreground flex items-center gap-1.5">
-                                                        <Wallet className="w-3.5 h-3.5" /> Deposit (paid)
-                                                    </p>
-                                                    <p className="text-sm font-semibold text-emerald-600 dark:text-emerald-400">
-                                                        −${depositAmount.toLocaleString()}
-                                                    </p>
-                                                </div>
-                                                <div className="flex items-center justify-between px-4 py-3 bg-muted/30">
-                                                    <p className="text-sm font-semibold">Remaining Balance</p>
-                                                    <p className="text-base font-bold text-cheese-600">
-                                                        ${remainingBalance.toLocaleString()}
-                                                    </p>
-                                                </div>
-                                            </>
-                                        ) : null}
-                                    </div>
-                                );
-                            })()}
-                            <div className="flex items-center justify-between gap-4 pt-1">
-                                <div className="space-y-1">
-                                    <p className="text-xs text-muted-foreground">Deposit Required</p>
-                                    <p className="text-sm font-medium">
-                                        {booking?.deposit_required ? "Yes" : "No"}
-                                    </p>
+                        <CardHeader className="border-b bg-muted/20 pb-4">
+                            <CardTitle className="text-sm font-semibold text-muted-foreground uppercase flex items-center">
+                                <Calendar className="w-4 h-4 mr-2" /> Itinerary
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent className="p-0">
+                            {routeSummaryLoading ? (
+                                <div className="p-6 space-y-2">
+                                    {[1, 2, 3].map(i => <div key={i} className="h-12 bg-muted/30 rounded animate-pulse" />)}
                                 </div>
-                            </div>
-
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                <div>
-                                    <p className="text-xs text-muted-foreground flex items-center gap-2">
-                                        <Users className="w-3 h-3" /> Contact
-                                    </p>
-                                    <p className="text-sm font-medium">{booking?.contact || "—"}</p>
-                                </div>
-                                <div>
-                                    <p className="text-xs text-muted-foreground flex items-center gap-2">
-                                        <MapPin className="w-3 h-3" /> Route
-                                    </p>
-                                    <p className="text-sm font-medium">{booking?.route || "—"}</p>
-                                </div>
-                            </div>
-
-                            <div className="pt-2">
-                                <p className="text-xs text-muted-foreground mb-3">Itinerary (date & time)</p>
-                                {routeSummaryLoading ? (
-                                    <div className="space-y-2">
-                                        {Array.from({ length: 3 }).map((_, i) => (
-                                            <div key={i} className="h-12 bg-muted/20 rounded-md" />
-                                        ))}
-                                    </div>
-                                ) : itinerary.length > 0 ? (
-                                    <div className="divide-y divide-border/50 rounded-lg border border-border/60 overflow-hidden">
-                                        {itinerary.map((it) => (
-                                            <div
-                                                key={it.ticket_id || `${it.experience_id}-${it.date}-${it.time}`}
-                                                className="p-4 flex items-start justify-between gap-4 hover:bg-muted/10"
-                                            >
-                                                <div className="min-w-0">
-                                                    <p className="text-sm font-medium truncate">
-                                                        {it.experience_name || it.experience_id || "—"}
-                                                    </p>
-                                                    <div className="mt-1 space-y-1">
-                                                        <p className="text-xs text-muted-foreground flex items-center gap-2">
-                                                            <Calendar className="w-3 h-3" />
-                                                            <span>{it.date || "—"}</span>
-                                                            <span className="text-muted-foreground/70">•</span>
-                                                            <span>{it.time || "—"}</span>
-                                                        </p>
-                                                        <p className="text-[11px] text-muted-foreground">
-                                                            Status: {it.status || "—"} • Party: {it.party_size || 1}
-                                                        </p>
-                                                    </div>
-                                                </div>
-                                                <div className="shrink-0">
-                                                    <Button
-                                                        type="button"
-                                                        variant="outline"
-                                                        onClick={() => navigate(`/cheese/experiences/${it.experience_id}`)}
-                                                    >
-                                                        View Experience
-                                                    </Button>
+                            ) : itinerary.length > 0 ? (
+                                <div className="divide-y divide-border/50">
+                                    {itinerary.map((it) => (
+                                        <div
+                                            key={it.ticket_id}
+                                            className="p-4 flex items-center justify-between gap-4 hover:bg-muted/10 cursor-pointer transition-colors"
+                                            onClick={() => navigate(`/cheese/tickets/${it.ticket_id}`)}
+                                        >
+                                            <div className="min-w-0">
+                                                <p className="text-sm font-medium truncate">{it.experience_name}</p>
+                                                <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
+                                                    <span className="flex items-center gap-1"><Calendar className="w-3 h-3" /> {it.date}</span>
+                                                    {it.time && <span className="flex items-center gap-1"><Clock className="w-3 h-3" /> {it.time}</span>}
+                                                    <span className="flex items-center gap-1"><Users className="w-3 h-3" /> {it.party_size}</span>
                                                 </div>
                                             </div>
-                                        ))}
-                                    </div>
-                                ) : (
-                                    <p className="text-sm text-muted-foreground">No itinerary found.</p>
-                                )}
-                            </div>
+                                            <div className="flex items-center gap-2 shrink-0">
+                                                <Badge variant="outline" className={DEPOSIT_STATUS_BADGE[it.deposit_status] || DEPOSIT_STATUS_BADGE.NONE}>
+                                                    {it.deposit_status || "—"}
+                                                </Badge>
+                                                <Badge variant="outline" className="text-xs">{it.status}</Badge>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            ) : (
+                                <div className="p-8 text-center text-muted-foreground text-sm">No itinerary found.</div>
+                            )}
                         </CardContent>
                     </Card>
                 </div>
 
+                {/* ─── Right Sidebar ─── */}
                 <div className="space-y-6">
+                    {/* Info */}
                     <Card className="border-border/60 shadow-sm">
-                        <CardContent className="p-6 space-y-3">
-                            <p className="text-sm font-semibold flex items-center gap-2">
-                                <ShoppingCart className="w-4 h-4 text-cheese-600" /> Quick Actions
-                            </p>
+                        <CardContent className="p-6 space-y-4">
+                            <div className="grid grid-cols-1 gap-4">
+                                <div>
+                                    <p className="text-xs text-muted-foreground flex items-center gap-1"><Users className="w-3 h-3" /> Contact</p>
+                                    <button className="text-sm font-medium hover:text-cheese-600" onClick={() => booking?.contact && navigate(`/cheese/contacts/${booking.contact}`)}>{booking?.contact || "—"}</button>
+                                </div>
+                                <div>
+                                    <p className="text-xs text-muted-foreground flex items-center gap-1"><MapPin className="w-3 h-3" /> Route</p>
+                                    <button className="text-sm font-medium hover:text-cheese-600" onClick={() => booking?.route && navigate(`/cheese/routes/${booking.route}`)}>{booking?.route || "—"}</button>
+                                </div>
+                            </div>
+                        </CardContent>
+                    </Card>
 
+                    {/* Quick Actions */}
+                    <Card className="border-border/60 shadow-sm bg-primary/5 border-primary/20">
+                        <CardHeader className="pb-2">
+                            <CardTitle className="text-sm font-semibold text-primary flex items-center gap-2">
+                                <ShoppingCart className="w-4 h-4" /> Quick Actions
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-2 p-4 pt-0">
                             <div className="flex flex-col gap-2">
-                                <Button
-                                    type="button"
-                                    variant="outline"
-                                    onClick={() => booking?.contact && navigate(`/cheese/contacts/${booking.contact}`)}
-                                    disabled={!booking?.contact}
-                                >
-                                    <Users className="w-4 h-4 mr-2" /> Contact
-                                </Button>
-                                <Button
-                                    type="button"
-                                    variant="outline"
-                                    onClick={() => booking?.route && navigate(`/cheese/routes/${booking.route}`)}
-                                    disabled={!booking?.route}
-                                >
-                                    <MapPin className="w-4 h-4 mr-2" /> Route
-                                </Button>
-                                <Button
-                                    type="button"
-                                    variant="outline"
-                                    onClick={() => navigate(`/cheese/deposits?entity_id=${encodeURIComponent(booking?.name || "")}`)}
-                                    disabled={!booking?.name}
-                                >
+                                <Button variant="outline" size="sm" className="justify-start" onClick={() => navigate(`/cheese/deposits?entity_id=${encodeURIComponent(booking?.name || "")}`)}>
                                     <Wallet className="w-4 h-4 mr-2" /> Deposits
                                 </Button>
-                                <Button
-                                    type="button"
-                                    variant="outline"
-                                    onClick={() => navigate(`/cheese/support/new?contact=${encodeURIComponent(booking?.contact || "")}&booking=${encodeURIComponent(booking?.name || "")}`)}
-                                    disabled={!booking?.contact}
-                                >
-                                    <Shield className="w-4 h-4 mr-2" /> Support Case
-                                </Button>
-                                <Button
-                                    type="button"
-                                    variant="outline"
-                                    onClick={() => navigate(`/cheese/tickets?booking=${encodeURIComponent(booking?.name || "")}`)}
-                                    disabled={!booking?.name}
-                                >
+                                <Button variant="outline" size="sm" className="justify-start" onClick={() => navigate(`/cheese/tickets?booking=${encodeURIComponent(booking?.name || "")}`)}>
                                     <Ticket className="w-4 h-4 mr-2" /> Tickets
+                                </Button>
+                                <Button variant="outline" size="sm" className="justify-start" onClick={() => navigate(`/cheese/support/new?contact=${encodeURIComponent(booking?.contact || "")}&booking=${encodeURIComponent(booking?.name || "")}`)}>
+                                    <Shield className="w-4 h-4 mr-2" /> Support Case
                                 </Button>
                                 {(status === "PENDING" || status === "CONFIRMED" || status === "PARTIALLY_CONFIRMED") && (
                                     <Button
-                                        type="button"
                                         variant="destructive"
+                                        size="sm"
+                                        className="justify-start"
                                         onClick={() => {
                                             if (window.confirm("Cancel this booking? This cannot be undone.")) {
                                                 apiRequest("/api/method/cheese.api.v1.route_booking_controller.cancel_route_booking", {
@@ -233,7 +367,7 @@ export default function BookingDetail() {
                         </CardContent>
                     </Card>
 
-                    {booking?.expires_at ? (
+                    {booking?.expires_at && (
                         <Card className="border-border/60 shadow-sm">
                             <CardContent className="p-6 space-y-2">
                                 <p className="text-xs text-muted-foreground flex items-center gap-2">
@@ -244,10 +378,9 @@ export default function BookingDetail() {
                                 </p>
                             </CardContent>
                         </Card>
-                    ) : null}
+                    )}
                 </div>
             </div>
         </DetailPageLayout>
     );
 }
-

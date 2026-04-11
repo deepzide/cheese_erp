@@ -117,9 +117,10 @@ export default function Dashboard() {
         error: pendingActionsError,
         refetch: refetchPendingActions,
     } = useQuery({
-        queryKey: ["pending-actions", period],
+        queryKey: ["pending-actions"],
         queryFn: async () => {
-            const result = await dashboardService.getPendingActions(null, dateFrom, dateTo);
+            // Pending actions should show ALL currently-pending tickets regardless of period
+            const result = await dashboardService.getPendingActions(null, null, null);
             const payload = result?.data?.message || result?.data || result;
             return payload?.data || payload || {};
         },

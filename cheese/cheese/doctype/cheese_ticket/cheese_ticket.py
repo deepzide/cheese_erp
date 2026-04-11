@@ -222,6 +222,13 @@ class CheeseTicket(Document):
 			elif self.status == "EXPIRED":
 				self.send_status_notification("expired")
 
+			# Fire bot webhook for all relevant status changes
+			try:
+				from cheese.cheese.utils.notifications import enqueue_ticket_status_webhook
+				enqueue_ticket_status_webhook(self.name, self.status)
+			except Exception:
+				pass  # Never block the save
+
 	def log_status_change(self):
 		"""Log status change to System Event"""
 		try:

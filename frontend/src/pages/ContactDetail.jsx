@@ -232,7 +232,7 @@ export default function ContactDetail() {
                                     ) : (
                                         <div className="space-y-2">
                                             {conversations.map(c => (
-                                                <div key={c.name} className="flex items-center justify-between p-3 rounded-lg border border-border hover:bg-muted/50 cursor-pointer transition-colors" onClick={() => navigate(`/cheese/conversations?contact=${id}`)}>
+                                                <div key={c.name} className="flex items-center justify-between p-3 rounded-lg border border-border hover:bg-muted/50 cursor-pointer transition-colors" onClick={() => navigate(`/cheese/conversations/${c.name}`)}>
                                                     <div className="min-w-0">
                                                         <p className="text-sm font-medium">{c.name}</p>
                                                         <p className="text-xs text-muted-foreground truncate">{c.summary || "No summary"}</p>

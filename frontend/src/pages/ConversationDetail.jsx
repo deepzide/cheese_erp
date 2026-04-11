@@ -101,13 +101,38 @@ export default function ConversationDetail() {
                         </div>
                     ))
                 ) : messages.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center py-20 text-muted-foreground">
+                    <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
                         <MessageSquare className="w-16 h-16 opacity-20 mb-4" />
-                        <p>No messages in this conversation</p>
-                        {convo?.transcript_url && (
-                            <Button variant="link" className="mt-2" onClick={() => window.open(convo.transcript_url, "_blank")}>
-                                View external transcript
-                            </Button>
+                        {convo?.summary ? (
+                            <div className="max-w-lg text-center space-y-4">
+                                <p className="text-sm font-medium text-foreground">Conversation Summary</p>
+                                <div className="text-sm text-left bg-muted/30 rounded-lg p-4" dangerouslySetInnerHTML={{ __html: convo.summary }} />
+                                {convo?.highlights_json && (() => {
+                                    try {
+                                        const highlights = JSON.parse(convo.highlights_json);
+                                        if (Array.isArray(highlights) && highlights.length > 0) {
+                                            return (
+                                                <div className="text-left space-y-2">
+                                                    <p className="text-xs font-semibold text-muted-foreground uppercase">Highlights</p>
+                                                    <ul className="text-sm space-y-1 list-disc list-inside">
+                                                        {highlights.map((h, i) => <li key={i}>{typeof h === "string" ? h : JSON.stringify(h)}</li>)}
+                                                    </ul>
+                                                </div>
+                                            );
+                                        }
+                                    } catch { return null; }
+                                    return null;
+                                })()}
+                            </div>
+                        ) : (
+                            <>
+                                <p>No messages in this conversation</p>
+                                {convo?.transcript_url && (
+                                    <Button variant="link" className="mt-2" onClick={() => window.open(convo.transcript_url, "_blank")}>
+                                        View external transcript
+                                    </Button>
+                                )}
+                            </>
                         )}
                     </div>
                 ) : (

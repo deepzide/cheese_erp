@@ -215,12 +215,15 @@ def update_contact(contact_id, name=None, phone=None, email=None, preferred_lang
 				return validation_error(f"Contact with phone number {new_phone} already exists: {existing_by_phone[0].name}")
 		
 		# Save triggers CheeseContact.on_update to sync document name with phone only (not full_name).
+		# Preserve original contact_id — it must stay immutable unless phone is explicitly changed.
+		original_contact_id = contact_id
 		contact.save()
 		frappe.db.commit()
 		contact.reload()
 
-		# contact_id only changes when phone changes (name is keyed to phone). Name-only updates keep the same id.
-		final_contact_id = contact.name
+		# contact_id only changes when phone changes (name is keyed to phone).
+		# Name-only updates keep the same id.
+		final_contact_id = contact.name if new_phone else original_contact_id
 		
 		return success(
 			"Contact updated successfully",

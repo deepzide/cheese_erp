@@ -398,8 +398,13 @@ def get_route_summary(route_booking_id):
 		route_booking = frappe.get_doc("Cheese Route Booking", route_booking_id)
 		route = frappe.get_doc("Cheese Route", route_booking.route)
 		
-		# Build itinerary from tickets
+		# Build itinerary from tickets with financial data
 		itinerary = []
+		total_advance_paid = 0
+		total_advance_required = 0
+		total_all_paid = 0
+		grand_total = 0
+
 		for ticket_row in route_booking.tickets:
 			if ticket_row.ticket:
 				ticket = frappe.get_doc("Cheese Ticket", ticket_row.ticket)
@@ -409,7 +414,28 @@ def get_route_summary(route_booking_id):
 				# Use selected_date if available, otherwise fall back to slot.date_from
 				display_date = str(ticket.selected_date) if ticket.selected_date else str(slot.date_from)
 				display_time = str(slot.time_from) if slot.time_from else None
-				
+
+				# Financial data
+				unit_cost = experience.route_price or experience.individual_price or 0
+				total_per_ticket = unit_cost * (ticket.party_size or 1)
+				deposit_amount = ticket.deposit_amount or 0
+
+				# Fetch deposit records for this ticket
+				deposits = frappe.get_all(
+					"Cheese Deposit",
+					filters={"entity_type": "Cheese Ticket", "entity_id": ticket.name},
+					fields=["name", "status", "amount_required", "amount_paid"],
+					order_by="creation asc",
+				)
+				deposit_paid = sum(d.amount_paid or 0 for d in deposits)
+				deposit_status = deposits[0].status if deposits else "NONE"
+				remaining_balance = total_per_ticket - deposit_paid
+
+				total_advance_required += deposit_amount
+				total_advance_paid += min(deposit_paid, deposit_amount)
+				total_all_paid += deposit_paid
+				grand_total += total_per_ticket
+
 				itinerary.append({
 					"ticket_id": ticket.name,
 					"experience_id": experience.name,
@@ -417,11 +443,29 @@ def get_route_summary(route_booking_id):
 					"date": display_date,
 					"time": display_time,
 					"status": ticket.status,
-					"party_size": ticket.party_size
+					"party_size": ticket.party_size,
+					# Financial fields
+					"unit_cost": unit_cost,
+					"total_per_ticket": total_per_ticket,
+					"deposit_amount": deposit_amount,
+					"deposit_status": deposit_status,
+					"deposit_paid": deposit_paid,
+					"remaining_balance": max(remaining_balance, 0),
 				})
 		
 		# Sort by date/time
 		itinerary.sort(key=lambda x: (x["date"], x["time"]))
+
+		# Booking-level payment summary
+		payment_summary = {
+			"grand_total": grand_total,
+			"total_advance_required": total_advance_required,
+			"total_advance_paid": total_advance_paid,
+			"advance_pending": total_advance_required - total_advance_paid,
+			"total_paid": total_all_paid,
+			"total_pending": grand_total - total_all_paid,
+			"remaining_balance": grand_total - total_all_paid,
+		}
 		
 		return success(
 			"Route summary retrieved successfully",
@@ -435,7 +479,8 @@ def get_route_summary(route_booking_id):
 				"deposit_required": route_booking.deposit_required,
 				"deposit_amount": route_booking.deposit_amount,
 				"itinerary": itinerary,
-				"total_experiences": len(itinerary)
+				"total_experiences": len(itinerary),
+				"payment_summary": payment_summary,
 			}
 		)
 	except Exception as e:
@@ -838,3 +883,103 @@ def cancel_route_booking(route_booking_id, reason=None):
 	except Exception as e:
 		frappe.log_error(f"Error in cancel_route_booking: {str(e)}")
 		return error("Failed to cancel route booking", "SERVER_ERROR", {"error": str(e)}, 500)
+
+
+@frappe.whitelist()
+def get_available_slots_for_route(route_id, date_from, date_to=None, party_size=1):
+	"""
+	Get available time slots for each experience in a route, given a date range.
+
+	The bot calls this so the customer can pick a specific date/time.
+
+	Args:
+		route_id: Cheese Route ID
+		date_from: Start date (YYYY-MM-DD)
+		date_to: End date (YYYY-MM-DD), defaults to date_from
+		party_size: Minimum available capacity required (default 1)
+
+	Returns:
+		Success response with available slots grouped by experience
+	"""
+	try:
+		if not route_id:
+			return validation_error("route_id is required")
+		if not date_from:
+			return validation_error("date_from is required")
+
+		if not frappe.db.exists("Cheese Route", route_id):
+			return not_found("Route", route_id)
+
+		route = frappe.get_doc("Cheese Route", route_id)
+		if route.status != "ONLINE":
+			return validation_error(f"Route {route_id} is not ONLINE. Current status: {route.status}")
+
+		try:
+			party_size = int(party_size)
+		except (ValueError, TypeError):
+			return validation_error("party_size must be a number")
+
+		start_date = getdate(date_from)
+		end_date = getdate(date_to) if date_to else start_date
+
+		if end_date < start_date:
+			return validation_error("date_to must be >= date_from")
+
+		experiences_result = []
+		for exp_row in route.experiences:
+			experience_id = exp_row.experience
+			if not frappe.db.exists("Cheese Experience", experience_id):
+				continue
+
+			experience = frappe.get_doc("Cheese Experience", experience_id)
+
+			slot_filters = {
+				"experience": experience_id,
+				"slot_status": "OPEN",
+				"date_from": ["<=", end_date],
+				"date_to": [">=", start_date],
+			}
+
+			slots = frappe.get_all(
+				"Cheese Experience Slot",
+				filters=slot_filters,
+				fields=["name", "date_from", "date_to", "time_from", "time_to", "max_capacity"],
+				order_by="date_from asc, time_from asc",
+			)
+
+			available_slots = []
+			for slot in slots:
+				available = get_available_capacity(slot.name)
+				if available >= party_size:
+					available_slots.append({
+						"slot_id": slot.name,
+						"date_from": str(slot.date_from),
+						"date_to": str(slot.date_to),
+						"time_from": str(slot.time_from) if slot.time_from else None,
+						"time_to": str(slot.time_to) if slot.time_to else None,
+						"max_capacity": slot.max_capacity,
+						"available_capacity": available,
+					})
+
+			experiences_result.append({
+				"experience_id": experience_id,
+				"experience_name": experience.name,
+				"sequence": exp_row.sequence if hasattr(exp_row, "sequence") else exp_row.idx,
+				"available_slots": available_slots,
+				"available_count": len(available_slots),
+			})
+
+		return success(
+			"Available slots retrieved successfully",
+			{
+				"route_id": route_id,
+				"date_from": str(start_date),
+				"date_to": str(end_date),
+				"party_size": party_size,
+				"experiences": experiences_result,
+				"all_available": all(e["available_count"] > 0 for e in experiences_result),
+			},
+		)
+	except Exception as e:
+		frappe.log_error(f"Error in get_available_slots_for_route: {str(e)}")
+		return error("Failed to get available slots", "SERVER_ERROR", {"error": str(e)}, 500)

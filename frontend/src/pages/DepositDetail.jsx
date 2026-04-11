@@ -251,6 +251,28 @@ export default function DepositDetail() {
                                         <AlertTriangle className="w-4 h-4 mr-2" /> Refund
                                     </Button>
                                 )}
+                                {status === "PAID" && deposit?.entity_type === "Cheese Ticket" && deposit?.entity_id && (
+                                    <Button variant="outline" size="sm" className="justify-start text-cheese-700" onClick={async () => {
+                                        try {
+                                            const res = await fetch("/api/method/cheese.api.v1.deposit_controller.create_remaining_balance_deposit", {
+                                                method: "POST",
+                                                headers: { "Content-Type": "application/json", "X-Frappe-CSRF-Token": window.csrf_token },
+                                                body: JSON.stringify({ ticket_id: deposit.entity_id }),
+                                            });
+                                            const data = await res.json();
+                                            if (data?.data?.data?.deposit_id) {
+                                                navigate(`/cheese/deposits/${data.data.data.deposit_id}`);
+                                            } else {
+                                                const msg = data?.data?.message || data?.message || "Could not create remaining balance deposit";
+                                                alert(msg);
+                                            }
+                                        } catch (err) {
+                                            alert(err?.message || "Failed");
+                                        }
+                                    }}>
+                                        <DollarSign className="w-4 h-4 mr-2" /> Pay Remaining Balance
+                                    </Button>
+                                )}
                                 {deposit?.entity_id && (
                                     <Button variant="outline" size="sm" className="justify-start" onClick={() => {
                                         if (deposit.entity_type === "Cheese Ticket") navigate(`/cheese/tickets/${deposit.entity_id}`);

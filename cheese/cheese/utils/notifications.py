@@ -282,6 +282,115 @@ def _send_notification(contact, channel, message, notification_type, entity_id):
 		frappe.log_error(f"Failed to send notification via {channel}: {e}", "Notification Send Error")
 
 
+# ── Bot webhook for ticket status changes ──────────────────────────────
+
+# Statuses that trigger a webhook call to the bot
+BOT_WEBHOOK_STATUSES = {"CONFIRMED", "CANCELLED", "REJECTED", "EXPIRED", "CHECKED_IN", "NO_SHOW", "COMPLETED"}
+
+
+def _get_bot_webhook_config():
+	"""Read webhook URL and API key from Cheese Bot Setting (single doctype)."""
+	from cheese.cheese.doctype.cheese_bot_setting.cheese_bot_setting import get_bot_settings
+	return get_bot_settings()
+
+
+def send_ticket_status_webhook(ticket_id, new_status, observations=None):
+	"""
+	POST ticket status change to the bot webhook.
+
+	Reads URL and API key from *Cheese Bot Setting* so they can be
+	changed at runtime without redeploying.  Fires for statuses in
+	BOT_WEBHOOK_STATUSES.  Runs inside an enqueue job so the ticket
+	save is never blocked.
+	"""
+	if new_status not in BOT_WEBHOOK_STATUSES:
+		return
+
+	try:
+		# Fetch config from Cheese Bot Setting
+		config = _get_bot_webhook_config()
+		webhook_url = config.get("webhook_url")
+		webhook_api_key = config.get("webhook_api_key")
+
+		if not config.get("webhook_enabled"):
+			frappe.logger().info(
+				f"Webhook disabled in Cheese Bot Setting, skipping ticket {ticket_id}"
+			)
+			return
+
+		if not webhook_url:
+			frappe.logger().info(
+				f"Webhook URL not configured in Cheese Bot Setting, skipping ticket {ticket_id}"
+			)
+			return
+
+		ticket = frappe.get_doc("Cheese Ticket", ticket_id)
+		contact_id = ticket.contact
+		if not contact_id:
+			frappe.log_error(
+				f"Webhook skipped for ticket {ticket_id}: no contact linked",
+				"Ticket Webhook",
+			)
+			return
+
+		import requests
+
+		payload = {
+			"contact_id": contact_id,
+			"ticket_id": ticket_id,
+			"new_status": new_status,
+			"observations": observations,
+		}
+
+		headers = {
+			"Content-Type": "application/json",
+			"x-api-key": webhook_api_key,
+		}
+
+		resp = requests.post(webhook_url, json=payload, headers=headers, timeout=15)
+
+		if resp.ok:
+			frappe.logger().info(
+				f"Webhook OK for ticket {ticket_id} → {new_status}: {resp.text}"
+			)
+		else:
+			frappe.log_error(
+				f"Webhook FAIL for ticket {ticket_id} → {new_status}: "
+				f"HTTP {resp.status_code} — {resp.text}",
+				"Ticket Webhook Error",
+			)
+
+		# Audit log regardless of result
+		from cheese.cheese.utils.events import log_event
+		log_event(
+			entity_type="Cheese Ticket",
+			entity_id=ticket_id,
+			event_type="webhook_sent",
+			payload={
+				"url": webhook_url,
+				"new_status": new_status,
+				"http_status": resp.status_code if resp else None,
+			},
+		)
+	except Exception as e:
+		frappe.log_error(
+			f"Webhook exception for ticket {ticket_id}: {e}",
+			"Ticket Webhook Error",
+		)
+
+
+def enqueue_ticket_status_webhook(ticket_id, new_status, observations=None):
+	"""Fire webhook in a background job so the document save is never blocked."""
+	frappe.enqueue(
+		"cheese.cheese.utils.notifications.send_ticket_status_webhook",
+		ticket_id=ticket_id,
+		new_status=new_status,
+		observations=observations,
+		queue="short",
+		is_async=True,
+	)
+
+
 def send_whatsapp_notification(phone_number, message):
 	"""
 	Send WhatsApp notification to a phone number
