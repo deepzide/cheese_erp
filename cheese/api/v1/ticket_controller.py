@@ -1033,6 +1033,15 @@ def get_ticket_board(filters=None, status=None, route_id=None, establishment_id=
 								frappe.db.set_value("Cheese Ticket", ticket.name, "status", "EXPIRED")
 								update_slot_capacity(ticket.slot)
 								ticket.status = "EXPIRED"
+								# db.set_value bypasses Document hooks — notify bot explicitly
+								try:
+									from cheese.cheese.utils.notifications import enqueue_ticket_status_webhook
+									enqueue_ticket_status_webhook(ticket.name, "EXPIRED")
+								except Exception as e:
+									frappe.log_error(
+										f"enqueue_ticket_status_webhook after board auto-expire: {e}",
+										"Ticket Webhook",
+									)
 						except Exception:
 							pass
 			else:
@@ -1042,6 +1051,14 @@ def get_ticket_board(filters=None, status=None, route_id=None, establishment_id=
 				):
 					frappe.db.set_value("Cheese Ticket", ticket.name, "status", "EXPIRED")
 					ticket.status = "EXPIRED"
+					try:
+						from cheese.cheese.utils.notifications import enqueue_ticket_status_webhook
+						enqueue_ticket_status_webhook(ticket.name, "EXPIRED")
+					except Exception as e:
+						frappe.log_error(
+							f"enqueue_ticket_status_webhook after board auto-expire: {e}",
+							"Ticket Webhook",
+						)
 			
 			if ticket.contact:
 				contact = frappe.db.get_value(

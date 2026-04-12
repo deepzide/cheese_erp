@@ -36,7 +36,7 @@ def send_post_completion_surveys():
 	for ticket_data in completed_tickets:
 		try:
 			# Import here to avoid circular dependency
-			from cheese.cheese.api.v1.survey_controller import send_survey
+			from cheese.api.v1.survey_controller import send_survey
 			send_survey(ticket_data.name)
 			survey_count += 1
 		except Exception as e:

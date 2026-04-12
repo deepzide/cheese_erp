@@ -2,54 +2,71 @@
 # License: MIT
 
 import frappe
-from frappe.utils import now_datetime, get_datetime
-from frappe.query_builder import functions as fn
+from frappe.utils import now_datetime, get_datetime, getdate
 
 
 def process_no_shows():
 	"""
-	Process CONFIRMED tickets that are past their slot time without check-in
-	Run hourly
+	Process CONFIRMED tickets that are past their slot start time without check-in.
+	Run hourly.
 	"""
-	from frappe.query_builder import DocType
-
-	ticket = DocType("Cheese Ticket")
-	slot = DocType("Cheese Experience Slot")
-
-	# Get confirmed tickets with past slot times
-	no_show_tickets = (
-		frappe.qb.from_(ticket)
-		.join(slot).on(ticket.slot == slot.name)
-		.select(ticket.name, ticket.slot)
-		.where(ticket.status == "CONFIRMED")
-		.where(
-			fn.Concat(slot.date, " ", slot.time) < now_datetime()
-		)
-		.where(
-			~fn.Exists(
-				frappe.qb.from_("Cheese Attendance")
-				.select("*")
-				.where(fn.Field("ticket") == ticket.name)
-			)
-		)
-	).run(as_dict=True)
+	confirmed = frappe.get_all(
+		"Cheese Ticket",
+		filters={"status": "CONFIRMED"},
+		fields=["name", "slot", "selected_date"],
+	)
 
 	no_show_count = 0
 	slots_to_update = set()
+	now = now_datetime()
 
-	for ticket_data in no_show_tickets:
-		ticket_doc = frappe.get_doc("Cheese Ticket", ticket_data.name)
-		ticket_doc.status = "NO_SHOW"
-		ticket_doc.save()
-		no_show_count += 1
-		
-		if ticket_data.slot:
-			slots_to_update.add(ticket_data.slot)
+	for row in confirmed:
+		if frappe.db.exists("Cheese Attendance", {"ticket": row.name}):
+			continue
+		if not row.slot:
+			continue
+		slot = frappe.db.get_value(
+			"Cheese Experience Slot",
+			row.slot,
+			["date_from", "date_to", "time_from"],
+			as_dict=True,
+		)
+		if not slot:
+			continue
 
-	# Update capacity for affected slots
+		event_date = row.selected_date or slot.date_from
+		if not event_date:
+			continue
+		time_part = str(slot.time_from).split(".")[0] if slot.time_from else "00:00:00"
+		if len(time_part) == 5:
+			time_part = f"{time_part}:00"
+		try:
+			slot_start = get_datetime(f"{getdate(event_date)} {time_part}")
+		except Exception:
+			continue
+
+		if slot_start >= now:
+			continue
+
+		try:
+			# Use db.set_value so we do not re-run capacity validation (party may already
+			# equal slot max). Document hooks are skipped — notify the bot explicitly.
+			frappe.db.set_value("Cheese Ticket", row.name, "status", "NO_SHOW")
+			from cheese.cheese.utils.notifications import enqueue_ticket_status_webhook
+
+			enqueue_ticket_status_webhook(row.name, "NO_SHOW")
+			no_show_count += 1
+			slots_to_update.add(row.slot)
+		except Exception as e:
+			frappe.log_error(
+				message=str(e)[:300],
+				title="No-show scheduler ticket update",
+			)
+
 	for slot_name in slots_to_update:
 		try:
 			from cheese.cheese.utils.capacity import update_slot_capacity
+
 			update_slot_capacity(slot_name)
 		except Exception as e:
 			frappe.log_error(f"Failed to update capacity for slot {slot_name}: {e}")

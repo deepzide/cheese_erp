@@ -12,7 +12,7 @@ import json
 
 
 @frappe.whitelist()
-def create_route_reservation(contact_id=None, route_id=None, experiences_with_slots=None, preferred_dates=None, party_size=1, conversation_id=None, date_from=None, date_to=None):
+def create_route_reservation(contact_id=None, route_id=None, experiences_with_slots=None, preferred_dates=None, party_size=1, conversation_id=None, date_from=None, date_to=None, date=None):
 	"""
 	Create pending route reservation
 	Creates RouteBooking = PENDING + internal reservations, locks capacity
@@ -26,6 +26,7 @@ def create_route_reservation(contact_id=None, route_id=None, experiences_with_sl
 		conversation_id: Conversation ID (optional)
 		date_from: Start date to auto-select slots (optional, YYYY-MM-DD)
 		date_to: End date to auto-select slots (optional, YYYY-MM-DD). If not provided, uses date_from
+		date: Synonym for date_from when date_from is not set (optional, YYYY-MM-DD)
 		
 	Returns:
 		Success response with route booking data
@@ -33,6 +34,9 @@ def create_route_reservation(contact_id=None, route_id=None, experiences_with_sl
 	try:
 		if preferred_dates and not experiences_with_slots:
 			experiences_with_slots = preferred_dates
+
+		if date and not date_from:
+			date_from = date
 
 		if not contact_id:
 			return validation_error("contact_id is required")

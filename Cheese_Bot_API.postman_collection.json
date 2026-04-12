@@ -846,7 +846,7 @@
 							"host": ["{{base_url}}"],
 							"path": ["api", "method", "cheese.api.v1.route_booking_controller.create_route_reservation"]
 						},
-						"description": "ERP: Creates RouteBooking = PENDING + internal reservations, locks capacity. Bot: Guides and executes."
+						"description": "ERP: Creates RouteBooking = PENDING + internal reservations, locks capacity. Bot: Guides and executes.\n\n**Booking date / slots:** Omit `experiences_with_slots` and pass `date_from` and optionally `date_to` (YYYY-MM-DD) to auto-select OPEN slots in that range; single-day bookings can set both to the same date. Alternatively pass `experiences_with_slots` with explicit `experience_id` / `slot_id` pairs. The `date` field is accepted as a synonym for `date_from` when `date_from` is not set."
 					},
 					"response": []
 				},

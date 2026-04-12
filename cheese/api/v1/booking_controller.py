@@ -114,7 +114,8 @@ def create_pending_booking(contact_id, items, preferred_dates=None, conversation
 					experiences_with_slots=experiences_with_slots,
 					party_size=party_size,
 					conversation_id=conversation_id,
-					date=route_date
+					date_from=route_date,
+					date_to=route_date,
 				)
 				
 				if not route_result.get("success"):

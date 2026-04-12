@@ -226,8 +226,11 @@ class CheeseTicket(Document):
 			try:
 				from cheese.cheese.utils.notifications import enqueue_ticket_status_webhook
 				enqueue_ticket_status_webhook(self.name, self.status)
-			except Exception:
-				pass  # Never block the save
+			except Exception as e:
+				frappe.log_error(
+					f"enqueue_ticket_status_webhook failed for {self.name}: {e}",
+					"Ticket Webhook",
+				)
 
 	def log_status_change(self):
 		"""Log status change to System Event"""

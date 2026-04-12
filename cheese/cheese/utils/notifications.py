@@ -4,7 +4,7 @@
 import frappe
 from frappe import _
 from frappe.utils import now_datetime, format_datetime
-from cheese.cheese.api.v1.opt_in_controller import get_opt_in_status_for_channel
+from cheese.api.v1.opt_in_controller import get_opt_in_status_for_channel
 
 
 def send_ticket_notification(ticket_id, notification_type, **kwargs):
@@ -339,6 +339,8 @@ def send_ticket_status_webhook(ticket_id, new_status, observations=None):
 			"contact_id": contact_id,
 			"ticket_id": ticket_id,
 			"new_status": new_status,
+			# Many bots expect `status` — keep in sync with new_status
+			"status": new_status,
 			"observations": observations,
 		}
 
