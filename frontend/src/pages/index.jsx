@@ -47,6 +47,7 @@ import SupportDetail from './SupportDetail';
 import Establishments from './Establishments';
 import EstablishmentCreate from './EstablishmentCreate';
 import EstablishmentDetail from './EstablishmentDetail';
+import QRScan from './QRScan';
 
 export default function Pages() {
     return (
@@ -101,6 +102,7 @@ export default function Pages() {
                                         <Route path="/documents/new" element={<DocumentCreate />} />
                                         <Route path="/qr-tokens" element={<QRTokens />} />
                                         <Route path="/surveys" element={<SurveyResponses />} />
+                                        <Route path="/scan" element={<QRScan />} />
                                         <Route path="/events" element={<SystemEvents />} />
                                         <Route path="/conversations" element={<Conversations />} />
                                         <Route path="/conversations/:id" element={<ConversationDetail />} />

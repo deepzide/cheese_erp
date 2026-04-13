@@ -1022,13 +1022,10 @@ def get_ticket_board(filters=None, status=None, route_id=None, establishment_id=
 					# Auto-expire pending tickets by TTL and effective booking date.
 					if ticket.status == "PENDING":
 						try:
-							selected_or_slot_date = ticket.selected_date or slot.date_from
-							slot_dt = get_datetime(f"{selected_or_slot_date} {slot.time_from}")
 							slot_end_date = getdate(slot.date_to) if slot.date_to else getdate(slot.date_from)
 							if (
 								(ticket.expires_at and ticket.expires_at < current_datetime)
 								or (slot_end_date < current_date)
-								or (slot_dt < current_datetime and getdate(selected_or_slot_date) == current_date)
 							):
 								frappe.db.set_value("Cheese Ticket", ticket.name, "status", "EXPIRED")
 								update_slot_capacity(ticket.slot)

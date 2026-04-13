@@ -295,29 +295,71 @@ def record_deposit_payment(
 			)
 
 			if not deposit_name:
-				# Auto-create deposit if it doesn't exist yet
-				ticket_doc = frappe.get_doc(entity_type, ticket_id)
-				if not ticket_doc.deposit_required:
-					return validation_error("This booking does not require a deposit")
-				
-				ttl = 24
-				if entity_type == "Cheese Ticket" and ticket_doc.get("experience"):
-					exp = frappe.get_doc("Cheese Experience", ticket_doc.experience)
-					ttl = exp.deposit_ttl_hours or 24
+				# Check if advance deposit already PAID — need remaining balance deposit
+				paid_advance = frappe.db.get_value(
+					"Cheese Deposit",
+					{
+						"entity_type": entity_type,
+						"entity_id": ticket_id,
+						"status": "PAID",
+					},
+					["name", "amount_paid", "amount_required"],
+					as_dict=True,
+				)
+
+				if paid_advance:
+					# Advance is PAID — create remaining balance deposit
+					ticket_doc = frappe.get_doc(entity_type, ticket_id)
+					if entity_type == "Cheese Ticket":
+						from cheese.cheese.utils.pricing import calculate_ticket_price
+						price_data = calculate_ticket_price(
+							ticket_doc.experience, ticket_doc.party_size, ticket_doc.route
+						)
+						total_price = price_data.get("total_price", 0)
+					else:
+						total_price = ticket_doc.total_price or 0
+
+					advance_paid = paid_advance.amount_paid or paid_advance.amount_required or 0
+					remaining = total_price - advance_paid
+					if remaining <= 0:
+						return validation_error(
+							f"No remaining balance. Total price: {total_price}, already paid: {advance_paid}"
+						)
+
+					new_deposit = frappe.get_doc({
+						"doctype": "Cheese Deposit",
+						"entity_type": entity_type,
+						"entity_id": ticket_id,
+						"amount_required": remaining,
+						"status": "PENDING",
+					})
+					new_deposit.insert()
+					frappe.db.commit()
+					deposit_name = new_deposit.name
+				else:
+					# No deposit at all — auto-create the advance deposit
+					ticket_doc = frappe.get_doc(entity_type, ticket_id)
+					if not ticket_doc.deposit_required:
+						return validation_error("This booking does not require a deposit")
 					
-				due_at = add_to_date(now_datetime(), hours=ttl, as_string=False)
-				
-				new_deposit = frappe.get_doc({
-					"doctype": "Cheese Deposit",
-					"entity_type": entity_type,
-					"entity_id": ticket_id,
-					"amount_required": ticket_doc.deposit_amount,
-					"status": "PENDING",
-					"due_at": due_at,
-				})
-				new_deposit.insert()
-				frappe.db.commit()
-				deposit_name = new_deposit.name
+					ttl = 24
+					if entity_type == "Cheese Ticket" and ticket_doc.get("experience"):
+						exp = frappe.get_doc("Cheese Experience", ticket_doc.experience)
+						ttl = exp.deposit_ttl_hours or 24
+						
+					due_at = add_to_date(now_datetime(), hours=ttl, as_string=False)
+					
+					new_deposit = frappe.get_doc({
+						"doctype": "Cheese Deposit",
+						"entity_type": entity_type,
+						"entity_id": ticket_id,
+						"amount_required": ticket_doc.deposit_amount,
+						"status": "PENDING",
+						"due_at": due_at,
+					})
+					new_deposit.insert()
+					frappe.db.commit()
+					deposit_name = new_deposit.name
 
 			deposit = frappe.get_doc("Cheese Deposit", deposit_name)
 		old_status = deposit.status

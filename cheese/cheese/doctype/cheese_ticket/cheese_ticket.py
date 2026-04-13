@@ -160,11 +160,26 @@ class CheeseTicket(Document):
 		if policy:
 			self.policy_snapshot = json.dumps(policy)
 
-		# Price snapshot
+		# Price snapshot — record the effective unit price used for calculation
 		experience = frappe.get_doc("Cheese Experience", self.experience)
+		if self.route:
+			# For route tickets, the unit price may come from route.price (Manual mode)
+			# or experience.route_price / individual_price (Sum mode)
+			try:
+				route = frappe.get_doc("Cheese Route", self.route)
+				if route.price_mode == "Manual":
+					effective_unit_price = route.price or 0
+				else:
+					effective_unit_price = experience.route_price or experience.individual_price or 0
+			except Exception:
+				effective_unit_price = experience.route_price or experience.individual_price or 0
+		else:
+			effective_unit_price = experience.individual_price or 0
+
 		price_data = {
 			"individual_price": experience.individual_price,
 			"route_price": experience.route_price,
+			"effective_unit_price": effective_unit_price,
 		}
 		self.price_snapshot = json.dumps(price_data)
 

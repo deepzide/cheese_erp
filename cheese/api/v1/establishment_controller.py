@@ -16,6 +16,24 @@ def _company_has_cheese_archived():
 	return bool(frappe.get_meta("Company").get_field("cheese_archived"))
 
 
+def _company_has_cheese_establishment_fields():
+	"""Check if the new establishment custom fields exist on Company."""
+	return bool(frappe.get_meta("Company").get_field("cheese_payment_methods"))
+
+
+def _get_establishment_extra_fields(company):
+	"""Extract new establishment fields from a Company doc, returns a dict."""
+	if not _company_has_cheese_establishment_fields():
+		return {}
+	return {
+		"payment_methods": getattr(company, "cheese_payment_methods", None),
+		"cheese_types": getattr(company, "cheese_types", None),
+		"establishment_type": getattr(company, "cheese_establishment_type", None),
+		"operating_hours": getattr(company, "cheese_operating_hours", None),
+		"google_maps_link": getattr(company, "cheese_google_maps_link", None),
+	}
+
+
 def _establishment_delete_blockers(company_id):
 	"""Return list of human-readable blockers if establishment cannot be deleted."""
 	blockers = []
@@ -149,7 +167,27 @@ def list_establishments(page=1, page_size=20, search=None, status=None, locality
 
 			archived = bool(getattr(company, "cheese_archived", 0)) if _company_has_cheese_archived() else False
 
-			result.append({
+			# Fetch published links for this establishment
+			try:
+				est_links = frappe.get_all(
+					"Cheese Document",
+					filters={
+						"entity_type": "Company",
+						"entity_id": company.name,
+						"document_type": "Link",
+						"status": "PUBLISHED",
+					},
+					fields=["title", "file_url", "tags", "language"],
+					order_by="creation asc",
+				)
+				links_data = [
+					{"title": l.title, "url": l.file_url, "tags": l.tags, "language": l.language}
+					for l in est_links
+				]
+			except Exception:
+				links_data = []
+
+			item = {
 				"company_id": company.name,
 				"company_name": company.company_name,
 				"status": "ARCHIVED" if archived else "ACTIVE",
@@ -161,7 +199,15 @@ def list_establishments(page=1, page_size=20, search=None, status=None, locality
 				"experiences_count": experiences_count,
 				"online_experiences_count": online_experiences,
 				"bank_account": bank_map.get(company.name, []),
-			})
+				"links": links_data,
+			}
+
+			# Add new establishment fields if they exist
+			if _company_has_cheese_establishment_fields():
+				company_doc = frappe.get_doc("Company", company.name)
+				item.update(_get_establishment_extra_fields(company_doc))
+
+			result.append(item)
 		
 		return paginated_response(
 			result,
@@ -284,9 +330,7 @@ def get_establishment_details(company_id):
 		archived = bool(getattr(company, "cheese_archived", 0)) if _company_has_cheese_archived() else False
 		bank_account = get_active_company_bank_accounts_list(company_id)
 
-		return success(
-			"Establishment details retrieved successfully",
-			{
+		detail_data = {
 				"company_id": company.name,
 				"company_name": company.company_name,
 				"status": "ARCHIVED" if archived else "ACTIVE",
@@ -306,6 +350,13 @@ def get_establishment_details(company_id):
 				"pdfs": pdfs,
 				"bank_account": bank_account,
 			}
+
+		# Add new establishment fields
+		detail_data.update(_get_establishment_extra_fields(company))
+
+		return success(
+			"Establishment details retrieved successfully",
+			detail_data
 		)
 	except Exception as e:
 		frappe.log_error(f"Error in get_establishment_details: {str(e)}")

@@ -78,7 +78,7 @@
             "in_list_view": 1,
             "in_standard_filter": 1,
             "label": "Status",
-            "options": "PENDING\nPAID\nOVERDUE\nADJUSTED\nREFUNDED\nCANCELLED",
+            "options": "PENDING\nPAID\nOVERDUE\nREVIEW\nADJUSTED\nREFUNDED\nCANCELLED",
             "reqd": 1
         },
         {

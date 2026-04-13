@@ -71,6 +71,10 @@ export default function DepositCreate() {
             toast.error("Payment amount must be greater than 0");
             return;
         }
+        if (!form.bank_account) {
+            toast.error("Bank account is required for manual deposits");
+            return;
+        }
         setSubmitting(true);
         try {
             const res = await apiRequest("/api/method/cheese.api.v1.deposit_controller.record_deposit_payment", {
@@ -79,6 +83,7 @@ export default function DepositCreate() {
                     ticket_id: form.entity_id,
                     amount: Number(form.payment_amount),
                     verification_method: "Manual",
+                    bank_account: form.bank_account,
                 }),
             });
             const payload = res?.data?.message || res?.data || res;

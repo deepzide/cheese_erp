@@ -17,6 +17,7 @@
     "support": "Soporte",
     "attendance": "Asistencia",
     "qrTokens": "Tokens QR",
+    "qrScan": "Escaneo QR",
     "documents": "Documentos",
     "surveys": "Encuestas",
     "systemEvents": "Eventos del Sistema"

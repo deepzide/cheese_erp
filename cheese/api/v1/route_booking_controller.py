@@ -890,16 +890,17 @@ def cancel_route_booking(route_booking_id, reason=None):
 
 
 @frappe.whitelist()
-def get_available_slots_for_route(route_id, date_from, date_to=None, party_size=1):
+def get_available_slots_for_route(route_id, selected_date=None, date_from=None, date_to=None, party_size=1):
 	"""
-	Get available time slots for each experience in a route, given a date range.
+	Get available time slots for each experience in a route, given a selected date.
 
 	The bot calls this so the customer can pick a specific date/time.
 
 	Args:
 		route_id: Cheese Route ID
-		date_from: Start date (YYYY-MM-DD)
-		date_to: End date (YYYY-MM-DD), defaults to date_from
+		selected_date: The date the customer selected (YYYY-MM-DD). Takes priority over date_from/date_to.
+		date_from: Start date (YYYY-MM-DD) — fallback if selected_date not provided
+		date_to: End date (YYYY-MM-DD) — fallback, defaults to date_from
 		party_size: Minimum available capacity required (default 1)
 
 	Returns:
@@ -908,8 +909,13 @@ def get_available_slots_for_route(route_id, date_from, date_to=None, party_size=
 	try:
 		if not route_id:
 			return validation_error("route_id is required")
-		if not date_from:
-			return validation_error("date_from is required")
+
+		# Resolve the effective date range
+		if selected_date:
+			date_from = selected_date
+			date_to = selected_date
+		elif not date_from:
+			return validation_error("selected_date (or date_from) is required")
 
 		if not frappe.db.exists("Cheese Route", route_id):
 			return not_found("Route", route_id)
@@ -977,6 +983,7 @@ def get_available_slots_for_route(route_id, date_from, date_to=None, party_size=
 			"Available slots retrieved successfully",
 			{
 				"route_id": route_id,
+				"selected_date": str(start_date),
 				"date_from": str(start_date),
 				"date_to": str(end_date),
 				"party_size": party_size,
@@ -987,3 +994,4 @@ def get_available_slots_for_route(route_id, date_from, date_to=None, party_size=
 	except Exception as e:
 		frappe.log_error(f"Error in get_available_slots_for_route: {str(e)}")
 		return error("Failed to get available slots", "SERVER_ERROR", {"error": str(e)}, 500)
+

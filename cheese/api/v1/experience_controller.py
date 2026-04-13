@@ -220,6 +220,23 @@ def get_experience_detail(experience_id, include_next_availability=True):
 			get_active_company_bank_accounts_list(experience.company) if experience.company else []
 		)
 
+		# Fetch published links for this experience
+		links = frappe.get_all(
+			"Cheese Document",
+			filters={
+				"entity_type": "Cheese Experience",
+				"entity_id": experience.name,
+				"document_type": "Link",
+				"status": "PUBLISHED",
+			},
+			fields=["title", "file_url", "tags", "language"],
+			order_by="creation asc",
+		)
+		links_data = [
+			{"title": l.title, "url": l.file_url, "tags": l.tags, "language": l.language}
+			for l in links
+		]
+
 		return success(
 			"Experience details retrieved successfully",
 			{
@@ -251,6 +268,7 @@ def get_experience_detail(experience_id, include_next_availability=True):
 				},
 				"booking_policy": policy,
 				"bank_account": bank_account,
+				"links": links_data,
 			}
 		)
 	except Exception as e:

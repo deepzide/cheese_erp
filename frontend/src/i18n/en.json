@@ -17,6 +17,7 @@
     "support": "Support",
     "attendance": "Attendance",
     "qrTokens": "QR Tokens",
+    "qrScan": "QR Scan",
     "documents": "Documents",
     "surveys": "Surveys",
     "systemEvents": "System Events"

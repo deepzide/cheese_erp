@@ -37,15 +37,14 @@ class CheeseDeposit(Document):
 		if self.amount_paid and self.amount_paid < 0:
 			frappe.throw(_("Amount Paid cannot be negative"))
 			
-		if self.amount_paid and self.amount_paid > self.amount_required:
-			frappe.throw(_("Amount paid ({0}) cannot exceed the required deposit amount ({1}).").format(self.amount_paid, self.amount_required))
-
-		if self.amount_required <= 0:
-			frappe.throw(_("Amount Required must be greater than 0"))
-
 		# Update status based on payment
 		if self.amount_paid and self.amount_paid >= self.amount_required:
-			if self.status == "PENDING":
+			if self.amount_paid > self.amount_required:
+				# Overpayment — flag for review instead of blocking
+				self.status = "REVIEW"
+				if not self.paid_at:
+					self.paid_at = now_datetime()
+			elif self.status == "PENDING":
 				self.status = "PAID"
 				if not self.paid_at:
 					self.paid_at = now_datetime()
@@ -56,7 +55,7 @@ class CheeseDeposit(Document):
 			self.status = "OVERDUE"
 
 	def validate_unique_active_deposit(self):
-		"""Ensure there is only one non-refunded deposit per entity"""
+		"""Ensure no duplicate active deposit — but allow remaining balance after advance PAID"""
 		if not (self.entity_type and self.entity_id):
 			return
 
@@ -65,14 +64,26 @@ class CheeseDeposit(Document):
 			"entity_type": self.entity_type,
 			"entity_id": self.entity_id,
 			"name": ["!=", self.name] if self.name else ["!=", ""],
-			"status": ["not in", ["REFUNDED", "CANCELLED", "PAID"]],
+			"status": ["not in", ["REFUNDED", "CANCELLED", "PAID", "REVIEW"]],
 		}
 
-		exists = frappe.db.exists("Cheese Deposit", filters)
-		if exists:
+		existing = frappe.db.exists("Cheese Deposit", filters)
+		if existing:
+			# If there's already a PAID deposit, this is a remaining-balance flow — allow it
+			has_paid = frappe.db.exists("Cheese Deposit", {
+				"entity_type": self.entity_type,
+				"entity_id": self.entity_id,
+				"status": "PAID",
+			})
+			if has_paid:
+				# Cancel the stale pending deposit and let the new one through
+				frappe.db.set_value("Cheese Deposit", existing, "status", "CANCELLED")
+				frappe.db.commit()
+				return
+
 			frappe.throw(
-				_("Another deposit ({0}) already exists for this {1}").format(
-					exists, self.entity_type
+				_("A pending deposit ({0}) already exists for this entity. Pay or cancel it before creating another.").format(
+					existing
 				),
 				frappe.ValidationError,
 			)

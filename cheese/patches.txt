@@ -8,3 +8,4 @@ cheese.patches.v1_0.rename_cheese_doctypes
 cheese.patches.v1_0.add_entity_fields_to_bank_account
 cheese.patches.v1_0.add_company_cheese_archived
 cheese.patches.v1_0.fix_cheese_complaint_doctype_module
+cheese.patches.v1_0.add_company_cheese_establishment_fields

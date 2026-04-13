@@ -7,7 +7,7 @@ import {
     Users, UserPlus, FileText, Wallet, ShoppingCart,
     Bell, Menu, LogOut, ChevronDown, ChevronRight, X,
     Zap, Settings, Sun, Moon, Globe,
-    Shield, Landmark, UserCheck, QrCode, Star, Activity, MessageSquare, Building2
+    Shield, Landmark, UserCheck, QrCode, Star, Activity, MessageSquare, Building2, ScanLine
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -52,6 +52,7 @@ const navigationItems = [
     { titleKey: "nav.support", url: createPageUrl("support"), icon: Shield, section: "operations" },
     { titleKey: "nav.attendance", url: createPageUrl("attendance"), icon: UserCheck, section: "operations" },
     { titleKey: "nav.qrTokens", url: createPageUrl("qr-tokens"), icon: QrCode, section: "operations" },
+    { titleKey: "nav.qrScan", url: createPageUrl("scan"), icon: ScanLine, section: "operations" },
     { titleKey: "nav.documents", url: createPageUrl("documents"), icon: FileText, section: "operations" },
     { titleKey: "nav.surveys", url: createPageUrl("surveys"), icon: Star, section: "operations" },
     { titleKey: "nav.systemEvents", url: createPageUrl("events"), icon: Activity, section: "system" },
