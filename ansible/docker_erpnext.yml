@@ -262,13 +262,20 @@
         set -e
         all_apps="erpnext {{ custom_apps | join(' ') }}"
         installed=$(docker compose -f pwd.yml exec -T backend bench --site {{ site_name }} list-apps)
+        
+        # Ensure apps.txt exists and add any missing apps
+        apps_txt="sites/{{ site_name }}/apps.txt"
         for app in $all_apps; do
-          if ! echo "$installed" | grep -qx "$app"; then
+          if echo "$installed" | grep -qx "$app"; then
+            if ! docker compose -f pwd.yml exec -T backend test -f "$apps_txt" || ! docker compose -f pwd.yml exec -T backend grep -qx "$app" "$apps_txt"; then
+              echo "$app" >> "$apps_txt"
+              echo "📝 Añadido $app a apps.txt"
+            fi
+            echo "✅ App ya instalada: $app"
+          else
             echo "⚙️ Instalando app faltante: $app"
             docker compose -f pwd.yml exec -T -e CHEESE_INSERT_DEMO_DATA=1 backend bench --site {{ site_name }} install-app "$app" --force
             installed=$(printf "%s\n%s\n" "$installed" "$app")
-          else
-            echo "✅ App ya instalada: $app"
           fi
         done
       args:
