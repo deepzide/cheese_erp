@@ -16,6 +16,15 @@
     s3_bucket: "{{ lookup('env', 'AWS_S3_BUCKET') | default('deepzide-backups', true) }}"
     aws_access_key_id: "{{ lookup('env', 'AWS_ACCESS_KEY_ID') | default('', true) }}"
     aws_secret_access_key: "{{ lookup('env', 'AWS_SECRET_ACCESS_KEY') | default('', true) }}"
+  vars_prompt:
+    - name: ansible_ssh_timeout
+      prompt: "SSH timeout"
+      default: 300
+      private: no
+  environment:
+    ANSIBLE_SSH_TIMEOUT: "{{ ansible_ssh_timeout | default(300) }}"
+    ANSIBLE_SSH_CONTROL_PATH: "/tmp/ansible-ssh-%%h-%%p-%%r"
+    ANSIBLE_SSH_ARGS: "-o ControlMaster=auto -o ControlPersist=600 -o ServerAliveInterval=60 -o ServerAliveCountMax=3"
 
   tasks:
     # ------------------------------------------------------------------------
@@ -176,37 +185,6 @@
         chdir: "{{ project_dir }}/frappe_docker"
         executable: /bin/bash
 
-    # ------------------------------------------------------------------------
-    # 🧱 Ensure required app sources exist in bench
-    # ------------------------------------------------------------------------
-    - name: Ensure required app source directories exist in backend container
-      ansible.builtin.shell: |
-        set -e
-
-        ensure_app_source () {
-          app="$1"
-          repo="$2"
-          branch="$3"
-          if docker compose -f pwd.yml exec -T backend test -d "apps/$app"; then
-            echo "✅ App source present: $app"
-          else
-            echo "⚙️ Bootstrapping missing app source: $app ($branch)"
-            docker compose -f pwd.yml exec -T backend bench get-app --branch "$branch" "$repo" "$app"
-          fi
-        }
-
-        ensure_app_source "erpnext" "https://github.com/frappe/erpnext" "version-15"
-
-        if echo "{{ custom_apps | join(' ') }}" | grep -qw "hrms"; then
-          ensure_app_source "hrms" "https://github.com/frappe/hrms" "version-15"
-        fi
-
-        if echo "{{ custom_apps | join(' ') }}" | grep -qw "payments"; then
-          ensure_app_source "payments" "https://github.com/frappe/payments" "version-15"
-        fi
-      args:
-        chdir: "{{ project_dir }}/frappe_docker"
-
     - name: Set ignore_csrf in common_site_config.json
       ansible.builtin.command:
         cmd: docker compose -f pwd.yml exec -T backend bench set-config -g ignore_csrf 1 --parse
@@ -255,33 +233,9 @@
 
 
     # ------------------------------------------------------------------------
-    # 🧩 Install apps BEFORE migration
+    # 🧩 Apps already pre-installed in image (via v2.2.3 APPS_JSON_BASE64)
+    # Skip install-app tasks - apps come pre-installed in the Docker image
     # ------------------------------------------------------------------------
-    - name: Ensure all required apps (erpnext + custom) are installed
-      ansible.builtin.shell: |
-        set -e
-        all_apps="erpnext {{ custom_apps | join(' ') }}"
-        installed=$(docker compose -f pwd.yml exec -T backend bench --site {{ site_name }} list-apps)
-        for app in $all_apps; do
-          if ! echo "$installed" | grep -qx "$app"; then
-            echo "⚙️ Instalando app faltante: $app"
-            docker compose -f pwd.yml exec -T -e CHEESE_INSERT_DEMO_DATA=1 backend bench --site {{ site_name }} install-app "$app" --force
-            installed=$(printf "%s\n%s\n" "$installed" "$app")
-          else
-            echo "✅ App ya instalada: $app"
-          fi
-        done
-      args:
-        chdir: "{{ project_dir }}/frappe_docker"
-        executable: /bin/bash
-      when: site_check.rc == 0 or create_site_output.rc == 0
-
-    - name: Verify erpnext module import before migration
-      ansible.builtin.shell: |
-        docker compose -f pwd.yml exec -T backend python -c "import erpnext"
-      args:
-        chdir: "{{ project_dir }}/frappe_docker"
-      when: site_check.rc == 0 or create_site_output.rc == 0
 
     # Force reinstall HRMS to ensure fixtures are loaded
     - name: Reinstall HRMS with fixtures
