@@ -239,25 +239,20 @@
       ansible.builtin.shell: |
         set -e
         all_apps="erpnext {{ custom_apps | join(' ') }}"
-        apps_txt="sites/{{ site_name }}/apps.txt"
         
-        # First ensure apps are in apps.txt before checking installation
+        # First ensure apps.txt exists and has all apps
         for app in $all_apps; do
-          if docker compose -f pwd.yml exec -T backend test -f "$apps_txt"; then
-            if ! docker compose -f pwd.yml exec -T backend grep -qx "$app" "$apps_txt" 2>/dev/null; then
-              echo "$app" >> "$apps_txt"
-              echo "📝 Añadido $app a apps.txt"
-            fi
-          else
-            echo "$app" > "$apps_txt"
-            echo "📝 Creado $apps_txt con $app"
+          found=$(docker compose -f pwd.yml exec -T backend grep -w "$app" sites/{{ site_name }}/apps.txt 2>/dev/null || true)
+          if [ -z "$found" ]; then
+            echo "$app" >> sites/{{ site_name }}/apps.txt
+            echo "📝 Añadido $app a apps.txt"
           fi
         done
         
         # Now check and install if needed
-        installed=$(docker compose -f pwd.yml exec -T backend bench --site {{ site_name }} list-apps || echo "")
+        installed=$(docker compose -f pwd.yml exec -T backend bench --site {{ site_name }} list-apps 2>/dev/null || echo "")
         for app in $all_apps; do
-          if echo "$installed" | grep -qx "$app"; then
+          if echo "$installed" | grep -qw "$app"; then
             echo "✅ App ya instalada: $app"
           else
             echo "⚙️ instalando app faltante: $app"
