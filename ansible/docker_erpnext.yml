@@ -244,6 +244,18 @@
       when: site_check.rc == 0 or create_site_output.rc == 0
       ignore_errors: yes
 
+    - name: Ensure ERPNext app source exists before migration
+      ansible.builtin.shell: |
+        if docker compose -f pwd.yml exec -T backend python -c "import erpnext" >/dev/null 2>&1; then
+          echo "✅ ERPNext module is available."
+        else
+          echo "⚙️ ERPNext module missing, restoring app source..."
+          docker compose -f pwd.yml exec -T backend bench get-app --branch version-15 https://github.com/frappe/erpnext.git
+        fi
+      args:
+        chdir: "{{ project_dir }}/frappe_docker"
+      when: site_check.rc == 0 or create_site_output.rc == 0
+
     # ------------------------------------------------------------------------
     # 🔄 Migraciones - build - clear cache
     # ------------------------------------------------------------------------
