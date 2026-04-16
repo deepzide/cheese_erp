@@ -267,8 +267,6 @@
       args:
         chdir: "{{ project_dir }}/frappe_docker"
         executable: /bin/bash
-        async: 600
-        poll: 30
       when: site_check.rc == 0 or create_site_output.rc == 0
 
     - name: Verify erpnext module import before migration
