@@ -156,7 +156,7 @@
 
     - name: Wait until MariaDB is ready
       ansible.builtin.shell: |
-        set -euo pipefail
+        set -e
         until docker compose -f pwd.yml exec -T db mysqladmin ping -h db --silent; do
           echo "⏳ Esperando que MariaDB inicie..."
           sleep 5
@@ -181,7 +181,7 @@
     # ------------------------------------------------------------------------
     - name: Ensure required app source directories exist in backend container
       ansible.builtin.shell: |
-        set -euo pipefail
+        set -e
 
         ensure_app_source () {
           app="$1"
@@ -259,7 +259,7 @@
     # ------------------------------------------------------------------------
     - name: Ensure all required apps (erpnext + custom) are installed
       ansible.builtin.shell: |
-        set -euo pipefail
+        set -e
         all_apps="erpnext {{ custom_apps | join(' ') }}"
         installed=$(docker compose -f pwd.yml exec -T backend bench --site {{ site_name }} list-apps)
         for app in $all_apps; do
