@@ -232,7 +232,13 @@
     # Force reinstall HRMS to ensure fixtures are loaded
     - name: Reinstall HRMS with fixtures
       ansible.builtin.shell: |
-        docker compose -f pwd.yml exec -T -e CHEESE_INSERT_DEMO_DATA=1 backend bench --site {{ site_name }} install-app hrms --force
+        installed=$(docker compose -f pwd.yml exec -T backend bench --site {{ site_name }} list-apps 2>/dev/null)
+        if echo "$installed" | grep -q "hrms"; then
+          echo "✅ HRMS already installed, loading fixtures via migrate..."
+        else
+          echo "⚙️ Installing HRMS..."
+          docker compose -f pwd.yml exec -T -e CHEESE_INSERT_DEMO_DATA=1 backend bench --site {{ site_name }} install-app hrms --force
+        fi
       args:
         chdir: "{{ project_dir }}/frappe_docker"
       when: site_check.rc == 0 or create_site_output.rc == 0
@@ -247,6 +253,10 @@
       args:
         chdir: "{{ project_dir }}/frappe_docker"
       when: site_check.rc == 0 or create_site_output.rc == 0
+      register: migrate_result
+      retries: 2
+      delay: 10
+      until: migrate_result.rc == 0
 
     - name: Rebuild assets (safe bash mode)
       ansible.builtin.shell: |
