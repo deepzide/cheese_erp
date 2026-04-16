@@ -1,11 +1,13 @@
 import React, { useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { createPageUrl } from "@/utils";
 import {
     LayoutDashboard, Ticket, Route, Sparkles, CalendarDays,
     Users, UserPlus, FileText, Wallet, ShoppingCart,
     Bell, Menu, LogOut, ChevronDown, ChevronRight, X,
-    Zap, Settings, Sun, Moon
+    Zap, Settings, Sun, Moon, Globe,
+    Shield, Landmark, UserCheck, QrCode, Star, Activity, MessageSquare, Building2, ScanLine
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -17,36 +19,70 @@ import {
 import { getStoredCredentials } from "@/api/client";
 import { useTheme } from "@/components/ThemeProvider";
 
+const URL_ESTABLISHMENTS = createPageUrl("establishments");
+const URL_ESTABLISHMENTS_NEW = createPageUrl("establishments/new");
+
+/** Establishments nav active on list and detail, not on the create page */
+function isEstablishmentsNavActive(pathname) {
+    if (pathname === URL_ESTABLISHMENTS_NEW) return false;
+    if (pathname === URL_ESTABLISHMENTS) return true;
+    return pathname.startsWith(`${URL_ESTABLISHMENTS}/`);
+}
+
+function isNavItemActive(item, pathname) {
+    if (item.url === URL_ESTABLISHMENTS) return isEstablishmentsNavActive(pathname);
+    return pathname === item.url;
+}
+
 const navigationItems = [
-    { title: "Dashboard", url: createPageUrl("dashboard"), icon: LayoutDashboard, section: "main" },
-    { title: "Tickets", url: createPageUrl("tickets"), icon: Ticket, section: "flow" },
-    { title: "Routes", url: createPageUrl("routes"), icon: Route, section: "flow" },
-    { title: "Bookings", url: createPageUrl("bookings"), icon: ShoppingCart, section: "flow" },
-    { title: "Experiences", url: createPageUrl("experiences"), icon: Sparkles, section: "catalog" },
-    { title: "Calendar", url: createPageUrl("calendar"), icon: CalendarDays, section: "catalog" },
-    { title: "Contacts", url: createPageUrl("contacts"), icon: Users, section: "crm" },
-    { title: "Leads", url: createPageUrl("leads"), icon: UserPlus, section: "crm" },
-    { title: "Quotations", url: createPageUrl("quotations"), icon: FileText, section: "crm" },
-    { title: "Deposits", url: createPageUrl("deposits"), icon: Wallet, section: "finance" },
+    { titleKey: "nav.dashboard", url: createPageUrl("dashboard"), icon: LayoutDashboard, section: "main" },
+    { titleKey: "nav.tickets", url: createPageUrl("tickets"), icon: Ticket, section: "flow" },
+    { titleKey: "nav.routes", url: createPageUrl("routes"), icon: Route, section: "flow" },
+    { titleKey: "nav.bookings", url: createPageUrl("bookings"), icon: ShoppingCart, section: "flow" },
+    { titleKey: "nav.experiences", url: createPageUrl("experiences"), icon: Sparkles, section: "catalog" },
+    { titleKey: "nav.establishments", url: URL_ESTABLISHMENTS, icon: Building2, section: "catalog" },
+    { titleKey: "nav.calendar", url: createPageUrl("calendar"), icon: CalendarDays, section: "catalog" },
+    { titleKey: "nav.bookingPolicy", url: createPageUrl("booking-policy"), icon: Shield, section: "catalog" },
+    { titleKey: "nav.contacts", url: createPageUrl("contacts"), icon: Users, section: "crm" },
+    { titleKey: "nav.leads", url: createPageUrl("leads"), icon: UserPlus, section: "crm" },
+    { titleKey: "nav.quotations", url: createPageUrl("quotations"), icon: FileText, section: "crm" },
+    { titleKey: "nav.conversations", url: createPageUrl("conversations"), icon: MessageSquare, section: "crm" },
+    { titleKey: "nav.deposits", url: createPageUrl("deposits"), icon: Wallet, section: "finance" },
+    { titleKey: "nav.bankAccounts", url: createPageUrl("bank-accounts"), icon: Landmark, section: "finance" },
+    { titleKey: "nav.support", url: createPageUrl("support"), icon: Shield, section: "operations" },
+    { titleKey: "nav.attendance", url: createPageUrl("attendance"), icon: UserCheck, section: "operations" },
+    { titleKey: "nav.qrTokens", url: createPageUrl("qr-tokens"), icon: QrCode, section: "operations" },
+    { titleKey: "nav.qrScan", url: createPageUrl("scan"), icon: ScanLine, section: "operations" },
+    { titleKey: "nav.documents", url: createPageUrl("documents"), icon: FileText, section: "operations" },
+    { titleKey: "nav.surveys", url: createPageUrl("surveys"), icon: Star, section: "operations" },
+    { titleKey: "nav.systemEvents", url: createPageUrl("events"), icon: Activity, section: "system" },
 ];
 
-const sections = {
-    main: { label: "Command Center", icon: Zap },
-    flow: { label: "Flow Control", icon: Route },
-    catalog: { label: "Catalog", icon: Sparkles },
-    crm: { label: "CRM", icon: Users },
-    finance: { label: "Finance", icon: Wallet },
+const sectionDefs = {
+    main: { labelKey: "sections.commandCenter", icon: Zap },
+    flow: { labelKey: "sections.flowControl", icon: Route },
+    catalog: { labelKey: "sections.catalog", icon: Sparkles },
+    crm: { labelKey: "sections.crm", icon: Users },
+    finance: { labelKey: "sections.finance", icon: Wallet },
+    operations: { labelKey: "sections.operations", icon: Shield },
+    system: { labelKey: "sections.system", icon: Activity },
 };
 
 export default function Layout({ children }) {
     const location = useLocation();
     const navigate = useNavigate();
+    const { t, i18n } = useTranslation();
     const [sidebarOpen, setSidebarOpen] = useState(false);
     const [collapsedSections, setCollapsedSections] = useState({});
     const { theme, setTheme, resolvedTheme } = useTheme();
 
     const currentUser = getStoredCredentials();
     const user = currentUser || { full_name: "Cheese Admin", role: "admin" };
+
+    const toggleLanguage = () => {
+        const next = i18n.language === "es" ? "en" : "es";
+        i18n.changeLanguage(next);
+    };
 
     const toggleSection = (key) => {
         setCollapsedSections(prev => ({ ...prev, [key]: !prev[key] }));
@@ -76,17 +112,17 @@ export default function Layout({ children }) {
                     </div>
                     <div>
                         <h2 className="font-bold text-cheese-400 text-lg tracking-tight">Cheese</h2>
-                        <p className="text-[11px] text-white/40 font-medium">Control Center</p>
+                        <p className="text-[11px] text-white/40 font-medium">{t("sections.commandCenter")}</p>
                     </div>
                 </div>
             </div>
 
             {/* Navigation */}
             <ScrollArea className="flex-1 px-3 py-4">
-                {Object.entries(sections).map(([key, section]) => {
+                {Object.entries(sectionDefs).map(([key, section]) => {
                     const items = navigationItems.filter(item => item.section === key);
                     if (items.length === 0) return null;
-                    const isGroupActive = items.some(item => location.pathname === item.url);
+                    const isGroupActive = items.some(item => isNavItemActive(item, location.pathname));
                     const isCollapsed = collapsedSections[key] && !isGroupActive;
 
                     return (
@@ -98,7 +134,7 @@ export default function Layout({ children }) {
                             >
                                 <span className="flex items-center gap-2">
                                     <section.icon className="w-3 h-3" />
-                                    {section.label}
+                                    {t(section.labelKey)}
                                 </span>
                                 {isCollapsed ? (
                                     <ChevronRight className="w-3 h-3" />
@@ -110,10 +146,10 @@ export default function Layout({ children }) {
                             {!isCollapsed && (
                                 <div className="mt-1 space-y-0.5">
                                     {items.map((item) => {
-                                        const isActive = location.pathname === item.url;
+                                        const isActive = isNavItemActive(item, location.pathname);
                                         return (
                                             <Link
-                                                key={item.title}
+                                                key={item.titleKey}
                                                 to={item.url}
                                                 onClick={() => setSidebarOpen(false)}
                                                 className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 ${isActive
@@ -122,7 +158,7 @@ export default function Layout({ children }) {
                                                     }`}
                                             >
                                                 <item.icon className={`w-4 h-4 ${isActive ? 'text-black' : ''}`} />
-                                                <span>{item.title}</span>
+                                                <span>{t(item.titleKey)}</span>
                                             </Link>
                                         );
                                     })}
@@ -149,7 +185,7 @@ export default function Layout({ children }) {
                     onClick={handleLogout}
                     className="w-full text-red-400 hover:text-red-300 hover:bg-red-500/10 justify-start px-3 h-9"
                 >
-                    <LogOut className="w-4 h-4 mr-2" /> Logout
+                    <LogOut className="w-4 h-4 mr-2" /> {t("common.logout")}
                 </Button>
             </div>
         </>
@@ -198,6 +234,17 @@ export default function Layout({ children }) {
                     </div>
 
                     <div className="flex items-center gap-2">
+                        {/* Language Toggle */}
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={toggleLanguage}
+                            className="text-muted-foreground hover:text-foreground"
+                            title={i18n.language === "es" ? "Switch to English" : "Cambiar a Español"}
+                        >
+                            <Globe className="w-5 h-5" />
+                        </Button>
+
                         {/* Theme Toggle */}
                         <Button
                             variant="ghost"
@@ -220,10 +267,10 @@ export default function Layout({ children }) {
                                 </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end" className="w-72">
-                                <DropdownMenuLabel className="font-bold">Notifications</DropdownMenuLabel>
+                                <DropdownMenuLabel className="font-bold">{t("common.notifications")}</DropdownMenuLabel>
                                 <DropdownMenuSeparator />
                                 <div className="p-4 text-center text-sm text-muted-foreground">
-                                    No new notifications
+                                    {t("common.noNotifications")}
                                 </div>
                             </DropdownMenuContent>
                         </DropdownMenu>

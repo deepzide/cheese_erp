@@ -19,34 +19,95 @@ class CheeseBankAccount(Document):
 		account: DF.Data
 		bank: DF.Data
 		currency: DF.Link
+		entity_id: DF.DynamicLink
+		entity_type: DF.Literal["Cheese Route", "Company"]
 		holder: DF.Data
 		iban: DF.Data | None
-		route: DF.Link
+		route: DF.Link | None
 		status: DF.Literal["ACTIVE", "INACTIVE"]
 	# end: auto-generated types
 
 	def validate(self):
 		"""Validate bank account data"""
-		# Validate route exists
-		if self.route and not frappe.db.exists("Cheese Route", self.route):
-			frappe.throw(_("Route {0} does not exist").format(self.route))
+		self.sync_legacy_route_field()
+		self.validate_entity()
 
 		# Validate IBAN format if provided
 		if self.iban:
 			self.validate_iban()
 
-		# Ensure only one active bank account per route
+		self.validate_immutable_fields()
+
+		# Ensure only one active bank account per entity
 		if self.status == "ACTIVE":
 			existing = frappe.db.exists(
 				"Cheese Bank Account",
 				{
-					"route": self.route,
+					"entity_type": self.entity_type,
+					"entity_id": self.entity_id,
 					"status": "ACTIVE",
-					"name": ["!=", self.name]
-				}
+					"name": ["!=", self.name],
+				},
 			)
 			if existing:
-				frappe.throw(_("Route {0} already has an active bank account").format(self.route))
+				frappe.throw(
+					_("{0} {1} already has an active bank account").format(
+						self.entity_type, self.entity_id
+					)
+				)
+
+	def sync_legacy_route_field(self):
+		# Backward compatibility for legacy docs and callers still using route.
+		if self.entity_type == "Cheese Route" and self.entity_id and not self.route:
+			self.route = self.entity_id
+
+		if self.route and not self.entity_type:
+			self.entity_type = "Cheese Route"
+		if self.route and not self.entity_id:
+			self.entity_id = self.route
+
+	def validate_entity(self):
+		if not self.entity_type or not self.entity_id:
+			frappe.throw(_("Entity Type and Entity are required"))
+		if not frappe.db.exists(self.entity_type, self.entity_id):
+			frappe.throw(_("{0} {1} does not exist").format(self.entity_type, self.entity_id))
+
+	def validate_immutable_fields(self):
+		if self.is_new():
+			return
+
+		previous = self.get_doc_before_save()
+		if not previous:
+			return
+
+		# Allow editing bank account details until a deposit is linked to this account.
+		if not self.has_linked_transactions():
+			return
+
+		for fieldname in ("holder", "bank", "account", "iban", "currency", "entity_type", "entity_id"):
+			if self.get(fieldname) != previous.get(fieldname):
+				frappe.throw(
+					_("Field {0} cannot be modified after this bank account is used in deposits").format(
+						frappe.bold(self.meta.get_label(fieldname))
+					)
+				)
+
+	def before_rename(self, old_name, new_name, merge=False):
+		"""Allow rename only when no deposit references this account yet."""
+		if self.has_linked_transactions():
+			frappe.throw(
+				_("This bank account cannot be renamed because it is already linked to deposit records.")
+			)
+
+	def has_linked_transactions(self):
+		return bool(
+			frappe.db.exists(
+				"Cheese Deposit",
+				{
+					"bank_account": self.name,
+				},
+			)
+		)
 
 	def validate_iban(self):
 		"""Validate IBAN format (basic validation)"""

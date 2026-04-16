@@ -1,0 +1,45 @@
+name: Restore from S3 backup
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Target environment'
+        required: true
+        type: choice
+        options:
+          - staging
+          - production
+      backup_id:
+        description: 'Backup timestamp folder (e.g. 2026-04-05_120000). Leave empty for latest.'
+        required: false
+        type: string
+
+env:
+  SERVER_IP: ${{ github.event.inputs.environment == 'production' && '144.91.95.172' || '62.171.181.244' }}
+  RESTORE_PATH: /opt/erpnext/frappe_docker
+
+jobs:
+  restore:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Setup SSH key
+        run: |
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          echo "${{ secrets.SSH_KEY_PRIVATE }}" | base64 --decode > ~/.ssh/erpnext_deploy_key
+          chmod 600 ~/.ssh/erpnext_deploy_key
+          ssh-keyscan -H ${{ env.SERVER_IP }} >> ~/.ssh/known_hosts 2>/dev/null
+
+      - name: Test SSH connection
+        run: |
+          ssh -i ~/.ssh/erpnext_deploy_key -o StrictHostKeyChecking=no root@${{ env.SERVER_IP }} "echo 'SSH OK'"
+
+      - name: Run restore
+        run: |
+          BACKUP_ID="${{ github.event.inputs.backup_id }}"
+          echo "Restoring on ${{ github.event.inputs.environment }} (${{ env.SERVER_IP }})"
+          echo "Backup ID: ${BACKUP_ID:-latest}"
+          ssh -i ~/.ssh/erpnext_deploy_key root@${{ env.SERVER_IP }} \
+            "${{ env.RESTORE_PATH }}/restore.sh ${BACKUP_ID}"

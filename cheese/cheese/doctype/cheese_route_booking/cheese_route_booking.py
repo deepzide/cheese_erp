@@ -5,6 +5,7 @@ import frappe
 from frappe import _
 from frappe.model.document import Document
 from frappe.utils import now_datetime, add_to_date
+from cheese.cheese.utils.pricing import calculate_route_price
 
 
 class CheeseRouteBooking(Document):
@@ -39,8 +40,12 @@ class CheeseRouteBooking(Document):
 			frappe.throw(_("Contact {0} does not exist").format(self.contact))
 
 		# Calculate status from tickets if tickets exist
-		if self.tickets and len(self.tickets) > 0:
+		# Only auto-calculate when status was not explicitly changed by the user
+		if self.tickets and len(self.tickets) > 0 and not self.has_value_changed("status"):
 			self.calculate_status()
+
+		# Keep booking total price tied to route pricing * number of people.
+		self.recalculate_total_price()
 
 		# Set expiration if status is PENDING
 		if self.status == "PENDING" and not self.expires_at:
@@ -86,6 +91,15 @@ class CheeseRouteBooking(Document):
 		else:
 			self.status = "PENDING"
 
+	def recalculate_total_price(self):
+		"""Recompute total price from route and party size."""
+		if not self.route:
+			return
+		party_size = 1
+		if self.tickets and len(self.tickets) > 0:
+			party_size = int((self.tickets[0].party_size or 1))
+		self.total_price = calculate_route_price(self.route, party_size)
+
 	def on_update(self):
 		"""Handle post-update logic"""
 		# Log status changes to System Event
@@ -93,12 +107,15 @@ class CheeseRouteBooking(Document):
 			self.log_status_change()
 			# Auto-convert lead when route booking becomes CONFIRMED
 			if self.status == "CONFIRMED":
+				self.confirm_tickets()
 				self.convert_associated_lead()
 				# Send confirmation notification
 				self.send_status_notification("confirmed")
 			elif self.status == "CANCELLED":
+				self.cancel_tickets()
 				self.send_status_notification("rejected")
 			elif self.status == "EXPIRED":
+				self.cancel_tickets()
 				self.send_status_notification("expired")
 
 	def log_status_change(self):
@@ -114,6 +131,24 @@ class CheeseRouteBooking(Document):
 		except Exception:
 			# Silently fail if event logging fails
 			pass
+
+	def confirm_tickets(self):
+		"""Cascade confirm status to child tickets"""
+		for row in self.tickets:
+			if row.ticket:
+				ticket = frappe.get_doc("Cheese Ticket", row.ticket)
+				if ticket.status == "PENDING":
+					ticket.status = "CONFIRMED"
+					ticket.save()
+
+	def cancel_tickets(self):
+		"""Cascade cancel status to child tickets"""
+		for row in self.tickets:
+			if row.ticket:
+				ticket = frappe.get_doc("Cheese Ticket", row.ticket)
+				if ticket.status in ["PENDING", "CONFIRMED"]:
+					ticket.status = "CANCELLED"
+					ticket.save()
 
 	@frappe.whitelist()
 	def refresh_ticket_statuses(self):
@@ -158,3 +193,23 @@ class CheeseRouteBooking(Document):
 		except Exception as e:
 			# Silently fail if notification fails
 			frappe.log_error(f"Failed to send notification for route booking {self.name}: {e}", "Notification Error")
+
+@frappe.whitelist()
+def make_deposit(source_name, target_doc=None):
+	from frappe.model.mapper import get_mapped_doc
+
+	def set_missing_values(source, target):
+		target.entity_type = "Cheese Route Booking"
+		target.entity_id = source.name
+		target.status = "PENDING"
+		target.amount_required = source.deposit_amount
+		target.amount_paid = 0
+
+	doclist = get_mapped_doc("Cheese Route Booking", source_name, {
+		"Cheese Route Booking": {
+			"doctype": "Cheese Deposit",
+			"field_map": {}
+		}
+	}, target_doc, set_missing_values)
+
+	return doclist

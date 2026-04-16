@@ -1,0 +1,148 @@
+{
+  "nav": {
+    "dashboard": "Panel",
+    "tickets": "Tickets",
+    "routes": "Rutas",
+    "bookings": "Reservas",
+    "experiences": "Experiencias",
+    "establishments": "Establecimientos",
+    "calendar": "Calendario",
+    "bookingPolicy": "Política de Reservas",
+    "contacts": "Contactos",
+    "leads": "Prospectos",
+    "quotations": "Cotizaciones",
+    "conversations": "Conversaciones",
+    "deposits": "Depósitos",
+    "bankAccounts": "Cuentas Bancarias",
+    "support": "Soporte",
+    "attendance": "Asistencia",
+    "qrTokens": "Tokens QR",
+    "qrScan": "Escaneo QR",
+    "documents": "Documentos",
+    "surveys": "Encuestas",
+    "systemEvents": "Eventos del Sistema"
+  },
+  "sections": {
+    "commandCenter": "Centro de Control",
+    "flowControl": "Control de Flujo",
+    "catalog": "Catálogo",
+    "crm": "CRM",
+    "finance": "Finanzas",
+    "operations": "Operaciones",
+    "system": "Sistema"
+  },
+  "common": {
+    "search": "Buscar",
+    "filter": "Filtrar",
+    "create": "Crear",
+    "save": "Guardar",
+    "cancel": "Cancelar",
+    "delete": "Eliminar",
+    "edit": "Editar",
+    "back": "Volver",
+    "loading": "Cargando...",
+    "noResults": "Sin resultados",
+    "retry": "Reintentar",
+    "confirm": "Confirmar",
+    "reject": "Rechazar",
+    "status": "Estado",
+    "date": "Fecha",
+    "time": "Hora",
+    "all": "Todos",
+    "actions": "Acciones",
+    "viewDetails": "Ver Detalles",
+    "logout": "Cerrar Sesión",
+    "notifications": "Notificaciones",
+    "noNotifications": "Sin notificaciones nuevas"
+  },
+  "ticket": {
+    "board": "Tablero de Tickets",
+    "newTicket": "Nuevo Ticket",
+    "createTicket": "Crear Ticket",
+    "ticketCreated": "Ticket creado",
+    "contact": "Contacto",
+    "experience": "Experiencia",
+    "route": "Ruta",
+    "slot": "Horario",
+    "partySize": "Tamaño del Grupo",
+    "totalPrice": "Precio Total",
+    "depositRequired": "Depósito Requerido",
+    "depositAmount": "Monto del Depósito",
+    "status": {
+      "pending": "Pendiente",
+      "confirmed": "Confirmado",
+      "checkedIn": "Registrado",
+      "completed": "Completado",
+      "cancelled": "Cancelado",
+      "noShow": "No Presentado",
+      "expired": "Expirado",
+      "rejected": "Rechazado"
+    },
+    "checkIn": "Registrar Entrada",
+    "complete": "Completar",
+    "registerDeposit": "Registrar Depósito",
+    "createSupportCase": "Crear Caso de Soporte",
+    "convertToBooking": "Convertir a Reserva Final",
+    "markConfirmed": "Marcar como Confirmado"
+  },
+  "conversation": {
+    "title": "Conversaciones",
+    "noMessages": "No hay mensajes en esta conversación",
+    "viewTranscript": "Ver transcripción externa",
+    "channel": "Canal",
+    "summary": "Resumen"
+  },
+  "contact": {
+    "title": "Contactos",
+    "personalInfo": "Información Personal",
+    "fullName": "Nombre Completo",
+    "phone": "Número de Teléfono",
+    "email": "Correo Electrónico",
+    "preferences": "Preferencias y Dirección",
+    "notes": "Notas Internas",
+    "activity": "Actividad y Reservas",
+    "createLead": "Crear Prospecto para Contacto",
+    "createTicket": "Crear Ticket",
+    "logSupport": "Registrar Caso de Soporte"
+  },
+  "lead": {
+    "title": "Prospectos",
+    "status": {
+      "open": "Abierto",
+      "inProgress": "En Progreso",
+      "converted": "Convertido",
+      "lost": "Perdido",
+      "discarded": "Descartado"
+    }
+  },
+  "survey": {
+    "title": "Respuestas de Encuestas",
+    "viewTicket": "Ver Ticket",
+    "viewDetails": "Ver Detalles",
+    "noComment": "Sin comentario",
+    "awaitingResponse": "Encuesta enviada, esperando respuesta"
+  },
+  "qr": {
+    "title": "Tokens QR",
+    "active": "Activo",
+    "used": "Usado",
+    "expired": "Expirado",
+    "revoked": "Revocado",
+    "qrCode": "Código QR"
+  },
+  "auth": {
+    "sessionExpired": "Sesión expirada. Por favor inicie sesión nuevamente.",
+    "loginTitle": "Iniciar sesión en Cheese",
+    "username": "Usuario",
+    "password": "Contraseña",
+    "signIn": "Iniciar Sesión"
+  },
+  "deposit": {
+    "title": "Depósitos",
+    "pricing": "Precios",
+    "depositStatus": "Estado del Depósito"
+  },
+  "booking": {
+    "title": "Reservas"
+  }
+}

@@ -48,13 +48,13 @@ def execute():
 
 
 def rename_cheese_contact():
-	"""Rename Cheese Contact using field:full_name"""
-	contacts = frappe.get_all("Cheese Contact", fields=["name", "full_name"])
+	"""Rename Cheese Contact using field:phone"""
+	contacts = frappe.get_all("Cheese Contact", fields=["name", "phone"])
 	for contact in contacts:
-		if contact.full_name and contact.name != contact.full_name:
+		if contact.phone and contact.name != contact.phone:
 			try:
-				# Make name URL-safe
-				new_name = frappe.scrub(contact.full_name)
+				# Use phone directly as the name (phone numbers are already unique identifiers)
+				new_name = contact.phone
 				if new_name and new_name != contact.name:
 					frappe.rename_doc("Cheese Contact", contact.name, new_name, force=True, show_alert=False)
 			except Exception as e:

@@ -4,7 +4,7 @@
 import frappe
 from frappe import _
 from frappe.model.document import Document
-from frappe.utils import now_datetime, getdate
+from frappe.utils import now_datetime, getdate, get_datetime
 import json
 
 
@@ -21,32 +21,72 @@ class CheeseDeposit(Document):
 		amount_required: DF.Currency
 		due_at: DF.Datetime | None
 		entity_id: DF.DynamicLink
-		entity_type: DF.Literal["Ticket", "Route Booking"]
+		entity_type: DF.Literal["Cheese Ticket", "Cheese Route Booking"]
 		ocr_payload: DF.JSON | None
 		paid_at: DF.Datetime | None
-		status: DF.Literal["PENDING", "PAID", "OVERDUE", "ADJUSTED", "REFUNDED"]
+		status: DF.Literal["PENDING", "PAID", "OVERDUE", "ADJUSTED", "REFUNDED", "CANCELLED"]
 		verification_method: DF.Literal["", "Manual", "OCR"]
 	# end: auto-generated types
 
 	def validate(self):
 		"""Validate deposit data"""
+		# Prevent multiple active deposits for the same entity
+		self.validate_unique_active_deposit()
+
 		# Validate amount
 		if self.amount_paid and self.amount_paid < 0:
 			frappe.throw(_("Amount Paid cannot be negative"))
-
-		if self.amount_required <= 0:
-			frappe.throw(_("Amount Required must be greater than 0"))
-
+			
 		# Update status based on payment
 		if self.amount_paid and self.amount_paid >= self.amount_required:
-			if self.status == "PENDING":
+			if self.amount_paid > self.amount_required:
+				# Overpayment — flag for review instead of blocking
+				self.status = "REVIEW"
+				if not self.paid_at:
+					self.paid_at = now_datetime()
+			elif self.status == "PENDING":
 				self.status = "PAID"
 				if not self.paid_at:
 					self.paid_at = now_datetime()
 
 		# Check overdue
-		if self.status == "PENDING" and self.due_at and self.due_at < now_datetime():
+		due_at_dt = get_datetime(self.due_at) if self.due_at else None
+		if self.status == "PENDING" and due_at_dt and due_at_dt < now_datetime():
 			self.status = "OVERDUE"
+
+	def validate_unique_active_deposit(self):
+		"""Ensure no duplicate active deposit — but allow remaining balance after advance PAID"""
+		if not (self.entity_type and self.entity_id):
+			return
+
+		# When editing existing deposit, ignore self
+		filters = {
+			"entity_type": self.entity_type,
+			"entity_id": self.entity_id,
+			"name": ["!=", self.name] if self.name else ["!=", ""],
+			"status": ["not in", ["REFUNDED", "CANCELLED", "PAID", "REVIEW"]],
+		}
+
+		existing = frappe.db.exists("Cheese Deposit", filters)
+		if existing:
+			# If there's already a PAID deposit, this is a remaining-balance flow — allow it
+			has_paid = frappe.db.exists("Cheese Deposit", {
+				"entity_type": self.entity_type,
+				"entity_id": self.entity_id,
+				"status": "PAID",
+			})
+			if has_paid:
+				# Cancel the stale pending deposit and let the new one through
+				frappe.db.set_value("Cheese Deposit", existing, "status", "CANCELLED")
+				frappe.db.commit()
+				return
+
+			frappe.throw(
+				_("A pending deposit ({0}) already exists for this entity. Pay or cancel it before creating another.").format(
+					existing
+				),
+				frappe.ValidationError,
+			)
 
 	def on_update(self):
 		"""Handle post-update logic"""
@@ -71,7 +111,7 @@ class CheeseDeposit(Document):
 	@frappe.whitelist()
 	def record_payment(self, amount, verification_method="Manual", ocr_payload=None):
 		"""Record a payment for this deposit"""
-		if self.status in ["PAID", "REFUNDED"]:
+		if self.status in ["PAID", "REFUNDED", "CANCELLED"]:
 			frappe.throw(_("Cannot record payment for {0} deposit").format(self.status))
 
 		# Validate OCR payload if provided

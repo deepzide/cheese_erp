@@ -3,7 +3,7 @@
 
 import frappe
 from frappe import _
-from frappe.utils import getdate, today, add_days, cint
+from frappe.utils import getdate, today, add_days, cint, now_datetime
 from cheese.api.common.responses import success, error, validation_error
 
 
@@ -56,8 +56,8 @@ def get_central_dashboard(period="today", date_from=None, date_to=None):
 			slots = frappe.get_all(
 				"Cheese Experience Slot",
 				filters={
-					"date": [">=", start_date],
-					"date": ["<=", end_date]
+					"date_from": [">=", start_date],
+					"date_to": ["<=", end_date]
 				},
 				fields=["name"]
 			)
@@ -96,6 +96,7 @@ def get_central_dashboard(period="today", date_from=None, date_to=None):
 		# Get leads
 		leads = frappe.get_all(
 			"Cheese Lead",
+			filters={"creation": ["between", [f"{date_from_obj} 00:00:00", f"{date_to_obj} 23:59:59"]]},
 			fields=["status"]
 		)
 		
@@ -107,6 +108,7 @@ def get_central_dashboard(period="today", date_from=None, date_to=None):
 		# Get deposits
 		deposits = frappe.get_all(
 			"Cheese Deposit",
+			filters={"creation": ["between", [f"{date_from_obj} 00:00:00", f"{date_to_obj} 23:59:59"]]},
 			fields=["status"]
 		)
 		
@@ -194,8 +196,8 @@ def get_establishment_dashboard(establishment_id, period="today", date_from=None
 		slots = frappe.get_all(
 			"Cheese Experience Slot",
 			filters={
-				"date": [">=", date_from_obj],
-				"date": ["<=", date_to_obj]
+				"date_from": [">=", date_from_obj],
+				"date_to": ["<=", date_to_obj]
 			},
 			fields=["name", "experience"]
 		)
@@ -225,8 +227,16 @@ def get_establishment_dashboard(establishment_id, period="today", date_from=None
 			status = ticket.status
 			status_counts[status] = status_counts.get(status, 0) + 1
 		
-		# Get pending confirmations
-		pending_confirmations = [t for t in tickets if t.status == "PENDING"]
+		# Get pending confirmations, excluding TTL-expired pending tickets.
+		now_dt = now_datetime()
+		pending_confirmations = []
+		for t in tickets:
+			if t.status != "PENDING":
+				continue
+			ticket_doc = frappe.db.get_value("Cheese Ticket", t.name, ["expires_at"], as_dict=True)
+			if ticket_doc and ticket_doc.expires_at and ticket_doc.expires_at < now_dt:
+				continue
+			pending_confirmations.append(t)
 		
 		# Get today's agenda
 		today_date = today()
@@ -334,8 +344,8 @@ def get_dashboard_kpis(establishment_id=None, period="today"):
 		slots = frappe.get_all(
 			"Cheese Experience Slot",
 			filters={
-				"date": [">=", date_from_obj],
-				"date": ["<=", date_to_obj]
+				"date_from": [">=", date_from_obj],
+				"date_to": ["<=", date_to_obj]
 			},
 			fields=["name", "experience"]
 		)
@@ -361,7 +371,7 @@ def get_dashboard_kpis(establishment_id=None, period="today"):
 		# Calculate conversion rates (leads → tickets → confirmed)
 		leads = frappe.get_all(
 			"Cheese Lead",
-			filters={},
+			filters={"creation": ["between", [f"{date_from_obj} 00:00:00", f"{date_to_obj} 23:59:59"]]},
 			fields=["name", "status"]
 		)
 		
@@ -385,7 +395,7 @@ def get_dashboard_kpis(establishment_id=None, period="today"):
 		# Calculate deposit collection rates
 		deposits = frappe.get_all(
 			"Cheese Deposit",
-			filters={},
+			filters={"creation": ["between", [f"{date_from_obj} 00:00:00", f"{date_to_obj} 23:59:59"]]},
 			fields=["name", "status", "amount_required", "amount_paid"]
 		)
 		
@@ -399,7 +409,7 @@ def get_dashboard_kpis(establishment_id=None, period="today"):
 		# Calculate average satisfaction rating
 		surveys = frappe.get_all(
 			"Cheese Survey Response",
-			filters={},
+			filters={"creation": ["between", [f"{date_from_obj} 00:00:00", f"{date_to_obj} 23:59:59"]]},
 			fields=["rating"]
 		)
 		
@@ -449,34 +459,69 @@ def get_dashboard_kpis(establishment_id=None, period="today"):
 
 
 @frappe.whitelist()
-def get_pending_actions(establishment_id):
+def get_pending_actions(establishment_id=None, date_from=None, date_to=None):
 	"""
 	Get pending actions for establishment (US-17)
 	
 	Args:
 		establishment_id: Establishment ID
+		date_from: Start date filter (YYYY-MM-DD) - optional
+		date_to: End date filter (YYYY-MM-DD) - optional
 		
 	Returns:
 		Success response with pending actions
 	"""
 	try:
-		if not establishment_id:
-			return validation_error("establishment_id is required")
-		
-		# Get pending confirmations
+		from frappe.utils import getdate, now_datetime
+
+		# Get experiences to build relevant slots.
+		# If establishment_id is not provided, return pending actions across all companies.
+		experience_filters = {}
+		if establishment_id:
+			experience_filters = {"company": establishment_id}
+
 		experiences = frappe.get_all(
 			"Cheese Experience",
-			filters={"company": establishment_id},
-			fields=["name"]
+			filters=experience_filters,
+			fields=["name"],
 		)
 		exp_ids = [e.name for e in experiences]
-		
-		slots = frappe.get_all(
+
+		if not exp_ids:
+			return success(
+				"Pending actions retrieved successfully",
+				{
+					"establishment_id": establishment_id,
+					"pending_confirmations": [],
+					"pending_confirmations_count": 0,
+					"pending_deposits": [],
+					"pending_deposits_count": 0,
+				},
+			)
+
+		# Pull candidate slots then filter by date_from in Python (Cheese Experience Slot uses `date_from`).
+		all_slots = frappe.get_all(
 			"Cheese Experience Slot",
 			filters={"experience": ["in", exp_ids]},
-			fields=["name"]
+			fields=["name", "date_from", "time_from"],
 		)
-		slot_ids = [s.name for s in slots]
+
+		date_from_obj = getdate(date_from) if date_from else None
+		date_to_obj = getdate(date_to) if date_to else None
+		if date_from_obj and date_to_obj and date_from_obj > date_to_obj:
+			return validation_error("date_from must be before or equal to date_to")
+
+		filtered_slots = []
+		for s in all_slots:
+			slot_date = getdate(s.date_from)
+			if date_from_obj and slot_date < date_from_obj:
+				continue
+			if date_to_obj and slot_date > date_to_obj:
+				continue
+			filtered_slots.append(s)
+
+		slot_ids = [s.name for s in filtered_slots]
+		slot_details_by_id = {s.name: s for s in filtered_slots}
 		
 		pending_tickets = []
 		if slot_ids:
@@ -486,10 +531,22 @@ def get_pending_actions(establishment_id):
 					"slot": ["in", slot_ids],
 					"status": "PENDING"
 				},
-				fields=["name", "experience", "slot", "party_size", "creation"],
+				fields=["name", "contact", "experience", "route", "slot", "party_size", "selected_date", "expires_at", "creation"],
 				order_by="creation asc",
 				limit=20
 			)
+
+			now_dt = now_datetime()
+			pending_tickets = [
+				t for t in pending_tickets
+				if (not t.expires_at) or t.expires_at >= now_dt
+			]
+
+			# Attach slot date/time for UI convenience.
+			for t in pending_tickets:
+				slot_detail = slot_details_by_id.get(t.slot)
+				t["slot_date_from"] = str(slot_detail.date_from) if slot_detail else None
+				t["slot_time_from"] = str(slot_detail.time_from) if slot_detail and slot_detail.time_from else None
 		
 		# Get pending deposits
 		ticket_ids = [t.name for t in pending_tickets]

@@ -38,4 +38,16 @@ export const experienceService = {
     updateBookingPolicy: async (experienceId, data) => {
         return apiRequest(`${BASE}.update_booking_policy`, { method: 'POST', body: JSON.stringify({ experience_id: experienceId, ...data }) });
     },
+
+    createRecurringSlots: async (data) => {
+        return apiRequest(`${BASE}.create_recurring_slots`, { method: 'POST', body: JSON.stringify(data) });
+    },
+
+    deleteTimeSlot: async (slotId) => {
+        return apiRequest(`${BASE}.delete_time_slot`, { method: 'POST', body: JSON.stringify({ slot_id: slotId }) });
+    },
+
+    deleteExperience: async (experienceId) => {
+        return apiRequest(`${BASE}.delete_experience`, { method: 'POST', body: JSON.stringify({ experience_id: experienceId }) });
+    },
 };

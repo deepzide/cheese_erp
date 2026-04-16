@@ -1,0 +1,91 @@
+{
+ "actions": [],
+ "creation": "2024-01-01 00:00:00",
+ "doctype": "DocType",
+ "name": "Cheese Bot Setting",
+ "engine": "InnoDB",
+ "field_order": [
+  "webhook_section",
+  "webhook_url",
+  "webhook_api_key",
+  "webhook_enabled",
+  "bot_section",
+  "bot_default_language",
+  "bot_notes"
+ ],
+ "fields": [
+  {
+   "fieldname": "webhook_section",
+   "fieldtype": "Section Break",
+   "label": "Ticket Status Webhook"
+  },
+  {
+   "fieldname": "webhook_url",
+   "fieldtype": "Data",
+   "label": "Webhook URL",
+   "description": "The bot endpoint that receives ticket status notifications (e.g. https://example.trycloudflare.com/erp/ticket-status)",
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "webhook_api_key",
+   "fieldtype": "Password",
+   "label": "Webhook API Key",
+   "description": "The x-api-key header value for authenticating with the bot"
+  },
+  {
+   "fieldname": "webhook_enabled",
+   "fieldtype": "Check",
+   "label": "Webhook Enabled",
+   "default": "1",
+   "description": "Uncheck to temporarily disable webhook notifications without removing the URL"
+  },
+  {
+   "fieldname": "bot_section",
+   "fieldtype": "Section Break",
+   "label": "Bot Configuration"
+  },
+  {
+   "fieldname": "bot_default_language",
+   "fieldtype": "Data",
+   "label": "Default Language",
+   "default": "es",
+   "description": "Default language for bot messages (ISO 639-1 code)"
+  },
+  {
+   "fieldname": "bot_notes",
+   "fieldtype": "Small Text",
+   "label": "Notes",
+   "description": "Internal notes about the bot configuration"
+  }
+ ],
+ "index_web_pages_for_search": 0,
+ "issingle": 1,
+ "links": [],
+ "modified": "2024-01-01 00:00:00",
+ "modified_by": "Administrator",
+ "module": "Cheese",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "read": 1,
+   "role": "Cheese Booking Manager",
+   "write": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1
+}

@@ -6,6 +6,32 @@ from frappe import _
 from frappe.model.document import Document
 from frappe.utils import now_datetime
 
+ALLOWED_PREFERRED_LANGUAGES = {
+	"English",
+	"Spanish",
+	"French",
+	"German",
+	"Italian",
+	"Portuguese",
+	"Other",
+}
+ALLOWED_PREFERRED_CHANNELS = {"WhatsApp", "Email", "SMS", "Phone", "Web"}
+LEGACY_LANGUAGE_CODE_MAP = {
+	"EN": "English",
+	"ES": "Spanish",
+	"FR": "French",
+	"DE": "German",
+	"IT": "Italian",
+	"PT": "Portuguese",
+}
+LEGACY_CHANNEL_CODE_MAP = {
+	"WHATSAPP": "WhatsApp",
+	"EMAIL": "Email",
+	"SMS": "SMS",
+	"PHONE": "Phone",
+	"WEB": "Web",
+}
+
 
 class CheeseContact(Document):
 	# begin: auto-generated types
@@ -29,17 +55,40 @@ class CheeseContact(Document):
 		erpnext_contact: DF.Link | None
 	# end: auto-generated types
 
+	def autoname(self):
+		"""Primary key is phone — full_name may duplicate across contacts."""
+		if self.phone:
+			self.name = str(self.phone).strip()
+		else:
+			# Phone is required before insert; fallback avoids empty name if autoname runs early.
+			self.name = frappe.generate_hash(length=12)
+
 	def validate(self):
 		"""Validate contact data and enforce deduplication rules"""
 		# Ensure at least phone or email is provided
 		if not self.phone and not self.email:
 			frappe.throw(_("Either Phone or Email must be provided"))
 
+		self.normalize_preference_fields()
+		self.validate_preference_fields()
+
 		# Check for duplicates by phone OR email
 		self.check_duplicates()
 
 		# Update channel opt-in timestamps
 		self.update_channel_opt_in_timestamps()
+
+	def after_rename(self, old_name, new_name, merge=False):
+		"""Called after document is renamed"""
+		pass
+
+	def on_update(self):
+		"""Keep document name in sync with phone only — never rename when full_name changes."""
+		if not self.phone:
+			return
+		expected = str(self.phone).strip()
+		if expected and self.name != expected:
+			frappe.rename_doc("Cheese Contact", self.name, expected, merge=False, force=True)
 
 	def check_duplicates(self):
 		"""Check for duplicate contacts by phone or email"""
@@ -71,6 +120,32 @@ class CheeseContact(Document):
 					duplicates[0].name
 				),
 				frappe.DuplicateEntryError
+			)
+
+	def normalize_preference_fields(self):
+		if self.preferred_language:
+			self.preferred_language = LEGACY_LANGUAGE_CODE_MAP.get(
+				self.preferred_language.upper(), self.preferred_language
+			)
+
+		if self.preferred_channel:
+			self.preferred_channel = LEGACY_CHANNEL_CODE_MAP.get(
+				self.preferred_channel.upper(), self.preferred_channel
+			)
+
+	def validate_preference_fields(self):
+		if self.preferred_language and self.preferred_language not in ALLOWED_PREFERRED_LANGUAGES:
+			frappe.throw(
+				_(
+					'Preferred Language cannot be "{0}". It should be one of "English", "Spanish", "French", "German", "Italian", "Portuguese", "Other"'
+				).format(self.preferred_language)
+			)
+
+		if self.preferred_channel and self.preferred_channel not in ALLOWED_PREFERRED_CHANNELS:
+			frappe.throw(
+				_(
+					'Preferred Channel cannot be "{0}". It should be one of "WhatsApp", "Email", "SMS", "Phone", "Web"'
+				).format(self.preferred_channel)
 			)
 
 	def update_channel_opt_in_timestamps(self):

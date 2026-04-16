@@ -4,11 +4,47 @@
 import frappe
 from frappe import _
 from frappe.utils import now_datetime
+import secrets
+import string
 from cheese.api.common.responses import success, created, error, not_found, validation_error
 
 
+def _request_value(*keys):
+	"""Read a value from function args payloads (form/query/json)."""
+	for key in keys:
+		value = None
+		if getattr(frappe, "form_dict", None):
+			value = frappe.form_dict.get(key)
+		if value not in (None, ""):
+			return value
+
+	# Fallback for clients sending raw JSON
+	try:
+		if getattr(frappe, "request", None):
+			payload = frappe.request.get_json(silent=True) or {}
+			if isinstance(payload, dict):
+				for key in keys:
+					value = payload.get(key)
+					if value not in (None, ""):
+						return value
+	except Exception:
+		pass
+	return None
+
+
+def _generate_unique_qr_token(length=32, max_attempts=5):
+	"""Generate a token that is not currently used by Cheese QR Token."""
+	alphabet = string.ascii_letters + string.digits
+	for _ in range(max_attempts):
+		token = "".join(secrets.choice(alphabet) for _ in range(length))
+		if not frappe.db.exists("Cheese QR Token", {"token": token}):
+			return token
+	# Extremely unlikely fallback; let unique constraint handle collisions after this.
+	return "".join(secrets.choice(alphabet) for _ in range(length))
+
+
 @frappe.whitelist()
-def get_qr_for_reservation(reservation_id):
+def get_qr_for_reservation(reservation_id=None, ticket_id=None):
 	"""
 	Get QR for reservation - alias for get_qr
 	
@@ -18,6 +54,14 @@ def get_qr_for_reservation(reservation_id):
 	Returns:
 		Success response with QR token
 	"""
+	reservation_id = reservation_id or _request_value("reservation_id", "ticket_id") or ticket_id
+	if not reservation_id:
+		# Helpful guidance when clients accidentally send check-in token payload.
+		if _request_value("token"):
+			return validation_error(
+				"reservation_id is required for this endpoint. Use validate_qr with token for check-in."
+			)
+		return validation_error("reservation_id is required")
 	return get_qr(reservation_id)
 
 
@@ -76,8 +120,25 @@ def get_checkin_status(reservation_id):
 		return error("Failed to get check-in status", "SERVER_ERROR", {"error": str(e)}, 500)
 
 
+def _pending_confirmation_allowed(ticket):
+	if not ticket.deposit_required or (ticket.deposit_amount or 0) <= 0:
+		return True
+
+	deposit_status = frappe.db.get_value(
+		"Cheese Deposit",
+		{"entity_type": "Cheese Ticket", "entity_id": ticket.name},
+		"status",
+	)
+	return deposit_status == "PAID"
+
+
+def _can_use_pending_qr_flow():
+	allowed_roles = {"System Manager", "Cheese Booking Manager", "Cheese Booking Operator"}
+	return bool(set(frappe.get_roles()) & allowed_roles)
+
+
 @frappe.whitelist()
-def get_qr(ticket_id):
+def get_qr(ticket_id=None, allow_pending=0):
 	"""
 	Get or generate QR token for a ticket
 	
@@ -88,6 +149,7 @@ def get_qr(ticket_id):
 		Success response with QR token
 	"""
 	try:
+		ticket_id = ticket_id or _request_value("ticket_id", "reservation_id")
 		if not ticket_id:
 			return validation_error("ticket_id is required")
 
@@ -96,10 +158,15 @@ def get_qr(ticket_id):
 
 		ticket = frappe.get_doc("Cheese Ticket", ticket_id)
 		
-		if ticket.status not in ["CONFIRMED", "CHECKED_IN"]:
+		allow_pending = int(allow_pending or 0)
+		allowed_statuses = ["CONFIRMED", "CHECKED_IN"]
+		if allow_pending and _can_use_pending_qr_flow() and _pending_confirmation_allowed(ticket):
+			allowed_statuses.append("PENDING")
+
+		if ticket.status not in allowed_statuses:
 			return validation_error(
-				f"QR code can only be generated for CONFIRMED or CHECKED_IN tickets. Current status: {ticket.status}",
-				{"current_status": ticket.status, "allowed_statuses": ["CONFIRMED", "CHECKED_IN"]}
+				f"QR code can only be generated for {', '.join(allowed_statuses)} tickets. Current status: {ticket.status}",
+				{"current_status": ticket.status, "allowed_statuses": allowed_statuses}
 			)
 
 		# Get or create QR token
@@ -112,6 +179,15 @@ def get_qr(ticket_id):
 		if qr_token:
 			qr = frappe.get_doc("Cheese QR Token", qr_token)
 			if qr.status == "ACTIVE":
+				# Regenerate QR image if it was never created or the file is missing
+				qr_image_url = qr.qr_image or None
+				if not qr_image_url:
+					try:
+						from cheese.cheese.utils.qr_utils import generate_qr_image
+						qr_image_url = generate_qr_image(qr.token, ticket_id, qr.name)
+						frappe.db.commit()
+					except Exception as img_err:
+						frappe.log_error(f"Failed to regenerate QR image for ticket {ticket_id}: {img_err}", "QR Image Error")
 				return success(
 					"QR token retrieved successfully",
 					{
@@ -120,6 +196,7 @@ def get_qr(ticket_id):
 						"ticket_id": ticket_id,
 						"status": qr.status,
 						"expires_at": str(qr.expires_at) if qr.expires_at else None,
+						"qr_image_url": qr_image_url,
 						"is_new": False
 					}
 				)
@@ -129,21 +206,27 @@ def get_qr(ticket_id):
 					{"qr_token_id": qr.name, "status": qr.status}
 				)
 
-		# Create new QR token
 		qr = frappe.get_doc({
 			"doctype": "Cheese QR Token",
 			"ticket": ticket_id,
+			"token": _generate_unique_qr_token(),
 			"status": "ACTIVE"
 		})
 		qr.insert()
 		frappe.db.commit()
 
-		# Send notification about QR generation
+		# Generate QR image and attach to token
+		qr_image_url = None
+		try:
+			from cheese.cheese.utils.qr_utils import generate_qr_image
+			qr_image_url = generate_qr_image(qr.token, ticket_id, qr.name)
+		except Exception as e:
+			frappe.log_error(f"Failed to generate QR image for ticket {ticket_id}: {e}", "QR Image Error")
+
 		try:
 			from cheese.cheese.utils.notifications import send_ticket_notification
 			send_ticket_notification(ticket_id, "qr_generated")
 		except Exception as e:
-			# Silently fail if notification fails
 			frappe.log_error(f"Failed to send QR notification for ticket {ticket_id}: {e}", "QR Notification Error")
 
 		return created(
@@ -154,6 +237,7 @@ def get_qr(ticket_id):
 				"ticket_id": ticket_id,
 				"status": qr.status,
 				"expires_at": str(qr.expires_at) if qr.expires_at else None,
+				"qr_image_url": qr_image_url,
 				"is_new": True
 			}
 		)
@@ -165,7 +249,7 @@ def get_qr(ticket_id):
 
 
 @frappe.whitelist()
-def validate_qr(token):
+def validate_qr(token=None):
 	"""
 	Validate QR token and check in
 	
@@ -176,6 +260,7 @@ def validate_qr(token):
 		Success response with validation result and ticket info
 	"""
 	try:
+		token = token or _request_value("token")
 		if not token:
 			return validation_error("token is required")
 
@@ -203,7 +288,16 @@ def validate_qr(token):
 
 		# Get ticket
 		ticket = frappe.get_doc("Cheese Ticket", qr_token.ticket)
-		
+
+		if ticket.status == "PENDING":
+			if not _pending_confirmation_allowed(ticket):
+				return validation_error(
+					"Ticket is PENDING and cannot be auto-confirmed yet. Deposit must be paid first.",
+					{"ticket_id": ticket.name}
+				)
+			ticket.confirm()
+			ticket.reload()
+
 		if ticket.status != "CONFIRMED":
 			return validation_error(
 				f"Ticket must be CONFIRMED to check in. Current status: {ticket.status}",

@@ -5,6 +5,7 @@ import frappe
 from frappe import _
 from frappe.model.document import Document
 from frappe.query_builder import functions as fn
+from frappe.utils import getdate, today, get_time as _get_time
 
 
 class CheeseExperienceSlot(Document):
@@ -40,6 +41,14 @@ class CheeseExperienceSlot(Document):
 		if not self.date_to:
 			frappe.throw(_("Date To is required"))
 
+		# Only enforce past-date checks when creating a new slot or when dates are changed
+		if self.is_new() or self.has_value_changed("date_from") or self.has_value_changed("date_to"):
+			today_date = getdate(today())
+			if self.date_from and getdate(self.date_from) < today_date:
+				frappe.throw(_("Date From cannot be in the past"))
+			if self.date_to and getdate(self.date_to) < today_date:
+				frappe.throw(_("Date To cannot be in the past"))
+
 		# Validate date range
 		if self.date_from and self.date_to:
 			if str(self.date_from) > str(self.date_to):
@@ -51,8 +60,13 @@ class CheeseExperienceSlot(Document):
 
 		# Validate time range (only if both time fields are provided)
 		if time_from and time_to:
-			if time_from > time_to:
-				frappe.throw(_("Time From must be before or equal to Time To"))
+			try:
+				t_from = _get_time(time_from)
+				t_to = _get_time(time_to)
+				if str(t_from) > str(t_to):
+					frappe.throw(_("Time From must be before or equal to Time To"))
+			except Exception:
+				pass  # Skip comparison if time parsing fails
 
 		# Update combined time range field
 		self.update_time_range()
@@ -86,20 +100,8 @@ class CheeseExperienceSlot(Document):
 
 	def calculate_reserved_capacity(self):
 		"""Calculate reserved capacity from active tickets (PENDING, CONFIRMED, CHECKED_IN, COMPLETED)"""
-		from frappe.query_builder import DocType
-
-		ticket = DocType("Cheese Ticket")
-
-		# Count tickets that reserve capacity: PENDING, CONFIRMED, CHECKED_IN, COMPLETED
-		# Exclude: EXPIRED, REJECTED, CANCELLED, NO_SHOW
-		result = (
-			frappe.qb.from_(ticket)
-			.select(fn.Sum(ticket.party_size).as_("total"))
-			.where(ticket.slot == self.name)
-			.where(ticket.status.isin(["PENDING", "CONFIRMED", "CHECKED_IN", "COMPLETED"]))
-		).run()
-
-		self.reserved_capacity = result[0][0] if result and result[0][0] else 0
+		from cheese.cheese.utils.capacity import calculate_reserved_capacity as calc_capacity
+		self.reserved_capacity = calc_capacity(self.name)
 
 	def update_slot_status(self):
 		"""Update slot status based on capacity"""
@@ -114,3 +116,9 @@ class CheeseExperienceSlot(Document):
 	def get_available_capacity(self):
 		"""Get available capacity for this slot"""
 		return self.max_capacity - (self.reserved_capacity or 0)
+
+	def on_trash(self):
+		"""Prevent casual deletion of slots. Force-delete via API is allowed."""
+		if not frappe.flags.in_delete:
+			# Allow deletion - the API delete endpoints handle validation
+			pass

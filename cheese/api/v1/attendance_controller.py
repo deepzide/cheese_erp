@@ -175,7 +175,15 @@ def get_attendance_record(attendance_id):
 
 
 @frappe.whitelist()
-def list_attendance(page=1, page_size=20, date=None, establishment_id=None, experience_id=None):
+def list_attendance(
+	page=1,
+	page_size=20,
+	date=None,
+	establishment_id=None,
+	company_id=None,
+	route_id=None,
+	experience_id=None,
+):
 	"""
 	List attendance records with filters
 	
@@ -183,7 +191,9 @@ def list_attendance(page=1, page_size=20, date=None, establishment_id=None, expe
 		page: Page number
 		page_size: Items per page
 		date: Filter by date
-		establishment_id: Filter by establishment
+		establishment_id: Legacy filter by establishment
+		company_id: Filter by establishment/company
+		route_id: Filter by route
 		experience_id: Filter by experience
 		
 	Returns:
@@ -198,8 +208,12 @@ def list_attendance(page=1, page_size=20, date=None, establishment_id=None, expe
 		
 		# Get tickets matching filters first
 		ticket_filters = {}
-		if establishment_id:
+		if company_id:
+			ticket_filters["company"] = company_id
+		elif establishment_id:
 			ticket_filters["company"] = establishment_id
+		if route_id:
+			ticket_filters["route"] = route_id
 		if experience_id:
 			ticket_filters["experience"] = experience_id
 		
@@ -274,6 +288,8 @@ def list_attendance(page=1, page_size=20, date=None, establishment_id=None, expe
 				)
 				if ticket:
 					record["experience_id"] = ticket.experience
+					record["route_id"] = ticket.route
+					record["company_id"] = ticket.company
 					record["party_size"] = ticket.party_size
 					record["ticket_status"] = ticket.status
 		

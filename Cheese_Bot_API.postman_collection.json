@@ -6,6 +6,106 @@
 	},
 	"item": [
 		{
+			"name": "0. Authentication",
+			"item": [
+				{
+					"name": "Get Authentication Token",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"grant_type\": \"password\",\n  \"username\": \"user@example.com\",\n  \"password\": \"your_password\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/method/cheese.api.v1.auth_controller.token",
+							"host": ["{{base_url}}"],
+							"path": ["api", "method", "cheese.api.v1.auth_controller.token"]
+						},
+						"description": "Authenticate and obtain API key/secret. If API key/secret don't exist, they will be created. On each login, a new API secret is generated and returned.\n\n**Response format:**\n```json\n{\n  \"success\": true,\n  \"message\": \"Authentication successful\",\n  \"data\": {\n    \"api_key\": \"generated_api_key\",\n    \"api_secret\": \"generated_api_secret\",\n    \"user\": \"username\",\n    \"full_name\": \"User Full Name\",\n    \"email\": \"user@example.com\",\n    \"permissions\": [\"Dashboard\", \"Tickets\", ...]\n  }\n}\n```"
+					},
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"let res;",
+									"try {",
+									"  res = pm.response.json();",
+									"} catch (e) {",
+									"  pm.test(\"La respuesta es JSON válido\", function () {",
+									"    pm.expect.fail(\"Respuesta no es JSON\");",
+									"  });",
+									"}",
+									"",
+									"const data = res?.data || res?.message?.data;",
+									"",
+									"pm.test(\"Respuesta contiene api_key y api_secret\", function () {",
+									"  pm.expect(data?.api_key, \"api_key faltante\").to.be.a(\"string\").and.not.empty;",
+									"  pm.expect(data?.api_secret, \"api_secret faltante\").to.be.a(\"string\").and.not.empty;",
+									"});",
+									"",
+									"if (data?.api_key) {",
+									"  pm.collectionVariables.set(\"api_key\", data.api_key);",
+									"}",
+									"if (data?.api_secret) {",
+									"  pm.collectionVariables.set(\"api_secret\", data.api_secret);",
+									"}",
+									"",
+									"const k = pm.collectionVariables.get(\"api_key\");",
+									"const s = pm.collectionVariables.get(\"api_secret\");",
+									"",
+									"const apiKey = k || data?.api_key;",
+									"const apiSecret = s || data?.api_secret;",
+									"",
+									"if (apiKey && apiSecret) {",
+									"  pm.collectionVariables.set(\"token\", `${apiKey}:${apiSecret}`);",
+									"  console.log(\"Variables de colección actualizadas: api_key, api_secret y token\");",
+									"} else {",
+									"  console.warn(\"No se pudo componer 'token' por falta de api_key o api_secret\");",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"response": []
+				},
+				{
+					"name": "Logout",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "token {{token}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/method/cheese.api.v1.auth_controller.logout",
+							"host": ["{{base_url}}"],
+							"path": ["api", "method", "cheese.api.v1.auth_controller.logout"]
+						},
+						"description": "Logout and regenerate API secret (effectively invalidates current session)."
+					},
+					"response": []
+				}
+			]
+		},
+		{
 			"name": "1. Contact",
 			"item": [
 				{
@@ -145,6 +245,33 @@
 							"path": ["api", "method", "cheese.api.v1.conversation_controller.append_conversation_event"]
 						},
 						"description": "ERP: Persists events. Bot: Sends relevant events (intent, tool-calls, errors)."
+					},
+					"response": []
+				},
+				{
+					"name": "Upload Message Transcript",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "token {{token}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"phone_number\": \"+1234567890\",\n  \"messages\": [\n    {\"role\": \"user\", \"content\": \"hello\"},\n    {\"role\": \"assistant\", \"content\": \"Nice to meet you\"}\n  ],\n  \"conversation_id\": \"CONV-001\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/method/cheese.api.v1.message_controller.upload_message_transcript",
+							"host": ["{{base_url}}"],
+							"path": ["api", "method", "cheese.api.v1.message_controller.upload_message_transcript"]
+						},
+						"description": "Upload message transcript - stores individual messages from a conversation.\n\n**Parameters:**\n- `phone_number`: Phone number of the user (required)\n- `messages`: Array of message objects with `role` (user/assistant) and `content` (required)\n- `conversation_id`: Optional conversation ID to link messages to\n\n**Example response:**\n```json\n{\n  \"success\": true,\n  \"message\": \"Message transcript uploaded successfully\",\n  \"data\": {\n    \"contact_id\": \"CONTACT-001\",\n    \"conversation_id\": \"CONV-001\",\n    \"message_count\": 2,\n    \"message_ids\": [\"MSG-001\", \"MSG-002\"]\n  }\n}\n```"
 					},
 					"response": []
 				}
@@ -319,7 +446,7 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n  \"experience_id\": \"EXP-001\",\n  \"date\": \"2024-12-31\"\n}"
+							"raw": "{\n  \"experience_id\": \"EXP-001\",\n  \"date\": \"2024-12-31\",\n  \"date_from\": \"2024-12-31\",\n  \"date_to\": \"2024-12-31\"\n}"
 						},
 						"url": {
 							"raw": "{{base_url}}/api/method/cheese.api.v1.availability_controller.get_availability",
@@ -346,7 +473,7 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n  \"experience_id\": \"EXP-001\",\n  \"date\": \"2024-12-31\"\n}"
+							"raw": "{\n  \"experience_id\": \"EXP-001\",\n  \"date\": \"2024-12-31\",\n  \"date_from\": \"2024-12-31\",\n  \"date_to\": \"2024-12-31\"\n}"
 						},
 						"url": {
 							"raw": "{{base_url}}/api/method/cheese.api.v1.availability_controller.get_available_slots",
@@ -712,14 +839,14 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n  \"contact_id\": \"CONTACT-001\",\n  \"route_id\": \"ROUTE-001\",\n  \"party_size\": 2,\n  \"date\": \"2024-12-31\",\n  \"conversation_id\": \"CONV-001\"\n}"
+							"raw": "{\n  \"contact_id\": \"CONTACT-001\",\n  \"route_id\": \"ROUTE-001\",\n  \"party_size\": 2,\n  \"date_from\": \"2024-12-31\",\n  \"date_to\": \"2024-12-31\",\n  \"conversation_id\": \"CONV-001\"\n}"
 						},
 						"url": {
 							"raw": "{{base_url}}/api/method/cheese.api.v1.route_booking_controller.create_route_reservation",
 							"host": ["{{base_url}}"],
 							"path": ["api", "method", "cheese.api.v1.route_booking_controller.create_route_reservation"]
 						},
-						"description": "ERP: Creates RouteBooking = PENDING + internal reservations, locks capacity. Bot: Guides and executes."
+						"description": "ERP: Creates RouteBooking = PENDING + internal reservations, locks capacity. Bot: Guides and executes.\n\n**Booking date / slots:** Omit `experiences_with_slots` and pass `date_from` and optionally `date_to` (YYYY-MM-DD) to auto-select OPEN slots in that range; single-day bookings can set both to the same date. Alternatively pass `experiences_with_slots` with explicit `experience_id` / `slot_id` pairs. The `date` field is accepted as a synonym for `date_from` when `date_from` is not set."
 					},
 					"response": []
 				},
@@ -1117,24 +1244,52 @@
 						"method": "POST",
 						"header": [
 							{
-								"key": "Content-Type",
-								"value": "application/json"
-							},
-							{
 								"key": "Authorization",
-								"value": "token {{token}}"
+								"value": "token {{api_key}}:{{api_secret}}"
 							}
 						],
 						"body": {
-							"mode": "raw",
-							"raw": "{\n  \"ticket_id\": \"TICKET-001\",\n  \"amount\": 50.00,\n  \"verification_method\": \"Manual\",\n  \"ocr_payload\": null\n}"
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "ticket_id",
+									"value": "TICKET-001",
+									"type": "text"
+								},
+								{
+									"key": "amount",
+									"value": "50.00",
+									"type": "text"
+								},
+								{
+									"key": "verification_method",
+									"value": "Manual",
+									"type": "text"
+								},
+								{
+									"key": "ocr_payload",
+									"value": "{\"account\":\"1234567890\",\"amount\":50.00,\"date\":\"2026-04-01\",\"reference\":\"DEP-001\"}",
+									"type": "text",
+									"disabled": true
+								},
+								{
+									"key": "attach_receipt",
+									"value": "true",
+									"type": "text"
+								},
+								{
+									"key": "receipt",
+									"type": "file",
+									"src": ""
+								}
+							]
 						},
 						"url": {
 							"raw": "{{base_url}}/api/method/cheese.api.v1.deposit_controller.record_deposit_payment",
 							"host": ["{{base_url}}"],
 							"path": ["api", "method", "cheese.api.v1.deposit_controller.record_deposit_payment"]
 						},
-						"description": "Record a deposit payment. Supports Manual and OCR verification methods."
+						"description": "Record a deposit payment with optional receipt upload (PDF/PNG/JPG/JPEG/WEBP, max 10MB). Use form-data field name 'receipt' (also accepts 'payment_receipt' or 'file')."
 					},
 					"response": []
 				},
@@ -1235,7 +1390,7 @@
 							},
 							{
 								"key": "Authorization",
-								"value": "token {{token}}"
+								"value": "token {{api_key}}:{{api_secret}}"
 							}
 						],
 						"body": {
@@ -1439,14 +1594,14 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n  \"contact_id\": \"CONTACT-001\",\n  \"description\": \"Issue with booking experience\",\n  \"ticket_id\": \"TICKET-001\",\n  \"complaint_type\": \"Service\"\n}"
+							"raw": "{\n  \"contact_id\": \"CONTACT-001\",\n  \"description\": \"Issue with booking experience\",\n  \"ticket_id\": \"TICKET-001\",\n  \"complaint_type\": \"Service\",\n  \"incident_type\": \"LOCAL\"\n}"
 						},
 						"url": {
 							"raw": "{{base_url}}/api/method/cheese.api.v1.complaint_controller.create_complaint",
 							"host": ["{{base_url}}"],
 							"path": ["api", "method", "cheese.api.v1.complaint_controller.create_complaint"]
 						},
-						"description": "Create a complaint/support case."
+						"description": "Create a complaint/support case.\n\n**Parameters:**\n- `contact_id`: Contact ID (required)\n- `description`: Complaint description (required)\n- `ticket_id`: Related ticket ID (optional)\n- `route_booking_id`: Related route booking ID (optional)\n- `complaint_type`: Complaint type (optional)\n- `incident_type`: Incident type - LOCAL or GENERAL (required)\n\n**Routing Logic:**\n- **LOCAL**: If there's an active booking today/upcoming, sends WhatsApp notification to establishment (without exposing personal data)\n- **GENERAL**: Routes to admin user for manual handling\n\n**Example response:**\n```json\n{\n  \"success\": true,\n  \"message\": \"Complaint created successfully\",\n  \"data\": {\n    \"complaint_id\": \"CASE-CONTACT-001-20241231\",\n    \"support_case_id\": \"CASE-CONTACT-001-20241231\",\n    \"contact_id\": \"CONTACT-001\",\n    \"ticket_id\": \"TICKET-001\",\n    \"status\": \"OPEN\",\n    \"created_at\": \"2024-12-31T12:00:00\"\n  }\n}\n```"
 					},
 					"response": []
 				},
@@ -1505,7 +1660,7 @@
 							"host": ["{{base_url}}"],
 							"path": ["api", "method", "cheese.api.v1.establishment_controller.list_establishments"]
 						},
-						"description": "List establishments with pagination and filters"
+						"description": "List establishments with pagination and filters.\n\n**Response includes:**\n- `administrator_contact`: Contact information for the establishment administrator (e.g., email, phone) to be provided when users ask the bot for human assistance about an experience.\n\n**Example response:**\n```json\n{\n  \"success\": true,\n  \"message\": \"Establishments retrieved successfully\",\n  \"data\": [\n    {\n      \"company_id\": \"COMPANY-001\",\n      \"company_name\": \"Example Establishment\",\n      \"email\": \"info@example.com\",\n      \"phone\": \"+1234567890\",\n      \"administrator_contact\": \"admin@example.com, +1234567890\",\n      \"experiences_count\": 5,\n      ...\n    }\n  ],\n  \"meta\": { ... }\n}\n```"
 					}
 				},
 				{
@@ -1531,8 +1686,35 @@
 							"host": ["{{base_url}}"],
 							"path": ["api", "method", "cheese.api.v1.establishment_controller.get_establishment_details"]
 						},
-						"description": "Get full establishment profile"
+						"description": "Get full establishment profile with experiences, attachments, and status.\n\n**Response includes:**\n- `administrator_contact`: Contact information for the establishment administrator (e.g., email, phone) to be provided when users ask the bot for human assistance about an experience.\n\n**Example response:**\n```json\n{\n  \"success\": true,\n  \"message\": \"Establishment details retrieved successfully\",\n  \"data\": {\n    \"company_id\": \"COMPANY-001\",\n    \"company_name\": \"Example Establishment\",\n    \"administrator_contact\": \"admin@example.com, +1234567890\",\n    \"experiences\": [...],\n    \"contacts\": [...],\n    ...\n  }\n}\n```\n\n**Note:** The bot can use this endpoint to retrieve `administrator_contact` when users ask for human assistance about an experience."
 					}
+				},
+				{
+					"name": "Update Establishment",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "token {{token}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"company_id\": \"COMPANY-001\",\n  \"company_name\": \"Updated Name\",\n  \"email\": \"newemail@example.com\",\n  \"phone_no\": \"+1234567890\",\n  \"website\": \"https://example.com\",\n  \"company_description\": \"Updated description\",\n  \"administrator_contact\": \"admin@example.com, +1234567890\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/method/cheese.api.v1.establishment_controller.update_establishment",
+							"host": ["{{base_url}}"],
+							"path": ["api", "method", "cheese.api.v1.establishment_controller.update_establishment"]
+						},
+						"description": "Update establishment fields with audit trail.\n\n**Allowed fields:**\n- `company_name`\n- `email`\n- `phone_no`\n- `website`\n- `company_description`\n- `company_logo`\n- `administrator_contact`: Contact information for the establishment administrator (e.g., email, phone) to be provided when users ask the bot for human assistance.\n\n**Example response:**\n```json\n{\n  \"success\": true,\n  \"message\": \"Establishment updated successfully\",\n  \"data\": {\n    \"company_id\": \"COMPANY-001\",\n    \"company_name\": \"Updated Name\",\n    \"changes\": [\"company_name\", \"administrator_contact\"]\n  }\n}\n```"
+					},
+					"response": []
 				}
 			]
 		},

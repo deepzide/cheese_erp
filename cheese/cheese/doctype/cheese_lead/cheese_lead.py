@@ -24,6 +24,24 @@ class CheeseLead(Document):
 		status: DF.Literal["OPEN", "IN_PROGRESS", "CONVERTED", "LOST", "DISCARDED"]
 	# end: auto-generated types
 
+	def autoname(self):
+		"""Set document name to the contact's full_name"""
+		contact_name = self.contact
+		if self.contact:
+			full_name = frappe.db.get_value("Cheese Contact", self.contact, "full_name")
+			if full_name:
+				contact_name = full_name
+
+		# Ensure uniqueness by appending a counter if needed
+		base_name = contact_name
+		name = base_name
+		counter = 1
+		while frappe.db.exists("Cheese Lead", name):
+			name = f"{base_name}-{counter}"
+			counter += 1
+
+		self.name = name
+
 	def validate(self):
 		"""Enforce one active lead per contact and validate status transitions"""
 		# Check for active leads

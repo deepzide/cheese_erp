@@ -88,3 +88,21 @@ def update_route_booking_status(doc, method):
 	except Exception as e:
 		# Silently fail to avoid breaking ticket updates
 		frappe.log_error(f"Failed to update route booking status: {e}", "Route Booking Update Error")
+
+
+def on_ticket_created_notify_establishment(doc, method):
+	"""
+	Send email notification to establishment when a ticket is created.
+	Triggered on 'after_insert' of Cheese Ticket.
+	"""
+	try:
+		from cheese.cheese.utils.notifications import send_reservation_email_to_establishment
+		# Use enqueue to avoid blocking the transaction
+		frappe.enqueue(
+			send_reservation_email_to_establishment,
+			ticket_id=doc.name,
+			queue="short",
+			is_async=True
+		)
+	except Exception as e:
+		frappe.log_error(f"Failed to enqueue reservation notification email: {e}", "Notification Error")

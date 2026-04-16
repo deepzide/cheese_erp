@@ -13,6 +13,8 @@ on:
         required: true
       SSH_KEY_PRIVATE:
         required: true
+      GH_PAT:
+        required: true
 
 env:
   SERVER_IP: ${{ github.ref_name == 'prod' && '144.91.95.172' || '62.171.181.244' }}
@@ -40,10 +42,10 @@ jobs:
         run: |
           BRANCH="${{ github.ref_name }}"
 
-          jq --arg branch "$BRANCH" '
+          jq --arg branch "$BRANCH" --arg token "${{ secrets.GH_PAT }}" '
             map(
-              if .url == "https://github.com/deepzide/cheese_erp"
-              then .branch = $branch
+              if (.url | test("deepzide/cheese_erp"))
+              then .branch = $branch | .url = "https://x-access-token:" + $token + "@github.com/deepzide/cheese_erp.git"
               else .
               end
             )
@@ -133,4 +135,11 @@ jobs:
       - name: Deploy docker-compose via Ansible
         run: |
           TARGET_IMAGE="${{ secrets.DOCKER_USER }}/cheese:${{ github.ref_name == 'prod' && 'latest' || 'demo' }}"
-          ansible-playbook -i ./ansible/inventory.ini ./ansible/docker_erpnext.yml -e "target_image=${TARGET_IMAGE}" -v
+          DEPLOY_ENV="${{ github.ref_name == 'prod' && 'production' || 'staging' }}"
+          ansible-playbook -i ./ansible/inventory.ini ./ansible/docker_erpnext.yml \
+            -e "target_image=${TARGET_IMAGE} deploy_env=${DEPLOY_ENV}" \
+            -v
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_S3_BUCKET: ${{ secrets.AWS_S3_BUCKET }}

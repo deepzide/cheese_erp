@@ -18,9 +18,11 @@ function ThemedToaster() {
     const { resolvedTheme } = useTheme();
     return (
         <Toaster
-            duration={2000}
+            duration={2500}
+            closeButton
             theme={resolvedTheme}
             toastOptions={{
+                duration: 2500,
                 style: {
                     background: 'hsl(var(--card))',
                     color: 'hsl(var(--card-foreground))',

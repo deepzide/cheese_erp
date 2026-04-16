@@ -43,7 +43,7 @@ class CheeseTicket(Document):
 
 	# Valid status transitions
 	VALID_TRANSITIONS = {
-		"PENDING": ["CONFIRMED", "EXPIRED", "REJECTED"],
+		"PENDING": ["CONFIRMED", "CANCELLED", "EXPIRED", "REJECTED"],
 		"CONFIRMED": ["CHECKED_IN", "CANCELLED", "NO_SHOW"],
 		"CHECKED_IN": ["COMPLETED"],
 		"COMPLETED": [],  # Terminal
@@ -59,11 +59,15 @@ class CheeseTicket(Document):
 		if not self.is_new():
 			self.validate_status_transition()
 
+		# Prevent duplicate active tickets for same contact + experience + slot
+		self.validate_duplicate_active_ticket()
+
 		# Validate capacity
 		self.validate_capacity()
 
 		# Create snapshots on creation
 		if self.is_new():
+			self.apply_experience_deposit_policy()
 			self.create_snapshots()
 			self.set_expires_at()
 			# Update slot capacity when ticket is created
@@ -89,6 +93,44 @@ class CheeseTicket(Document):
 					),
 					frappe.ValidationError
 				)
+
+	def validate_duplicate_active_ticket(self):
+		"""Prevent multiple active tickets with same contact+experience+slot+selected_date.
+		
+		If selected_date is set, two tickets on the same slot but different dates are allowed
+		(e.g. multi-day or recurring slots where the user picks a specific date).
+		"""
+		if not (self.contact and self.experience and self.slot):
+			return
+
+		# Only consider tickets that are not terminal/cancelled
+		excluded_statuses = ["CANCELLED", "EXPIRED", "REJECTED", "NO_SHOW"]
+
+		filters = {
+			"contact": self.contact,
+			"experience": self.experience,
+			"slot": self.slot,
+			"name": ["!=", self.name] if self.name else ["!=", ""],
+			"status": ["not in", excluded_statuses],
+		}
+
+		# If this ticket has a selected_date, scope the check to the same date only.
+		# A booking for the same slot on a different selected_date is a distinct booking.
+		if self.selected_date:
+			filters["selected_date"] = self.selected_date
+		else:
+			# When no selected_date is set, only flag conflicts with other tickets
+			# that also have no selected_date (avoids blocking tickets that differ by date).
+			filters["selected_date"] = ["is", "not set"]
+
+		exists = frappe.db.exists("Cheese Ticket", filters)
+		if exists:
+			frappe.throw(
+				_("A ticket already exists for this contact, experience, and slot: {0}").format(
+					exists
+				),
+				frappe.ValidationError,
+			)
 
 	def validate_capacity(self):
 		"""Validate slot capacity"""
@@ -118,13 +160,44 @@ class CheeseTicket(Document):
 		if policy:
 			self.policy_snapshot = json.dumps(policy)
 
-		# Price snapshot
+		# Price snapshot — record the effective unit price used for calculation
 		experience = frappe.get_doc("Cheese Experience", self.experience)
+		if self.route:
+			# For route tickets, the unit price may come from route.price (Manual mode)
+			# or experience.route_price / individual_price (Sum mode)
+			try:
+				route = frappe.get_doc("Cheese Route", self.route)
+				if route.price_mode == "Manual":
+					effective_unit_price = route.price or 0
+				else:
+					effective_unit_price = experience.route_price or experience.individual_price or 0
+			except Exception:
+				effective_unit_price = experience.route_price or experience.individual_price or 0
+		else:
+			effective_unit_price = experience.individual_price or 0
+
 		price_data = {
 			"individual_price": experience.individual_price,
 			"route_price": experience.route_price,
+			"effective_unit_price": effective_unit_price,
 		}
 		self.price_snapshot = json.dumps(price_data)
+
+	def apply_experience_deposit_policy(self):
+		"""Always derive ticket deposit settings from the linked experience policy."""
+		if not self.experience:
+			return
+		experience = frappe.get_doc("Cheese Experience", self.experience)
+		self.deposit_required = 1 if experience.deposit_required else 0
+		self.deposit_amount = 0
+		if not experience.deposit_required:
+			return
+		if experience.deposit_type == "Amount":
+			self.deposit_amount = experience.deposit_value or 0
+		elif experience.deposit_type == "%":
+			price_per_person = experience.route_price if self.route else experience.individual_price
+			row_total = (price_per_person or 0) * (self.party_size or 1)
+			self.deposit_amount = row_total * (experience.deposit_value or 0) / 100.0
 
 	def set_expires_at(self):
 		"""Set expiration time for PENDING tickets"""
@@ -163,6 +236,16 @@ class CheeseTicket(Document):
 				self.send_status_notification("rejected")
 			elif self.status == "EXPIRED":
 				self.send_status_notification("expired")
+
+			# Fire bot webhook for all relevant status changes
+			try:
+				from cheese.cheese.utils.notifications import enqueue_ticket_status_webhook
+				enqueue_ticket_status_webhook(self.name, self.status)
+			except Exception as e:
+				frappe.log_error(
+					f"enqueue_ticket_status_webhook failed for {self.name}: {e}",
+					"Ticket Webhook",
+				)
 
 	def log_status_change(self):
 		"""Log status change to System Event"""
@@ -259,3 +342,43 @@ class CheeseTicket(Document):
 		except Exception as e:
 			# Silently fail if notification fails
 			frappe.log_error(f"Failed to send notification for ticket {self.name}: {e}", "Notification Error")
+
+@frappe.whitelist()
+def make_route_booking(source_name, target_doc=None):
+	from frappe.model.mapper import get_mapped_doc
+	
+	def set_missing_values(source, target):
+		target.status = "PENDING"
+		
+		if source.route:
+			route = frappe.get_doc("Cheese Route", source.route)
+			target.total_price = route.price
+			target.deposit_required = route.deposit_required
+			
+			if route.deposit_required:
+				if route.deposit_type == "Amount":
+					target.deposit_amount = route.deposit_value
+				elif route.deposit_type == "%" and route.price:
+					target.deposit_amount = (route.price * route.deposit_value) / 100.0
+
+	doclist = get_mapped_doc("Cheese Ticket", source_name, {
+		"Cheese Ticket": {
+			"doctype": "Cheese Route Booking",
+			"field_map": {
+				"contact": "contact",
+				"route": "route",
+				"conversation": "conversation"
+			}
+		}
+	}, target_doc, set_missing_values)
+
+	source = frappe.get_doc("Cheese Ticket", source_name)
+	doclist.append("tickets", {
+		"ticket": source.name,
+		"experience": source.experience,
+		"slot": source.slot,
+		"party_size": source.party_size,
+		"status": source.status
+	})
+
+	return doclist

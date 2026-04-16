@@ -261,7 +261,7 @@ def get_cancellation_impact(reservation_id=None, experience_id=None, slot_dateti
 			# Get slot datetime
 			if ticket.slot:
 				slot = frappe.get_doc("Cheese Experience Slot", ticket.slot)
-				slot_dt = get_datetime(f"{slot.date} {slot.time}")
+				slot_dt = get_datetime(f"{slot.date_from} {slot.time_from}")
 			
 			# Check if cancellation is allowed
 			if ticket.status not in ["PENDING", "CONFIRMED"]:

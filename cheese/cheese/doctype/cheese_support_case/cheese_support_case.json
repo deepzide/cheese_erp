@@ -12,8 +12,11 @@
   "support_info",
   "contact",
   "ticket",
+  "route",
+  "company",
   "survey_response",
   "description",
+  "incident_type",
   "status",
   "priority",
   "assigned_to"
@@ -40,6 +43,26 @@
    "options": "Cheese Ticket"
   },
   {
+   "fetch_from": "ticket.route",
+   "fieldname": "route",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Route",
+   "options": "Cheese Route",
+   "read_only": 1
+  },
+  {
+   "fetch_from": "ticket.company",
+   "fieldname": "company",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Establishment",
+   "options": "Company",
+   "read_only": 1
+  },
+  {
    "fieldname": "survey_response",
    "fieldtype": "Link",
    "label": "Survey Response",
@@ -49,6 +72,15 @@
    "fieldname": "description",
    "fieldtype": "Text Editor",
    "label": "Description",
+   "reqd": 1
+  },
+  {
+   "fieldname": "incident_type",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Incident Type",
+   "options": "LOCAL\nGENERAL",
    "reqd": 1
   },
   {

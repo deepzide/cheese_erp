@@ -21,20 +21,14 @@ def find_or_create_contact(phone=None, email=None, name=None):
 		Success response with contact data
 	"""
 	try:
-		# Validate inputs
-		if not phone and not email:
-			return validation_error("Either phone or email must be provided")
+		# Validate inputs - phone is mandatory
+		if not phone:
+			return validation_error("phone is required")
 
-		# Search for existing contact using OR logic (phone OR email)
-		or_filters = []
-		if phone:
-			or_filters.append(["phone", "=", phone])
-		if email:
-			or_filters.append(["email", "=", email])
-
+		# Search for existing contact by phone
 		existing = frappe.get_all(
 			"Cheese Contact",
-			or_filters=or_filters,
+			filters={"phone": phone},
 			fields=["name", "full_name", "phone", "email"],
 			limit=1
 		)
@@ -59,13 +53,9 @@ def find_or_create_contact(phone=None, email=None, name=None):
 			"email": email
 		}
 		
-		# Set full name - prioritize provided name, otherwise use phone or email
+		# Set full name only if name is explicitly provided, otherwise leave it empty
 		if name:
 			contact_data["full_name"] = name
-		elif phone:
-			contact_data["full_name"] = phone
-		elif email:
-			contact_data["full_name"] = email
 		
 		contact = frappe.get_doc(contact_data)
 		contact.insert()
@@ -108,8 +98,11 @@ def resolve_or_create_contact(phone=None, email=None, name=None):
 @frappe.whitelist()
 def update_contact(contact_id, name=None, phone=None, email=None, preferred_language=None, notes=None, preferred_channel=None, idempotency_key=None):
 	"""
-	Update contact fields
-	
+	Update contact fields.
+
+	Document primary key (contact_id) is the phone number. full_name may duplicate;
+	updating name does not change contact_id. contact_id changes only when phone is updated.
+
 	Args:
 		contact_id: Contact ID
 		name: Full name
@@ -146,13 +139,16 @@ def update_contact(contact_id, name=None, phone=None, email=None, preferred_lang
 		}
 		
 		# Update fields if provided
+		# Allow name to be set to empty string (None check allows empty strings)
+		new_phone = None
 		if name is not None:
 			old_values["full_name"] = contact.full_name
-			contact.full_name = name
+			contact.full_name = name if name else ""  # Ensure empty string if name is empty
 			changed_fields.append("full_name")
 		if phone is not None:
 			old_values["phone"] = contact.phone
-			contact.phone = phone
+			new_phone = phone
+			contact.phone = new_phone
 			changed_fields.append("phone")
 		if email is not None:
 			old_values["email"] = contact.email
@@ -201,14 +197,39 @@ def update_contact(contact_id, name=None, phone=None, email=None, preferred_lang
 		except Exception as audit_error:
 			frappe.log_error(f"Failed to create audit event: {str(audit_error)}")
 		
+		# Check for duplicates before renaming if phone was updated
+		# Since phone is the autoname field, we need to ensure no other contact has this phone
+		if new_phone is not None and new_phone and new_phone != contact.name:
+			# Check if another contact already exists with this phone number
+			existing_contact = frappe.db.get_value("Cheese Contact", new_phone, "name")
+			if existing_contact and existing_contact != contact.name:
+				return validation_error(f"Contact with phone number {new_phone} already exists: {existing_contact}")
+			
+			# Also check by phone field (in case the name doesn't match the phone yet)
+			existing_by_phone = frappe.get_all(
+				"Cheese Contact",
+				filters={"phone": new_phone, "name": ["!=", contact.name]},
+				limit=1
+			)
+			if existing_by_phone:
+				return validation_error(f"Contact with phone number {new_phone} already exists: {existing_by_phone[0].name}")
+		
+		# Save triggers CheeseContact.on_update to sync document name with phone only (not full_name).
+		# Preserve original contact_id — it must stay immutable unless phone is explicitly changed.
+		original_contact_id = contact_id
 		contact.save()
 		frappe.db.commit()
+		contact.reload()
+
+		# contact_id only changes when phone changes (name is keyed to phone).
+		# Name-only updates keep the same id.
+		final_contact_id = contact.name if new_phone else original_contact_id
 		
 		return success(
 			"Contact updated successfully",
 			{
 				"contact": {
-					"contact_id": contact.name,
+					"contact_id": final_contact_id,
 					"full_name": contact.full_name,
 					"phone": contact.phone,
 					"email": contact.email,

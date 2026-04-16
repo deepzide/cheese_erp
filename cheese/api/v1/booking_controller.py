@@ -114,7 +114,8 @@ def create_pending_booking(contact_id, items, preferred_dates=None, conversation
 					experiences_with_slots=experiences_with_slots,
 					party_size=party_size,
 					conversation_id=conversation_id,
-					date=route_date
+					date_from=route_date,
+					date_to=route_date,
 				)
 				
 				if not route_result.get("success"):
@@ -161,12 +162,19 @@ def create_pending_booking(contact_id, items, preferred_dates=None, conversation
 			elif item_type == "experience":
 				experience_id = item.get("experience_id")
 				slot_id = item.get("slot_id")
+				item_selected_date = item.get("selected_date") or item.get("date")
 				
 				if not experience_id or not slot_id:
 					return validation_error("experience_id and slot_id are required for experience items")
 				
 				# Create individual reservation
-				ticket_result = create_pending_ticket(contact_id, experience_id, slot_id, party_size)
+				ticket_result = create_pending_ticket(
+					contact_id,
+					experience_id,
+					slot_id,
+					party_size,
+					selected_date=item_selected_date,
+				)
 				
 				if not ticket_result.get("success"):
 					return ticket_result
@@ -258,8 +266,8 @@ def get_booking_status(booking_id):
 		if len(parts) < 3 or parts[0] != "BK":
 			return validation_error("Invalid booking_id format")
 		
-		contact_id = parts[1]
-		timestamp_str = "-".join(parts[2:])  # Handle timestamp with dashes
+		timestamp_str = parts[-1]
+		contact_id = "-".join(parts[1:-1])
 		
 		# Parse timestamp to get creation time window
 		from frappe.utils import get_datetime, add_to_date
@@ -608,8 +616,16 @@ def register_payment_for_booking(booking_id, amount, verification_method="Manual
 		registered_payments = []
 		amount_per_reservation = amount / len(individual_reservations) if individual_reservations else 0
 		
+		attach_receipt_to_first_only = True
 		for ticket_id in individual_reservations:
-			result = record_deposit_payment(ticket_id, amount_per_reservation, verification_method, ocr_payload)
+			result = record_deposit_payment(
+				ticket_id=ticket_id,
+				amount=amount_per_reservation,
+				verification_method=verification_method,
+				ocr_payload=ocr_payload,
+				attach_receipt=attach_receipt_to_first_only,
+			)
+			attach_receipt_to_first_only = False
 			if result.get("success"):
 				registered_payments.append(ticket_id)
 			else:
