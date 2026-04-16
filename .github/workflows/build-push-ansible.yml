@@ -57,9 +57,9 @@ jobs:
           export APPS_JSON_BASE64=$(base64 -w 0 apps.json)
           echo "APPS_JSON_BASE64=$APPS_JSON_BASE64" >> $GITHUB_ENV
 
-      # 4️⃣ Clone frappe_docker
+      # 4️⃣ Clone frappe_docker (pin v2.2.3 to avoid APPS_JSON_BASE64 breaking change)
       - name: Clone frappe_docker
-        run: git clone https://github.com/frappe/frappe_docker
+        run: git clone https://github.com/frappe/frappe_docker --branch v2.2.3 --depth 1
 
       # 5️⃣ Set up Docker Buildx
       - name: Set up Docker Buildx
