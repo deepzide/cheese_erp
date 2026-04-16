@@ -16,6 +16,15 @@
     s3_bucket: "{{ lookup('env', 'AWS_S3_BUCKET') | default('deepzide-backups', true) }}"
     aws_access_key_id: "{{ lookup('env', 'AWS_ACCESS_KEY_ID') | default('', true) }}"
     aws_secret_access_key: "{{ lookup('env', 'AWS_SECRET_ACCESS_KEY') | default('', true) }}"
+  vars_prompt:
+    - name: ansible_ssh_timeout
+      prompt: "SSH timeout"
+      default: 300
+      private: no
+  environment:
+    ANSIBLE_SSH_TIMEOUT: "{{ ansible_ssh_timeout | default(300) }}"
+    ANSIBLE_SSH_CONTROL_PATH: "/tmp/ansible-ssh-%%h-%%p-%%r"
+    ANSIBLE_SSH_ARGS: "-o ControlMaster=auto -o ControlPersist=600 -o ServerAliveInterval=60 -o ServerAliveCountMax=3"
 
   tasks:
     # ------------------------------------------------------------------------
@@ -261,26 +270,36 @@
       ansible.builtin.shell: |
         set -e
         all_apps="erpnext {{ custom_apps | join(' ') }}"
-        installed=$(docker compose -f pwd.yml exec -T backend bench --site {{ site_name }} list-apps)
-        
-        # Ensure apps.txt exists and add any missing apps
         apps_txt="sites/{{ site_name }}/apps.txt"
+        
+        # First ensure apps are in apps.txt before checking installation
         for app in $all_apps; do
-          if echo "$installed" | grep -qx "$app"; then
-            if ! docker compose -f pwd.yml exec -T backend test -f "$apps_txt" || ! docker compose -f pwd.yml exec -T backend grep -qx "$app" "$apps_txt"; then
+          if docker compose -f pwd.yml exec -T backend test -f "$apps_txt"; then
+            if ! docker compose -f pwd.yml exec -T backend grep -qx "$app" "$apps_txt" 2>/dev/null; then
               echo "$app" >> "$apps_txt"
               echo "📝 Añadido $app a apps.txt"
             fi
+          else
+            echo "$app" > "$apps_txt"
+            echo "📝 Creado $apps_txt con $app"
+          fi
+        done
+        
+        # Now check and install if needed
+        installed=$(docker compose -f pwd.yml exec -T backend bench --site {{ site_name }} list-apps || echo "")
+        for app in $all_apps; do
+          if echo "$installed" | grep -qx "$app"; then
             echo "✅ App ya instalada: $app"
           else
-            echo "⚙️ Instalando app faltante: $app"
-            docker compose -f pwd.yml exec -T -e CHEESE_INSERT_DEMO_DATA=1 backend bench --site {{ site_name }} install-app "$app" --force
-            installed=$(printf "%s\n%s\n" "$installed" "$app")
+            echo "⚙️ instalando app faltante: $app"
+            docker compose -f pwd.yml exec -T -e CHEESE_INSERT_DEMO_DATA=1 backend bench --site {{ site_name }} install-app "$app" --force || echo "⚠️ error al instalar $app"
           fi
         done
       args:
         chdir: "{{ project_dir }}/frappe_docker"
         executable: /bin/bash
+        async: 600
+        poll: 30
       when: site_check.rc == 0 or create_site_output.rc == 0
 
     - name: Verify erpnext module import before migration
