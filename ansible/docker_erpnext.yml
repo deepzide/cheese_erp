@@ -233,36 +233,9 @@
 
 
     # ------------------------------------------------------------------------
-    # 🧩 Install apps BEFORE migration
+    # 🧩 Apps already pre-installed in image (via v2.2.3 APPS_JSON_BASE64)
+    # Skip install-app tasks - apps come pre-installed in the Docker image
     # ------------------------------------------------------------------------
-    - name: Ensure all required apps (erpnext + custom) are installed
-      ansible.builtin.shell: |
-        set -e
-        all_apps="erpnext {{ custom_apps | join(' ') }}"
-        
-        # First ensure apps.txt exists and has all apps
-        for app in $all_apps; do
-          found=$(docker compose -f pwd.yml exec -T backend grep -w "$app" sites/{{ site_name }}/apps.txt 2>/dev/null || true)
-          if [ -z "$found" ]; then
-            echo "$app" >> sites/{{ site_name }}/apps.txt
-            echo "📝 Añadido $app a apps.txt"
-          fi
-        done
-        
-        # Now check and install if needed
-        installed=$(docker compose -f pwd.yml exec -T backend bench --site {{ site_name }} list-apps 2>/dev/null || echo "")
-        for app in $all_apps; do
-          if echo "$installed" | grep -qw "$app"; then
-            echo "✅ App ya instalada: $app"
-          else
-            echo "⚙️ instalando app faltante: $app"
-            docker compose -f pwd.yml exec -T -e CHEESE_INSERT_DEMO_DATA=1 backend bench --site {{ site_name }} install-app "$app" --force || echo "⚠️ error al instalar $app"
-          fi
-        done
-      args:
-        chdir: "{{ project_dir }}/frappe_docker"
-        executable: /bin/bash
-      when: site_check.rc == 0 or create_site_output.rc == 0
 
     - name: Verify erpnext module import before migration
       ansible.builtin.shell: |
