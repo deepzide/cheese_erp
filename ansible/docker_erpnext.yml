@@ -185,37 +185,6 @@
         chdir: "{{ project_dir }}/frappe_docker"
         executable: /bin/bash
 
-    # ------------------------------------------------------------------------
-    # 🧱 Ensure required app sources exist in bench
-    # ------------------------------------------------------------------------
-    - name: Ensure required app source directories exist in backend container
-      ansible.builtin.shell: |
-        set -e
-
-        ensure_app_source () {
-          app="$1"
-          repo="$2"
-          branch="$3"
-          if docker compose -f pwd.yml exec -T backend test -d "apps/$app"; then
-            echo "✅ App source present: $app"
-          else
-            echo "⚙️ Bootstrapping missing app source: $app ($branch)"
-            docker compose -f pwd.yml exec -T backend bench get-app --branch "$branch" "$repo" "$app"
-          fi
-        }
-
-        ensure_app_source "erpnext" "https://github.com/frappe/erpnext" "version-15"
-
-        if echo "{{ custom_apps | join(' ') }}" | grep -qw "hrms"; then
-          ensure_app_source "hrms" "https://github.com/frappe/hrms" "version-15"
-        fi
-
-        if echo "{{ custom_apps | join(' ') }}" | grep -qw "payments"; then
-          ensure_app_source "payments" "https://github.com/frappe/payments" "version-15"
-        fi
-      args:
-        chdir: "{{ project_dir }}/frappe_docker"
-
     - name: Set ignore_csrf in common_site_config.json
       ansible.builtin.command:
         cmd: docker compose -f pwd.yml exec -T backend bench set-config -g ignore_csrf 1 --parse
