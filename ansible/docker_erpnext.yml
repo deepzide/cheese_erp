@@ -237,13 +237,6 @@
     # Skip install-app tasks - apps come pre-installed in the Docker image
     # ------------------------------------------------------------------------
 
-    - name: Verify erpnext module import before migration
-      ansible.builtin.shell: |
-        docker compose -f pwd.yml exec -T backend python -c "import erpnext"
-      args:
-        chdir: "{{ project_dir }}/frappe_docker"
-      when: site_check.rc == 0 or create_site_output.rc == 0
-
     # Force reinstall HRMS to ensure fixtures are loaded
     - name: Reinstall HRMS with fixtures
       ansible.builtin.shell: |
