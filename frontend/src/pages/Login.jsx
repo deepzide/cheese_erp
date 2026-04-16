@@ -44,24 +44,19 @@ export default function Login() {
     };
 
     return (
-        <div className="min-h-screen flex items-center justify-center bg-[#0a0a0a] relative overflow-hidden">
-            {/* Background Effects */}
-            <div className="absolute inset-0">
-                <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-yellow-500/10 rounded-full blur-3xl animate-pulse" />
-                <div className="absolute bottom-1/4 right-1/4 w-80 h-80 bg-amber-500/8 rounded-full blur-3xl animate-pulse" style={{ animationDelay: "1s" }} />
-                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-yellow-600/5 rounded-full blur-3xl" />
-            </div>
-
-            {/* Grid Pattern */}
-            <div className="absolute inset-0 bg-[linear-gradient(rgba(255,235,59,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(255,235,59,0.03)_1px,transparent_1px)] bg-[size:64px_64px]" />
-
+        <div
+            className="min-h-screen flex items-center justify-center relative overflow-hidden"
+            style={{
+                background: "radial-gradient(ellipse at center, #dce8f5 0%, #c2d5ea 50%, #a8c0df 100%)",
+            }}
+        >
             <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.6, ease: "easeOut" }}
                 className="relative z-10 w-full max-w-md px-4"
             >
-                <Card className="bg-[#111111]/90 border-white/10 backdrop-blur-xl shadow-2xl shadow-yellow-500/5">
+                <Card className="bg-white/80 border-blue-100/60 backdrop-blur-xl shadow-2xl shadow-blue-300/20">
                     <CardHeader className="text-center pb-2 pt-8">
                         <motion.div
                             initial={{ scale: 0.8, opacity: 0 }}
@@ -73,8 +68,8 @@ export default function Login() {
                                 <span className="text-3xl">🧀</span>
                             </div>
                             <div>
-                                <h1 className="text-2xl font-bold text-white">Cheese</h1>
-                                <p className="text-sm text-white/40 mt-1">Control Center</p>
+                                <h1 className="text-2xl font-bold text-gray-900">Cheese</h1>
+                                <p className="text-sm text-gray-500 mt-1">Control Center</p>
                             </div>
                         </motion.div>
                     </CardHeader>
@@ -85,27 +80,27 @@ export default function Login() {
                                 <motion.div
                                     initial={{ opacity: 0, x: -10 }}
                                     animate={{ opacity: 1, x: 0 }}
-                                    className="bg-red-500/10 border border-red-500/20 text-red-400 text-sm px-4 py-3 rounded-lg"
+                                    className="bg-red-50 border border-red-200 text-red-600 text-sm px-4 py-3 rounded-lg"
                                 >
                                     {error}
                                 </motion.div>
                             )}
 
                             <div className="space-y-2">
-                                <Label className="text-white/70 text-sm">Username or Email</Label>
+                                <Label className="text-gray-700 text-sm">Username or Email</Label>
                                 <Input
                                     id="login-username"
                                     type="text"
                                     value={username}
                                     onChange={(e) => setUsername(e.target.value)}
                                     placeholder="admin@example.com"
-                                    className="bg-white/5 border-white/10 text-white placeholder:text-white/20 focus:border-cheese-500 focus:ring-cheese-500/20 h-11"
+                                    className="bg-white border-blue-100 text-gray-900 placeholder:text-gray-400 focus:border-blue-300 focus:ring-blue-200 h-11"
                                     required
                                 />
                             </div>
 
                             <div className="space-y-2">
-                                <Label className="text-white/70 text-sm">Password</Label>
+                                <Label className="text-gray-700 text-sm">Password</Label>
                                 <div className="relative">
                                     <Input
                                         id="login-password"
@@ -113,13 +108,13 @@ export default function Login() {
                                         value={password}
                                         onChange={(e) => setPassword(e.target.value)}
                                         placeholder="••••••••"
-                                        className="bg-white/5 border-white/10 text-white placeholder:text-white/20 focus:border-cheese-500 focus:ring-cheese-500/20 h-11 pr-10"
+                                        className="bg-white border-blue-100 text-gray-900 placeholder:text-gray-400 focus:border-blue-300 focus:ring-blue-200 h-11 pr-10"
                                         required
                                     />
                                     <button
                                         type="button"
                                         onClick={() => setShowPassword(!showPassword)}
-                                        className="absolute right-3 top-1/2 -translate-y-1/2 text-white/30 hover:text-white/60 transition-colors"
+                                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
                                     >
                                         {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                                     </button>
@@ -129,7 +124,7 @@ export default function Login() {
                             <button
                                 type="button"
                                 onClick={() => setShowServer(!showServer)}
-                                className="text-xs text-white/30 hover:text-cheese-400 transition-colors"
+                                className="text-xs text-gray-400 hover:text-blue-500 transition-colors"
                             >
                                 {showServer ? "Hide" : "Show"} server settings
                             </button>
@@ -140,14 +135,14 @@ export default function Login() {
                                     animate={{ opacity: 1, height: "auto" }}
                                     className="space-y-2"
                                 >
-                                    <Label className="text-white/70 text-sm">Server URL</Label>
+                                    <Label className="text-gray-700 text-sm">Server URL</Label>
                                     <Input
                                         id="login-server-url"
                                         type="url"
                                         value={serverUrl}
                                         onChange={(e) => setServerUrl(e.target.value)}
                                         placeholder="https://your-site.frappe.cloud"
-                                        className="bg-white/5 border-white/10 text-white placeholder:text-white/20 focus:border-cheese-500 focus:ring-cheese-500/20 h-11"
+                                        className="bg-white border-blue-100 text-gray-900 placeholder:text-gray-400 focus:border-blue-300 focus:ring-blue-200 h-11"
                                     />
                                 </motion.div>
                             )}
@@ -166,7 +161,7 @@ export default function Login() {
                     </CardContent>
                 </Card>
 
-                <p className="text-center text-white/20 text-xs mt-6">
+                <p className="text-center text-blue-900/40 text-xs mt-6">
                     Cheese Control Center • Flow-driven operations
                 </p>
             </motion.div>
