@@ -100,20 +100,8 @@ class CheeseExperienceSlot(Document):
 
 	def calculate_reserved_capacity(self):
 		"""Calculate reserved capacity from active tickets (PENDING, CONFIRMED, CHECKED_IN, COMPLETED)"""
-		from frappe.query_builder import DocType
-
-		ticket = DocType("Cheese Ticket")
-
-		# Count tickets that reserve capacity: PENDING, CONFIRMED, CHECKED_IN, COMPLETED
-		# Exclude: EXPIRED, REJECTED, CANCELLED, NO_SHOW
-		result = (
-			frappe.qb.from_(ticket)
-			.select(fn.Sum(ticket.party_size).as_("total"))
-			.where(ticket.slot == self.name)
-			.where(ticket.status.isin(["PENDING", "CONFIRMED", "CHECKED_IN", "COMPLETED"]))
-		).run()
-
-		self.reserved_capacity = result[0][0] if result and result[0][0] else 0
+		from cheese.cheese.utils.capacity import calculate_reserved_capacity as calc_capacity
+		self.reserved_capacity = calc_capacity(self.name)
 
 	def update_slot_status(self):
 		"""Update slot status based on capacity"""

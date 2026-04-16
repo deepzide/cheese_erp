@@ -100,7 +100,7 @@ def create_route_reservation(contact_id=None, route_id=None, experiences_with_sl
 				
 				selected_slot = None
 				for slot in slots:
-					available = get_available_capacity(slot.name)
+					available = get_available_capacity(slot.name, selected_date=start_date)
 					if available >= party_size:
 						selected_slot = slot.name
 						break

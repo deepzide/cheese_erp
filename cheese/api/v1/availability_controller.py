@@ -79,7 +79,7 @@ def get_available_slots(experience_id=None, date=None, date_from=None, date_to=N
 		# Calculate available capacity for each slot
 		slots_with_availability = []
 		for slot in slots:
-			available = get_available_capacity(slot.name)
+			available = get_available_capacity(slot.name, selected_date=slot.date_from)
 			# Derive slot_status live from computed capacity so it stays consistent
 			# with the real available_capacity (stored slot_status can be stale).
 			live_status = "OPEN" if available > 0 else "CLOSED"
@@ -278,7 +278,7 @@ def get_route_availability(route_id, date=None, date_from=None, date_to=None, pa
 				
 				available_slots = []
 				for slot in slots:
-					available = get_available_capacity(slot.name)
+					available = get_available_capacity(slot.name, selected_date=slot.date_from)
 					if available >= party_size:
 						slot_data = {
 							"slot_id": slot.name,

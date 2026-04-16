@@ -137,7 +137,9 @@ export default function TicketDetail() {
     };
 
     // Computed financials
-    const unitCost = experienceDoc?.route_price || experienceDoc?.individual_price || 0;
+    const unitCost = ticket?.route 
+        ? (experienceDoc?.route_price || experienceDoc?.individual_price || 0)
+        : (experienceDoc?.individual_price || 0);
     const partySize = ticket?.party_size || form.party_size || 1;
     const totalPerTicket = unitCost * partySize;
     const depositAmount = ticket?.deposit_amount || form.deposit_amount || 0;

@@ -5,7 +5,8 @@ module.exports = {
     theme: {
         extend: {
             fontFamily: {
-                sans: ['Inter', 'system-ui', 'sans-serif'],
+                sans: ['DM Sans', 'system-ui', 'sans-serif'],
+                serif: ['DM Serif Display', 'Georgia', 'serif'],
             },
             borderRadius: {
                 lg: 'var(--radius)',
@@ -47,16 +48,16 @@ module.exports = {
                 input: 'hsl(var(--input))',
                 ring: 'hsl(var(--ring))',
                 cheese: {
-                    50: '#FFFDE7',
-                    100: '#FFF9C4',
-                    200: '#FFF59D',
-                    300: '#FFF176',
-                    400: '#FFEE58',
-                    500: '#FFEB3B',
-                    600: '#FDD835',
-                    700: '#FBC02D',
-                    800: '#F9A825',
-                    900: '#F57F17',
+                    50: '#FDF5E6',
+                    100: '#FAE4B3',
+                    200: '#F5C970',
+                    300: '#E6A74A',
+                    400: '#C8902E',
+                    500: '#B07D23',
+                    600: '#9A6A18',
+                    700: '#835912',
+                    800: '#6B470D',
+                    900: '#3D2806',
                 },
                 chart: {
                     '1': 'hsl(var(--chart-1))',

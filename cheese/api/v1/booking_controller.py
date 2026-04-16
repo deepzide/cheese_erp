@@ -619,10 +619,10 @@ def register_payment_for_booking(booking_id, amount, verification_method="Manual
 		attach_receipt_to_first_only = True
 		for ticket_id in individual_reservations:
 			result = record_deposit_payment(
-				ticket_id,
-				amount_per_reservation,
-				verification_method,
-				ocr_payload,
+				ticket_id=ticket_id,
+				amount=amount_per_reservation,
+				verification_method=verification_method,
+				ocr_payload=ocr_payload,
 				attach_receipt=attach_receipt_to_first_only,
 			)
 			attach_receipt_to_first_only = False

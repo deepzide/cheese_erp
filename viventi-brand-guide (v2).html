@@ -1,0 +1,2549 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Viventi — Brand Guide</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,300&display=swap" rel="stylesheet">
+<style>
+  :root {
+    /* === PALETA PRINCIPAL === */
+    --bg-base:        #0C0B09;
+    --bg-surface:     #161512;
+    --bg-card:        #1E1C18;
+    --bg-card-hover:  #252219;
+    --bg-card-light:  #F5F2EC;
+    --bg-subtle:      #2A2720;
+
+    /* Amber / Dorado — color acento primario */
+    --amber-50:  #FDF5E6;
+    --amber-100: #FAE4B3;
+    --amber-200: #F5C970;
+    --amber-400: #C8902E;
+    --amber-600: #9A6A18;
+    --amber-800: #6B470D;
+    --amber-900: #3D2806;
+
+    /* Terracota — acento secundario cálido */
+    --terra-200: #E8B49A;
+    --terra-400: #C47550;
+    --terra-600: #8B4C2F;
+
+    /* Verde Salvia — éxito / positivo */
+    --sage-200:  #A8CCA0;
+    --sage-400:  #4E9C5E;
+    --sage-600:  #2A6B3A;
+
+    /* Rojo Tierra — error / negativo */
+    --red-400:   #D95C4A;
+    --red-600:   #A33232;
+
+    /* Grises cálidos */
+    --gray-50:   #F7F5F0;
+    --gray-100:  #E8E4DA;
+    --gray-200:  #C8C3B5;
+    --gray-400:  #8A8578;
+    --gray-600:  #57534A;
+    --gray-800:  #2F2C26;
+    --gray-900:  #1A1815;
+
+    /* Textos */
+    --text-primary:   #FFFFFF;
+    --text-secondary: #9B9589;
+    --text-tertiary:  #5E5A53;
+    --text-dark:      #1A1815;
+    --text-muted-dark: #6B6660;
+
+    /* Bordes */
+    --border-subtle:  rgba(255,255,255,0.06);
+    --border-default: rgba(255,255,255,0.10);
+    --border-strong:  rgba(255,255,255,0.18);
+    --border-amber:   rgba(200,144,46,0.35);
+
+    /* Tipografía */
+    --font-serif: 'DM Serif Display', Georgia, serif;
+    --font-sans:  'DM Sans', system-ui, sans-serif;
+
+    /* Escala tipográfica */
+    --text-xs:   11px;
+    --text-sm:   13px;
+    --text-base: 15px;
+    --text-md:   17px;
+    --text-lg:   20px;
+    --text-xl:   26px;
+    --text-2xl:  34px;
+    --text-3xl:  48px;
+    --text-hero: 72px;
+
+    /* Spacing */
+    --space-1: 4px;
+    --space-2: 8px;
+    --space-3: 12px;
+    --space-4: 16px;
+    --space-5: 20px;
+    --space-6: 24px;
+    --space-8: 32px;
+    --space-10: 40px;
+    --space-12: 48px;
+    --space-16: 64px;
+
+    /* Radios */
+    --radius-sm: 6px;
+    --radius-md: 10px;
+    --radius-lg: 16px;
+    --radius-xl: 24px;
+    --radius-pill: 100px;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    background: var(--bg-base);
+    color: var(--text-primary);
+    font-family: var(--font-sans);
+    font-size: var(--text-base);
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* ===== LAYOUT ===== */
+  .page-width {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 0 var(--space-8);
+  }
+
+  .section {
+    padding: var(--space-16) 0;
+    border-top: 1px solid var(--border-subtle);
+  }
+
+  /* ===== TIPOGRAFÍA UTILITARIA ===== */
+  .label-overline {
+    font-family: var(--font-sans);
+    font-size: var(--text-xs);
+    font-weight: 500;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--amber-400);
+  }
+
+  .section-title {
+    font-family: var(--font-serif);
+    font-size: var(--text-2xl);
+    font-weight: 400;
+    color: var(--text-primary);
+    margin-top: var(--space-2);
+    margin-bottom: var(--space-3);
+  }
+
+  .section-subtitle {
+    font-size: var(--text-base);
+    color: var(--text-secondary);
+    max-width: 560px;
+    line-height: 1.65;
+    margin-bottom: var(--space-10);
+  }
+
+  /* ===== GRID ===== */
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-6); }
+  .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: var(--space-5); }
+  .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--space-4); }
+
+  /* ===== CARD BASE ===== */
+  .card {
+    background: var(--bg-card);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-lg);
+    padding: var(--space-6);
+  }
+
+  .card-label {
+    font-size: var(--text-sm);
+    color: var(--text-secondary);
+    margin-bottom: var(--space-2);
+    font-weight: 400;
+  }
+
+  /* ===== COMPONENTES ===== */
+
+  /* Progress bar */
+  .progress-bar {
+    height: 3px;
+    border-radius: 2px;
+    background: var(--border-subtle);
+    overflow: hidden;
+  }
+  .progress-bar-fill { height: 100%; border-radius: 2px; }
+
+  /* Badge */
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: var(--text-xs);
+    font-weight: 500;
+    padding: 3px 10px;
+    border-radius: var(--radius-pill);
+  }
+
+  /* ===== HERO ===== */
+  .hero {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    position: relative;
+    overflow: hidden;
+    padding: var(--space-16) 0;
+  }
+
+  .hero-bg-accent {
+    position: absolute;
+    top: -200px;
+    right: -200px;
+    width: 700px;
+    height: 700px;
+    background: radial-gradient(circle, rgba(200,144,46,0.07) 0%, transparent 70%);
+    pointer-events: none;
+  }
+  .hero-bg-accent-2 {
+    position: absolute;
+    bottom: -150px;
+    left: -150px;
+    width: 500px;
+    height: 500px;
+    background: radial-gradient(circle, rgba(196,117,80,0.05) 0%, transparent 70%);
+    pointer-events: none;
+  }
+
+  .hero-eyebrow {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    margin-bottom: var(--space-8);
+  }
+
+  .hero-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--amber-400);
+  }
+
+  .hero-logo {
+    font-family: var(--font-serif);
+    font-size: var(--text-hero);
+    font-weight: 400;
+    line-height: 0.95;
+    letter-spacing: -0.02em;
+    color: var(--text-primary);
+  }
+
+  .hero-logo span {
+    color: var(--amber-400);
+  }
+
+  .hero-tagline {
+    font-family: var(--font-serif);
+    font-size: var(--text-xl);
+    font-weight: 400;
+    font-style: italic;
+    color: var(--text-secondary);
+    margin-top: var(--space-5);
+    max-width: 480px;
+    line-height: 1.4;
+  }
+
+  .hero-meta {
+    display: flex;
+    gap: var(--space-8);
+    margin-top: var(--space-12);
+    padding-top: var(--space-8);
+    border-top: 1px solid var(--border-subtle);
+  }
+
+  .hero-meta-item {
+    font-size: var(--text-sm);
+    color: var(--text-tertiary);
+  }
+
+  .hero-meta-item strong {
+    display: block;
+    font-size: var(--text-base);
+    color: var(--text-primary);
+    font-weight: 400;
+    margin-bottom: 2px;
+  }
+
+  /* ===== NAV LATERAL ===== */
+  .toc-sticky {
+    position: fixed;
+    right: 32px;
+    top: 50%;
+    transform: translateY(-50%);
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    z-index: 100;
+  }
+
+  .toc-dot {
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: var(--border-default);
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .toc-dot:hover, .toc-dot.active { background: var(--amber-400); width: 5px; height: 20px; border-radius: 3px; }
+
+  /* ===== SWATCH ===== */
+  .swatch-row { display: flex; gap: 0; border-radius: var(--radius-md); overflow: hidden; margin-bottom: var(--space-5); }
+  .swatch { flex: 1; height: 56px; display: flex; align-items: flex-end; padding: 6px 8px; }
+  .swatch-label { font-size: 10px; font-weight: 500; letter-spacing: 0.04em; }
+
+  .color-group { margin-bottom: var(--space-8); }
+  .color-group-name {
+    font-size: var(--text-sm);
+    color: var(--text-secondary);
+    margin-bottom: var(--space-3);
+    font-weight: 400;
+  }
+
+  /* ===== TIPOGRAFÍA DEMO ===== */
+  .type-specimen {
+    padding: var(--space-6) 0;
+    border-bottom: 1px solid var(--border-subtle);
+  }
+  .type-spec-label {
+    font-size: var(--text-xs);
+    color: var(--text-tertiary);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin-bottom: var(--space-2);
+  }
+  .type-spec-meta {
+    font-size: var(--text-xs);
+    color: var(--text-tertiary);
+    margin-top: var(--space-1);
+  }
+
+  /* ===== BOTONES ===== */
+  .btn-demo-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-3);
+    align-items: center;
+    margin-bottom: var(--space-6);
+  }
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    font-family: var(--font-sans);
+    font-size: var(--text-sm);
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.18s;
+    text-decoration: none;
+    white-space: nowrap;
+  }
+
+  /* Btn Primary */
+  .btn-primary {
+    background: var(--amber-400);
+    color: #0C0B09;
+    padding: 10px 22px;
+    border: none;
+    border-radius: var(--radius-md);
+  }
+  .btn-primary:hover { background: var(--amber-200); }
+
+  /* Btn Secondary */
+  .btn-secondary {
+    background: transparent;
+    color: var(--text-primary);
+    padding: 9px 22px;
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius-md);
+  }
+  .btn-secondary:hover { background: var(--bg-subtle); border-color: var(--amber-400); }
+
+  /* Btn Ghost */
+  .btn-ghost {
+    background: transparent;
+    color: var(--amber-400);
+    padding: 9px 22px;
+    border: 1px solid var(--border-amber);
+    border-radius: var(--radius-md);
+  }
+
+  /* Btn Danger */
+  .btn-danger {
+    background: transparent;
+    color: var(--red-400);
+    padding: 9px 22px;
+    border: 1px solid rgba(217,92,74,0.3);
+    border-radius: var(--radius-md);
+  }
+
+  /* Btn Pill */
+  .btn-pill {
+    background: var(--bg-subtle);
+    color: var(--text-secondary);
+    padding: 7px 18px;
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-pill);
+    font-size: var(--text-xs);
+    letter-spacing: 0.03em;
+  }
+  .btn-pill.active {
+    background: var(--amber-400);
+    color: #0C0B09;
+    border-color: transparent;
+  }
+
+  /* Btn Icon */
+  .btn-icon {
+    background: var(--bg-subtle);
+    color: var(--text-secondary);
+    padding: 9px;
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-md);
+    width: 38px;
+    height: 38px;
+    justify-content: center;
+  }
+
+  /* ===== TABS ===== */
+  .tabs { display: flex; border-bottom: 1px solid var(--border-subtle); gap: 0; }
+  .tab-item {
+    font-size: var(--text-sm);
+    color: var(--text-tertiary);
+    padding: 12px 20px;
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
+    transition: all 0.15s;
+    font-weight: 400;
+  }
+  .tab-item.active { color: var(--text-primary); border-bottom-color: var(--text-primary); }
+  .tab-item.active-amber { color: var(--amber-400); border-bottom-color: var(--amber-400); }
+
+  /* ===== METRIC CARDS ===== */
+  .metric-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-lg);
+    padding: var(--space-5) var(--space-5);
+  }
+  .metric-label {
+    font-size: var(--text-xs);
+    color: var(--text-tertiary);
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    margin-bottom: var(--space-3);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .metric-value {
+    font-family: var(--font-serif);
+    font-size: 32px;
+    line-height: 1;
+    color: var(--text-primary);
+    margin-bottom: var(--space-2);
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+  }
+  .metric-icon {
+    width: 28px;
+    height: 28px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+  }
+  .metric-delta-positive { font-size: var(--text-xs); color: var(--sage-400); font-weight: 500; }
+  .metric-delta-negative { font-size: var(--text-xs); color: var(--red-400); font-weight: 500; }
+
+  /* ===== RESERVA CARD ===== */
+  .booking-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+  }
+  .booking-card-img {
+    height: 100px;
+    background: linear-gradient(135deg, #2A2317, #1C1813);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+  }
+  .booking-card-img-text {
+    font-family: var(--font-serif);
+    font-size: 22px;
+    color: var(--amber-400);
+    opacity: 0.4;
+  }
+  .booking-card-body { padding: var(--space-4) var(--space-5); }
+  .booking-card-title {
+    font-family: var(--font-serif);
+    font-size: var(--text-lg);
+    font-weight: 400;
+    color: var(--text-primary);
+    margin-bottom: var(--space-1);
+  }
+  .booking-card-sub {
+    font-size: var(--text-sm);
+    color: var(--text-secondary);
+    margin-bottom: var(--space-4);
+  }
+  .booking-card-meta {
+    display: flex;
+    gap: var(--space-4);
+    margin-bottom: var(--space-4);
+  }
+  .booking-card-meta-item {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .booking-card-meta-label { font-size: var(--text-xs); color: var(--text-tertiary); text-transform: uppercase; letter-spacing: 0.05em; }
+  .booking-card-meta-value { font-size: var(--text-sm); color: var(--text-primary); font-weight: 500; }
+
+  /* ===== STATUS BADGE ===== */
+  .status { display: inline-flex; align-items: center; gap: 5px; }
+  .status-dot { width: 5px; height: 5px; border-radius: 50%; flex-shrink: 0; }
+
+  /* ===== INPUT ===== */
+  .input-group { display: flex; flex-direction: column; gap: var(--space-2); margin-bottom: var(--space-4); }
+  .input-label { font-size: var(--text-sm); color: var(--text-secondary); font-weight: 400; }
+  .input-field {
+    background: var(--bg-surface);
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-md);
+    padding: 10px 14px;
+    font-family: var(--font-sans);
+    font-size: var(--text-sm);
+    color: var(--text-primary);
+    width: 100%;
+    outline: none;
+    transition: border-color 0.15s;
+  }
+  .input-field::placeholder { color: var(--text-tertiary); }
+  .input-field:focus { border-color: var(--amber-400); }
+
+  /* ===== SIDEBAR / NAV ===== */
+  .nav-sidebar {
+    background: var(--bg-surface);
+    border-right: 1px solid var(--border-subtle);
+    width: 220px;
+    padding: var(--space-6);
+    border-radius: var(--radius-xl);
+  }
+  .nav-brand {
+    font-family: var(--font-serif);
+    font-size: var(--text-lg);
+    color: var(--text-primary);
+    margin-bottom: var(--space-6);
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+  }
+  .nav-brand span { color: var(--amber-400); }
+  .nav-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 12px;
+    border-radius: var(--radius-md);
+    font-size: var(--text-sm);
+    color: var(--text-tertiary);
+    margin-bottom: 2px;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .nav-item.active {
+    background: var(--bg-subtle);
+    color: var(--text-primary);
+  }
+  .nav-item-icon { font-size: 14px; width: 18px; text-align: center; }
+  .nav-section-label {
+    font-size: var(--text-xs);
+    color: var(--text-tertiary);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: var(--space-4) 12px var(--space-2);
+  }
+
+  /* ===== CHART MOCKUP ===== */
+  .chart-area {
+    background: var(--bg-card);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-lg);
+    padding: var(--space-6);
+  }
+  .chart-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: var(--space-6);
+  }
+  .chart-title-label { font-size: var(--text-xs); text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-tertiary); margin-bottom: 4px; }
+  .chart-title-value { font-family: var(--font-serif); font-size: var(--text-2xl); color: var(--text-primary); font-weight: 400; }
+  .chart-svg { width: 100%; }
+
+  /* ===== NOTACIÓN NUMÉRICA ===== */
+  .number-hero {
+    font-family: var(--font-serif);
+    font-size: 56px;
+    font-weight: 400;
+    color: var(--text-primary);
+    line-height: 1;
+  }
+  .number-hero .unit {
+    font-family: var(--font-sans);
+    font-size: 20px;
+    color: var(--text-secondary);
+    font-weight: 300;
+  }
+
+  /* ===== WHATSAPP BOT MOCKUP ===== */
+  .chat-bubble {
+    max-width: 80%;
+    padding: 10px 14px;
+    border-radius: 18px;
+    font-size: var(--text-sm);
+    line-height: 1.5;
+    margin-bottom: var(--space-2);
+  }
+  .chat-bubble.bot {
+    background: var(--bg-card);
+    border: 1px solid var(--border-subtle);
+    border-bottom-left-radius: 4px;
+    color: var(--text-primary);
+    align-self: flex-start;
+  }
+  .chat-bubble.user {
+    background: var(--amber-400);
+    color: #0C0B09;
+    border-bottom-right-radius: 4px;
+    align-self: flex-end;
+    margin-left: auto;
+  }
+  .chat-time { font-size: 10px; color: var(--text-tertiary); margin-bottom: var(--space-4); }
+  .chat-option {
+    border: 1px solid var(--border-amber);
+    color: var(--amber-400);
+    font-size: var(--text-sm);
+    padding: 8px 14px;
+    border-radius: var(--radius-pill);
+    margin-bottom: 6px;
+    display: inline-block;
+    cursor: pointer;
+  }
+
+  /* ===== LIGHT CARD (modo claro) ===== */
+  .card-light {
+    background: var(--bg-card-light);
+    border: 1px solid var(--gray-100);
+    border-radius: var(--radius-lg);
+    padding: var(--space-6);
+    color: var(--text-dark);
+  }
+
+  /* ===== SEPARADORES ===== */
+  .divider {
+    border: none;
+    border-top: 1px solid var(--border-subtle);
+    margin: var(--space-8) 0;
+  }
+
+  /* ===== DO / DON'T ===== */
+  .do-dont-grid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-5); }
+  .do-card {
+    border: 1px solid rgba(78,156,94,0.25);
+    background: rgba(78,156,94,0.05);
+    border-radius: var(--radius-lg);
+    padding: var(--space-5);
+  }
+  .dont-card {
+    border: 1px solid rgba(217,92,74,0.2);
+    background: rgba(217,92,74,0.04);
+    border-radius: var(--radius-lg);
+    padding: var(--space-5);
+  }
+  .do-label {
+    font-size: var(--text-xs);
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--sage-400);
+    margin-bottom: var(--space-3);
+  }
+  .dont-label {
+    font-size: var(--text-xs);
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--red-400);
+    margin-bottom: var(--space-3);
+  }
+  .do-dont-text { font-size: var(--text-sm); color: var(--text-secondary); line-height: 1.65; }
+  .do-dont-text strong { color: var(--text-primary); font-weight: 500; }
+
+  /* ===== UTILIDADES ===== */
+  .mb-2 { margin-bottom: var(--space-2); }
+  .mb-3 { margin-bottom: var(--space-3); }
+  .mb-4 { margin-bottom: var(--space-4); }
+  .mb-5 { margin-bottom: var(--space-5); }
+  .mb-6 { margin-bottom: var(--space-6); }
+  .mb-8 { margin-bottom: var(--space-8); }
+  .mb-10 { margin-bottom: var(--space-10); }
+
+  .flex { display: flex; }
+  .flex-col { flex-direction: column; }
+  .items-center { align-items: center; }
+  .items-start { align-items: flex-start; }
+  .justify-between { justify-content: space-between; }
+  .gap-2 { gap: var(--space-2); }
+  .gap-3 { gap: var(--space-3); }
+  .gap-4 { gap: var(--space-4); }
+  .gap-5 { gap: var(--space-5); }
+  .gap-6 { gap: var(--space-6); }
+  .w-full { width: 100%; }
+  .flex-1 { flex: 1; }
+
+  .text-secondary { color: var(--text-secondary); }
+  .text-amber { color: var(--amber-400); }
+  .font-serif { font-family: var(--font-serif); }
+  .font-italic { font-style: italic; }
+
+  /* ===== SPEC BOX ===== */
+  .spec-box {
+    background: var(--bg-surface);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-md);
+    padding: var(--space-4);
+    font-family: monospace;
+    font-size: var(--text-sm);
+    color: var(--amber-200);
+  }
+
+  /* ===== PAGE CHAPTER ===== */
+  .chapter-num {
+    font-family: var(--font-serif);
+    font-size: 120px;
+    line-height: 1;
+    color: var(--border-subtle);
+    position: absolute;
+    right: 0;
+    top: -30px;
+    pointer-events: none;
+    user-select: none;
+  }
+
+  /* Scroll reveal suave */
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(18px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+</style>
+</head>
+<body>
+
+<!-- ======================================================
+     HERO / PORTADA
+======================================================= -->
+<section class="hero page-width">
+  <div class="hero-bg-accent"></div>
+  <div class="hero-bg-accent-2"></div>
+
+  <div class="hero-eyebrow">
+    <div class="hero-dot"></div>
+    <span class="label-overline">Brand Identity System — v1.0</span>
+  </div>
+
+  <div class="hero-logo">
+    Viven<span>ti</span>
+  </div>
+
+  <p class="hero-tagline">
+    Automatización de experiencias artesanales. Bodegas, queserías, cacaoteros, cafetales.
+  </p>
+
+  <div class="hero-meta">
+    <div class="hero-meta-item">
+      <strong>DM Serif Display + DM Sans</strong>
+      Sistema tipográfico
+    </div>
+    <div class="hero-meta-item">
+      <strong>Dark Artisan</strong>
+      Estilo visual
+    </div>
+    <div class="hero-meta-item">
+      <strong>Amber / Amber #C8902E</strong>
+      Color acento
+    </div>
+    <div class="hero-meta-item">
+      <strong>Diseñador / Dev</strong>
+      Audiencia de este doc
+    </div>
+  </div>
+</section>
+
+
+<!-- ======================================================
+     01 — CONCEPTO DE MARCA
+======================================================= -->
+<section class="section" id="concepto">
+<div class="page-width">
+  <div style="position:relative;">
+    <span class="chapter-num">01</span>
+    <span class="label-overline">Capítulo 01</span>
+    <h2 class="section-title">Concepto de marca</h2>
+    <p class="section-subtitle">
+      Viventi no es software de reservas. Es la capa de inteligencia que conecta al productor artesanal con su visitante. La identidad refleja esa dualidad: datos limpios y calidez auténtica.
+    </p>
+  </div>
+
+  <div class="grid-3 mb-10">
+    <div class="card">
+      <div class="label-overline mb-3">Tono</div>
+      <p class="font-serif mb-3" style="font-size:var(--text-lg); font-style:italic; color:var(--text-primary);">Cálido, directo, experto.</p>
+      <p class="text-secondary" style="font-size:var(--text-sm); line-height:1.7;">No habla como startup. Habla como el productor que sabe lo que hace. Nunca jerga tech. Siempre concreto y claro.</p>
+    </div>
+    <div class="card">
+      <div class="label-overline mb-3">Personalidad</div>
+      <p class="font-serif mb-3" style="font-size:var(--text-lg); font-style:italic; color:var(--text-primary);">El sommelier que también sabe de sistemas.</p>
+      <p class="text-secondary" style="font-size:var(--text-sm); line-height:1.7;">Preciso sin ser frío. Artesanal sin ser amateur. El producto tiene carácter propio, no es un tablero genérico.</p>
+    </div>
+    <div class="card">
+      <div class="label-overline mb-3">Promesa</div>
+      <p class="font-serif mb-3" style="font-size:var(--text-lg); font-style:italic; color:var(--text-primary);">Tu negocio siempre abierto.</p>
+      <p class="text-secondary" style="font-size:var(--text-sm); line-height:1.7;">El bot atiende. El ERP gestiona. El productor vive su oficio. Viventi cierra la brecha entre la experiencia rural y la automatización moderna.</p>
+    </div>
+  </div>
+
+  <!-- Palabras clave de marca -->
+  <div class="flex gap-3" style="flex-wrap:wrap;">
+    <span class="badge" style="background:var(--bg-subtle); color:var(--text-secondary); border:1px solid var(--border-subtle);">Auténtico</span>
+    <span class="badge" style="background:var(--bg-subtle); color:var(--text-secondary); border:1px solid var(--border-subtle);">Preciso</span>
+    <span class="badge" style="background:var(--bg-subtle); color:var(--text-secondary); border:1px solid var(--border-subtle);">Artesanal</span>
+    <span class="badge" style="background:var(--bg-subtle); color:var(--text-secondary); border:1px solid var(--border-subtle);">Territorial</span>
+    <span class="badge" style="background:var(--bg-subtle); color:var(--amber-400); border:1px solid var(--border-amber);">Confiable</span>
+    <span class="badge" style="background:var(--bg-subtle); color:var(--amber-400); border:1px solid var(--border-amber);">Calido</span>
+    <span class="badge" style="background:var(--bg-subtle); color:var(--text-secondary); border:1px solid var(--border-subtle);">Moderno</span>
+    <span class="badge" style="background:var(--bg-subtle); color:var(--text-secondary); border:1px solid var(--border-subtle);">Sin fricciones</span>
+  </div>
+</div>
+</section>
+
+
+<!-- ======================================================
+     02 — PALETA DE COLORES
+======================================================= -->
+<section class="section" id="colores">
+<div class="page-width">
+  <div style="position:relative;">
+    <span class="chapter-num">02</span>
+    <span class="label-overline">Capítulo 02</span>
+    <h2 class="section-title">Paleta de colores</h2>
+    <p class="section-subtitle">
+      La paleta es oscura y cálida. No fría ni tecnológica. El amber-dorado es el único acento cromático fuerte. Los demás colores son utilitarios: verde para éxito, rojo para error.
+    </p>
+  </div>
+
+  <!-- Color Acento Principal -->
+  <div class="color-group">
+    <div class="color-group-name">Amber — Color acento principal</div>
+    <div class="swatch-row">
+      <div class="swatch" style="background:#FDF5E6;"><span class="swatch-label" style="color:#9A6A18; font-size:9px;">50<br>#FDF5E6</span></div>
+      <div class="swatch" style="background:#FAE4B3;"><span class="swatch-label" style="color:#9A6A18; font-size:9px;">100<br>#FAE4B3</span></div>
+      <div class="swatch" style="background:#F5C970;"><span class="swatch-label" style="color:#6B470D; font-size:9px;">200<br>#F5C970</span></div>
+      <div class="swatch" style="background:#C8902E; flex:2;"><span class="swatch-label" style="color:#FDF5E6; font-size:9px;">★ 400 — PRINCIPAL<br>#C8902E</span></div>
+      <div class="swatch" style="background:#9A6A18;"><span class="swatch-label" style="color:#FAE4B3; font-size:9px;">600<br>#9A6A18</span></div>
+      <div class="swatch" style="background:#6B470D;"><span class="swatch-label" style="color:#F5C970; font-size:9px;">800<br>#6B470D</span></div>
+      <div class="swatch" style="background:#3D2806;"><span class="swatch-label" style="color:#C8902E; font-size:9px;">900<br>#3D2806</span></div>
+    </div>
+    <p style="font-size:var(--text-sm); color:var(--text-tertiary); line-height:1.6;">
+      Usar <strong style="color:var(--text-secondary);">#C8902E (400)</strong> para: botones primarios, labels activos, íconos de acento, indicadores de tab activo, valores numéricos destacados. El 200 se usa para texto sobre fondos oscuros cuando necesita ser más legible que el 400.
+    </p>
+  </div>
+
+  <!-- Fondos -->
+  <div class="color-group">
+    <div class="color-group-name">Fondos — Escala oscura cálida</div>
+    <div class="swatch-row" style="border:1px solid var(--border-subtle);">
+      <div class="swatch" style="background:#0C0B09; flex:2;"><span class="swatch-label" style="color:#5E5A53; font-size:9px;">Base<br>#0C0B09</span></div>
+      <div class="swatch" style="background:#161512; flex:2;"><span class="swatch-label" style="color:#5E5A53; font-size:9px;">Surface<br>#161512</span></div>
+      <div class="swatch" style="background:#1E1C18; flex:2;"><span class="swatch-label" style="color:#5E5A53; font-size:9px;">Card<br>#1E1C18</span></div>
+      <div class="swatch" style="background:#2A2720; flex:2;"><span class="swatch-label" style="color:#8A8578; font-size:9px;">Subtle<br>#2A2720</span></div>
+    </div>
+    <p style="font-size:var(--text-sm); color:var(--text-tertiary); line-height:1.6;">
+      Jerarquía: <strong style="color:var(--text-secondary);">Base</strong> = cuerpo de página. <strong style="color:var(--text-secondary);">Surface</strong> = sidebars, paneles secundarios. <strong style="color:var(--text-secondary);">Card</strong> = todas las tarjetas y contenedores. <strong style="color:var(--text-secondary);">Subtle</strong> = hover states, elementos inactivos.
+    </p>
+  </div>
+
+  <!-- Textos -->
+  <div class="color-group">
+    <div class="color-group-name">Textos — Escala de grises cálidos</div>
+    <div class="swatch-row">
+      <div class="swatch" style="background:#FFFFFF;"><span class="swatch-label" style="color:#C8C3B5; font-size:9px;">Primary<br>#FFFFFF</span></div>
+      <div class="swatch" style="background:#9B9589;"><span class="swatch-label" style="color:#1A1815; font-size:9px;">Secondary<br>#9B9589</span></div>
+      <div class="swatch" style="background:#5E5A53;"><span class="swatch-label" style="color:#C8C3B5; font-size:9px;">Tertiary<br>#5E5A53</span></div>
+      <div class="swatch" style="background:#2A2720;"><span class="swatch-label" style="color:#5E5A53; font-size:9px;">Disabled<br>#2A2720</span></div>
+    </div>
+  </div>
+
+  <!-- Semánticos -->
+  <div class="color-group">
+    <div class="color-group-name">Semánticos — Estados y feedback</div>
+    <div style="display:grid; grid-template-columns: repeat(4,1fr); gap:var(--space-4);">
+      <div>
+        <div style="height:44px; background:rgba(78,156,94,0.12); border:1px solid rgba(78,156,94,0.3); border-radius:var(--radius-md); display:flex;align-items:center;justify-content:center; margin-bottom:var(--space-2);">
+          <span style="color:#4E9C5E; font-size:var(--text-sm); font-weight:500;">+13.84%</span>
+        </div>
+        <div style="font-size:var(--text-xs); color:var(--text-tertiary);">Éxito / Positivo<br>#4E9C5E</div>
+      </div>
+      <div>
+        <div style="height:44px; background:rgba(217,92,74,0.12); border:1px solid rgba(217,92,74,0.3); border-radius:var(--radius-md); display:flex;align-items:center;justify-content:center; margin-bottom:var(--space-2);">
+          <span style="color:#D95C4A; font-size:var(--text-sm); font-weight:500;">−7.18%</span>
+        </div>
+        <div style="font-size:var(--text-xs); color:var(--text-tertiary);">Error / Negativo<br>#D95C4A</div>
+      </div>
+      <div>
+        <div style="height:44px; background:rgba(200,144,46,0.12); border:1px solid rgba(200,144,46,0.3); border-radius:var(--radius-md); display:flex;align-items:center;justify-content:center; margin-bottom:var(--space-2);">
+          <span style="color:#C8902E; font-size:var(--text-sm); font-weight:500;">Pendiente</span>
+        </div>
+        <div style="font-size:var(--text-xs); color:var(--text-tertiary);">Advertencia / Pending<br>#C8902E</div>
+      </div>
+      <div>
+        <div style="height:44px; background:rgba(196,117,80,0.12); border:1px solid rgba(196,117,80,0.3); border-radius:var(--radius-md); display:flex;align-items:center;justify-content:center; margin-bottom:var(--space-2);">
+          <span style="color:#C47550; font-size:var(--text-sm); font-weight:500;">Info</span>
+        </div>
+        <div style="font-size:var(--text-xs); color:var(--text-tertiary);">Terracota / Acento 2<br>#C47550</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modo Claro (uso puntual) -->
+  <div class="color-group">
+    <div class="color-group-name">Modo claro — Uso puntual (ej: catálogo de experiencias public-facing)</div>
+    <div class="card-light">
+      <div class="flex gap-4 items-center">
+        <div style="flex:1;">
+          <div style="font-size:var(--text-xs); color:var(--text-muted-dark); text-transform:uppercase; letter-spacing:0.06em; margin-bottom:4px;">Experiencia</div>
+          <div style="font-family:var(--font-serif); font-size:var(--text-lg); color:var(--text-dark); margin-bottom:4px;">Degustación en Bodega</div>
+          <div style="font-size:var(--text-sm); color:var(--text-muted-dark);">Establecimiento Artesanal · 2h · máx. 12 personas</div>
+        </div>
+        <div style="text-align:right;">
+          <div style="font-family:var(--font-serif); font-size:var(--text-2xl); color:var(--amber-600);">$890</div>
+          <div style="font-size:var(--text-xs); color:var(--text-muted-dark);">por persona</div>
+        </div>
+      </div>
+    </div>
+    <p style="font-size:var(--text-sm); color:var(--text-tertiary); margin-top:var(--space-3); line-height:1.6;">Fondo <strong style="color:var(--text-secondary);">#F5F2EC</strong>, texto <strong style="color:var(--text-secondary);">#1A1815</strong>, amber <strong style="color:var(--text-secondary);">#9A6A18 (600)</strong>. Solo para vistas públicas o documentos impresos.</p>
+  </div>
+
+</div>
+</section>
+
+
+<!-- ======================================================
+     03 — TIPOGRAFÍA
+======================================================= -->
+<section class="section" id="tipografia">
+<div class="page-width">
+  <div style="position:relative;">
+    <span class="chapter-num">03</span>
+    <span class="label-overline">Capítulo 03</span>
+    <h2 class="section-title">Tipografía</h2>
+    <p class="section-subtitle">
+      Dos familias. DM Serif Display para todo lo que tiene alma — títulos, números grandes, nombres de experiencias. DM Sans para todo lo funcional — etiquetas, párrafos, botones, datos.
+    </p>
+  </div>
+
+  <!-- Familias -->
+  <div class="grid-2 mb-10">
+    <div class="card">
+      <div class="label-overline mb-3">Display / Serif</div>
+      <div style="font-family:var(--font-serif); font-size:48px; line-height:1.1; color:var(--text-primary); margin-bottom:var(--space-4);">DM Serif Display</div>
+      <div style="font-family:var(--font-serif); font-size:22px; font-style:italic; color:var(--text-secondary); margin-bottom:var(--space-5);">Italic — para citas y taglines</div>
+      <div class="spec-box">
+        font-family: 'DM Serif Display', Georgia, serif;<br>
+        font-weight: 400 (única disponible)<br>
+        Fuente: Google Fonts — gratuita
+      </div>
+      <p style="font-size:var(--text-sm); color:var(--text-tertiary); margin-top:var(--space-4);">Usar en: logotipo, H1, H2, valores numéricos grandes, nombres de experiencias, secciones hero.</p>
+    </div>
+    <div class="card">
+      <div class="label-overline mb-3">Body / Sans</div>
+      <div style="font-family:var(--font-sans); font-size:34px; font-weight:300; line-height:1.1; color:var(--text-primary); margin-bottom:var(--space-3);">DM Sans Light</div>
+      <div style="font-family:var(--font-sans); font-size:22px; font-weight:400; line-height:1.1; color:var(--text-primary); margin-bottom:var(--space-3);">DM Sans Regular</div>
+      <div style="font-family:var(--font-sans); font-size:22px; font-weight:500; line-height:1.1; color:var(--text-primary); margin-bottom:var(--space-4);">DM Sans Medium</div>
+      <div class="spec-box">
+        font-family: 'DM Sans', system-ui, sans-serif;<br>
+        font-weight: 300 | 400 | 500 | 600<br>
+        Fuente: Google Fonts — gratuita
+      </div>
+      <p style="font-size:var(--text-sm); color:var(--text-tertiary); margin-top:var(--space-4);">Usar en: párrafos, labels, botones, inputs, tablas, UI completa.</p>
+    </div>
+  </div>
+
+  <!-- Escala tipográfica -->
+  <div style="border:1px solid var(--border-subtle); border-radius:var(--radius-lg); overflow:hidden;">
+    <div class="type-specimen" style="padding: var(--space-6);">
+      <div class="type-spec-label">Hero / Logotipo</div>
+      <div style="font-family:var(--font-serif); font-size:72px; line-height:0.95; color:var(--text-primary);">Viventi</div>
+      <div class="type-spec-meta">DM Serif Display · 72px · #FFFFFF</div>
+    </div>
+    <div class="type-specimen" style="padding: var(--space-6);">
+      <div class="type-spec-label">H1 — Título de sección / ERP</div>
+      <div style="font-family:var(--font-serif); font-size:48px; line-height:1.05; color:var(--text-primary);">Panel de reservas</div>
+      <div class="type-spec-meta">DM Serif Display · 48px · #FFFFFF</div>
+    </div>
+    <div class="type-specimen" style="padding: var(--space-6);">
+      <div class="type-spec-label">H2 — Nombre de experiencia / Título de card</div>
+      <div style="font-family:var(--font-serif); font-size:34px; line-height:1.1; color:var(--text-primary);">Degustación en la Bodega Sur</div>
+      <div class="type-spec-meta">DM Serif Display · 34px · #FFFFFF</div>
+    </div>
+    <div class="type-specimen" style="padding: var(--space-6);">
+      <div class="type-spec-label">H3 — Subtítulo / Sección de card</div>
+      <div style="font-family:var(--font-sans); font-size:20px; font-weight:500; color:var(--text-primary);">Resumen del mes</div>
+      <div class="type-spec-meta">DM Sans · 20px · 500 · #FFFFFF</div>
+    </div>
+    <div class="type-specimen" style="padding: var(--space-6);">
+      <div class="type-spec-label">Body Large — Descripción de experiencia</div>
+      <div style="font-family:var(--font-sans); font-size:17px; font-weight:400; color:var(--text-secondary); max-width:540px; line-height:1.7;">Visita guiada por el quesero con degustación de cinco variedades artesanales. Incluye maridaje con vinos locales y certificado de visita.</div>
+      <div class="type-spec-meta">DM Sans · 17px · 400 · #9B9589</div>
+    </div>
+    <div class="type-specimen" style="padding: var(--space-6);">
+      <div class="type-spec-label">Body — Texto de interfaz general</div>
+      <div style="font-family:var(--font-sans); font-size:15px; font-weight:400; color:var(--text-secondary);">Próxima reserva: sábado 12 de abril · 10:30 · 4 personas</div>
+      <div class="type-spec-meta">DM Sans · 15px · 400 · #9B9589</div>
+    </div>
+    <div class="type-specimen" style="padding: var(--space-6);">
+      <div class="type-spec-label">Label / Caption</div>
+      <div style="font-family:var(--font-sans); font-size:13px; font-weight:400; color:var(--text-tertiary);">Confirmado hace 2 horas</div>
+      <div class="type-spec-meta">DM Sans · 13px · 400 · #5E5A53</div>
+    </div>
+    <div class="type-specimen" style="padding: var(--space-6); border-bottom: none;">
+      <div class="type-spec-label">Overline / Tag</div>
+      <div style="font-family:var(--font-sans); font-size:11px; font-weight:500; letter-spacing:0.12em; text-transform:uppercase; color:var(--amber-400);">Experiencias activas</div>
+      <div class="type-spec-meta">DM Sans · 11px · 500 · uppercase · letter-spacing 0.12em · #C8902E</div>
+    </div>
+  </div>
+
+</div>
+</section>
+
+
+<!-- ======================================================
+     04 — NÚMEROS Y MÉTRICAS
+======================================================= -->
+<section class="section" id="numeros">
+<div class="page-width">
+  <div style="position:relative;">
+    <span class="chapter-num">04</span>
+    <span class="label-overline">Capítulo 04</span>
+    <h2 class="section-title">Números y métricas</h2>
+    <p class="section-subtitle">
+      Los números grandes son la estrella del ERP. Siempre DM Serif Display. El número domina, el label es subordinado. Los deltas (variación) siempre en verde o rojo semántico.
+    </p>
+  </div>
+
+  <!-- Jerarquía de números -->
+  <div class="grid-4 mb-10">
+    <div class="metric-card">
+      <div class="metric-label">
+        Reservas este mes
+        <span style="color:var(--text-tertiary); font-size:18px;">···</span>
+      </div>
+      <div class="metric-value">
+        <span style="font-family:var(--font-serif); font-size:38px; color:var(--text-primary);">142</span>
+      </div>
+      <div class="metric-delta-positive">▲ 13.84% vs mes anterior</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-label">
+        Personas atendidas
+        <span style="color:var(--text-tertiary); font-size:18px;">···</span>
+      </div>
+      <div class="metric-value">
+        <span style="font-family:var(--font-serif); font-size:38px; color:var(--text-primary);">638</span>
+      </div>
+      <div class="metric-delta-positive">▲ 9.2%</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-label">
+        Tasa confirmación
+        <span style="color:var(--text-tertiary); font-size:18px;">···</span>
+      </div>
+      <div class="metric-value">
+        <span style="font-family:var(--font-serif); font-size:38px; color:var(--text-primary);">87<span style="font-family:var(--font-sans); font-size:20px; font-weight:300; color:var(--text-secondary);">%</span></span>
+      </div>
+      <div class="metric-delta-negative">▼ 2.1%</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-label">
+        Revenue total
+        <span style="color:var(--text-tertiary); font-size:18px;">···</span>
+      </div>
+      <div class="metric-value">
+        <span style="font-family:var(--font-sans); font-size:20px; font-weight:300; color:var(--text-secondary);">$</span><span style="font-family:var(--font-serif); font-size:38px; color:var(--text-primary);">24.8K</span>
+      </div>
+      <div class="metric-delta-positive">▲ 21.02%</div>
+    </div>
+  </div>
+
+  <!-- Número extra grande -->
+  <div class="card mb-8">
+    <div class="label-overline mb-4">Número hero — KPI principal de página</div>
+    <div class="flex gap-6 items-center">
+      <div>
+        <div style="font-size:var(--text-sm); color:var(--text-tertiary); text-transform:uppercase; letter-spacing:0.06em; margin-bottom:8px;">Reservas confirmadas</div>
+        <div class="number-hero">234 <span class="unit">/ este mes</span></div>
+        <div class="flex gap-5" style="margin-top:var(--space-4);">
+          <span class="metric-delta-positive" style="font-size:var(--text-sm);">▲ 13.84% vs anterior</span>
+          <span class="text-secondary" style="font-size:var(--text-sm);">Meta: 250</span>
+        </div>
+      </div>
+      <div style="flex:1; height:60px; position:relative;">
+        <!-- mini sparkline -->
+        <svg width="100%" height="60" viewBox="0 0 200 60" preserveAspectRatio="none">
+          <polyline points="0,50 25,42 50,38 75,35 100,28 125,30 150,20 175,15 200,12" fill="none" stroke="#C8902E" stroke-width="1.5" opacity="0.6"/>
+          <polyline points="0,60 0,50 25,42 50,38 75,35 100,28 125,30 150,20 175,15 200,12 200,60" fill="url(#sparkGrad)" opacity="0.15"/>
+          <defs>
+            <linearGradient id="sparkGrad" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="#C8902E"/>
+              <stop offset="100%" stop-color="transparent"/>
+            </linearGradient>
+          </defs>
+        </svg>
+      </div>
+    </div>
+  </div>
+
+  <!-- Reglas de número -->
+  <div class="grid-2">
+    <div>
+      <div class="label-overline mb-4">Reglas de formato</div>
+      <div style="display:flex; flex-direction:column; gap:var(--space-3);">
+        <div class="flex gap-3 items-start">
+          <div style="width:5px; height:5px; border-radius:50%; background:var(--amber-400); margin-top:6px; flex-shrink:0;"></div>
+          <div style="font-size:var(--text-sm); color:var(--text-secondary); line-height:1.6;"><strong style="color:var(--text-primary);">Separador de miles:</strong> punto. 24.800 — no 24800 ni 24,800.</div>
+        </div>
+        <div class="flex gap-3 items-start">
+          <div style="width:5px; height:5px; border-radius:50%; background:var(--amber-400); margin-top:6px; flex-shrink:0;"></div>
+          <div style="font-size:var(--text-sm); color:var(--text-secondary); line-height:1.6;"><strong style="color:var(--text-primary);">Moneda:</strong> símbolo antes, fuente sans, tamaño 60% del número principal.</div>
+        </div>
+        <div class="flex gap-3 items-start">
+          <div style="width:5px; height:5px; border-radius:50%; background:var(--amber-400); margin-top:6px; flex-shrink:0;"></div>
+          <div style="font-size:var(--text-sm); color:var(--text-secondary); line-height:1.6;"><strong style="color:var(--text-primary);">Porcentaje:</strong> símbolo % siempre en DM Sans Light, 60% del tamaño del número.</div>
+        </div>
+        <div class="flex gap-3 items-start">
+          <div style="width:5px; height:5px; border-radius:50%; background:var(--amber-400); margin-top:6px; flex-shrink:0;"></div>
+          <div style="font-size:var(--text-sm); color:var(--text-secondary); line-height:1.6;"><strong style="color:var(--text-primary);">Delta positivo:</strong> triángulo ▲ + color #4E9C5E. Negativo: ▼ + #D95C4A.</div>
+        </div>
+        <div class="flex gap-3 items-start">
+          <div style="width:5px; height:5px; border-radius:50%; background:var(--amber-400); margin-top:6px; flex-shrink:0;"></div>
+          <div style="font-size:var(--text-sm); color:var(--text-secondary); line-height:1.6;"><strong style="color:var(--text-primary);">Abreviaciones:</strong> K para miles (24.8K), M para millones. Solo cuando >9.999.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Progress bars -->
+    <div>
+      <div class="label-overline mb-4">Progress bars — Atributos de experiencia</div>
+      <div class="card">
+        <div class="mb-4">
+          <div class="flex justify-between mb-2">
+            <span style="font-size:var(--text-sm); color:var(--text-secondary);">Ocupación</span>
+            <span style="font-size:var(--text-sm); color:var(--amber-400); font-weight:500;">91%</span>
+          </div>
+          <div class="progress-bar">
+            <div class="progress-bar-fill" style="width:91%; background:#C8902E;"></div>
+          </div>
+        </div>
+        <div class="mb-4">
+          <div class="flex justify-between mb-2">
+            <span style="font-size:var(--text-sm); color:var(--text-secondary);">Satisfacción</span>
+            <span style="font-size:var(--text-sm); color:var(--amber-200); font-weight:500;">78%</span>
+          </div>
+          <div class="progress-bar">
+            <div class="progress-bar-fill" style="width:78%; background:#C47550;"></div>
+          </div>
+        </div>
+        <div>
+          <div class="flex justify-between mb-2">
+            <span style="font-size:var(--text-sm); color:var(--text-secondary);">Conversión leads</span>
+            <span style="font-size:var(--text-sm); color:var(--sage-400); font-weight:500;">34%</span>
+          </div>
+          <div class="progress-bar">
+            <div class="progress-bar-fill" style="width:34%; background:#4E9C5E;"></div>
+          </div>
+        </div>
+      </div>
+      <p style="font-size:var(--text-sm); color:var(--text-tertiary); margin-top:var(--space-3);">Alto: amber #C8902E · Medio: terracota #C47550 · Bajo: sage #4E9C5E. Altura siempre 3px. Sin border-radius en el contenedor.</p>
+    </div>
+  </div>
+
+</div>
+</section>
+
+
+<!-- ======================================================
+     05 — BOTONES Y CONTROLES
+======================================================= -->
+<section class="section" id="botones">
+<div class="page-width">
+  <div style="position:relative;">
+    <span class="chapter-num">05</span>
+    <span class="label-overline">Capítulo 05</span>
+    <h2 class="section-title">Botones y controles</h2>
+    <p class="section-subtitle">
+      Un solo botón primario por pantalla. El amber sólido es la CTA más importante — reservar, confirmar, guardar. El resto son variantes secundarias o de navegación.
+    </p>
+  </div>
+
+  <!-- Botones principales -->
+  <div class="mb-8">
+    <div class="label-overline mb-4">Botones — Variantes principales</div>
+    <div class="btn-demo-row">
+      <button class="btn btn-primary">Confirmar reserva</button>
+      <button class="btn btn-secondary">Ver disponibilidad</button>
+      <button class="btn btn-ghost">Exportar reporte</button>
+      <button class="btn btn-danger">Cancelar reserva</button>
+    </div>
+
+    <div class="grid-4 mb-6">
+      <div class="card" style="padding:var(--space-4);">
+        <div style="font-size:var(--text-xs); color:var(--text-tertiary); margin-bottom:var(--space-3); text-transform:uppercase; letter-spacing:0.06em;">Primary</div>
+        <button class="btn btn-primary w-full" style="justify-content:center;">Confirmar</button>
+        <div class="spec-box" style="margin-top:var(--space-3); font-size:10px; line-height:1.7;">
+          bg: #C8902E<br>
+          text: #0C0B09<br>
+          radius: 10px<br>
+          padding: 10px 22px<br>
+          weight: 500
+        </div>
+      </div>
+      <div class="card" style="padding:var(--space-4);">
+        <div style="font-size:var(--text-xs); color:var(--text-tertiary); margin-bottom:var(--space-3); text-transform:uppercase; letter-spacing:0.06em;">Secondary</div>
+        <button class="btn btn-secondary w-full" style="justify-content:center;">Ver más</button>
+        <div class="spec-box" style="margin-top:var(--space-3); font-size:10px; line-height:1.7;">
+          bg: transparent<br>
+          border: 1px #FFFFFF1A<br>
+          text: #FFFFFF<br>
+          hover bg: #2A2720
+        </div>
+      </div>
+      <div class="card" style="padding:var(--space-4);">
+        <div style="font-size:var(--text-xs); color:var(--text-tertiary); margin-bottom:var(--space-3); text-transform:uppercase; letter-spacing:0.06em;">Ghost / Amber</div>
+        <button class="btn btn-ghost w-full" style="justify-content:center;">Exportar</button>
+        <div class="spec-box" style="margin-top:var(--space-3); font-size:10px; line-height:1.7;">
+          bg: transparent<br>
+          border: 1px rgba(200,144,46,.35)<br>
+          text: #C8902E<br>
+          uso: acciones secundarias
+        </div>
+      </div>
+      <div class="card" style="padding:var(--space-4);">
+        <div style="font-size:var(--text-xs); color:var(--text-tertiary); margin-bottom:var(--space-3); text-transform:uppercase; letter-spacing:0.06em;">Danger</div>
+        <button class="btn btn-danger w-full" style="justify-content:center;">Cancelar</button>
+        <div class="spec-box" style="margin-top:var(--space-3); font-size:10px; line-height:1.7;">
+          bg: transparent<br>
+          border: 1px rgba(217,92,74,.3)<br>
+          text: #D95C4A<br>
+          uso: acciones destructivas
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Pills / filtros -->
+  <div class="mb-8">
+    <div class="label-overline mb-4">Pills — Filtros de navegación</div>
+    <div class="flex gap-2" style="flex-wrap:wrap;">
+      <button class="btn btn-pill active">Todos</button>
+      <button class="btn btn-pill">Confirmados</button>
+      <button class="btn btn-pill">Pendientes</button>
+      <button class="btn btn-pill">Cancelados</button>
+      <button class="btn btn-pill">Hoy</button>
+      <button class="btn btn-pill">Esta semana</button>
+    </div>
+    <p style="font-size:var(--text-sm); color:var(--text-tertiary); margin-top:var(--space-3);">Estado activo: bg #C8902E, text #0C0B09. Inactivo: bg #2A2720, text #9B9589.</p>
+  </div>
+
+  <!-- Tabs -->
+  <div class="mb-8">
+    <div class="label-overline mb-4">Tabs — Navegación por sección</div>
+    <div class="card" style="padding:0; overflow:hidden;">
+      <div class="tabs">
+        <div class="tab-item active">Reservas</div>
+        <div class="tab-item">Experiencias</div>
+        <div class="tab-item">Leads</div>
+        <div class="tab-item">Configuración</div>
+      </div>
+      <div style="padding:var(--space-5);">
+        <p style="font-size:var(--text-sm); color:var(--text-tertiary);">Contenido del tab activo aparece aquí. Tab activo: border-bottom 2px #FFFFFF. Variante amber: border-bottom 2px #C8902E.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Inputs -->
+  <div>
+    <div class="label-overline mb-4">Inputs — Formularios</div>
+    <div class="grid-2">
+      <div>
+        <div class="input-group">
+          <label class="input-label">Nombre del visitante</label>
+          <input class="input-field" type="text" placeholder="Ej: María García">
+        </div>
+        <div class="input-group">
+          <label class="input-label">Fecha de visita</label>
+          <input class="input-field" type="text" placeholder="DD/MM/AAAA">
+        </div>
+        <div class="input-group">
+          <label class="input-label">Cantidad de personas</label>
+          <input class="input-field" type="text" placeholder="Ej: 4">
+        </div>
+      </div>
+      <div class="card" style="display:flex; flex-direction:column; justify-content:center; gap:var(--space-4);">
+        <div class="spec-box" style="font-size:var(--text-xs); line-height:1.8;">
+          .input-field {<br>
+          &nbsp;&nbsp;background: #161512;<br>
+          &nbsp;&nbsp;border: 1px solid rgba(255,255,255,0.10);<br>
+          &nbsp;&nbsp;border-radius: 10px;<br>
+          &nbsp;&nbsp;padding: 10px 14px;<br>
+          &nbsp;&nbsp;font-size: 13px;<br>
+          &nbsp;&nbsp;color: #FFFFFF;<br>
+          }<br>
+          :focus → border-color: #C8902E;<br>
+          ::placeholder → color: #5E5A53;
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+</section>
+
+
+<!-- ======================================================
+     06 — CARDS Y COMPONENTES
+======================================================= -->
+<section class="section" id="cards">
+<div class="page-width">
+  <div style="position:relative;">
+    <span class="chapter-num">06</span>
+    <span class="label-overline">Capítulo 06</span>
+    <h2 class="section-title">Cards y componentes</h2>
+    <p class="section-subtitle">
+      Las cards son el bloque constructivo del ERP. Siempre fondo #1E1C18, borde sutil, radio 16px. Nunca sombras pesadas. La jerarquía la crean el tamaño de tipografía y el color, no las elevaciones.
+    </p>
+  </div>
+
+  <!-- Cards de experiencia -->
+  <div class="label-overline mb-4">Card de experiencia — Vista listado</div>
+  <div class="grid-3 mb-8">
+    <div class="booking-card">
+      <div class="booking-card-img">
+        <span class="booking-card-img-text">♦ Bodega</span>
+        <div style="position:absolute; top:12px; right:12px;">
+          <span class="badge" style="background:rgba(78,156,94,0.2); color:#4E9C5E; border:1px solid rgba(78,156,94,0.3);">● Activo</span>
+        </div>
+      </div>
+      <div class="booking-card-body">
+        <div class="booking-card-title">Degustación Río Branco</div>
+        <div class="booking-card-sub">Bodega Artesanal · Colonia, UY</div>
+        <div class="booking-card-meta">
+          <div class="booking-card-meta-item">
+            <span class="booking-card-meta-label">Precio</span>
+            <span class="booking-card-meta-value" style="color:var(--amber-400);">$890 / p.</span>
+          </div>
+          <div class="booking-card-meta-item">
+            <span class="booking-card-meta-label">Duración</span>
+            <span class="booking-card-meta-value">2h 30m</span>
+          </div>
+          <div class="booking-card-meta-item">
+            <span class="booking-card-meta-label">Cupos</span>
+            <span class="booking-card-meta-value">12 máx.</span>
+          </div>
+        </div>
+        <div class="progress-bar">
+          <div class="progress-bar-fill" style="width:75%; background:#C8902E;"></div>
+        </div>
+        <div style="font-size:var(--text-xs); color:var(--text-tertiary); margin-top:var(--space-2);">9 / 12 cupos usados esta semana</div>
+      </div>
+    </div>
+
+    <div class="booking-card">
+      <div class="booking-card-img" style="background: linear-gradient(135deg, #1F1E1A, #17160F);">
+        <span class="booking-card-img-text" style="color:var(--terra-400);">◎ Queso</span>
+        <div style="position:absolute; top:12px; right:12px;">
+          <span class="badge" style="background:rgba(200,144,46,0.2); color:#C8902E; border:1px solid rgba(200,144,46,0.3);">● Pendiente</span>
+        </div>
+      </div>
+      <div class="booking-card-body">
+        <div class="booking-card-title">Ruta del Queso Norte</div>
+        <div class="booking-card-sub">Quesería artesanal · Tacuarembó, UY</div>
+        <div class="booking-card-meta">
+          <div class="booking-card-meta-item">
+            <span class="booking-card-meta-label">Precio</span>
+            <span class="booking-card-meta-value" style="color:var(--amber-400);">$650 / p.</span>
+          </div>
+          <div class="booking-card-meta-item">
+            <span class="booking-card-meta-label">Duración</span>
+            <span class="booking-card-meta-value">3h</span>
+          </div>
+          <div class="booking-card-meta-item">
+            <span class="booking-card-meta-label">Cupos</span>
+            <span class="booking-card-meta-value">8 máx.</span>
+          </div>
+        </div>
+        <div class="progress-bar">
+          <div class="progress-bar-fill" style="width:38%; background:#C47550;"></div>
+        </div>
+        <div style="font-size:var(--text-xs); color:var(--text-tertiary); margin-top:var(--space-2);">3 / 8 cupos usados esta semana</div>
+      </div>
+    </div>
+
+    <div class="booking-card" style="border-color:var(--border-amber);">
+      <div class="booking-card-img" style="background: linear-gradient(135deg, #22180D, #1A140A);">
+        <span class="booking-card-img-text" style="color:#C8902E; opacity:0.7;">☕ Café</span>
+        <div style="position:absolute; top:12px; right:12px;">
+          <span class="badge" style="background:rgba(78,156,94,0.2); color:#4E9C5E; border:1px solid rgba(78,156,94,0.3);">● Activo</span>
+        </div>
+      </div>
+      <div class="booking-card-body">
+        <div class="booking-card-title">Experiencia de Cata</div>
+        <div class="booking-card-sub">Cafetal premium · Lavalleja, UY</div>
+        <div class="booking-card-meta">
+          <div class="booking-card-meta-item">
+            <span class="booking-card-meta-label">Precio</span>
+            <span class="booking-card-meta-value" style="color:var(--amber-400);">$1.200 / p.</span>
+          </div>
+          <div class="booking-card-meta-item">
+            <span class="booking-card-meta-label">Duración</span>
+            <span class="booking-card-meta-value">1h 30m</span>
+          </div>
+          <div class="booking-card-meta-item">
+            <span class="booking-card-meta-label">Cupos</span>
+            <span class="booking-card-meta-value">6 máx.</span>
+          </div>
+        </div>
+        <div class="progress-bar">
+          <div class="progress-bar-fill" style="width:100%; background:#C8902E;"></div>
+        </div>
+        <div style="font-size:var(--text-xs); color:var(--amber-400); margin-top:var(--space-2); font-weight:500;">Completo — sin cupos disponibles</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Status indicators -->
+  <div class="label-overline mb-4">Estados de reserva — Status indicators</div>
+  <div class="card mb-8">
+    <div style="display:flex; flex-direction:column; gap:var(--space-4);">
+      <div class="flex justify-between items-center" style="padding:var(--space-3) 0; border-bottom:1px solid var(--border-subtle);">
+        <div class="flex gap-3 items-center">
+          <span class="status"><span class="status-dot" style="background:#4E9C5E;"></span></span>
+          <span class="badge" style="background:rgba(78,156,94,0.12); color:#4E9C5E;">Confirmado</span>
+          <span style="font-size:var(--text-sm); color:var(--text-secondary);">María García · 4 personas · Sáb 12 Abr · 10:30</span>
+        </div>
+        <span style="font-family:var(--font-serif); font-size:var(--text-lg); color:var(--amber-400);">$3.560</span>
+      </div>
+      <div class="flex justify-between items-center" style="padding:var(--space-3) 0; border-bottom:1px solid var(--border-subtle);">
+        <div class="flex gap-3 items-center">
+          <span class="status"><span class="status-dot" style="background:#C8902E;"></span></span>
+          <span class="badge" style="background:rgba(200,144,46,0.12); color:#C8902E;">Pendiente</span>
+          <span style="font-size:var(--text-sm); color:var(--text-secondary);">Carlos Ruiz · 2 personas · Dom 13 Abr · 15:00</span>
+        </div>
+        <span style="font-family:var(--font-serif); font-size:var(--text-lg); color:var(--text-secondary);">$1.780</span>
+      </div>
+      <div class="flex justify-between items-center" style="padding:var(--space-3) 0; border-bottom:1px solid var(--border-subtle);">
+        <div class="flex gap-3 items-center">
+          <span class="status"><span class="status-dot" style="background:#D95C4A;"></span></span>
+          <span class="badge" style="background:rgba(217,92,74,0.12); color:#D95C4A;">Cancelado</span>
+          <span style="font-size:var(--text-sm); color:var(--text-tertiary);">Ana López · 6 personas · Vie 11 Abr · 16:00</span>
+        </div>
+        <span style="font-family:var(--font-serif); font-size:var(--text-lg); color:var(--text-tertiary); text-decoration:line-through;">$5.340</span>
+      </div>
+      <div class="flex justify-between items-center" style="padding:var(--space-3) 0;">
+        <div class="flex gap-3 items-center">
+          <span class="status"><span class="status-dot" style="background:#9B9589;"></span></span>
+          <span class="badge" style="background:rgba(155,149,137,0.12); color:#9B9589;">Vencido</span>
+          <span style="font-size:var(--text-sm); color:var(--text-tertiary);">Pedro Méndez · 3 personas · Jue 10 Abr</span>
+        </div>
+        <span style="font-family:var(--font-serif); font-size:var(--text-lg); color:var(--text-tertiary);">$2.670</span>
+      </div>
+    </div>
+  </div>
+
+</div>
+</section>
+
+
+<!-- ======================================================
+     07 — GRÁFICOS
+======================================================= -->
+<section class="section" id="graficos">
+<div class="page-width">
+  <div style="position:relative;">
+    <span class="chapter-num">07</span>
+    <span class="label-overline">Capítulo 07</span>
+    <h2 class="section-title">Gráficos y visualización</h2>
+    <p class="section-subtitle">
+      Gráficos mínimos, con mucho espacio. El fondo siempre es el card (#1E1C18). Los colores de datos son amber primero, luego terracota y sage. Sin leyendas complejas.
+    </p>
+  </div>
+
+  <div class="grid-2 mb-8">
+    <!-- Línea de reservas -->
+    <div class="chart-area">
+      <div class="chart-header">
+        <div>
+          <div class="chart-title-label">Reservas / mes</div>
+          <div class="chart-title-value">142</div>
+        </div>
+        <span class="metric-delta-positive">▲ 13.84%</span>
+      </div>
+      <svg class="chart-svg" viewBox="0 0 300 120" preserveAspectRatio="none" style="height:120px;">
+        <!-- Grid lines -->
+        <line x1="0" y1="30" x2="300" y2="30" stroke="rgba(255,255,255,0.04)" stroke-width="1"/>
+        <line x1="0" y1="60" x2="300" y2="60" stroke="rgba(255,255,255,0.04)" stroke-width="1"/>
+        <line x1="0" y1="90" x2="300" y2="90" stroke="rgba(255,255,255,0.04)" stroke-width="1"/>
+        <!-- Area fill -->
+        <path d="M0,90 L37,78 L75,70 L112,65 L150,55 L187,48 L225,38 L262,30 L300,20 L300,120 L0,120 Z" fill="url(#areaGrad)" opacity="0.15"/>
+        <!-- Line -->
+        <polyline points="0,90 37,78 75,70 112,65 150,55 187,48 225,38 262,30 300,20" fill="none" stroke="#C8902E" stroke-width="1.5"/>
+        <!-- Dot activo -->
+        <circle cx="300" cy="20" r="3" fill="#C8902E"/>
+        <circle cx="300" cy="20" r="6" fill="transparent" stroke="#C8902E" stroke-width="1" opacity="0.4"/>
+        <defs>
+          <linearGradient id="areaGrad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#C8902E"/>
+            <stop offset="100%" stop-color="transparent"/>
+          </linearGradient>
+        </defs>
+      </svg>
+      <!-- Eje X -->
+      <div class="flex justify-between" style="margin-top:var(--space-3);">
+        <span style="font-size:10px; color:var(--text-tertiary);">Oct</span>
+        <span style="font-size:10px; color:var(--text-tertiary);">Nov</span>
+        <span style="font-size:10px; color:var(--text-tertiary);">Dic</span>
+        <span style="font-size:10px; color:var(--text-tertiary);">Ene</span>
+        <span style="font-size:10px; color:var(--text-tertiary);">Feb</span>
+        <span style="font-size:10px; color:var(--text-tertiary);">Mar</span>
+        <span style="font-size:10px; color:var(--amber-400); font-weight:500;">Abr</span>
+      </div>
+    </div>
+
+    <!-- Barras por tipo de experiencia -->
+    <div class="chart-area">
+      <div class="chart-header">
+        <div>
+          <div class="chart-title-label">Por tipo de experiencia</div>
+          <div class="chart-title-value">638 <span style="font-family:var(--font-sans); font-size:16px; color:var(--text-secondary); font-weight:300;">personas</span></div>
+        </div>
+      </div>
+      <div style="display:flex; flex-direction:column; gap:var(--space-4);">
+        <div>
+          <div class="flex justify-between mb-2">
+            <span style="font-size:var(--text-sm); color:var(--text-secondary);">Bodegas</span>
+            <span style="font-size:var(--text-sm); color:var(--text-primary); font-weight:500;">312</span>
+          </div>
+          <div style="height:6px; background:var(--border-subtle); border-radius:3px; overflow:hidden;">
+            <div style="height:100%; width:70%; background:#C8902E; border-radius:3px;"></div>
+          </div>
+        </div>
+        <div>
+          <div class="flex justify-between mb-2">
+            <span style="font-size:var(--text-sm); color:var(--text-secondary);">Queserías</span>
+            <span style="font-size:var(--text-sm); color:var(--text-primary); font-weight:500;">198</span>
+          </div>
+          <div style="height:6px; background:var(--border-subtle); border-radius:3px; overflow:hidden;">
+            <div style="height:100%; width:45%; background:#C47550; border-radius:3px;"></div>
+          </div>
+        </div>
+        <div>
+          <div class="flex justify-between mb-2">
+            <span style="font-size:var(--text-sm); color:var(--text-secondary);">Cafetales</span>
+            <span style="font-size:var(--text-sm); color:var(--text-primary); font-weight:500;">86</span>
+          </div>
+          <div style="height:6px; background:var(--border-subtle); border-radius:3px; overflow:hidden;">
+            <div style="height:100%; width:20%; background:#4E9C5E; border-radius:3px;"></div>
+          </div>
+        </div>
+        <div>
+          <div class="flex justify-between mb-2">
+            <span style="font-size:var(--text-sm); color:var(--text-secondary);">Cacaoteros</span>
+            <span style="font-size:var(--text-sm); color:var(--text-primary); font-weight:500;">42</span>
+          </div>
+          <div style="height:6px; background:var(--border-subtle); border-radius:3px; overflow:hidden;">
+            <div style="height:100%; width:10%; background:#9B9589; border-radius:3px;"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Reglas de gráficos -->
+  <div class="card">
+    <div class="label-overline mb-4">Reglas de gráficos</div>
+    <div class="grid-3">
+      <div>
+        <div style="font-size:var(--text-sm); font-weight:500; color:var(--text-primary); margin-bottom:var(--space-2);">Colores de datos</div>
+        <div style="display:flex; flex-direction:column; gap:var(--space-2);">
+          <div class="flex gap-2 items-center"><div style="width:12px; height:12px; border-radius:3px; background:#C8902E;"></div><span style="font-size:var(--text-sm); color:var(--text-secondary);">Serie 1 — Amber #C8902E</span></div>
+          <div class="flex gap-2 items-center"><div style="width:12px; height:12px; border-radius:3px; background:#C47550;"></div><span style="font-size:var(--text-sm); color:var(--text-secondary);">Serie 2 — Terra #C47550</span></div>
+          <div class="flex gap-2 items-center"><div style="width:12px; height:12px; border-radius:3px; background:#4E9C5E;"></div><span style="font-size:var(--text-sm); color:var(--text-secondary);">Serie 3 — Sage #4E9C5E</span></div>
+          <div class="flex gap-2 items-center"><div style="width:12px; height:12px; border-radius:3px; background:#9B9589;"></div><span style="font-size:var(--text-sm); color:var(--text-secondary);">Serie 4 — Gray #9B9589</span></div>
+        </div>
+      </div>
+      <div>
+        <div style="font-size:var(--text-sm); font-weight:500; color:var(--text-primary); margin-bottom:var(--space-2);">Estilo de líneas</div>
+        <div style="font-size:var(--text-sm); color:var(--text-secondary); line-height:1.7;">
+          Stroke width: 1.5px<br>
+          Grid lines: rgba(255,255,255,0.04)<br>
+          Fill area: color + 15% opacidad<br>
+          Punto activo: radio 3px + halo 6px
+        </div>
+      </div>
+      <div>
+        <div style="font-size:var(--text-sm); font-weight:500; color:var(--text-primary); margin-bottom:var(--space-2);">Lo que nunca hacer</div>
+        <div style="font-size:var(--text-sm); color:var(--text-secondary); line-height:1.7;">
+          ✗ Gráficos de torta (pie charts)<br>
+          ✗ Más de 4 series a la vez<br>
+          ✗ Grillas gruesas o ruidosas<br>
+          ✗ Leyendas flotantes complejas<br>
+          ✗ Gradientes de color multi-hue
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+</section>
+
+
+<!-- ======================================================
+     08 — BOT / WHATSAPP
+======================================================= -->
+<section class="section" id="bot">
+<div class="page-width">
+  <div style="position:relative;">
+    <span class="chapter-num">08</span>
+    <span class="label-overline">Capítulo 08</span>
+    <h2 class="section-title">Estilo del bot WhatsApp</h2>
+    <p class="section-subtitle">
+      El bot es la voz de Viventi. Cálido, sin relleno, directo. Frases cortas. Nunca más de 3 opciones a la vez. El amber solo aparece en los botones de acción del usuario.
+    </p>
+  </div>
+
+  <div class="grid-2">
+    <!-- Chat mockup -->
+    <div>
+      <div class="label-overline mb-4">Conversación — Flujo de reserva</div>
+      <div class="card" style="display:flex; flex-direction:column; gap:var(--space-2);">
+        <!-- Bot -->
+        <div>
+          <div class="chat-time">Hoy · 10:34 AM</div>
+          <div class="chat-bubble bot" style="display:inline-block;">
+            ¡Hola! Soy el asistente de <strong style="color:var(--amber-200);">Viventi</strong>. ¿Qué tipo de experiencia estás buscando?
+          </div>
+        </div>
+        <!-- Opciones -->
+        <div style="display:flex; flex-wrap:wrap; gap:6px; margin: var(--space-1) 0 var(--space-3);">
+          <div class="chat-option">🍷 Bodega</div>
+          <div class="chat-option">🧀 Quesería</div>
+          <div class="chat-option">☕ Café</div>
+        </div>
+        <!-- Usuario -->
+        <div class="flex" style="justify-content:flex-end;">
+          <div class="chat-bubble user">Bodega</div>
+        </div>
+        <!-- Bot -->
+        <div>
+          <div class="chat-bubble bot" style="display:inline-block;">
+            Perfecto. Encontré <strong>3 bodegas</strong> disponibles esta semana cerca de Colonia.<br><br>¿Para cuántas personas?
+          </div>
+        </div>
+        <!-- Usuario -->
+        <div class="flex" style="justify-content:flex-end;">
+          <div class="chat-bubble user">Somos 4</div>
+        </div>
+        <!-- Bot -->
+        <div>
+          <div class="chat-bubble bot" style="display:inline-block;">
+            Disponibilidad para <strong>4 personas</strong>:<br><br>
+            📅 Sáb 12 Abr · 10:30 — $3.560 total<br>
+            📅 Dom 13 Abr · 15:00 — $3.560 total<br><br>¿Cuál te queda mejor?
+          </div>
+        </div>
+        <div style="display:flex; flex-wrap:wrap; gap:6px; margin-top:var(--space-1);">
+          <div class="chat-option">Sáb 10:30</div>
+          <div class="chat-option">Dom 15:00</div>
+          <div class="chat-option">Ver otras fechas</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Reglas de escritura -->
+    <div>
+      <div class="label-overline mb-4">Voz del bot — Reglas de redacción</div>
+      <div style="display:flex; flex-direction:column; gap:var(--space-3);">
+        <div class="card" style="padding:var(--space-4);">
+          <div style="font-size:var(--text-xs); color:var(--sage-400); font-weight:500; text-transform:uppercase; letter-spacing:0.08em; margin-bottom:var(--space-2);">Siempre</div>
+          <div style="font-size:var(--text-sm); color:var(--text-secondary); line-height:1.65;">
+            Frases cortas. Una idea por mensaje.<br>
+            Confirmar lo que entendió antes de actuar.<br>
+            Mostrar el precio total, nunca solo por persona.<br>
+            Máximo 3 opciones en botones.<br>
+            Emojis escasos, solo para categorías.
+          </div>
+        </div>
+        <div class="card" style="padding:var(--space-4);">
+          <div style="font-size:var(--text-xs); color:var(--red-400); font-weight:500; text-transform:uppercase; letter-spacing:0.08em; margin-bottom:var(--space-2);">Nunca</div>
+          <div style="font-size:var(--text-sm); color:var(--text-secondary); line-height:1.65;">
+            "¡Hola! ¡Bienvenido a Viventi! ¿En qué puedo ayudarte hoy? 😊🎉"<br>
+            Respuestas largas en un bloque.<br>
+            Pedir más de un dato a la vez.<br>
+            Inventar disponibilidad si no hay datos.<br>
+            Usar palabras técnicas (ERP, doctype, slot_id).
+          </div>
+        </div>
+        <div class="card" style="padding:var(--space-4);">
+          <div style="font-size:var(--text-sm); font-weight:500; color:var(--text-primary); margin-bottom:var(--space-2);">Tono por estado</div>
+          <div style="display:flex; flex-direction:column; gap:var(--space-2);">
+            <div class="flex gap-2"><span class="badge" style="background:rgba(78,156,94,0.12); color:#4E9C5E; flex-shrink:0;">Confirmado</span><span style="font-size:var(--text-sm); color:var(--text-secondary);">Cálido, refuerza la decisión. "¡Listo! Tu visita quedó reservada."</span></div>
+            <div class="flex gap-2"><span class="badge" style="background:rgba(200,144,46,0.12); color:#C8902E; flex-shrink:0;">Pendiente</span><span style="font-size:var(--text-sm); color:var(--text-secondary);">Claro, sin urgencia artificial. "Queda pendiente de confirmación."</span></div>
+            <div class="flex gap-2"><span class="badge" style="background:rgba(217,92,74,0.12); color:#D95C4A; flex-shrink:0;">Sin cupos</span><span style="font-size:var(--text-sm); color:var(--text-secondary);">Empático, ofrece alternativa inmediata.</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+</section>
+
+
+<!-- ======================================================
+     09 — ERP / DASHBOARD MOCKUP
+======================================================= -->
+<section class="section" id="erp">
+<div class="page-width">
+  <div style="position:relative;">
+    <span class="chapter-num">09</span>
+    <span class="label-overline">Capítulo 09</span>
+    <h2 class="section-title">ERP — Ejemplo de dashboard</h2>
+    <p class="section-subtitle">
+      Referencia de cómo se ve un panel completo del ERP con sidebar + métricas + tabla de reservas. Esta es la composición tipo.
+    </p>
+  </div>
+
+  <!-- Dashboard completo -->
+  <div style="border:1px solid var(--border-subtle); border-radius:var(--radius-xl); overflow:hidden; background:var(--bg-base);">
+    <div class="flex" style="min-height:500px;">
+      <!-- Sidebar -->
+      <div class="nav-sidebar" style="border-radius:0; flex-shrink:0;">
+        <div class="nav-brand">Viven<span>ti</span></div>
+        <div class="nav-section-label">Principal</div>
+        <div class="nav-item active">
+          <span class="nav-item-icon">⊞</span> Dashboard
+        </div>
+        <div class="nav-item">
+          <span class="nav-item-icon">◈</span> Reservas
+        </div>
+        <div class="nav-item">
+          <span class="nav-item-icon">◇</span> Experiencias
+        </div>
+        <div class="nav-item">
+          <span class="nav-item-icon">○</span> Clientes
+        </div>
+        <div class="nav-section-label">Gestión</div>
+        <div class="nav-item">
+          <span class="nav-item-icon">▷</span> Leads
+        </div>
+        <div class="nav-item">
+          <span class="nav-item-icon">◎</span> Pagos
+        </div>
+        <div class="nav-item">
+          <span class="nav-item-icon">⊙</span> Reportes
+        </div>
+        <div style="margin-top:auto; padding-top:var(--space-6);">
+          <div class="nav-item" style="background:var(--bg-subtle);">
+            <div style="width:24px; height:24px; border-radius:50%; background:var(--amber-400); display:flex; align-items:center; justify-content:center; font-size:10px; color:#0C0B09; font-weight:600;">N</div>
+            <div style="flex:1; min-width:0;">
+              <div style="font-size:var(--text-xs); color:var(--text-primary); font-weight:500; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">Naya de Souza</div>
+              <div style="font-size:10px; color:var(--text-tertiary);">Admin · DeepZide</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Main content -->
+      <div style="flex:1; padding:var(--space-8); overflow:hidden;">
+        <!-- Header -->
+        <div class="flex justify-between items-center mb-6">
+          <div>
+            <div class="label-overline mb-1">Panel de control</div>
+            <h1 style="font-family:var(--font-serif); font-size:26px; font-weight:400; color:var(--text-primary);">Resumen del mes</h1>
+          </div>
+          <div class="flex gap-3">
+            <div class="flex gap-2">
+              <button class="btn btn-pill active">Abril</button>
+              <button class="btn btn-pill">Marzo</button>
+              <button class="btn btn-pill">Febrero</button>
+            </div>
+            <button class="btn btn-primary" style="padding:8px 16px; font-size:var(--text-xs);">+ Nueva reserva</button>
+          </div>
+        </div>
+
+        <!-- Métricas -->
+        <div class="grid-4 mb-6">
+          <div class="metric-card">
+            <div class="metric-label">Reservas</div>
+            <div style="font-family:var(--font-serif); font-size:32px; color:var(--text-primary); line-height:1; margin-bottom:6px;">142</div>
+            <div class="metric-delta-positive">▲ 13.84%</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-label">Personas</div>
+            <div style="font-family:var(--font-serif); font-size:32px; color:var(--text-primary); line-height:1; margin-bottom:6px;">638</div>
+            <div class="metric-delta-positive">▲ 9.2%</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-label">Conversión</div>
+            <div style="font-family:var(--font-serif); font-size:32px; color:var(--text-primary); line-height:1; margin-bottom:6px;">87%</div>
+            <div class="metric-delta-negative">▼ 2.1%</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-label">Revenue</div>
+            <div style="font-family:var(--font-serif); font-size:32px; color:var(--amber-400); line-height:1; margin-bottom:6px;">$24.8K</div>
+            <div class="metric-delta-positive">▲ 21.02%</div>
+          </div>
+        </div>
+
+        <!-- Tabla de reservas recientes -->
+        <div style="background:var(--bg-card); border:1px solid var(--border-subtle); border-radius:var(--radius-lg); overflow:hidden;">
+          <div class="flex justify-between items-center" style="padding:var(--space-4) var(--space-5); border-bottom:1px solid var(--border-subtle);">
+            <span style="font-size:var(--text-sm); font-weight:500; color:var(--text-primary);">Últimas reservas</span>
+            <span class="btn btn-ghost" style="font-size:var(--text-xs); padding:5px 12px; border-radius:var(--radius-pill); cursor:pointer;">Ver todas</span>
+          </div>
+          <table style="width:100%; border-collapse:collapse;">
+            <thead>
+              <tr style="border-bottom:1px solid var(--border-subtle);">
+                <th style="text-align:left; padding:10px var(--space-5); font-size:11px; color:var(--text-tertiary); font-weight:400; text-transform:uppercase; letter-spacing:0.06em;">Cliente</th>
+                <th style="text-align:left; padding:10px var(--space-5); font-size:11px; color:var(--text-tertiary); font-weight:400; text-transform:uppercase; letter-spacing:0.06em;">Experiencia</th>
+                <th style="text-align:left; padding:10px var(--space-5); font-size:11px; color:var(--text-tertiary); font-weight:400; text-transform:uppercase; letter-spacing:0.06em;">Fecha</th>
+                <th style="text-align:right; padding:10px var(--space-5); font-size:11px; color:var(--text-tertiary); font-weight:400; text-transform:uppercase; letter-spacing:0.06em;">Total</th>
+                <th style="text-align:right; padding:10px var(--space-5); font-size:11px; color:var(--text-tertiary); font-weight:400; text-transform:uppercase; letter-spacing:0.06em;">Estado</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr style="border-bottom:1px solid var(--border-subtle);">
+                <td style="padding:12px var(--space-5); font-size:var(--text-sm); color:var(--text-primary);">María García</td>
+                <td style="padding:12px var(--space-5); font-size:var(--text-sm); color:var(--text-secondary);">Degustación Río Branco</td>
+                <td style="padding:12px var(--space-5); font-size:var(--text-sm); color:var(--text-secondary);">Sáb 12 Abr</td>
+                <td style="padding:12px var(--space-5); font-size:var(--text-sm); color:var(--amber-400); text-align:right; font-family:var(--font-serif);">$3.560</td>
+                <td style="padding:12px var(--space-5); text-align:right;"><span class="badge" style="background:rgba(78,156,94,0.12); color:#4E9C5E;">Confirmado</span></td>
+              </tr>
+              <tr style="border-bottom:1px solid var(--border-subtle);">
+                <td style="padding:12px var(--space-5); font-size:var(--text-sm); color:var(--text-primary);">Carlos Ruiz</td>
+                <td style="padding:12px var(--space-5); font-size:var(--text-sm); color:var(--text-secondary);">Ruta del Queso Norte</td>
+                <td style="padding:12px var(--space-5); font-size:var(--text-sm); color:var(--text-secondary);">Dom 13 Abr</td>
+                <td style="padding:12px var(--space-5); font-size:var(--text-sm); color:var(--text-secondary); text-align:right; font-family:var(--font-serif);">$1.300</td>
+                <td style="padding:12px var(--space-5); text-align:right;"><span class="badge" style="background:rgba(200,144,46,0.12); color:#C8902E;">Pendiente</span></td>
+              </tr>
+              <tr>
+                <td style="padding:12px var(--space-5); font-size:var(--text-sm); color:var(--text-primary);">Ana López</td>
+                <td style="padding:12px var(--space-5); font-size:var(--text-sm); color:var(--text-secondary);">Cata de Café Premium</td>
+                <td style="padding:12px var(--space-5); font-size:var(--text-sm); color:var(--text-secondary);">Vie 11 Abr</td>
+                <td style="padding:12px var(--space-5); font-size:var(--text-sm); color:var(--text-tertiary); text-align:right; font-family:var(--font-serif); text-decoration:line-through;">$7.200</td>
+                <td style="padding:12px var(--space-5); text-align:right;"><span class="badge" style="background:rgba(217,92,74,0.12); color:#D95C4A;">Cancelado</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+</section>
+
+
+<!-- ======================================================
+     10 — FOTOGRAFÍA E IMÁGENES
+======================================================= -->
+<section class="section" id="imagenes">
+<div class="page-width">
+  <div style="position:relative;">
+    <span class="chapter-num">10</span>
+    <span class="label-overline">Capítulo 10</span>
+    <h2 class="section-title">Fotografía e imágenes</h2>
+    <p class="section-subtitle">
+      Las imágenes son el terreno y el producto. Nunca stock genérico, siempre autenticidad. Tonos cálidos, luz natural, texturas rurales. Nunca fondos blancos ni estudio aséptico.
+    </p>
+  </div>
+
+  <div class="grid-3 mb-8">
+    <!-- Tipo 1: Producto / queso / vino -->
+    <div>
+      <div style="height:200px; background: linear-gradient(135deg, #2A1E10 0%, #1C130A 50%, #2E2015 100%); border-radius:var(--radius-lg); margin-bottom:var(--space-3); display:flex; align-items:center; justify-content:center; border:1px solid var(--border-subtle); overflow:hidden; position:relative;">
+        <div style="font-family:var(--font-serif); font-size:60px; color:rgba(200,144,46,0.2);">🍷</div>
+        <div style="position:absolute; bottom:12px; left:14px;">
+          <div style="font-size:10px; color:var(--amber-400); text-transform:uppercase; letter-spacing:0.06em; margin-bottom:2px;">Tipo 1</div>
+          <div style="font-size:var(--text-sm); color:var(--text-primary);">Producto artesanal</div>
+        </div>
+      </div>
+      <div style="font-size:var(--text-sm); color:var(--text-secondary); line-height:1.65;">
+        Close-up del producto. Queso, vino, chocolate, café. Luz lateral cálida. Fondo oscuro o de madera. Sin texto superpuesto. Tonos ocres y marrones.
+      </div>
+    </div>
+
+    <!-- Tipo 2: Ambiente / lugar -->
+    <div>
+      <div style="height:200px; background: linear-gradient(160deg, #1A2210 0%, #111A0B 50%, #1E2614 100%); border-radius:var(--radius-lg); margin-bottom:var(--space-3); display:flex; align-items:center; justify-content:center; border:1px solid var(--border-subtle); overflow:hidden; position:relative;">
+        <div style="font-family:var(--font-serif); font-size:60px; color:rgba(196,117,80,0.2);">🌿</div>
+        <div style="position:absolute; bottom:12px; left:14px;">
+          <div style="font-size:10px; color:var(--terra-400); text-transform:uppercase; letter-spacing:0.06em; margin-bottom:2px;">Tipo 2</div>
+          <div style="font-size:var(--text-sm); color:var(--text-primary);">Paisaje / Lugar</div>
+        </div>
+      </div>
+      <div style="font-size:var(--text-sm); color:var(--text-secondary); line-height:1.65;">
+        Exterior del establecimiento o paisaje rural. Hora dorada (amanecer/atardecer). Ancho, sin personas identificables. Siempre con color y textura real, sin filtros borrosos.
+      </div>
+    </div>
+
+    <!-- Tipo 3: Personas en experiencia -->
+    <div>
+      <div style="height:200px; background: linear-gradient(135deg, #1E1816 0%, #141210 50%, #1A1614 100%); border-radius:var(--radius-lg); margin-bottom:var(--space-3); display:flex; align-items:center; justify-content:center; border:1px solid var(--border-subtle); overflow:hidden; position:relative;">
+        <div style="font-family:var(--font-serif); font-size:60px; color:rgba(155,149,137,0.2);">◎</div>
+        <div style="position:absolute; bottom:12px; left:14px;">
+          <div style="font-size:10px; color:var(--gray-400); text-transform:uppercase; letter-spacing:0.06em; margin-bottom:2px;">Tipo 3</div>
+          <div style="font-size:var(--text-sm); color:var(--text-primary);">Experiencia / Personas</div>
+        </div>
+      </div>
+      <div style="font-size:var(--text-sm); color:var(--text-secondary); line-height:1.65;">
+        Grupo pequeño (2-6 personas) en plena degustación. Expresiones genuinas. No poses. Incluye al productor/guía. Luz cálida natural. Colores terrosos y naturales.
+      </div>
+    </div>
+  </div>
+
+  <!-- Tratamiento de imagen en card -->
+  <div class="card">
+    <div class="label-overline mb-4">Tratamiento de imagen en componentes UI</div>
+    <div class="grid-2">
+      <div>
+        <div style="font-size:var(--text-sm); font-weight:500; color:var(--text-primary); margin-bottom:var(--space-3);">Reglas</div>
+        <div style="display:flex; flex-direction:column; gap:var(--space-3);">
+          <div class="flex gap-3 items-start">
+            <div style="width:5px; height:5px; border-radius:50%; background:var(--amber-400); margin-top:6px; flex-shrink:0;"></div>
+            <div style="font-size:var(--text-sm); color:var(--text-secondary);">Cards: imagen siempre en la parte superior, altura fija 160-200px, object-fit: cover.</div>
+          </div>
+          <div class="flex gap-3 items-start">
+            <div style="width:5px; height:5px; border-radius:50%; background:var(--amber-400); margin-top:6px; flex-shrink:0;"></div>
+            <div style="font-size:var(--text-sm); color:var(--text-secondary);">Nunca texto directo sobre imagen. Si es necesario, overlay oscuro mínimo al 40%.</div>
+          </div>
+          <div class="flex gap-3 items-start">
+            <div style="width:5px; height:5px; border-radius:50%; background:var(--amber-400); margin-top:6px; flex-shrink:0;"></div>
+            <div style="font-size:var(--text-sm); color:var(--text-secondary);">Placeholder cuando no hay imagen: fondo degradado oscuro con símbolo/emoji de categoría en amber 20% opacidad.</div>
+          </div>
+          <div class="flex gap-3 items-start">
+            <div style="width:5px; height:5px; border-radius:50%; background:var(--amber-400); margin-top:6px; flex-shrink:0;"></div>
+            <div style="font-size:var(--text-sm); color:var(--text-secondary);">Ratio recomendado: 16:9 para cards, 3:2 para hero de experiencia, 1:1 para avatares.</div>
+          </div>
+        </div>
+      </div>
+      <div>
+        <div style="font-size:var(--text-sm); font-weight:500; color:var(--text-primary); margin-bottom:var(--space-3);">Lo que no usar</div>
+        <div style="display:flex; flex-direction:column; gap:var(--space-3);">
+          <div class="flex gap-3 items-start">
+            <div style="width:5px; height:5px; border-radius:50%; background:var(--red-400); margin-top:6px; flex-shrink:0;"></div>
+            <div style="font-size:var(--text-sm); color:var(--text-secondary);">Ilustraciones vectoriales genéricas (Freepik style, flat design con colores primarios).</div>
+          </div>
+          <div class="flex gap-3 items-start">
+            <div style="width:5px; height:5px; border-radius:50%; background:var(--red-400); margin-top:6px; flex-shrink:0;"></div>
+            <div style="font-size:var(--text-sm); color:var(--text-secondary);">Fotos de stock con personas en traje o fondo blanco.</div>
+          </div>
+          <div class="flex gap-3 items-start">
+            <div style="width:5px; height:5px; border-radius:50%; background:var(--red-400); margin-top:6px; flex-shrink:0;"></div>
+            <div style="font-size:var(--text-sm); color:var(--text-secondary);">Filtros azulados, morados o futuristas. Todo debe parecer cálido y terrenal.</div>
+          </div>
+          <div class="flex gap-3 items-start">
+            <div style="width:5px; height:5px; border-radius:50%; background:var(--red-400); margin-top:6px; flex-shrink:0;"></div>
+            <div style="font-size:var(--text-sm); color:var(--text-secondary);">Logos de otras marcas, productos identificables de terceros.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+</section>
+
+
+<!-- ======================================================
+     11 — DO / DON'T
+======================================================= -->
+<section class="section" id="donts">
+<div class="page-width">
+  <div style="position:relative;">
+    <span class="chapter-num">11</span>
+    <span class="label-overline">Capítulo 11</span>
+    <h2 class="section-title">Do / Don't</h2>
+    <p class="section-subtitle">
+      Reglas de oro para mantener la consistencia visual. Si en duda: más simple, más oscuro, más directo.
+    </p>
+  </div>
+
+  <div class="do-dont-grid mb-6">
+    <div class="do-card">
+      <div class="do-label">✓ Do — Hacer</div>
+      <div class="do-dont-text">
+        <strong>Fondo base oscuro siempre.</strong> Toda pantalla del ERP parte desde #0C0B09. El modo claro es solo para documentos exportables o vistas públicas.<br><br>
+        <strong>Un solo botón primary por pantalla.</strong> El amber sólido marca la única acción principal. El resto son secondarios o ghost.<br><br>
+        <strong>DM Serif Display para nombres y números.</strong> Todo lo que tiene identidad o peso lleva serif. UI funcional va en sans.<br><br>
+        <strong>Espacio generoso.</strong> Mejor menos elementos con más aire que pantallas densas. El espacio comunica calidad.<br><br>
+        <strong>Deltas siempre con color semántico.</strong> Verde para positivo, rojo para negativo. Sin excepciones.
+      </div>
+    </div>
+    <div class="dont-card">
+      <div class="dont-label">✗ Don't — No hacer</div>
+      <div class="do-dont-text">
+        <strong>No usar gradientes de marca.</strong> El background sutil (radial en amber al 7%) existe solo en el hero de la landing. Nunca en el ERP.<br><br>
+        <strong>No combinar más de 2 acentos de color en una pantalla.</strong> Amber para acciones, sage/red para feedback. Nada más.<br><br>
+        <strong>No usar shadows pesadas (box-shadow).</strong> La profundidad la crea el contraste de fondos (#0C0B09 vs #1E1C18), no las sombras.<br><br>
+        <strong>No mezclar estilos de tipografía.</strong> Nunca bold + italic + serif en la misma línea. Un estilo por elemento.<br><br>
+        <strong>No poner más de 4 métricas en una fila.</strong> Si hay más KPIs, van en dos filas o en una sección expandible.
+      </div>
+    </div>
+  </div>
+
+  <div class="do-dont-grid">
+    <div class="do-card">
+      <div class="do-label">✓ Logos y brandmark</div>
+      <div class="do-dont-text">
+        <strong>Logotipo:</strong> "Viventi" en DM Serif Display. El punto o acento en amber (#C8902E).<br><br>
+        Versiones: texto completo sobre oscuro (principal), texto completo sobre claro (documentos), solo "V" inicial para favicon / app icon.<br><br>
+        Clearspace mínimo: altura de la "V" a cada lado del logotipo.
+      </div>
+    </div>
+    <div class="dont-card">
+      <div class="dont-label">✗ Errores comunes de logotipo</div>
+      <div class="do-dont-text">
+        No estirar ni deformar las proporciones.<br>
+        No usar sobre fondos de color que no sean #0C0B09 o #F5F2EC.<br>
+        No agregar efectos: sombras, brillos, relieves, degradados.<br>
+        No combinar el logotipo con íconos genéricos de queso o vino — la marca es el texto, no el emoji.
+      </div>
+    </div>
+  </div>
+
+</div>
+</section>
+
+
+<!-- ======================================================
+     12 — ESPACIADO Y SISTEMA DE DISEÑO
+======================================================= -->
+<section class="section" id="espaciado">
+<div class="page-width">
+  <div style="position:relative;">
+    <span class="chapter-num">12</span>
+    <span class="label-overline">Capítulo 12</span>
+    <h2 class="section-title">Espaciado, radios y especificaciones</h2>
+  </div>
+
+  <div class="grid-3 mb-8">
+    <!-- Spacing -->
+    <div class="card">
+      <div class="label-overline mb-4">Escala de espaciado (base 4px)</div>
+      <div style="display:flex; flex-direction:column; gap:var(--space-3);">
+        <div class="flex gap-3 items-center">
+          <div style="width:4px; height:4px; background:var(--amber-400);"></div>
+          <span class="spec-box" style="padding:2px 6px; font-size:11px;">space-1: 4px</span>
+          <span style="font-size:var(--text-xs); color:var(--text-tertiary);">gaps internos mínimos</span>
+        </div>
+        <div class="flex gap-3 items-center">
+          <div style="width:8px; height:8px; background:var(--amber-400);"></div>
+          <span class="spec-box" style="padding:2px 6px; font-size:11px;">space-2: 8px</span>
+          <span style="font-size:var(--text-xs); color:var(--text-tertiary);">entre label e input</span>
+        </div>
+        <div class="flex gap-3 items-center">
+          <div style="width:12px; height:12px; background:var(--amber-400);"></div>
+          <span class="spec-box" style="padding:2px 6px; font-size:11px;">space-3: 12px</span>
+          <span style="font-size:var(--text-xs); color:var(--text-tertiary);">gap entre badges/pills</span>
+        </div>
+        <div class="flex gap-3 items-center">
+          <div style="width:16px; height:16px; background:var(--amber-400);"></div>
+          <span class="spec-box" style="padding:2px 6px; font-size:11px;">space-4: 16px</span>
+          <span style="font-size:var(--text-xs); color:var(--text-tertiary);">gap entre cards</span>
+        </div>
+        <div class="flex gap-3 items-center">
+          <div style="width:24px; height:24px; background:var(--amber-400);"></div>
+          <span class="spec-box" style="padding:2px 6px; font-size:11px;">space-6: 24px</span>
+          <span style="font-size:var(--text-xs); color:var(--text-tertiary);">padding interno de cards</span>
+        </div>
+        <div class="flex gap-3 items-center">
+          <div style="width:32px; height:32px; background:var(--amber-400);"></div>
+          <span class="spec-box" style="padding:2px 6px; font-size:11px;">space-8: 32px</span>
+          <span style="font-size:var(--text-xs); color:var(--text-tertiary);">padding de página</span>
+        </div>
+        <div class="flex gap-3 items-center">
+          <div style="width:40px; height:40px; background:var(--amber-400);"></div>
+          <span class="spec-box" style="padding:2px 6px; font-size:11px;">space-10: 40px</span>
+          <span style="font-size:var(--text-xs); color:var(--text-tertiary);">entre secciones</span>
+        </div>
+        <div class="flex gap-3 items-center">
+          <div style="width:48px; height:48px; background:var(--amber-400);"></div>
+          <span class="spec-box" style="padding:2px 6px; font-size:11px;">space-12: 48px</span>
+          <span style="font-size:var(--text-xs); color:var(--text-tertiary);">secciones de página</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Border radius -->
+    <div class="card">
+      <div class="label-overline mb-4">Border radius</div>
+      <div style="display:flex; flex-direction:column; gap:var(--space-4);">
+        <div>
+          <div style="height:32px; width:80px; background:var(--bg-subtle); border-radius:6px; margin-bottom:var(--space-2); border:1px solid var(--border-default);"></div>
+          <div class="spec-box" style="font-size:11px; padding:3px 8px;">radius-sm: 6px</div>
+          <div style="font-size:var(--text-xs); color:var(--text-tertiary); margin-top:4px;">badges, pills pequeñas</div>
+        </div>
+        <div>
+          <div style="height:32px; width:120px; background:var(--bg-subtle); border-radius:10px; margin-bottom:var(--space-2); border:1px solid var(--border-default);"></div>
+          <div class="spec-box" style="font-size:11px; padding:3px 8px;">radius-md: 10px</div>
+          <div style="font-size:var(--text-xs); color:var(--text-tertiary); margin-top:4px;">botones, inputs, metric cards</div>
+        </div>
+        <div>
+          <div style="height:40px; width:180px; background:var(--bg-subtle); border-radius:16px; margin-bottom:var(--space-2); border:1px solid var(--border-default);"></div>
+          <div class="spec-box" style="font-size:11px; padding:3px 8px;">radius-lg: 16px</div>
+          <div style="font-size:var(--text-xs); color:var(--text-tertiary); margin-top:4px;">cards, paneles, contenedores</div>
+        </div>
+        <div>
+          <div style="height:44px; width:200px; background:var(--bg-subtle); border-radius:24px; margin-bottom:var(--space-2); border:1px solid var(--border-default);"></div>
+          <div class="spec-box" style="font-size:11px; padding:3px 8px;">radius-xl: 24px</div>
+          <div style="font-size:var(--text-xs); color:var(--text-tertiary); margin-top:4px;">dashboard principal, modales</div>
+        </div>
+        <div>
+          <div style="height:32px; width:100px; background:var(--amber-400); border-radius:100px; margin-bottom:var(--space-2);"></div>
+          <div class="spec-box" style="font-size:11px; padding:3px 8px;">radius-pill: 100px</div>
+          <div style="font-size:var(--text-xs); color:var(--text-tertiary); margin-top:4px;">pills, filtros, tags</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Bordes -->
+    <div class="card">
+      <div class="label-overline mb-4">Bordes y separadores</div>
+      <div style="display:flex; flex-direction:column; gap:var(--space-5);">
+        <div>
+          <div style="height:32px; border:1px solid rgba(255,255,255,0.06); border-radius:var(--radius-md); margin-bottom:var(--space-2);"></div>
+          <div class="spec-box" style="font-size:11px; padding:3px 8px; line-height:1.6;">border-subtle<br>1px · rgba(255,255,255,0.06)<br>Cards, contenedores base</div>
+        </div>
+        <div>
+          <div style="height:32px; border:1px solid rgba(255,255,255,0.10); border-radius:var(--radius-md); margin-bottom:var(--space-2);"></div>
+          <div class="spec-box" style="font-size:11px; padding:3px 8px; line-height:1.6;">border-default<br>1px · rgba(255,255,255,0.10)<br>Inputs, divisores</div>
+        </div>
+        <div>
+          <div style="height:32px; border:1px solid rgba(255,255,255,0.18); border-radius:var(--radius-md); margin-bottom:var(--space-2);"></div>
+          <div class="spec-box" style="font-size:11px; padding:3px 8px; line-height:1.6;">border-strong<br>1px · rgba(255,255,255,0.18)<br>Hover, elementos activos</div>
+        </div>
+        <div>
+          <div style="height:32px; border:1px solid rgba(200,144,46,0.35); border-radius:var(--radius-md); margin-bottom:var(--space-2);"></div>
+          <div class="spec-box" style="font-size:11px; padding:3px 8px; line-height:1.6;">border-amber<br>1px · rgba(200,144,46,0.35)<br>Ghost buttons, focus amber</div>
+        </div>
+        <div>
+          <div style="height:1px; background:rgba(255,255,255,0.06); margin:var(--space-2) 0;"></div>
+          <div class="spec-box" style="font-size:11px; padding:3px 8px; line-height:1.6;">Divisor horizontal<br>1px · border-subtle<br>Separar secciones dentro de cards</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Grids -->
+  <div class="card">
+    <div class="label-overline mb-4">Sistema de grillas</div>
+    <div class="grid-3">
+      <div>
+        <div style="font-size:var(--text-sm); font-weight:500; color:var(--text-primary); margin-bottom:var(--space-2);">Grid del ERP (desktop)</div>
+        <div style="font-size:var(--text-sm); color:var(--text-secondary); line-height:1.7;">
+          Contenedor: max-width 1100px, centrado.<br>
+          Sidebar: 220px fijo.<br>
+          Contenido: flexible.<br>
+          Gap entre cards: 20-24px.<br>
+          Grillas: 2, 3 o 4 columnas iguales.
+        </div>
+      </div>
+      <div>
+        <div style="font-size:var(--text-sm); font-weight:500; color:var(--text-primary); margin-bottom:var(--space-2);">Breakpoints</div>
+        <div style="font-size:var(--text-sm); color:var(--text-secondary); line-height:1.7;">
+          Mobile: &lt;640px → 1 columna.<br>
+          Tablet: 640-1024px → 2 columnas.<br>
+          Desktop: &gt;1024px → 3-4 columnas.<br>
+          ERP: optimizado desktop first.<br>
+          Bot: solo mobile (WhatsApp).
+        </div>
+      </div>
+      <div>
+        <div style="font-size:var(--text-sm); font-weight:500; color:var(--text-primary); margin-bottom:var(--space-2);">Margen de página</div>
+        <div style="font-size:var(--text-sm); color:var(--text-secondary); line-height:1.7;">
+          Desktop: 32px horizontales.<br>
+          Tablet: 24px horizontales.<br>
+          Mobile: 16px horizontales.<br>
+          Vertical entre secciones: 48-64px.
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+</section>
+
+
+<!-- ======================================================
+     13 — BANCO DE IMÁGENES
+======================================================= -->
+<section class="section" id="imagenes">
+<div class="page-width">
+
+  <div style="position:relative;">
+    <span class="chapter-num">13</span>
+    <span class="label-overline">Capítulo 13</span>
+    <h2 class="section-title">Banco de imágenes — Web</h2>
+    <p class="section-subtitle">
+      Cuatro categorías de fotografía para el sitio web público. Fuentes gratuitas con atribución. Toda imagen requiere el tratamiento de overlay y filtro indicado antes de publicarse.
+    </p>
+  </div>
+
+  <!-- ── Cat 1: Hero ── -->
+  <div class="label-overline mb-4">Categoría 1 — Hero / Encabezado de web</div>
+  <div class="grid-2 mb-10">
+
+    <div class="card">
+      <div style="height:80px; background:linear-gradient(135deg,#1a1208,#0e0c07); border-radius:var(--radius-md); display:flex; align-items:center; justify-content:center; margin-bottom:var(--space-4);">
+        <span style="font-family:var(--font-serif); font-size:28px; color:var(--amber-800); opacity:0.6;">Bodega</span>
+      </div>
+      <div class="label-overline mb-2" style="color:var(--amber-400);">Bodega — interior con luz dorada</div>
+      <p style="font-size:var(--text-sm); color:var(--text-secondary); line-height:1.7; margin-bottom:var(--space-3);">Interior de bodega, barriles, luz lateral cálida. Sin personas. Encuadre amplio. Sirve de fondo para el headline principal.</p>
+      <div class="spec-box">
+        Fuente: Unsplash (free)<br>
+        Query: winery cellar barrels warm light wide<br>
+        Ratio: 16:9 mínimo — crop horizontal<br>
+        Fotógrafos ref: Kelsey Knight · Thomas Schaefer
+      </div>
+    </div>
+
+    <div class="card">
+      <div style="height:80px; background:linear-gradient(135deg,#101a0a,#080e06); border-radius:var(--radius-md); display:flex; align-items:center; justify-content:center; margin-bottom:var(--space-4);">
+        <span style="font-family:var(--font-serif); font-size:28px; color:var(--sage-600); opacity:0.5;">Viñedo</span>
+      </div>
+      <div class="label-overline mb-2" style="color:var(--amber-400);">Viñedo — paisaje hora dorada</div>
+      <p style="font-size:var(--text-sm); color:var(--text-secondary); line-height:1.7; margin-bottom:var(--space-3);">Filas de viñedo al atardecer. Tono cálido natural, amplio, sin saturación artificial. Alternativa al interior.</p>
+      <div class="spec-box">
+        Fuente: Unsplash (free)<br>
+        Query: vineyard golden hour landscape sunset rows<br>
+        Ratio: 3:1 crop panorámico para hero full-width<br>
+        Fotógrafos ref: Anastasia Taioglou · Kym Ellis
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ── Cat 2: Experiencias ── -->
+  <div class="label-overline mb-4">Categoría 2 — Sección "Experiencias" (cards de producto)</div>
+  <div class="grid-4 mb-10">
+
+    <div class="card">
+      <div style="height:60px; background:linear-gradient(135deg,#1c1208,#120c04); border-radius:var(--radius-md); display:flex; align-items:center; justify-content:center; margin-bottom:var(--space-3);">
+        <span style="font-size:26px;">🧀</span>
+      </div>
+      <div class="label-overline mb-2" style="color:var(--amber-400);">Quesería</div>
+      <p style="font-size:var(--text-sm); color:var(--text-secondary); line-height:1.6; margin-bottom:var(--space-3);">Tabla oscura, queso recién cortado, luz lateral. Overhead o 45°. Sin fondo blanco.</p>
+      <div class="spec-box" style="font-size:11px;">
+        Pexels (free)<br>
+        artisan cheese wood dark overhead close
+      </div>
+    </div>
+
+    <div class="card">
+      <div style="height:60px; background:linear-gradient(135deg,#120e06,#0c0a04); border-radius:var(--radius-md); display:flex; align-items:center; justify-content:center; margin-bottom:var(--space-3);">
+        <span style="font-size:26px;">☕</span>
+      </div>
+      <div class="label-overline mb-2" style="color:var(--amber-400);">Cafetal</div>
+      <p style="font-size:var(--text-sm); color:var(--text-secondary); line-height:1.6; margin-bottom:var(--space-3);">Manos sosteniendo granos de café. Luz natural lateral. Primer plano, sin cara.</p>
+      <div class="spec-box" style="font-size:11px;">
+        Unsplash (free)<br>
+        coffee beans hands harvest farm natural light
+      </div>
+    </div>
+
+    <div class="card">
+      <div style="height:60px; background:linear-gradient(135deg,#1a0e06,#100806); border-radius:var(--radius-md); display:flex; align-items:center; justify-content:center; margin-bottom:var(--space-3);">
+        <span style="font-size:26px;">🍫</span>
+      </div>
+      <div class="label-overline mb-2" style="color:var(--amber-400);">Cacaotero</div>
+      <p style="font-size:var(--text-sm); color:var(--text-secondary); line-height:1.6; margin-bottom:var(--space-3);">Fruto de cacao abierto, granos expuestos, fondo oscuro natural. Color terroso.</p>
+      <div class="spec-box" style="font-size:11px;">
+        Pexels (free)<br>
+        cacao pod open beans dark close up
+      </div>
+    </div>
+
+    <div class="card">
+      <div style="height:60px; background:linear-gradient(135deg,#101408,#0a0e06); border-radius:var(--radius-md); display:flex; align-items:center; justify-content:center; margin-bottom:var(--space-3);">
+        <span style="font-size:26px;">🫒</span>
+      </div>
+      <div class="label-overline mb-2" style="color:var(--amber-400);">Olivar</div>
+      <p style="font-size:var(--text-sm); color:var(--text-secondary); line-height:1.6; margin-bottom:var(--space-3);">Botella de aceite, aceitunas y madera oscura. Overhead o plano medio.</p>
+      <div class="spec-box" style="font-size:11px;">
+        Unsplash (free)<br>
+        olive oil bottle dark wood artisan close
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ── Cat 3: Productor ── -->
+  <div class="label-overline mb-4">Categoría 3 — Sección "El productor" / Humanización</div>
+  <div class="grid-3 mb-10">
+
+    <div class="card">
+      <div style="height:70px; background:linear-gradient(135deg,#180e06,#0e0804); border-radius:var(--radius-md); display:flex; align-items:center; justify-content:center; margin-bottom:var(--space-4);">
+        <span style="font-family:var(--font-serif); font-size:22px; color:var(--terra-600); opacity:0.7;">Manos</span>
+      </div>
+      <div class="label-overline mb-2" style="color:var(--amber-400);">Primer plano — manos en acción</div>
+      <p style="font-size:var(--text-sm); color:var(--text-secondary); line-height:1.7; margin-bottom:var(--space-3);">Manos trabajando: cortando, amasando, cosechando. Sin cara visible. Acción real, no pose de catálogo.</p>
+      <div class="spec-box" style="font-size:11px;">
+        Unsplash (free)<br>
+        artisan hands working craft winery close up<br>
+        Ref: Sergio Arze · Kris Atomic
+      </div>
+    </div>
+
+    <div class="card">
+      <div style="height:70px; background:linear-gradient(135deg,#0e1408,#080e04); border-radius:var(--radius-md); display:flex; align-items:center; justify-content:center; margin-bottom:var(--space-4);">
+        <span style="font-family:var(--font-serif); font-size:22px; color:var(--sage-800); opacity:0.6;">Campo</span>
+      </div>
+      <div class="label-overline mb-2" style="color:var(--amber-400);">Productor de espaldas — campo</div>
+      <p style="font-size:var(--text-sm); color:var(--text-secondary); line-height:1.7; margin-bottom:var(--space-3);">Persona mirando su campo o bodega. Luz de tarde larga. Nunca mirando a cámara ni sonriendo.</p>
+      <div class="spec-box" style="font-size:11px;">
+        Pexels (free)<br>
+        farmer producer field sunset back golden<br>
+        Ref: Alfo Medeiros · Quang Nguyen Vinh
+      </div>
+    </div>
+
+    <div class="card">
+      <div style="height:70px; background:linear-gradient(135deg,#161008,#0e0c06); border-radius:var(--radius-md); display:flex; align-items:center; justify-content:center; margin-bottom:var(--space-4);">
+        <span style="font-family:var(--font-serif); font-size:22px; color:var(--amber-800); opacity:0.6;">Mesa</span>
+      </div>
+      <div class="label-overline mb-2" style="color:var(--amber-400);">Degustación — experiencia grupal</div>
+      <p style="font-size:var(--text-sm); color:var(--text-secondary); line-height:1.7; margin-bottom:var(--space-3);">Manos alrededor de una mesa con copas o productos. Luz íntima. Sin logos de marcas visibles.</p>
+      <div class="spec-box" style="font-size:11px;">
+        Unsplash (free)<br>
+        wine tasting group rustic table hands glasses<br>
+        Ref: Kelsey Knight · Louis Hansel
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ── Cat 4: Texturas ── -->
+  <div class="label-overline mb-4">Categoría 4 — Textura / fondo decorativo</div>
+  <div class="grid-3 mb-10">
+
+    <div class="card">
+      <div style="height:60px; background:linear-gradient(160deg,#1c1610,#141008); border-radius:var(--radius-md); margin-bottom:var(--space-3); border:1px solid var(--border-subtle);"></div>
+      <div class="label-overline mb-2" style="color:var(--amber-400);">Madera oscura</div>
+      <p style="font-size:var(--text-sm); color:var(--text-secondary); line-height:1.6; margin-bottom:var(--space-3);">Madera quemada o envejecida. Nunca madera clara. Sirve de fondo para cards de experiencia.</p>
+      <div class="spec-box" style="font-size:11px;">
+        Unsplash / Pexels (free)<br>
+        dark wood texture burnt rustic overhead
+      </div>
+    </div>
+
+    <div class="card">
+      <div style="height:60px; background:linear-gradient(160deg,#141014,#0e0c0e); border-radius:var(--radius-md); margin-bottom:var(--space-3); border:1px solid var(--border-subtle);"></div>
+      <div class="label-overline mb-2" style="color:var(--amber-400);">Pizarra / piedra</div>
+      <p style="font-size:var(--text-sm); color:var(--text-secondary); line-height:1.6; margin-bottom:var(--space-3);">Superficie de pizarra o piedra oscura. Para fondos de sección y separadores visuales en web.</p>
+      <div class="spec-box" style="font-size:11px;">
+        Pexels (free)<br>
+        dark slate stone texture surface minimal
+      </div>
+    </div>
+
+    <div class="card">
+      <div style="height:60px; background:linear-gradient(160deg,#0c1018,#080c14); border-radius:var(--radius-md); margin-bottom:var(--space-3); border:1px solid var(--border-subtle);"></div>
+      <div class="label-overline mb-2" style="color:var(--amber-400);">Bokeh cálido</div>
+      <p style="font-size:var(--text-sm); color:var(--text-secondary); line-height:1.6; margin-bottom:var(--space-3);">Luces de bodega o fogón desenfocadas. Fondo puro para superponer texto. No usar con fotos encima.</p>
+      <div class="spec-box" style="font-size:11px;">
+        Unsplash (free)<br>
+        bokeh warm lights dark background blur minimal
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ── Tratamiento obligatorio ── -->
+  <div class="label-overline mb-4">Tratamiento obligatorio — aplicar a toda imagen antes de publicar</div>
+  <div class="card mb-8">
+    <div class="grid-3">
+
+      <div>
+        <div style="font-size:var(--text-sm); font-weight:500; color:var(--text-primary); margin-bottom:var(--space-3);">Overlay Hero</div>
+        <div class="spec-box">
+          background: linear-gradient(<br>
+          &nbsp;&nbsp;to right,<br>
+          &nbsp;&nbsp;rgba(12,11,9,0.85) 40%,<br>
+          &nbsp;&nbsp;rgba(12,11,9,0.30) 100%<br>
+          );
+        </div>
+        <p style="font-size:var(--text-sm); color:var(--text-tertiary); margin-top:var(--space-3);">El texto del headline siempre va sobre la zona oscura (izquierda). La imagen respira a la derecha.</p>
+      </div>
+
+      <div>
+        <div style="font-size:var(--text-sm); font-weight:500; color:var(--text-primary); margin-bottom:var(--space-3);">Overlay Cards</div>
+        <div class="spec-box">
+          background: linear-gradient(<br>
+          &nbsp;&nbsp;to top,<br>
+          &nbsp;&nbsp;rgba(12,11,9,0.80) 0%,<br>
+          &nbsp;&nbsp;rgba(12,11,9,0.10) 60%,<br>
+          &nbsp;&nbsp;transparent 100%<br>
+          );
+        </div>
+        <p style="font-size:var(--text-sm); color:var(--text-tertiary); margin-top:var(--space-3);">Título y precio de la experiencia siempre en la zona baja de la card.</p>
+      </div>
+
+      <div>
+        <div style="font-size:var(--text-sm); font-weight:500; color:var(--text-primary); margin-bottom:var(--space-3);">Filtro CSS base</div>
+        <div class="spec-box">
+          filter: brightness(0.85)<br>
+          &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;saturate(0.90)<br>
+          &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;sepia(0.08);
+        </div>
+        <p style="font-size:var(--text-sm); color:var(--text-tertiary); margin-top:var(--space-3);">Unifica la temperatura de fotos de distintas fuentes. Reduce el riesgo de que una foto "salte" visualmente.</p>
+      </div>
+
+    </div>
+
+    <div style="border-top:1px solid var(--border-subtle); margin-top:var(--space-6); padding-top:var(--space-5);">
+      <div class="label-overline mb-3">Reglas de uso</div>
+      <div class="grid-2">
+        <div style="display:flex; flex-direction:column; gap:var(--space-3);">
+          <div class="flex gap-3 items-start">
+            <div style="width:5px;height:5px;border-radius:50%;background:var(--sage-400);margin-top:6px;flex-shrink:0;"></div>
+            <div style="font-size:var(--text-sm); color:var(--text-secondary); line-height:1.6;"><strong style="color:var(--text-primary);">Ratio Hero:</strong> mínimo 16:9, preferido 3:1 panorámico. Crop horizontal siempre.</div>
+          </div>
+          <div class="flex gap-3 items-start">
+            <div style="width:5px;height:5px;border-radius:50%;background:var(--sage-400);margin-top:6px;flex-shrink:0;"></div>
+            <div style="font-size:var(--text-sm); color:var(--text-secondary); line-height:1.6;"><strong style="color:var(--text-primary);">Ratio Cards:</strong> 4:3. Centrar el punto de interés en el tercio superior.</div>
+          </div>
+          <div class="flex gap-3 items-start">
+            <div style="width:5px;height:5px;border-radius:50%;background:var(--sage-400);margin-top:6px;flex-shrink:0;"></div>
+            <div style="font-size:var(--text-sm); color:var(--text-secondary); line-height:1.6;"><strong style="color:var(--text-primary);">Resolución mínima:</strong> 1600px de ancho para hero, 800px para cards.</div>
+          </div>
+        </div>
+        <div style="display:flex; flex-direction:column; gap:var(--space-3);">
+          <div class="flex gap-3 items-start">
+            <div style="width:5px;height:5px;border-radius:50%;background:var(--red-400);margin-top:6px;flex-shrink:0;"></div>
+            <div style="font-size:var(--text-sm); color:var(--text-secondary); line-height:1.6;"><strong style="color:var(--text-primary);">Nunca:</strong> fondos blancos o grises neutros. Destruyen el dark mode.</div>
+          </div>
+          <div class="flex gap-3 items-start">
+            <div style="width:5px;height:5px;border-radius:50%;background:var(--red-400);margin-top:6px;flex-shrink:0;"></div>
+            <div style="font-size:var(--text-sm); color:var(--text-secondary); line-height:1.6;"><strong style="color:var(--text-primary);">Nunca:</strong> personas mirando a cámara o sonriendo. Rompe el tono auténtico.</div>
+          </div>
+          <div class="flex gap-3 items-start">
+            <div style="width:5px;height:5px;border-radius:50%;background:var(--red-400);margin-top:6px;flex-shrink:0;"></div>
+            <div style="font-size:var(--text-sm); color:var(--text-secondary); line-height:1.6;"><strong style="color:var(--text-primary);">Nunca:</strong> logos de marcas visibles dentro de la foto.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Fuentes ── -->
+  <div class="label-overline mb-4">Fuentes de imágenes gratuitas</div>
+  <div class="grid-3">
+    <div class="card">
+      <div style="font-family:var(--font-serif); font-size:var(--text-lg); color:var(--text-primary); margin-bottom:var(--space-2);">Unsplash</div>
+      <p style="font-size:var(--text-sm); color:var(--text-secondary); line-height:1.7; margin-bottom:var(--space-3);">Licencia Unsplash: uso comercial libre, sin atribución obligatoria. Mayor calidad editorial. Buscar por keyword en inglés.</p>
+      <div class="spec-box" style="font-size:11px;">unsplash.com</div>
+    </div>
+    <div class="card">
+      <div style="font-family:var(--font-serif); font-size:var(--text-lg); color:var(--text-primary); margin-bottom:var(--space-2);">Pexels</div>
+      <p style="font-size:var(--text-sm); color:var(--text-secondary); line-height:1.7; margin-bottom:var(--space-3);">Licencia Pexels: uso comercial libre, sin atribución obligatoria. Buen catálogo de productos artesanales y campo.</p>
+      <div class="spec-box" style="font-size:11px;">pexels.com</div>
+    </div>
+    <div class="card">
+      <div style="font-family:var(--font-serif); font-size:var(--text-lg); color:var(--text-primary); margin-bottom:var(--space-2);">Fotografía propia</div>
+      <p style="font-size:var(--text-sm); color:var(--text-secondary); line-height:1.7; margin-bottom:var(--space-3);">Prioridad máxima. Cada cliente de Viventi debería aportar 3–5 fotos de su establecimiento en formato RAW o alta resolución.</p>
+      <div class="spec-box" style="font-size:11px;">Briefing de foto disponible a pedido</div>
+    </div>
+  </div>
+
+</div>
+</section>
+
+
+<!-- FOOTER -->
+<footer style="padding:var(--space-12) 0; border-top:1px solid var(--border-subtle);">
+<div class="page-width">
+  <div class="flex justify-between items-center">
+    <div>
+      <div style="font-family:var(--font-serif); font-size:var(--text-lg); color:var(--text-primary); margin-bottom:4px;">Viven<span style="color:var(--amber-400);">ti</span></div>
+      <div style="font-size:var(--text-sm); color:var(--text-tertiary);">Brand Guide v1.0 — DeepZide · Montevideo, Uruguay</div>
+    </div>
+    <div style="text-align:right;">
+      <div style="font-size:var(--text-sm); color:var(--text-tertiary);">Preguntas al equipo de diseño</div>
+      <div style="font-size:var(--text-sm); color:var(--amber-400);">deepzide.com</div>
+    </div>
+  </div>
+
+  <div class="divider"></div>
+
+  <div class="grid-3">
+    <div>
+      <div style="font-size:var(--text-xs); color:var(--text-tertiary); text-transform:uppercase; letter-spacing:0.08em; margin-bottom:var(--space-3);">Fonts — Google Fonts (free)</div>
+      <div style="font-size:var(--text-sm); color:var(--text-secondary); line-height:1.7;">
+        DM Serif Display<br>
+        DM Sans (300, 400, 500, 600)
+      </div>
+    </div>
+    <div>
+      <div style="font-size:var(--text-xs); color:var(--text-tertiary); text-transform:uppercase; letter-spacing:0.08em; margin-bottom:var(--space-3);">Herramientas recomendadas</div>
+      <div style="font-size:var(--text-sm); color:var(--text-secondary); line-height:1.7;">
+        Figma (diseño UI)<br>
+        Tailwind CSS (frontend)<br>
+        Chart.js / Recharts (gráficos)
+      </div>
+    </div>
+    <div>
+      <div style="font-size:var(--text-xs); color:var(--text-tertiary); text-transform:uppercase; letter-spacing:0.08em; margin-bottom:var(--space-3);">Extensión futura</div>
+      <div style="font-size:var(--text-sm); color:var(--text-secondary); line-height:1.7;">
+        Modo claro completo<br>
+        Componentes mobile-first<br>
+        Librería de íconos propios
+      </div>
+    </div>
+  </div>
+</div>
+</footer>
+
+</body>
+</html>

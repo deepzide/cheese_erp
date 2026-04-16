@@ -172,7 +172,7 @@ def create_pending_ticket(contact_id, experience_id, slot_id, party_size, select
 			return validation_error(str(e))
 
 		# Validation 1: Capacity check
-		available = get_available_capacity(slot_id)
+		available = get_available_capacity(slot_id, selected_date)
 		if party_size > available:
 			return validation_error(f"Cannot book {party_size} tickets. Only {available} slots available.")
 
@@ -1012,7 +1012,7 @@ def get_ticket_board(filters=None, status=None, route_id=None, establishment_id=
 				slot = frappe.db.get_value(
 					"Cheese Experience Slot",
 					ticket.slot,
-					["date_from", "time_from"],
+					["date_from", "date_to", "time_from"],
 					as_dict=True
 				)
 				if slot:

@@ -43,6 +43,53 @@ def send_ticket_notification(ticket_id, notification_type, **kwargs):
 		frappe.log_error(f"Failed to send notification for ticket {ticket_id}: {e}", "Notification Error")
 
 
+def send_reservation_email_to_establishment(ticket_id):
+	"""
+	Send email to establishment administrator when a new reservation is created.
+	"""
+	try:
+		ticket = frappe.get_doc("Cheese Ticket", ticket_id)
+		experience = frappe.get_doc("Cheese Experience", ticket.experience)
+		slot = frappe.get_doc("Cheese Experience Slot", ticket.slot)
+		contact = frappe.get_doc("Cheese Contact", ticket.contact)
+		
+		# Get establishment company email
+		company = frappe.get_doc("Company", experience.company)
+		admin_email = company.email or frappe.db.get_value("User", {"email": ["like", "%@%"]}, "email")
+		
+		if not admin_email:
+			frappe.logger().warning(f"No email found for establishment company {experience.company}")
+			return
+		
+		# Use selected_date if applicable, fallback to slot's date_from
+		booking_date = ticket.selected_date or slot.date_from
+		
+		subject = f"New Reservation: {experience.name} on {booking_date}"
+		message = f"""
+		<h3>New Reservation Received</h3>
+		<p>A new reservation has been placed for your establishment.</p>
+		<ul>
+			<li><strong>Experience:</strong> {experience.name}</li>
+			<li><strong>Date:</strong> {booking_date}</li>
+			<li><strong>Time:</strong> {slot.time_from}</li>
+			<li><strong>Party Size:</strong> {ticket.party_size} people</li>
+			<li><strong>Customer Name:</strong> {contact.full_name}</li>
+			<li><strong>Reservation ID:</strong> {ticket.name}</li>
+		</ul>
+		<p>Please log in to the Cheese ERP to view details.</p>
+		"""
+		
+		frappe.sendmail(
+			recipients=[admin_email],
+			subject=subject,
+			message=message,
+			now=True
+		)
+		frappe.logger().info(f"Sent reservation alert email to {admin_email} for ticket {ticket.name}")
+	except Exception as e:
+		frappe.log_error(f"Failed to send establishment email for ticket {ticket_id}: {e}", "Notification Error")
+
+
 def send_route_booking_notification(route_booking_id, notification_type, **kwargs):
 	"""
 	Send notification to customer about route booking status changes

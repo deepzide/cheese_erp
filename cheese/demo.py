@@ -103,6 +103,14 @@ def ensure_demo_company():
 	company.abbr = "DEMO"
 	company.default_currency = "USD"
 	company.country = "United States"
+	
+	# Cheese-specific fields
+	company.custom_cheese_establishment_type = "Dairy Farm"
+	company.custom_cheese_types = "Cheddar, Gouda, Brie"
+	company.custom_cheese_payment_methods = "Cash, Credit Card"
+	company.custom_cheese_operating_hours = "Mon-Fri: 9AM-5PM, Sat: 10AM-4PM"
+	company.custom_cheese_google_maps_link = "https://maps.app.goo.gl/dummy"
+	
 	company.insert(ignore_permissions=True)
 	frappe.db.commit()
 	return company.name

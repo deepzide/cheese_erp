@@ -62,7 +62,7 @@ def get_customer_itinerary(contact_id):
 			# Get deposit status
 			deposit = frappe.db.get_value(
 				"Cheese Deposit",
-				{"entity_type": "Ticket", "entity_id": ticket.name},
+				{"entity_type": "Cheese Ticket", "entity_id": ticket.name},
 				["status", "amount_required", "amount_paid"],
 				as_dict=True
 			)
@@ -72,8 +72,8 @@ def get_customer_itinerary(contact_id):
 				"type": "route" if ticket.route else "individual",
 				"experience_id": experience.name,
 				"experience_name": experience.name,
-				"date": str(slot.date),
-				"time": str(slot.time),
+				"date": str(ticket.selected_date) if ticket.selected_date else str(slot.date_from),
+				"time": str(slot.time_from) if slot.time_from else "",
 				"status": ticket.status,
 				"party_size": ticket.party_size,
 				"qr_status": qr_token.status if qr_token else None,

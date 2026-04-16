@@ -39,7 +39,7 @@ def _bank_accounts_for_ticket(ticket):
 
 
 @frappe.whitelist()
-def get_payment_link_or_instructions(ticket_id=None, deposit_id=None):
+def get_payment_link_or_instructions(ticket_id=None, deposit_id=None, payment_type=None):
 	"""
 	Get payment link or instructions - enhanced version of get_deposit_instructions
 	Returns payment link if available, otherwise returns instructions
@@ -127,12 +127,13 @@ def get_payment_link_or_instructions(ticket_id=None, deposit_id=None):
 
 
 @frappe.whitelist()
-def get_deposit_instructions(ticket_id):
+def get_deposit_instructions(ticket_id, payment_type=None):
 	"""
 	Get deposit payment instructions for a ticket
 	
 	Args:
 		ticket_id: ID of the ticket
+		payment_type: Optional "Deposit" or "Balance"
 		
 	Returns:
 		Success response with deposit instructions
@@ -157,26 +158,55 @@ def get_deposit_instructions(ticket_id):
 				}
 			)
 
-		# Get or create deposit
-		deposit = frappe.db.get_value(
-			"Cheese Deposit",
-			{"entity_type": "Cheese Ticket", "entity_id": ticket_id},
-			"name"
-		)
+		# Get or create deposit based on payment_type
+		# Advance deposit is usually the first one created
+		filters = {"entity_type": "Cheese Ticket", "entity_id": ticket_id}
+		
+		# If Balance is explicitly requested, or if Advance is already PAID, we look for Balance
+		if payment_type == "Balance":
+			# Try to find a deposit created *after* the initial one (naively by creation date desc or status)
+			# Or if not existing, we will create the balance deposit
+			deposit = frappe.db.get_value("Cheese Deposit", {**filters, "status": ["in", ["PENDING", "OVERDUE"]], "amount_required": ["!=", ticket.deposit_amount]}, "name")
+		elif payment_type == "Deposit":
+			deposit = frappe.db.get_value("Cheese Deposit", {**filters, "amount_required": ticket.deposit_amount}, "name")
+		else:
+			deposit = frappe.db.get_value("Cheese Deposit", filters, "name")
 
 		if not deposit:
-			# Create deposit
-			experience = frappe.get_doc("Cheese Experience", ticket.experience)
-			due_at = add_to_date(now_datetime(), hours=experience.deposit_ttl_hours or 24, as_string=False)
-			
-			deposit_doc = frappe.get_doc({
-				"doctype": "Cheese Deposit",
-				"entity_type": "Cheese Ticket",
-				"entity_id": ticket_id,
-				"amount_required": ticket.deposit_amount,
-				"status": "PENDING",
-				"due_at": due_at
-			})
+			# Create deposit based on payment_type
+			if payment_type == "Balance":
+				from cheese.cheese.utils.pricing import calculate_ticket_price
+				price_data = calculate_ticket_price(
+					ticket.experience, ticket.party_size, ticket.route
+				)
+				total_price = price_data.get("total_price", 0)
+				
+				# Calculate paid amount on advance
+				paid_advance = frappe.db.get_value("Cheese Deposit", {**filters, "status": "PAID"}, "amount_paid") or 0
+				remaining = total_price - paid_advance
+				
+				if remaining <= 0:
+					return validation_error(f"No remaining balance. Total price: {total_price}, already paid: {paid_advance}")
+					
+				deposit_doc = frappe.get_doc({
+					"doctype": "Cheese Deposit",
+					"entity_type": "Cheese Ticket",
+					"entity_id": ticket_id,
+					"amount_required": remaining,
+					"status": "PENDING"
+				})
+			else:
+				experience = frappe.get_doc("Cheese Experience", ticket.experience)
+				due_at = add_to_date(now_datetime(), hours=experience.deposit_ttl_hours or 24, as_string=False)
+				
+				deposit_doc = frappe.get_doc({
+					"doctype": "Cheese Deposit",
+					"entity_type": "Cheese Ticket",
+					"entity_id": ticket_id,
+					"amount_required": ticket.deposit_amount,
+					"status": "PENDING",
+					"due_at": due_at
+				})
 			deposit_doc.insert()
 			deposit = deposit_doc.name
 			frappe.db.commit()
@@ -242,7 +272,7 @@ def _attach_receipt_to_deposit(deposit_name, file_storage):
 @frappe.whitelist()
 def record_deposit_payment(
 	ticket_id=None, amount=None, verification_method="Manual", ocr_payload=None,
-	attach_receipt=True, deposit_id=None
+	attach_receipt=True, deposit_id=None, payment_type=None
 ):
 	"""
 	Record a deposit payment
@@ -284,18 +314,44 @@ def record_deposit_payment(
 				return not_found("Ticket or Route Booking", ticket_id)
 
 			# Get or auto-create deposit for this ticket
-			deposit_name = frappe.db.get_value(
-				"Cheese Deposit",
-				{
-					"entity_type": entity_type, 
-					"entity_id": ticket_id,
-					"status": ["in", ["PENDING", "OVERDUE"]]
-				},
-				"name"
-			)
+			ticket_doc = frappe.get_doc(entity_type, ticket_id)
+			deposit_name = None
+			
+			if payment_type == "Balance":
+				deposit_name = frappe.db.get_value(
+					"Cheese Deposit",
+					{
+						"entity_type": entity_type, 
+						"entity_id": ticket_id,
+						"status": ["in", ["PENDING", "OVERDUE"]],
+						"amount_required": ["!=", ticket_doc.deposit_amount] if hasattr(ticket_doc, "deposit_amount") else None
+					},
+					"name"
+				)
+			elif payment_type == "Deposit":
+				deposit_name = frappe.db.get_value(
+					"Cheese Deposit",
+					{
+						"entity_type": entity_type, 
+						"entity_id": ticket_id,
+						"status": ["in", ["PENDING", "OVERDUE"]],
+						"amount_required": ticket_doc.deposit_amount if hasattr(ticket_doc, "deposit_amount") else None
+					},
+					"name"
+				)
+			else:
+				deposit_name = frappe.db.get_value(
+					"Cheese Deposit",
+					{
+						"entity_type": entity_type, 
+						"entity_id": ticket_id,
+						"status": ["in", ["PENDING", "OVERDUE"]]
+					},
+					"name"
+				)
 
 			if not deposit_name:
-				# Check if advance deposit already PAID — need remaining balance deposit
+				# Check if advance deposit already PAID — need remaining balance deposit OR explicitly requested Balance
 				paid_advance = frappe.db.get_value(
 					"Cheese Deposit",
 					{
@@ -307,9 +363,8 @@ def record_deposit_payment(
 					as_dict=True,
 				)
 
-				if paid_advance:
-					# Advance is PAID — create remaining balance deposit
-					ticket_doc = frappe.get_doc(entity_type, ticket_id)
+				if paid_advance or payment_type == "Balance":
+					# Advance is PAID or explicitly requested Balance — create remaining balance deposit
 					if entity_type == "Cheese Ticket":
 						from cheese.cheese.utils.pricing import calculate_ticket_price
 						price_data = calculate_ticket_price(

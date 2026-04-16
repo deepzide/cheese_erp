@@ -301,8 +301,8 @@ def get_establishment_details(company_id):
 		try:
 			all_documents = frappe.get_all(
 				"Cheese Document",
-				filters={"entity_type": "Company", "entity_id": company_id, "status": "PUBLISHED"},
-				fields=["name", "title", "file_url", "document_type", "tags", "language", "version"]
+				filters={"entity_id": company_id, "status": "PUBLISHED", "entity_type": ["in", ["Company", "Establishment"]]},
+				fields=["name", "title", "file_url", "document_type", "tags", "language", "version", "entity_type"]
 			)
 			
 			for doc in all_documents:
@@ -312,7 +312,8 @@ def get_establishment_details(company_id):
 					"file_url": doc.file_url,
 					"tags": doc.tags,
 					"language": doc.language,
-					"version": doc.version
+					"version": doc.version,
+					"entity_type": doc.entity_type
 				}
 				
 				documents.append(doc_info)
@@ -323,9 +324,8 @@ def get_establishment_details(company_id):
 					links.append(doc_info)
 				elif doc.document_type == "PDF":
 					pdfs.append(doc_info)
-		except Exception:
-			# Cheese Document doctype may not exist yet, continue without documents
-			pass
+		except Exception as e:
+			frappe.log_error(f"Failed to fetch establishment documents: {e}", "Establishment API")
 
 		archived = bool(getattr(company, "cheese_archived", 0)) if _company_has_cheese_archived() else False
 		bank_account = get_active_company_bank_accounts_list(company_id)

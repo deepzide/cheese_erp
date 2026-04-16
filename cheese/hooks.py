@@ -140,7 +140,10 @@ after_install = "cheese.install.after_install"
 doc_events = {
 	"Cheese Ticket": {
 		"on_update": "cheese.cheese.utils.events.update_route_booking_status",
-		"after_insert": "cheese.cheese.utils.lead_automation.on_ticket_insert",
+		"after_insert": [
+			"cheese.cheese.utils.lead_automation.on_ticket_insert",
+			"cheese.cheese.utils.events.on_ticket_created_notify_establishment",
+		],
 	},
 	"Conversation": {
 		"on_update": "cheese.cheese.utils.lead_automation.on_conversation_update",
