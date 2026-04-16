@@ -156,10 +156,54 @@
 
     - name: Wait until MariaDB is ready
       ansible.builtin.shell: |
+        set -euo pipefail
         until docker compose -f pwd.yml exec -T db mysqladmin ping -h db --silent; do
           echo "⏳ Esperando que MariaDB inicie..."
           sleep 5
         done
+      args:
+        chdir: "{{ project_dir }}/frappe_docker"
+        executable: /bin/bash
+
+    - name: Wait until backend container is ready for bench commands
+      ansible.builtin.shell: |
+        set -e
+        until docker compose -f pwd.yml exec -T backend bench --version >/dev/null 2>&1; do
+          echo "⏳ Esperando backend bench..."
+          sleep 5
+        done
+      args:
+        chdir: "{{ project_dir }}/frappe_docker"
+        executable: /bin/bash
+
+    # ------------------------------------------------------------------------
+    # 🧱 Ensure required app sources exist in bench
+    # ------------------------------------------------------------------------
+    - name: Ensure required app source directories exist in backend container
+      ansible.builtin.shell: |
+        set -euo pipefail
+
+        ensure_app_source () {
+          app="$1"
+          repo="$2"
+          branch="$3"
+          if docker compose -f pwd.yml exec -T backend test -d "apps/$app"; then
+            echo "✅ App source present: $app"
+          else
+            echo "⚙️ Bootstrapping missing app source: $app ($branch)"
+            docker compose -f pwd.yml exec -T backend bench get-app --branch "$branch" "$repo" "$app"
+          fi
+        }
+
+        ensure_app_source "erpnext" "https://github.com/frappe/erpnext" "version-15"
+
+        if echo "{{ custom_apps | join(' ') }}" | grep -qw "hrms"; then
+          ensure_app_source "hrms" "https://github.com/frappe/hrms" "version-15"
+        fi
+
+        if echo "{{ custom_apps | join(' ') }}" | grep -qw "payments"; then
+          ensure_app_source "payments" "https://github.com/frappe/payments" "version-15"
+        fi
       args:
         chdir: "{{ project_dir }}/frappe_docker"
 
@@ -215,27 +259,37 @@
     # ------------------------------------------------------------------------
     - name: Ensure all required apps (erpnext + custom) are installed
       ansible.builtin.shell: |
+        set -euo pipefail
         all_apps="erpnext {{ custom_apps | join(' ') }}"
         installed=$(docker compose -f pwd.yml exec -T backend bench --site {{ site_name }} list-apps)
         for app in $all_apps; do
-          if ! echo "$installed" | grep -q "$app"; then
+          if ! echo "$installed" | grep -qx "$app"; then
             echo "⚙️ Instalando app faltante: $app"
-            docker compose -f pwd.yml exec -T -e CHEESE_INSERT_DEMO_DATA=1 backend bench --site {{ site_name }} install-app $app --force || true
+            docker compose -f pwd.yml exec -T -e CHEESE_INSERT_DEMO_DATA=1 backend bench --site {{ site_name }} install-app "$app" --force
+            installed=$(printf "%s\n%s\n" "$installed" "$app")
           else
             echo "✅ App ya instalada: $app"
           fi
         done
       args:
         chdir: "{{ project_dir }}/frappe_docker"
+        executable: /bin/bash
       when: site_check.rc == 0 or create_site_output.rc == 0
-    
+
+    - name: Verify erpnext module import before migration
+      ansible.builtin.shell: |
+        docker compose -f pwd.yml exec -T backend python -c "import erpnext"
+      args:
+        chdir: "{{ project_dir }}/frappe_docker"
+      when: site_check.rc == 0 or create_site_output.rc == 0
+
     # Force reinstall HRMS to ensure fixtures are loaded
     - name: Reinstall HRMS with fixtures
       ansible.builtin.shell: |
         docker compose -f pwd.yml exec -T -e CHEESE_INSERT_DEMO_DATA=1 backend bench --site {{ site_name }} install-app hrms --force
       args:
         chdir: "{{ project_dir }}/frappe_docker"
-      when: site_check.rc == 0 or create_site_output.rc == 0
+      when: (site_check.rc == 0 or create_site_output.rc == 0) and ('hrms' in custom_apps)
       ignore_errors: yes
 
     # ------------------------------------------------------------------------
