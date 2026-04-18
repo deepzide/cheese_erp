@@ -4,7 +4,7 @@
 import frappe
 from frappe import _
 from frappe.model.document import Document
-from frappe.utils import add_to_date, now_datetime
+from frappe.utils import add_to_date, now_datetime, getdate
 import json
 
 
@@ -133,12 +133,24 @@ class CheeseTicket(Document):
 			)
 
 	def validate_capacity(self):
-		"""Validate slot capacity"""
+		"""Validate slot capacity for the ticket's selected calendar day (multi-day slots)."""
 		if not self.slot:
 			return
 
+		from cheese.cheese.utils.capacity import get_available_capacity
+
 		slot = frappe.get_doc("Cheese Experience Slot", self.slot)
-		available_capacity = slot.get_available_capacity()
+		sel = self.selected_date
+		if not sel:
+			if getdate(slot.date_from) == getdate(slot.date_to):
+				sel = slot.date_from
+			else:
+				frappe.throw(
+					_("Selected date is required for multi-day slot {0}").format(self.slot),
+					frappe.ValidationError,
+				)
+
+		available_capacity = get_available_capacity(self.slot, getdate(sel))
 
 		if self.party_size > available_capacity:
 			frappe.throw(

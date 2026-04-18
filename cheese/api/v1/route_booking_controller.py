@@ -6,7 +6,11 @@ from frappe import _
 from frappe.utils import now_datetime, get_datetime, add_to_date, getdate
 from cheese.api.common.responses import success, created, error, not_found, validation_error
 from cheese.cheese.utils.pricing import calculate_ticket_price, calculate_deposit_amount
-from cheese.cheese.utils.capacity import update_slot_capacity, get_available_capacity
+from cheese.cheese.utils.capacity import (
+	update_slot_capacity,
+	get_available_capacity,
+	slot_calendar_days_in_range,
+)
 from cheese.api.v1.ticket_controller import create_pending_ticket
 import json
 
@@ -86,7 +90,7 @@ def create_route_reservation(contact_id=None, route_id=None, experiences_with_sl
 				# A slot overlaps if: slot.date_from <= end_date AND slot.date_to >= start_date
 				slot_filters = {
 					"experience": exp_row.experience,
-					"slot_status": "OPEN",
+					"slot_status": ["in", ["OPEN", "CLOSED"]],
 					"date_from": ["<=", end_date],
 					"date_to": [">=", start_date]
 				}
@@ -945,7 +949,7 @@ def get_available_slots_for_route(route_id, selected_date=None, date_from=None, 
 
 			slot_filters = {
 				"experience": experience_id,
-				"slot_status": "OPEN",
+				"slot_status": ["in", ["OPEN", "CLOSED"]],
 				"date_from": ["<=", end_date],
 				"date_to": [">=", start_date],
 			}
@@ -959,10 +963,17 @@ def get_available_slots_for_route(route_id, selected_date=None, date_from=None, 
 
 			available_slots = []
 			for slot in slots:
-				available = get_available_capacity(slot.name)
-				if available >= party_size:
+				days = slot_calendar_days_in_range(
+					slot.date_from, slot.date_to, start_date, end_date
+				)
+				for cal_day in days:
+					available = get_available_capacity(slot.name, cal_day)
+					if available < party_size:
+						continue
 					available_slots.append({
 						"slot_id": slot.name,
+						"selected_date": str(cal_day),
+						"calendar_date": str(cal_day),
 						"date_from": str(slot.date_from),
 						"date_to": str(slot.date_to),
 						"time_from": str(slot.time_from) if slot.time_from else None,

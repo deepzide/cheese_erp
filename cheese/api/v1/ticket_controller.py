@@ -33,6 +33,19 @@ def _read_selected_date_input(selected_date=None):
 	return selected_date
 
 
+def _capacity_date_for_slot(ticket, slot_id, selected_date_obj=None):
+	"""Calendar day for per-day capacity (multi-day slots require selected_date on the ticket)."""
+	d = selected_date_obj or ticket.selected_date
+	if d:
+		return getdate(d)
+	if not frappe.db.exists("Cheese Experience Slot", slot_id):
+		return None
+	slot = frappe.get_doc("Cheese Experience Slot", slot_id)
+	if getdate(slot.date_from) == getdate(slot.date_to):
+		return getdate(slot.date_from)
+	return None
+
+
 def _resolve_slot_policy_datetimes(slot_doc, selected_date=None, fallback_date=None, allow_past_date=False):
 	"""
 	Resolve effective reservation date and return policy datetimes.
@@ -426,7 +439,12 @@ def modify_ticket(ticket_id, new_slot=None, party_size=None, selected_date=None)
 
 			# Capacity check for new slot
 			req_size = party_size if party_size else ticket.party_size
-			available = get_available_capacity(new_slot)
+			cap_date = _capacity_date_for_slot(ticket, new_slot, selected_date_obj)
+			if not cap_date:
+				return validation_error(
+					"selected_date is required on the ticket (or pass selected_date) to verify capacity for this slot"
+				)
+			available = get_available_capacity(new_slot, cap_date)
 			if req_size > available:
 				return validation_error(f"Cannot move {req_size} tickets to new slot. Only {available} slots available.")
 
@@ -438,7 +456,12 @@ def modify_ticket(ticket_id, new_slot=None, party_size=None, selected_date=None)
 			if not new_slot:
 				diff_size = party_size - ticket.party_size
 				if diff_size > 0:
-					available = get_available_capacity(ticket.slot)
+					cap_date = _capacity_date_for_slot(ticket, ticket.slot, None)
+					if not cap_date:
+						return validation_error(
+							"selected_date is required on the ticket to verify capacity for this slot"
+						)
+					available = get_available_capacity(ticket.slot, cap_date)
 					if diff_size > available:
 						return validation_error(f"Cannot increase party size by {diff_size}. Only {available} more slots available.")
 

@@ -3,7 +3,7 @@
 
 import frappe
 from frappe import _
-from frappe.utils import add_to_date, now_datetime, cint, get_datetime
+from frappe.utils import add_to_date, now_datetime, cint, get_datetime, getdate
 from cheese.api.common.responses import success, created, error, not_found, validation_error, paginated_response
 from cheese.cheese.utils.pricing import calculate_ticket_price, calculate_deposit_amount
 import json
@@ -427,7 +427,7 @@ def validate_quotation_availability(quotation_id):
 					continue
 				
 				slot = frappe.get_doc("Cheese Experience Slot", slot_id)
-				if slot.slot_status != "OPEN":
+				if slot.slot_status == "BLOCKED":
 					validation_results.append({
 						"experience_id": exp_id,
 						"slot_id": slot_id,
@@ -436,10 +436,24 @@ def validate_quotation_availability(quotation_id):
 					})
 					all_available = False
 					continue
+
+				selected_day = exp_item.get("selected_date") or exp_item.get("date")
+				if not selected_day:
+					if getdate(slot.date_from) == getdate(slot.date_to):
+						selected_day = slot.date_from
+					else:
+						validation_results.append({
+							"experience_id": exp_id,
+							"slot_id": slot_id,
+							"available": False,
+							"reason": "selected_date is required for multi-day slots",
+						})
+						all_available = False
+						continue
 				
 				# Check capacity
 				from cheese.cheese.utils.capacity import get_available_capacity
-				available = get_available_capacity(slot_id)
+				available = get_available_capacity(slot_id, getdate(selected_day))
 				party_size = snapshot.get("party_size", 1)
 				
 				if available < party_size:

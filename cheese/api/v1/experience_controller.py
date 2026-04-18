@@ -10,7 +10,7 @@ from cheese.api.v1.bank_account_controller import (
 	get_active_company_bank_accounts_list,
 	get_active_company_bank_accounts_map,
 )
-from cheese.cheese.utils.capacity import get_available_capacity
+from cheese.cheese.utils.capacity import get_available_capacity, slot_calendar_days_in_range
 
 
 @frappe.whitelist()
@@ -84,13 +84,17 @@ def list_experiences(page=1, page_size=20, status=None, company=None, establishm
 			date_obj = getdate(date)
 			slots = frappe.get_all(
 				"Cheese Experience Slot",
-				filters={"date_from": date_obj, "slot_status": "OPEN"},
-				fields=["name", "experience"]
+				filters={
+					"date_from": ["<=", date_obj],
+					"date_to": [">=", date_obj],
+					"slot_status": ["in", ["OPEN", "CLOSED"]],
+				},
+				fields=["name", "experience"],
 			)
 
 			available_experiences = set()
 			for slot in slots:
-				available = get_available_capacity(slot.name)
+				available = get_available_capacity(slot.name, selected_date=date_obj)
 				if available > 0:
 					available_experiences.add(slot.experience)
 
@@ -197,23 +201,30 @@ def get_experience_detail(experience_id, include_next_availability=True):
 				"Cheese Experience Slot",
 				filters={
 					"experience": experience_id,
-					"date_from": [">=", today],
-					"slot_status": "OPEN"
+					"date_to": [">=", today],
+					"slot_status": ["in", ["OPEN", "CLOSED"]],
 				},
-				fields=["name", "date_from", "time_from"],
+				fields=["name", "date_from", "date_to", "time_from"],
 				order_by="date_from asc, time_from asc",
-				limit=50
+				limit=50,
 			)
 
 			for slot in slots:
-				available = get_available_capacity(slot.name)
-				if available > 0:
-					next_availability = {
-						"slot_id": slot.name,
-						"date": str(slot.date_from),
-						"time": str(slot.time_from),
-						"available_capacity": available
-					}
+				df, dt = getdate(slot.date_from), getdate(slot.date_to)
+				cd = max(today, df)
+				while cd <= dt:
+					available = get_available_capacity(slot.name, selected_date=cd)
+					if available > 0:
+						next_availability = {
+							"slot_id": slot.name,
+							"date": str(cd),
+							"selected_date": str(cd),
+							"time": str(slot.time_from),
+							"available_capacity": available,
+						}
+						break
+					cd = add_days(cd, 1)
+				if next_availability:
 					break
 
 		bank_account = (
@@ -721,17 +732,9 @@ def update_time_slot(slot_id, max_capacity=None, slot_status=None, date_from=Non
 def list_time_slots(experience_id, date_from=None, date_to=None, slot_status=None, page=1, page_size=20):
 	"""
 	List time slots for an experience (US-10)
-	
-	Args:
-		experience_id: Experience ID
-		date_from: Start date filter
-		date_to: End date filter
-		slot_status: Filter by status
-		page: Page number
-		page_size: Items per page
-		
-	Returns:
-		Paginated response with slots list
+
+	Returns one row per (slot × calendar day) in the requested window. Capacity is per day.
+	If date_from/date_to are omitted, defaults to today through today + 60 days.
 	"""
 	try:
 		if not experience_id:
@@ -744,13 +747,25 @@ def list_time_slots(experience_id, date_from=None, date_to=None, slot_status=Non
 		page_size = cint(page_size) or 20
 		
 		filters = {"experience": experience_id}
-		
+
+		from frappe.utils import today as today_str
+
 		date_from_obj = getdate(date_from) if date_from else None
 		date_to_obj = getdate(date_to) if date_to else None
+		if not date_from_obj and not date_to_obj:
+			date_from_obj = getdate(today_str())
+			date_to_obj = add_days(date_from_obj, 60)
+		elif date_from_obj and not date_to_obj:
+			date_to_obj = add_days(date_from_obj, 60)
+		elif date_to_obj and not date_from_obj:
+			date_from_obj = getdate(today_str())
+			if date_from_obj > date_to_obj:
+				date_from_obj = date_to_obj
 		if date_from_obj and date_to_obj:
-			filters["date_from"] = ["between", [date_from_obj, date_to_obj]]
+			filters["date_from"] = ["<=", date_to_obj]
+			filters["date_to"] = [">=", date_from_obj]
 		elif date_from_obj:
-			filters["date_from"] = [">=", date_from_obj]
+			filters["date_to"] = [">=", date_from_obj]
 		elif date_to_obj:
 			filters["date_from"] = ["<=", date_to_obj]
 		if slot_status:
@@ -759,21 +774,47 @@ def list_time_slots(experience_id, date_from=None, date_to=None, slot_status=Non
 		slots = frappe.get_all(
 			"Cheese Experience Slot",
 			filters=filters,
-			fields=["name", "date_from", "time_from", "max_capacity", "reserved_capacity", "slot_status"],
-			limit_start=(page - 1) * page_size,
-			limit_page_length=page_size,
-			order_by="date_from asc, time_from asc"
+			fields=[
+				"name",
+				"date_from",
+				"date_to",
+				"time_from",
+				"max_capacity",
+				"reserved_capacity",
+				"slot_status",
+			],
+			order_by="date_from asc, time_from asc",
 		)
-		
-		# Calculate available capacity
+
+		expanded = []
 		for slot in slots:
-			available = get_available_capacity(slot.name)
-			slot["available_capacity"] = available
-		
-		total = frappe.db.count("Cheese Experience Slot", filters=filters)
+			days = slot_calendar_days_in_range(
+				slot.date_from, slot.date_to, date_from_obj, date_to_obj
+			)
+			for cal_day in days:
+				available = get_available_capacity(slot.name, cal_day)
+				expanded.append(
+					{
+						"name": slot.name,
+						"slot_id": slot.name,
+						"calendar_date": str(cal_day),
+						"date": str(cal_day),
+						"date_from": str(slot.date_from),
+						"date_to": str(slot.date_to) if slot.date_to else None,
+						"time_from": str(slot.time_from) if slot.time_from else None,
+						"max_capacity": slot.max_capacity,
+						"reserved_capacity": slot.reserved_capacity,
+						"slot_status": slot.slot_status,
+						"available_capacity": available,
+					}
+				)
+
+		total = len(expanded)
+		start = (page - 1) * page_size
+		page_rows = expanded[start : start + page_size]
 		
 		return paginated_response(
-			slots,
+			page_rows,
 			"Time slots retrieved successfully",
 			page=page,
 			page_size=page_size,
