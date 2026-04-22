@@ -13,6 +13,11 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { toast } from "sonner";
 import { useFrappeList, useFrappeCreate, useFrappeUpdate } from "@/lib/useApiData";
 
+const parseHours = (value, fallback) => {
+    const parsed = Number.parseInt(value, 10);
+    return Number.isNaN(parsed) ? fallback : parsed;
+};
+
 export default function BookingPolicy() {
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
@@ -21,6 +26,7 @@ export default function BookingPolicy() {
     const [createOpen, setCreateOpen] = useState(false);
     const [editPolicy, setEditPolicy] = useState(null);
     const [form, setForm] = useState({ experience: searchParams.get('experience') || "", cancel_until_hours_before: "24", modify_until_hours_before: "12", min_hours_before_booking: "2" });
+    const [editForm, setEditForm] = useState({ cancel_until_hours_before: "24", modify_until_hours_before: "12", min_hours_before_booking: "2" });
 
     const { data: policies = [], isLoading, error, refetch } = useFrappeList("Cheese Booking Policy", {
         fields: ["name", "experience", "cancel_until_hours_before", "modify_until_hours_before", "min_hours_before_booking", "creation", "modified"],
@@ -40,12 +46,40 @@ export default function BookingPolicy() {
         if (!form.experience) { toast.error("Experience is required"); return; }
         createMutation.mutate({
             experience: form.experience,
-            cancel_until_hours_before: parseInt(form.cancel_until_hours_before) || 24,
-            modify_until_hours_before: parseInt(form.modify_until_hours_before) || 12,
-            min_hours_before_booking: parseInt(form.min_hours_before_booking) || 2,
+            cancel_until_hours_before: parseHours(form.cancel_until_hours_before, 24),
+            modify_until_hours_before: parseHours(form.modify_until_hours_before, 12),
+            min_hours_before_booking: parseHours(form.min_hours_before_booking, 2),
         }, {
             onSuccess: () => { setCreateOpen(false); toast.success("Policy created"); },
             onError: (err) => toast.error(err?.message || "Failed"),
+        });
+    };
+
+    const openEdit = (policy) => {
+        setEditPolicy(policy);
+        setEditForm({
+            cancel_until_hours_before: String(policy.cancel_until_hours_before ?? 24),
+            modify_until_hours_before: String(policy.modify_until_hours_before ?? 12),
+            min_hours_before_booking: String(policy.min_hours_before_booking ?? 2),
+        });
+    };
+
+    const handleEditSave = () => {
+        if (!editPolicy?.name) return;
+        updateMutation.mutate({
+            name: editPolicy.name,
+            data: {
+                cancel_until_hours_before: parseHours(editForm.cancel_until_hours_before, 24),
+                modify_until_hours_before: parseHours(editForm.modify_until_hours_before, 12),
+                min_hours_before_booking: parseHours(editForm.min_hours_before_booking, 2),
+            },
+        }, {
+            onSuccess: () => {
+                toast.success("Policy updated");
+                setEditPolicy(null);
+                refetch();
+            },
+            onError: (err) => toast.error(err?.message || "Failed to update"),
         });
     };
 
@@ -92,6 +126,9 @@ export default function BookingPolicy() {
                                     <DropdownMenu>
                                         <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8 opacity-0 group-hover:opacity-100"><MoreHorizontal className="w-4 h-4" /></Button></DropdownMenuTrigger>
                                         <DropdownMenuContent align="end">
+                                            <DropdownMenuItem onClick={() => openEdit(policy)}>
+                                                <Clock className="w-3 h-3 mr-2" /> Edit Times
+                                            </DropdownMenuItem>
                                             <DropdownMenuItem onClick={() => navigate(`/cheese/experiences?search=${policy.experience}`)}><Sparkles className="w-3 h-3 mr-2" /> View Experience</DropdownMenuItem>
                                         </DropdownMenuContent>
                                     </DropdownMenu>
@@ -126,6 +163,35 @@ export default function BookingPolicy() {
                         <Button variant="outline" onClick={() => setCreateOpen(false)}>Cancel</Button>
                         <Button className="cheese-gradient text-black font-semibold border-0" onClick={handleCreate} disabled={createMutation.isPending}>
                             {createMutation.isPending ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Plus className="w-4 h-4 mr-1" />} Create
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            <Dialog open={!!editPolicy} onOpenChange={(open) => !open && setEditPolicy(null)}>
+                <DialogContent className="max-w-md">
+                    <DialogHeader>
+                        <DialogTitle>Edit Booking Policy</DialogTitle>
+                        <DialogDescription>
+                            Updating times for experience {editPolicy?.experience || "—"}
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-4">
+                        <div className="space-y-2">
+                            <Label>Experience</Label>
+                            <Input value={editPolicy?.experience || ""} disabled />
+                        </div>
+                        <div className="grid grid-cols-3 gap-3">
+                            <div className="space-y-2"><Label className="text-xs">Cancel (hrs)</Label><Input type="number" min="0" value={editForm.cancel_until_hours_before} onChange={(e) => setEditForm(f => ({ ...f, cancel_until_hours_before: e.target.value }))} /></div>
+                            <div className="space-y-2"><Label className="text-xs">Modify (hrs)</Label><Input type="number" min="0" value={editForm.modify_until_hours_before} onChange={(e) => setEditForm(f => ({ ...f, modify_until_hours_before: e.target.value }))} /></div>
+                            <div className="space-y-2"><Label className="text-xs">Min Book (hrs)</Label><Input type="number" min="0" value={editForm.min_hours_before_booking} onChange={(e) => setEditForm(f => ({ ...f, min_hours_before_booking: e.target.value }))} /></div>
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setEditPolicy(null)}>Cancel</Button>
+                        <Button onClick={handleEditSave} disabled={updateMutation.isPending}>
+                            {updateMutation.isPending ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : null}
+                            Save changes
                         </Button>
                     </DialogFooter>
                 </DialogContent>

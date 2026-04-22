@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { useFrappeDoc, useFrappeUpdate } from "@/lib/useApiData";
+import { useFrappeUpdate } from "@/lib/useApiData";
+import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 import DetailPageLayout from "@/components/DetailPageLayout";
 import EditableField from "@/components/EditableField";
@@ -11,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { DollarSign, Ticket, Users, CreditCard, CheckCircle, XCircle, AlertTriangle, FileImage, Download } from "lucide-react";
 import FrappeSearchSelect from "@/components/FrappeSearchSelect";
 import { useFrappeList } from "@/lib/useApiData";
+import { depositService } from "@/api/depositService";
 
 const STATUS_CONFIG = {
     PENDING: { label: "Pending", class: "bg-yellow-500/15 text-yellow-700 border-yellow-300 dark:text-yellow-400 dark:border-yellow-700" },
@@ -24,7 +26,15 @@ const STATUS_CONFIG = {
 export default function DepositDetail() {
     const { id } = useParams();
     const navigate = useNavigate();
-    const { data: deposit, isLoading, refetch } = useFrappeDoc("Cheese Deposit", id);
+    const { data: deposit, isLoading, refetch } = useQuery({
+        queryKey: ["deposit-detail", id],
+        queryFn: async () => {
+            const result = await depositService.getDeposit(id);
+            const payload = result?.data?.message || result?.data || result;
+            return payload?.data || payload;
+        },
+        enabled: !!id,
+    });
     const updateMutation = useFrappeUpdate("Cheese Deposit");
     const [editMode, setEditMode] = useState(false);
     const [form, setForm] = useState({});
@@ -151,7 +161,7 @@ export default function DepositDetail() {
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-6 gap-x-8">
                                 <EditableField label="Entity Type" value={deposit?.entity_type || "—"} editMode={false} />
                                 <EditableField label="Entity ID" value={deposit?.entity_id || "—"} editMode={false} />
-                                <EditableField label="Contact" value={deposit?.contact || "—"} editMode={false} />
+                                <EditableField label="Contact" value={deposit?.contact_name || deposit?.contact || "—"} editMode={false} />
                                 <EditableField label="Due At" value={deposit?.due_at ? new Date(deposit.due_at).toLocaleString() : "—"} editMode={false} />
                                 {editMode ? (
                                     <div className="space-y-1.5 flex flex-col justify-end">

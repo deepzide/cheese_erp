@@ -6,6 +6,7 @@ from frappe import _
 from frappe.model.document import Document
 from frappe.utils import add_to_date, now_datetime, getdate
 import json
+from cheese.cheese.utils.pricing import calculate_ticket_price, calculate_deposit_amount
 
 
 class CheeseTicket(Document):
@@ -196,20 +197,14 @@ class CheeseTicket(Document):
 		self.price_snapshot = json.dumps(price_data)
 
 	def apply_experience_deposit_policy(self):
-		"""Always derive ticket deposit settings from the linked experience policy."""
+		"""Derive ticket deposit settings using shared route-aware pricing helpers."""
 		if not self.experience:
 			return
-		experience = frappe.get_doc("Cheese Experience", self.experience)
-		self.deposit_required = 1 if experience.deposit_required else 0
-		self.deposit_amount = 0
-		if not experience.deposit_required:
-			return
-		if experience.deposit_type == "Amount":
-			self.deposit_amount = experience.deposit_value or 0
-		elif experience.deposit_type == "%":
-			price_per_person = experience.route_price if self.route else experience.individual_price
-			row_total = (price_per_person or 0) * (self.party_size or 1)
-			self.deposit_amount = row_total * (experience.deposit_value or 0) / 100.0
+		price_data = calculate_ticket_price(self.experience, self.party_size or 1, route_id=self.route)
+		total_price = price_data.get("total_price", 0)
+		self.total_price = total_price
+		self.deposit_amount = calculate_deposit_amount(self.experience, total_price, route_id=self.route)
+		self.deposit_required = 1 if self.deposit_amount > 0 else 0
 
 	def set_expires_at(self):
 		"""Set expiration time for PENDING tickets"""

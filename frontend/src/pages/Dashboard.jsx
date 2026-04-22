@@ -9,7 +9,6 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { LayoutDashboard, Ticket, Users, DollarSign, Clock, TrendingUp, AlertCircle, RefreshCw, CalendarDays, Shield, Sparkles } from "lucide-react";
 import { dashboardService } from "@/api/dashboardService";
-import { apiRequest } from "@/api/client";
 
 export default function Dashboard() {
     const navigate = useNavigate();
@@ -57,30 +56,11 @@ export default function Dashboard() {
             return payload?.data || payload || {};
         },
     });
-    // Fallback: fetch tickets directly if dashboard doesn't have tickets_by_status
-    const { data: ticketsRaw = [] } = useQuery({
-        queryKey: ['dashboard-tickets'],
-        queryFn: async () => {
-            const params = new URLSearchParams();
-            params.append('fields', JSON.stringify(["name", "status"]));
-            params.append('limit_page_length', '500');
-            const res = await apiRequest(`/api/resource/Cheese Ticket?${params}`);
-            return res?.data?.data || [];
-        },
-    });
-
     const dashboard = dashRaw || {};
     const kpis = kpisRaw || {};
 
-    // Compute tickets_by_status from raw tickets if dashboard doesn't provide it
+    // Use server-side aggregated dashboard response to avoid stale local fallback totals.
     let ticketsByStatus = dashboard.tickets_by_status || {};
-    if (Object.keys(ticketsByStatus).length === 0 && ticketsRaw.length > 0) {
-        ticketsByStatus = {};
-        ticketsRaw.forEach(t => {
-            const s = t.status || 'Unknown';
-            ticketsByStatus[s] = (ticketsByStatus[s] || 0) + 1;
-        });
-    }
     const totalTickets = Object.values(ticketsByStatus).reduce((sum, v) => sum + (Number(v) || 0), 0) || kpis?.conversion_rates?.total_tickets || 0;
 
     const convRates = kpis?.conversion_rates || {};
