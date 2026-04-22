@@ -10,6 +10,8 @@
     project_name: cheese_erp
     compose_dir: "{{ project_dir }}/frappe_docker"
     compose_file: pwd.yml
+    docker_wait_retries: 60
+    docker_wait_delay_seconds: 5
     site_name: frontend
     admin_password: admin
     db_root_password: "admin"
@@ -165,11 +167,19 @@
 
     - name: Wait until MariaDB is ready
       ansible.builtin.shell: |
-        set -e
-        until docker compose -f pwd.yml exec -T db mysqladmin ping -h db --silent; do
-          echo "⏳ Esperando que MariaDB inicie..."
-          sleep 5
+        set -euo pipefail
+        docker compose -f pwd.yml ps
+        for attempt in $(seq 1 {{ docker_wait_retries }}); do
+          if docker compose -f pwd.yml exec -T db sh -lc 'healthcheck.sh --connect --innodb_initialized'; then
+            exit 0
+          fi
+          echo "⏳ Esperando que MariaDB inicie... intento ${attempt}/{{ docker_wait_retries }}"
+          sleep {{ docker_wait_delay_seconds }}
         done
+        echo "MariaDB no estuvo lista a tiempo"
+        docker compose -f pwd.yml ps
+        docker compose -f pwd.yml logs --no-color --tail=200 db configurator create-site || true
+        exit 1
       args:
         chdir: "{{ project_dir }}/frappe_docker"
         executable: /bin/bash
