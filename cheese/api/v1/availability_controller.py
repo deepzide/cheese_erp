@@ -4,7 +4,7 @@
 import frappe
 from frappe import _
 from frappe.utils import getdate
-from cheese.cheese.utils.capacity import get_available_capacity
+from cheese.cheese.utils.capacity import get_available_capacity, slot_calendar_days_in_range
 from cheese.api.common.responses import success, error, not_found, validation_error
 
 
@@ -76,37 +76,36 @@ def get_available_slots(experience_id=None, date=None, date_from=None, date_to=N
 			order_by="date_from asc, time_from asc"
 		)
 
-		# Calculate available capacity for each slot
+		# One row per (slot × calendar day) in the overlap with the query range — capacity is per day.
 		slots_with_availability = []
 		for slot in slots:
-			available = get_available_capacity(slot.name, selected_date=slot.date_from)
-			# Derive slot_status live from computed capacity so it stays consistent
-			# with the real available_capacity (stored slot_status can be stale).
-			live_status = "OPEN" if available > 0 else "CLOSED"
-			slot_data = {
-				"slot_id": slot.name,
-				"date_from": str(slot.date_from) if slot.date_from is not None else None,
-				"date_to": str(slot.date_to) if slot.date_to is not None else None,
-				"time_from": str(slot.time_from) if slot.time_from is not None else None,
-				"time_to": str(slot.time_to) if slot.time_to is not None else None,
-				"max_capacity": slot.max_capacity,
-				"available_capacity": available,
-				"slot_status": live_status,
-				"is_available": available > 0
-			}
-			
-			# For backward compatibility, also include date and time fields
-			# Use date_from as the primary date, and time_from as the primary time
-			slot_data["date"] = str(slot.date_from) if slot.date_from is not None else None
-			slot_data["time"] = str(slot.time_from) if slot.time_from is not None else None
-			
-			# Add experience info if filtering by multiple experiences
-			if not experience_id:
-				slot_data["experience_id"] = slot.experience
-				exp_name = frappe.db.get_value("Cheese Experience", slot.experience, "name")
-				slot_data["experience_name"] = exp_name
-			
-			slots_with_availability.append(slot_data)
+			days = slot_calendar_days_in_range(slot.date_from, slot.date_to, date_from_obj, date_to_obj)
+			for cal_day in days:
+				available = get_available_capacity(slot.name, selected_date=cal_day)
+				live_status = "OPEN" if available > 0 else "CLOSED"
+				slot_data = {
+					"slot_id": slot.name,
+					"selected_date": str(cal_day),
+					"calendar_date": str(cal_day),
+					"date_from": str(slot.date_from) if slot.date_from is not None else None,
+					"date_to": str(slot.date_to) if slot.date_to is not None else None,
+					"time_from": str(slot.time_from) if slot.time_from is not None else None,
+					"time_to": str(slot.time_to) if slot.time_to is not None else None,
+					"max_capacity": slot.max_capacity,
+					"available_capacity": available,
+					"slot_status": live_status,
+					"is_available": available > 0,
+				}
+				# Backward compatibility: `date` is the occurrence day for this row
+				slot_data["date"] = str(cal_day)
+				slot_data["time"] = str(slot.time_from) if slot.time_from is not None else None
+
+				if not experience_id:
+					slot_data["experience_id"] = slot.experience
+					exp_name = frappe.db.get_value("Cheese Experience", slot.experience, "name")
+					slot_data["experience_name"] = exp_name
+
+				slots_with_availability.append(slot_data)
 
 		# Build response
 		if experience_id:
@@ -271,25 +270,31 @@ def get_route_availability(route_id, date=None, date_from=None, date_to=None, pa
 						"experience": exp["experience_id"],
 						"date_from": ["<=", date_to_obj],
 						"date_to": [">=", date_from_obj],
-						"slot_status": "OPEN"
+						"slot_status": ["in", ["OPEN", "CLOSED"]],
 					},
 					fields=["name", "date_from", "date_to", "time_from", "time_to", "max_capacity"]
 				)
 				
 				available_slots = []
 				for slot in slots:
-					available = get_available_capacity(slot.name, selected_date=slot.date_from)
-					if available >= party_size:
+					days = slot_calendar_days_in_range(
+						slot.date_from, slot.date_to, date_from_obj, date_to_obj
+					)
+					for cal_day in days:
+						available = get_available_capacity(slot.name, selected_date=cal_day)
+						if available < party_size:
+							continue
 						slot_data = {
 							"slot_id": slot.name,
+							"selected_date": str(cal_day),
+							"calendar_date": str(cal_day),
 							"date_from": str(slot.date_from) if slot.date_from else None,
 							"date_to": str(slot.date_to) if slot.date_to else None,
 							"time_from": str(slot.time_from) if slot.time_from else None,
 							"time_to": str(slot.time_to) if slot.time_to else None,
-							"available_capacity": available
+							"available_capacity": available,
 						}
-						# For backward compatibility, also include date and time fields
-						slot_data["date"] = str(slot.date_from) if slot.date_from else None
+						slot_data["date"] = str(cal_day)
 						slot_data["time"] = str(slot.time_from) if slot.time_from else None
 						available_slots.append(slot_data)
 				

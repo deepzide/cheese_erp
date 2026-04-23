@@ -144,5 +144,12 @@
   },
   "booking": {
     "title": "Reservas"
+  },
+  "establishment": {
+    "paymentMethods": "Métodos de pago",
+    "cheeseTypes": "Tipos de queso",
+    "establishmentType": "Tipo de establecimiento",
+    "operatingHours": "Horario de atención",
+    "googleMapsLink": "Enlace de Google Maps"
   }
 }

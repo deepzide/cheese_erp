@@ -137,18 +137,17 @@ export default function TicketDetail() {
     };
 
     // Computed financials
-    const unitCost = ticket?.route 
-        ? (experienceDoc?.route_price || experienceDoc?.individual_price || 0)
-        : (experienceDoc?.individual_price || 0);
+    const backendTotal = Number(ticket?.total_price || 0);
     const partySize = ticket?.party_size || form.party_size || 1;
-    const totalPerTicket = unitCost * partySize;
+    const unitCost = partySize > 0 ? backendTotal / partySize : 0;
+    const totalPerTicket = backendTotal;
     const depositAmount = ticket?.deposit_amount || form.deposit_amount || 0;
     const totalDepositPaid = deposits.reduce((sum, d) => sum + (d.amount_paid || 0), 0);
     const advancePaid = Math.min(totalDepositPaid, depositAmount);
-    const advancePending = depositAmount - advancePaid;
-    const remainingTotal = totalPerTicket - depositAmount;
+    const advancePending = Math.max(depositAmount - advancePaid, 0);
+    const remainingTotal = Math.max(totalPerTicket - depositAmount, 0);
     const remainingPaid = Math.max(totalDepositPaid - depositAmount, 0);
-    const remainingPending = remainingTotal - remainingPaid;
+    const remainingPending = Math.max(remainingTotal - remainingPaid, 0);
 
     const hasAdvancePaid = deposits.some(d => d.status === "PAID");
     const hasNoPendingDeposit = !deposits.some(d => d.status === "PENDING" || d.status === "OVERDUE");

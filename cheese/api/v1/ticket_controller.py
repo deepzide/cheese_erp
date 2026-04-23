@@ -33,6 +33,19 @@ def _read_selected_date_input(selected_date=None):
 	return selected_date
 
 
+def _capacity_date_for_slot(ticket, slot_id, selected_date_obj=None):
+	"""Calendar day for per-day capacity (multi-day slots require selected_date on the ticket)."""
+	d = selected_date_obj or ticket.selected_date
+	if d:
+		return getdate(d)
+	if not frappe.db.exists("Cheese Experience Slot", slot_id):
+		return None
+	slot = frappe.get_doc("Cheese Experience Slot", slot_id)
+	if getdate(slot.date_from) == getdate(slot.date_to):
+		return getdate(slot.date_from)
+	return None
+
+
 def _resolve_slot_policy_datetimes(slot_doc, selected_date=None, fallback_date=None, allow_past_date=False):
 	"""
 	Resolve effective reservation date and return policy datetimes.
@@ -85,6 +98,15 @@ def _run_booking_policy(experience_id, slot_datetime, action, event_end_datetime
 		)
 	finally:
 		frappe.flags.mute_messages = previous_mute
+
+
+def _recalculate_ticket_financials(ticket):
+	price_data = calculate_ticket_price(ticket.experience, ticket.party_size, route_id=ticket.route)
+	total_price = price_data.get("total_price", 0)
+	deposit_amount = calculate_deposit_amount(ticket.experience, total_price, route_id=ticket.route)
+	ticket.total_price = total_price
+	ticket.deposit_required = bool(deposit_amount > 0)
+	ticket.deposit_amount = deposit_amount
 
 
 @frappe.whitelist()
@@ -319,8 +341,8 @@ def modify_reservation_preview(reservation_id, new_slot=None, party_size=None, s
 		# Calculate price impact
 		if new_slot or party_size:
 			new_party_size = party_size if party_size else ticket.party_size
-			price_data = calculate_ticket_price(ticket.experience, new_party_size)
-			current_price_data = calculate_ticket_price(ticket.experience, ticket.party_size)
+			price_data = calculate_ticket_price(ticket.experience, new_party_size, route_id=ticket.route)
+			current_price_data = calculate_ticket_price(ticket.experience, ticket.party_size, route_id=ticket.route)
 			
 			preview["price_impact"] = {
 				"current_price": current_price_data.get("total_price", 0),
@@ -426,7 +448,12 @@ def modify_ticket(ticket_id, new_slot=None, party_size=None, selected_date=None)
 
 			# Capacity check for new slot
 			req_size = party_size if party_size else ticket.party_size
-			available = get_available_capacity(new_slot)
+			cap_date = _capacity_date_for_slot(ticket, new_slot, selected_date_obj)
+			if not cap_date:
+				return validation_error(
+					"selected_date is required on the ticket (or pass selected_date) to verify capacity for this slot"
+				)
+			available = get_available_capacity(new_slot, cap_date)
 			if req_size > available:
 				return validation_error(f"Cannot move {req_size} tickets to new slot. Only {available} slots available.")
 
@@ -438,7 +465,12 @@ def modify_ticket(ticket_id, new_slot=None, party_size=None, selected_date=None)
 			if not new_slot:
 				diff_size = party_size - ticket.party_size
 				if diff_size > 0:
-					available = get_available_capacity(ticket.slot)
+					cap_date = _capacity_date_for_slot(ticket, ticket.slot, None)
+					if not cap_date:
+						return validation_error(
+							"selected_date is required on the ticket to verify capacity for this slot"
+						)
+					available = get_available_capacity(ticket.slot, cap_date)
 					if diff_size > available:
 						return validation_error(f"Cannot increase party size by {diff_size}. Only {available} more slots available.")
 
@@ -447,6 +479,10 @@ def modify_ticket(ticket_id, new_slot=None, party_size=None, selected_date=None)
 
 		if not changes:
 			return validation_error("No changes provided. Specify new_slot or party_size")
+
+		if "party_size" in changes:
+			_recalculate_ticket_financials(ticket)
+			changes.extend(["total_price", "deposit_amount"])
 
 		ticket.save()
 		
@@ -962,10 +998,7 @@ def get_ticket_board(filters=None, status=None, route_id=None, establishment_id=
 	"""
 	try:
 		import json
-		from frappe.utils import getdate, get_datetime, today, now_datetime
-		
-		current_date = getdate(today())
-		current_datetime = now_datetime()
+		from frappe.utils import getdate
 		
 		filter_dict = {}
 		if filters:
@@ -1006,68 +1039,37 @@ def get_ticket_board(filters=None, status=None, route_id=None, establishment_id=
 			filters=filter_dict,
 			fields=["name", "status", "contact", "experience", "slot", "route", "party_size", "company", "total_price", "deposit_amount", "selected_date", "expires_at", "creation", "modified"]
 		)
-		
+
+		slot_ids = sorted({t.slot for t in tickets if t.slot})
+		slot_map = {}
+		if slot_ids:
+			slot_rows = frappe.get_all(
+				"Cheese Experience Slot",
+				filters={"name": ["in", slot_ids]},
+				fields=["name", "date_from", "time_from"],
+			)
+			slot_map = {row.name: row for row in slot_rows}
+
+		contact_ids = sorted({t.contact for t in tickets if t.contact})
+		contact_map = {}
+		if contact_ids:
+			contact_rows = frappe.get_all(
+				"Cheese Contact",
+				filters={"name": ["in", contact_ids]},
+				fields=["name", "full_name", "phone", "email"],
+			)
+			contact_map = {row.name: row for row in contact_rows}
+
 		for ticket in tickets:
-			if ticket.slot:
-				slot = frappe.db.get_value(
-					"Cheese Experience Slot",
-					ticket.slot,
-					["date_from", "date_to", "time_from"],
-					as_dict=True
-				)
-				if slot:
-					ticket["slot_date"] = str(ticket.selected_date) if ticket.selected_date else str(slot.date_from)
-					ticket["slot_time"] = str(slot.time_from)
-					
-					# Auto-expire pending tickets by TTL and effective booking date.
-					if ticket.status == "PENDING":
-						try:
-							slot_end_date = getdate(slot.date_to) if slot.date_to else getdate(slot.date_from)
-							if (
-								(ticket.expires_at and ticket.expires_at < current_datetime)
-								or (slot_end_date < current_date)
-							):
-								frappe.db.set_value("Cheese Ticket", ticket.name, "status", "EXPIRED")
-								update_slot_capacity(ticket.slot)
-								ticket.status = "EXPIRED"
-								# db.set_value bypasses Document hooks — notify bot explicitly
-								try:
-									from cheese.cheese.utils.notifications import enqueue_ticket_status_webhook
-									enqueue_ticket_status_webhook(ticket.name, "EXPIRED")
-								except Exception as e:
-									frappe.log_error(
-										f"enqueue_ticket_status_webhook after board auto-expire: {e}",
-										"Ticket Webhook",
-									)
-						except Exception:
-							pass
-			else:
-				if ticket.status == "PENDING" and (
-					(ticket.expires_at and ticket.expires_at < current_datetime)
-					or (ticket.selected_date and getdate(ticket.selected_date) < current_date)
-				):
-					frappe.db.set_value("Cheese Ticket", ticket.name, "status", "EXPIRED")
-					ticket.status = "EXPIRED"
-					try:
-						from cheese.cheese.utils.notifications import enqueue_ticket_status_webhook
-						enqueue_ticket_status_webhook(ticket.name, "EXPIRED")
-					except Exception as e:
-						frappe.log_error(
-							f"enqueue_ticket_status_webhook after board auto-expire: {e}",
-							"Ticket Webhook",
-						)
-			
-			if ticket.contact:
-				contact = frappe.db.get_value(
-					"Cheese Contact",
-					ticket.contact,
-					["full_name", "phone", "email"],
-					as_dict=True
-				)
-				if contact:
-					ticket["contact_name"] = contact.full_name
-					ticket["contact_phone"] = contact.phone
-					ticket["contact_email"] = contact.email
+			if ticket.slot and ticket.slot in slot_map:
+				slot = slot_map[ticket.slot]
+				ticket["slot_date"] = str(ticket.selected_date) if ticket.selected_date else str(slot.date_from)
+				ticket["slot_time"] = str(slot.time_from)
+			if ticket.contact and ticket.contact in contact_map:
+				contact = contact_map[ticket.contact]
+				ticket["contact_name"] = contact.full_name
+				ticket["contact_phone"] = contact.phone
+				ticket["contact_email"] = contact.email
 		
 		# Group by status
 		board = {}

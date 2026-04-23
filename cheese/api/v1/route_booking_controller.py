@@ -6,13 +6,29 @@ from frappe import _
 from frappe.utils import now_datetime, get_datetime, add_to_date, getdate
 from cheese.api.common.responses import success, created, error, not_found, validation_error
 from cheese.cheese.utils.pricing import calculate_ticket_price, calculate_deposit_amount
-from cheese.cheese.utils.capacity import update_slot_capacity, get_available_capacity
+from cheese.cheese.utils.capacity import (
+	update_slot_capacity,
+	get_available_capacity,
+	slot_calendar_days_in_range,
+)
 from cheese.api.v1.ticket_controller import create_pending_ticket
 import json
 
 
 @frappe.whitelist()
-def create_route_reservation(contact_id=None, route_id=None, experiences_with_slots=None, preferred_dates=None, party_size=1, conversation_id=None, date_from=None, date_to=None, date=None):
+def create_route_reservation(
+	contact_id=None,
+	route_id=None,
+	experiences_with_slots=None,
+	preferred_dates=None,
+	party_size=1,
+	conversation_id=None,
+	date_from=None,
+	date_to=None,
+	date=None,
+	time_from=None,
+	time_to=None,
+):
 	"""
 	Create pending route reservation
 	Creates RouteBooking = PENDING + internal reservations, locks capacity
@@ -27,6 +43,8 @@ def create_route_reservation(contact_id=None, route_id=None, experiences_with_sl
 		date_from: Start date to auto-select slots (optional, YYYY-MM-DD)
 		date_to: End date to auto-select slots (optional, YYYY-MM-DD). If not provided, uses date_from
 		date: Synonym for date_from when date_from is not set (optional, YYYY-MM-DD)
+		time_from: Preferred slot start time in HH:MM[:SS] for auto slot selection (optional)
+		time_to: Preferred slot end time in HH:MM[:SS] for auto slot selection (optional)
 		
 	Returns:
 		Success response with route booking data
@@ -64,6 +82,14 @@ def create_route_reservation(contact_id=None, route_id=None, experiences_with_sl
 
 		# Auto-select slots if date_from is provided and explicit slots are missing
 		selected_date_for_tickets = None
+		normalized_time_from = None
+		normalized_time_to = None
+		if time_from:
+			time_from = str(time_from).strip()
+			normalized_time_from = time_from if len(time_from.split(":")) == 3 else f"{time_from}:00"
+		if time_to:
+			time_to = str(time_to).strip()
+			normalized_time_to = time_to if len(time_to.split(":")) == 3 else f"{time_to}:00"
 		if not experiences_with_slots and date_from:
 			try:
 				start_date = getdate(date_from)
@@ -86,7 +112,7 @@ def create_route_reservation(contact_id=None, route_id=None, experiences_with_sl
 				# A slot overlaps if: slot.date_from <= end_date AND slot.date_to >= start_date
 				slot_filters = {
 					"experience": exp_row.experience,
-					"slot_status": "OPEN",
+					"slot_status": ["in", ["OPEN", "CLOSED"]],
 					"date_from": ["<=", end_date],
 					"date_to": [">=", start_date]
 				}
@@ -94,12 +120,16 @@ def create_route_reservation(contact_id=None, route_id=None, experiences_with_sl
 				slots = frappe.get_all(
 					"Cheese Experience Slot",
 					filters=slot_filters,
-					fields=["name", "time_from", "date_from", "max_capacity"],
+					fields=["name", "time_from", "time_to", "date_from", "max_capacity"],
 					order_by="date_from asc, time_from asc"
 				)
 				
 				selected_slot = None
 				for slot in slots:
+					if normalized_time_from and str(slot.time_from) != normalized_time_from:
+						continue
+					if normalized_time_to and str(slot.time_to) != normalized_time_to:
+						continue
 					available = get_available_capacity(slot.name, selected_date=start_date)
 					if available >= party_size:
 						selected_slot = slot.name
@@ -112,7 +142,16 @@ def create_route_reservation(contact_id=None, route_id=None, experiences_with_sl
 					})
 				else:
 					date_range_str = f"{start_date}" if start_date == end_date else f"{start_date} to {end_date}"
-					return validation_error(f"No available slot found for experience {exp_row.experience} between {date_range_str}")
+					time_hint = ""
+					if normalized_time_from and normalized_time_to:
+						time_hint = f" at {normalized_time_from} - {normalized_time_to}"
+					elif normalized_time_from:
+						time_hint = f" at {normalized_time_from}"
+					elif normalized_time_to:
+						time_hint = f" ending at {normalized_time_to}"
+					return validation_error(
+						f"No available slot found for experience {exp_row.experience} between {date_range_str}{time_hint}"
+					)
 
 		if not experiences_with_slots:
 			return validation_error("experiences_with_slots (or date_from/date_to) is required")
@@ -266,6 +305,21 @@ def create_route_reservation(contact_id=None, route_id=None, experiences_with_sl
 		
 		frappe.db.commit()
 		
+		booked_schedule = []
+		for ticket_id in tickets:
+			ticket_doc = frappe.get_doc("Cheese Ticket", ticket_id)
+			slot_doc = frappe.get_doc("Cheese Experience Slot", ticket_doc.slot)
+			booked_schedule.append({
+				"ticket_id": ticket_doc.name,
+				"experience_id": ticket_doc.experience,
+				"slot_id": ticket_doc.slot,
+				"selected_date": str(ticket_doc.selected_date) if ticket_doc.selected_date else str(slot_doc.date_from),
+				"time_from": str(slot_doc.time_from) if slot_doc.time_from else None,
+				"time_to": str(slot_doc.time_to) if slot_doc.time_to else None,
+				# Backward-compatible field for clients that still consume a single time value.
+				"time": str(slot_doc.time_from) if slot_doc.time_from else None,
+			})
+
 		return created(
 			"Route reservation created successfully",
 			{
@@ -279,6 +333,9 @@ def create_route_reservation(contact_id=None, route_id=None, experiences_with_sl
 				"deposit_amount": deposit_amount,
 				"tickets": tickets,
 				"tickets_count": len(tickets),
+				"booked_schedule": booked_schedule,
+				"requested_time_from": normalized_time_from,
+				"requested_time_to": normalized_time_to,
 				"conversation_id": conversation_id
 			}
 		)
@@ -945,7 +1002,7 @@ def get_available_slots_for_route(route_id, selected_date=None, date_from=None, 
 
 			slot_filters = {
 				"experience": experience_id,
-				"slot_status": "OPEN",
+				"slot_status": ["in", ["OPEN", "CLOSED"]],
 				"date_from": ["<=", end_date],
 				"date_to": [">=", start_date],
 			}
@@ -959,10 +1016,17 @@ def get_available_slots_for_route(route_id, selected_date=None, date_from=None, 
 
 			available_slots = []
 			for slot in slots:
-				available = get_available_capacity(slot.name)
-				if available >= party_size:
+				days = slot_calendar_days_in_range(
+					slot.date_from, slot.date_to, start_date, end_date
+				)
+				for cal_day in days:
+					available = get_available_capacity(slot.name, cal_day)
+					if available < party_size:
+						continue
 					available_slots.append({
 						"slot_id": slot.name,
+						"selected_date": str(cal_day),
+						"calendar_date": str(cal_day),
 						"date_from": str(slot.date_from),
 						"date_to": str(slot.date_to),
 						"time_from": str(slot.time_from) if slot.time_from else None,

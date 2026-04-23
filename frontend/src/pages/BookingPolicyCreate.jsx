@@ -8,6 +8,11 @@ import { useFrappeCreate } from "@/lib/useApiData";
 import CreatePageLayout from "@/components/CreatePageLayout";
 import FrappeSearchSelect from "@/components/FrappeSearchSelect";
 
+const parseHours = (value, fallback) => {
+    const parsed = Number.parseInt(value, 10);
+    return Number.isNaN(parsed) ? fallback : parsed;
+};
+
 export default function BookingPolicyCreate() {
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
@@ -23,9 +28,9 @@ export default function BookingPolicyCreate() {
         if (!form.experience) { toast.error("Experience is required"); return; }
         createMutation.mutate({
             experience: form.experience,
-            cancel_until_hours_before: parseInt(form.cancel_until_hours_before) || 24,
-            modify_until_hours_before: parseInt(form.modify_until_hours_before) || 12,
-            min_hours_before_booking: parseInt(form.min_hours_before_booking) || 2,
+            cancel_until_hours_before: parseHours(form.cancel_until_hours_before, 24),
+            modify_until_hours_before: parseHours(form.modify_until_hours_before, 12),
+            min_hours_before_booking: parseHours(form.min_hours_before_booking, 2),
         }, {
             onSuccess: () => { toast.success("Booking policy created"); navigate("/cheese/booking-policy"); },
             onError: (err) => toast.error(err?.message || "Failed"),

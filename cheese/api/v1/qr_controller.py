@@ -132,6 +132,19 @@ def _pending_confirmation_allowed(ticket):
 	return deposit_status == "PAID"
 
 
+def _qr_generation_allowed(ticket):
+	"""Block QR generation until required deposit is fully paid."""
+	if not ticket.deposit_required or (ticket.deposit_amount or 0) <= 0:
+		return True
+
+	deposit_status = frappe.db.get_value(
+		"Cheese Deposit",
+		{"entity_type": "Cheese Ticket", "entity_id": ticket.name},
+		"status",
+	)
+	return deposit_status == "PAID"
+
+
 def _can_use_pending_qr_flow():
 	allowed_roles = {"System Manager", "Cheese Booking Manager", "Cheese Booking Operator"}
 	return bool(set(frappe.get_roles()) & allowed_roles)
@@ -167,6 +180,18 @@ def get_qr(ticket_id=None, allow_pending=0):
 			return validation_error(
 				f"QR code can only be generated for {', '.join(allowed_statuses)} tickets. Current status: {ticket.status}",
 				{"current_status": ticket.status, "allowed_statuses": allowed_statuses}
+			)
+
+		# Enforce business rule: confirmed tickets that require deposit can get QR only after payment.
+		if not _qr_generation_allowed(ticket):
+			return validation_error(
+				"QR code is available only after the required deposit is paid.",
+				{
+					"ticket_id": ticket.name,
+					"ticket_status": ticket.status,
+					"deposit_required": bool(ticket.deposit_required),
+					"deposit_amount": ticket.deposit_amount or 0,
+				},
 			)
 
 		# Get or create QR token

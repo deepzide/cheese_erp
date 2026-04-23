@@ -91,11 +91,34 @@ def clear_all_records(doctype):
 		frappe.log_error(f"Error clearing {doctype_name}: {str(e)}", "Cheese Demo Clear")
 
 
+SAMPLE_COMPANY_CHEESE_FIELDS = {
+	"cheese_payment_methods": "Efectivo, tarjeta, transferencia",
+	"cheese_types": "Manchego, Cabra, Gouda",
+	"cheese_establishment_type": "Craft",
+	"cheese_operating_hours": "Lun–Vie 10:00–18:00; Sáb 10:00–14:00",
+	"cheese_google_maps_link": "https://www.google.com/maps/search/?api=1&query=Demo+Cheese",
+}
+
+
+def _apply_sample_cheese_company_fields(company_doc):
+	for fname, val in SAMPLE_COMPANY_CHEESE_FIELDS.items():
+		if hasattr(company_doc, fname):
+			setattr(company_doc, fname, val)
+
+
 def ensure_demo_company():
 	"""Ensure a Company exists for demo data"""
 	companies = frappe.get_all("Company", limit=1)
 	if companies:
-		return companies[0].name
+		name = companies[0].name
+		try:
+			doc = frappe.get_doc("Company", name)
+			_apply_sample_cheese_company_fields(doc)
+			doc.save(ignore_permissions=True)
+			frappe.db.commit()
+		except Exception:
+			pass
+		return name
 	
 	# Create a demo company if none exists
 	company = frappe.new_doc("Company")
@@ -103,13 +126,7 @@ def ensure_demo_company():
 	company.abbr = "DEMO"
 	company.default_currency = "USD"
 	company.country = "United States"
-	
-	# Cheese-specific fields
-	company.custom_cheese_establishment_type = "Dairy Farm"
-	company.custom_cheese_types = "Cheddar, Gouda, Brie"
-	company.custom_cheese_payment_methods = "Cash, Credit Card"
-	company.custom_cheese_operating_hours = "Mon-Fri: 9AM-5PM, Sat: 10AM-4PM"
-	company.custom_cheese_google_maps_link = "https://maps.app.goo.gl/dummy"
+	_apply_sample_cheese_company_fields(company)
 	
 	company.insert(ignore_permissions=True)
 	frappe.db.commit()
@@ -353,3 +370,70 @@ def read_data_file_using_hooks(doctype):
 			data = f.read()
 		return data
 	return None
+
+
+@frappe.whitelist()
+def populate_establishment_and_experience_test_values(company_ids=None):
+	"""
+	Set cheese establishment custom fields and sample Cheese Document links/images.
+
+	Omit `company_ids` to update up to 20 companies. Returns `populated_company_ids` for QA trackers (e.g. row 150).
+	"""
+	frappe.only_for("System Manager")
+	if isinstance(company_ids, str):
+		try:
+			company_ids = json.loads(company_ids)
+		except Exception:
+			company_ids = [s.strip() for s in company_ids.split(",") if s.strip()]
+	if not company_ids:
+		company_ids = frappe.get_all("Company", pluck="name", limit=20)
+	populated = []
+	for cid in company_ids:
+		if not frappe.db.exists("Company", cid):
+			continue
+		co = frappe.get_doc("Company", cid)
+		_apply_sample_cheese_company_fields(co)
+		co.save(ignore_permissions=True)
+		_ensure_sample_cheese_documents_for_company(cid)
+		populated.append(cid)
+	frappe.db.commit()
+	return {
+		"success": True,
+		"populated_company_ids": populated,
+		"note": "Use populated_company_ids to record which establishments were filled (e.g. spreadsheet row 150).",
+	}
+
+
+def _ensure_sample_cheese_documents_for_company(company_id):
+	if not frappe.db.exists(
+		"Cheese Document",
+		{"entity_type": "Company", "entity_id": company_id, "title": "Web (demo)"},
+	):
+		frappe.get_doc(
+			{
+				"doctype": "Cheese Document",
+				"entity_type": "Company",
+				"entity_id": company_id,
+				"title": "Web (demo)",
+				"document_type": "Link",
+				"file_url": "https://example.com/dairy",
+				"status": "PUBLISHED",
+			}
+		).insert(ignore_permissions=True)
+	for exp in frappe.get_all("Cheese Experience", filters={"company": company_id}, pluck="name"):
+		if frappe.db.exists(
+			"Cheese Document",
+			{"entity_type": "Cheese Experience", "entity_id": exp, "title": "Imagen demo"},
+		):
+			continue
+		frappe.get_doc(
+			{
+				"doctype": "Cheese Document",
+				"entity_type": "Cheese Experience",
+				"entity_id": exp,
+				"title": "Imagen demo",
+				"document_type": "Image",
+				"file_url": "https://images.unsplash.com/photo-1486297678162-eb2a19b0a32d?w=800",
+				"status": "PUBLISHED",
+			}
+		).insert(ignore_permissions=True)

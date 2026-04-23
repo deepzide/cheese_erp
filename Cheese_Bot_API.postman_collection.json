@@ -453,7 +453,7 @@
 							"host": ["{{base_url}}"],
 							"path": ["api", "method", "cheese.api.v1.availability_controller.get_availability"]
 						},
-						"description": "ERP: Calculates real slots. Bot: Queries and offers options."
+						"description": "ERP: Calculates real slots. Bot: Queries and offers options.\n\n**Per-day capacity:** Responses include one entry per calendar day in `date_from`/`date_to` for each slot (`selected_date` / `calendar_date`, and `date` = that day). `available_capacity` is for that day only."
 					},
 					"response": []
 				},
@@ -480,7 +480,7 @@
 							"host": ["{{base_url}}"],
 							"path": ["api", "method", "cheese.api.v1.availability_controller.get_available_slots"]
 						},
-						"description": "Legacy endpoint - use get_availability instead."
+						"description": "Alias of get_availability. Same per-day slot rows as get_availability."
 					},
 					"response": []
 				},
@@ -500,14 +500,14 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n  \"route_id\": \"ROUTE-001\",\n  \"date\": \"2024-12-31\",\n  \"party_size\": 2\n}"
+							"raw": "{\n  \"route_id\": \"ROUTE-001\",\n  \"date_from\": \"2026-04-20\",\n  \"date_to\": \"2026-04-27\",\n  \"party_size\": 2\n}"
 						},
 						"url": {
 							"raw": "{{base_url}}/api/method/cheese.api.v1.availability_controller.get_route_availability",
 							"host": ["{{base_url}}"],
 							"path": ["api", "method", "cheese.api.v1.availability_controller.get_route_availability"]
 						},
-						"description": "ERP: Returns aggregated availability or rules to build it. Bot: Guides configuration."
+						"description": "Route-level availability for a date range. Pass `date` as shorthand for a single day (`date_from`/`date_to`). Each `available_slots` entry includes `selected_date` / `calendar_date` for that occurrence; capacity is per calendar day.\n\n**Testing route time selection:** Use this together with `route_booking_controller.get_available_slots_for_route` (per-experience slot rows for a chosen day or range)."
 					},
 					"response": []
 				}
@@ -839,14 +839,41 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n  \"contact_id\": \"CONTACT-001\",\n  \"route_id\": \"ROUTE-001\",\n  \"party_size\": 2,\n  \"date_from\": \"2024-12-31\",\n  \"date_to\": \"2024-12-31\",\n  \"conversation_id\": \"CONV-001\"\n}"
+							"raw": "{\n  \"contact_id\": \"CONTACT-001\",\n  \"route_id\": \"ROUTE-001\",\n  \"party_size\": 2,\n  \"date_from\": \"2024-12-31\",\n  \"date_to\": \"2024-12-31\",\n  \"time_from\": \"10:00\",\n  \"time_to\": \"11:00\",\n  \"conversation_id\": \"CONV-001\"\n}"
 						},
 						"url": {
 							"raw": "{{base_url}}/api/method/cheese.api.v1.route_booking_controller.create_route_reservation",
 							"host": ["{{base_url}}"],
 							"path": ["api", "method", "cheese.api.v1.route_booking_controller.create_route_reservation"]
 						},
-						"description": "ERP: Creates RouteBooking = PENDING + internal reservations, locks capacity. Bot: Guides and executes.\n\n**Booking date / slots:** Omit `experiences_with_slots` and pass `date_from` and optionally `date_to` (YYYY-MM-DD) to auto-select OPEN slots in that range; single-day bookings can set both to the same date. Alternatively pass `experiences_with_slots` with explicit `experience_id` / `slot_id` pairs. The `date` field is accepted as a synonym for `date_from` when `date_from` is not set."
+						"description": "ERP: Creates RouteBooking = PENDING + internal reservations, locks capacity. Bot: Guides and executes.\n\n**Booking date / time / slots:** Omit `experiences_with_slots` and pass `date_from` and optionally `date_to` (YYYY-MM-DD) to auto-select OPEN slots in that range; single-day bookings can set both to the same date. You can also pass `time_from` and `time_to` (HH:MM or HH:MM:SS) to constrain auto-selection to that exact time window. Alternatively pass `experiences_with_slots` with explicit `experience_id` / `slot_id` pairs. The `date` field is accepted as a synonym for `date_from` when `date_from` is not set."
+					},
+					"response": []
+				},
+				{
+					"name": "Get Available Slots for Route",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "token {{token}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"route_id\": \"ROUTE-001\",\n  \"selected_date\": \"2026-04-20\",\n  \"party_size\": 2\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/method/cheese.api.v1.route_booking_controller.get_available_slots_for_route",
+							"host": ["{{base_url}}"],
+							"path": ["api", "method", "cheese.api.v1.route_booking_controller.get_available_slots_for_route"]
+						},
+						"description": "Lists candidate slots per experience on the route for the chosen date (or `date_from`/`date_to` range). Each row includes `selected_date` / `calendar_date` and per-day `available_capacity`. Use before `create_route_reservation` when building explicit `experiences_with_slots`."
 					},
 					"response": []
 				},
@@ -1200,14 +1227,14 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n  \"ticket_id\": \"TICKET-001\"\n}"
+							"raw": "{\n  \"ticket_id\": \"TICKET-001\",\n  \"payment_type\": \"Deposit\"\n}"
 						},
 						"url": {
 							"raw": "{{base_url}}/api/method/cheese.api.v1.deposit_controller.get_payment_link_or_instructions",
 							"host": ["{{base_url}}"],
 							"path": ["api", "method", "cheese.api.v1.deposit_controller.get_payment_link_or_instructions"]
 						},
-						"description": "Get payment link if available, otherwise returns instructions."
+						"description": "Get payment link if available, otherwise returns instructions.\n\n**payment_type:** Omit for default behavior, or set `\"Deposit\"` (advance) / `\"Balance\"` (remaining after advance paid)."
 					},
 					"response": []
 				},
@@ -1227,14 +1254,14 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n  \"ticket_id\": \"TICKET-001\"\n}"
+							"raw": "{\n  \"ticket_id\": \"TICKET-001\",\n  \"payment_type\": \"Deposit\"\n}"
 						},
 						"url": {
 							"raw": "{{base_url}}/api/method/cheese.api.v1.deposit_controller.get_deposit_instructions",
 							"host": ["{{base_url}}"],
 							"path": ["api", "method", "cheese.api.v1.deposit_controller.get_deposit_instructions"]
 						},
-						"description": "Legacy endpoint - use get_payment_link_or_instructions instead."
+						"description": "Bank instructions for the ticket deposit or balance.\n\n**payment_type:** `\"Deposit\"` | `\"Balance\"` — same semantics as `record_deposit_payment`."
 					},
 					"response": []
 				},
@@ -1278,6 +1305,12 @@
 									"type": "text"
 								},
 								{
+									"key": "payment_type",
+									"value": "Deposit",
+									"type": "text",
+									"description": "Deposit (advance) or Balance (remaining)"
+								},
+								{
 									"key": "receipt",
 									"type": "file",
 									"src": ""
@@ -1289,7 +1322,7 @@
 							"host": ["{{base_url}}"],
 							"path": ["api", "method", "cheese.api.v1.deposit_controller.record_deposit_payment"]
 						},
-						"description": "Record a deposit payment with optional receipt upload (PDF/PNG/JPG/JPEG/WEBP, max 10MB). Use form-data field name 'receipt' (also accepts 'payment_receipt' or 'file')."
+						"description": "Record a deposit payment with optional receipt upload (PDF/PNG/JPG/JPEG/WEBP, max 10MB). Use form-data field name 'receipt' (also accepts 'payment_receipt' or 'file').\n\n**payment_type:** `Deposit` | `Balance` — must match the deposit you are paying down."
 					},
 					"response": []
 				},

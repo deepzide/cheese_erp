@@ -299,11 +299,39 @@ def get_establishment_details(company_id):
 		pdfs = []
 		
 		try:
-			all_documents = frappe.get_all(
+			# Cheese Document allows Company | Cheese Experience | Cheese Route (not "Establishment")
+			company_docs = frappe.get_all(
 				"Cheese Document",
-				filters={"entity_id": company_id, "status": "PUBLISHED", "entity_type": ["in", ["Company", "Establishment"]]},
-				fields=["name", "title", "file_url", "document_type", "tags", "language", "version", "entity_type"]
+				filters={
+					"entity_id": company_id,
+					"status": "PUBLISHED",
+					"entity_type": "Company",
+				},
+				fields=["name", "title", "file_url", "document_type", "tags", "language", "version", "entity_type"],
 			)
+			experience_ids = frappe.get_all(
+				"Cheese Experience",
+				filters={"company": company_id},
+				pluck="name",
+			)
+			experience_docs = []
+			if experience_ids:
+				experience_docs = frappe.get_all(
+					"Cheese Document",
+					filters={
+						"entity_type": "Cheese Experience",
+						"entity_id": ["in", experience_ids],
+						"status": "PUBLISHED",
+					},
+					fields=["name", "title", "file_url", "document_type", "tags", "language", "version", "entity_type"],
+				)
+			seen = set()
+			all_documents = []
+			for row in company_docs + experience_docs:
+				if row.name in seen:
+					continue
+				seen.add(row.name)
+				all_documents.append(row)
 			
 			for doc in all_documents:
 				doc_info = {

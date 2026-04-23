@@ -37,17 +37,12 @@ class CheeseDeposit(Document):
 		if self.amount_paid and self.amount_paid < 0:
 			frappe.throw(_("Amount Paid cannot be negative"))
 			
-		# Update status based on payment
+		# Update status based on payment.
+		# Overpayments must also close the down payment as PAID.
 		if self.amount_paid and self.amount_paid >= self.amount_required:
-			if self.amount_paid > self.amount_required:
-				# Overpayment — flag for review instead of blocking
-				self.status = "REVIEW"
-				if not self.paid_at:
-					self.paid_at = now_datetime()
-			elif self.status == "PENDING":
-				self.status = "PAID"
-				if not self.paid_at:
-					self.paid_at = now_datetime()
+			self.status = "PAID"
+			if not self.paid_at:
+				self.paid_at = now_datetime()
 
 		# Check overdue
 		due_at_dt = get_datetime(self.due_at) if self.due_at else None
@@ -64,7 +59,7 @@ class CheeseDeposit(Document):
 			"entity_type": self.entity_type,
 			"entity_id": self.entity_id,
 			"name": ["!=", self.name] if self.name else ["!=", ""],
-			"status": ["not in", ["REFUNDED", "CANCELLED", "PAID", "REVIEW"]],
+			"status": ["not in", ["REFUNDED", "CANCELLED", "PAID"]],
 		}
 
 		existing = frappe.db.exists("Cheese Deposit", filters)

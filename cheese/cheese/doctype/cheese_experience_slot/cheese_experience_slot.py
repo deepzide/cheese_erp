@@ -99,23 +99,38 @@ class CheeseExperienceSlot(Document):
 			self.time_range = None
 
 	def calculate_reserved_capacity(self):
-		"""Calculate reserved capacity from active tickets (PENDING, CONFIRMED, CHECKED_IN, COMPLETED)"""
-		from cheese.cheese.utils.capacity import calculate_reserved_capacity as calc_capacity
-		self.reserved_capacity = calc_capacity(self.name)
+		"""Store peak reserved load: per calendar day for multi-day slots, else that single day."""
+		from cheese.cheese.utils.capacity import peak_reserved_capacity_for_slot_document
+
+		self.reserved_capacity = peak_reserved_capacity_for_slot_document(self)
 
 	def update_slot_status(self):
-		"""Update slot status based on capacity"""
+		"""Update slot status based on capacity (single-day slots only; multi-day is per-day in API)."""
+		if self.slot_status == "BLOCKED":
+			return
+
+		df, dt = getdate(self.date_from), getdate(self.date_to)
+		if df != dt:
+			# Capacity is enforced per calendar day on tickets; do not close the whole range
+			# when one day fills up.
+			self.slot_status = "OPEN"
+			return
+
 		available_capacity = self.max_capacity - (self.reserved_capacity or 0)
+		if available_capacity <= 0:
+			self.slot_status = "CLOSED"
+		else:
+			self.slot_status = "OPEN"
 
-		if self.slot_status != "BLOCKED":
-			if available_capacity <= 0:
-				self.slot_status = "CLOSED"
-			else:
-				self.slot_status = "OPEN"
+	def get_available_capacity(self, selected_date=None):
+		"""Prefer get_available_capacity(slot_id, date) from cheese.cheese.utils.capacity for bookings."""
+		from cheese.cheese.utils.capacity import get_available_capacity as _avail
 
-	def get_available_capacity(self):
-		"""Get available capacity for this slot"""
-		return self.max_capacity - (self.reserved_capacity or 0)
+		if selected_date is not None:
+			return _avail(self.name, getdate(selected_date))
+		if getdate(self.date_from) == getdate(self.date_to):
+			return _avail(self.name, getdate(self.date_from))
+		return _avail(self.name, None)
 
 	def on_trash(self):
 		"""Prevent casual deletion of slots. Force-delete via API is allowed."""

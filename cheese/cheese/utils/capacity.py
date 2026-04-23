@@ -3,6 +3,48 @@
 
 import frappe
 from frappe.query_builder import functions as fn
+from frappe.utils import add_days, getdate
+
+
+def iter_calendar_days_inclusive(start, end):
+	"""Yield each calendar date from start through end (inclusive)."""
+	d = getdate(start)
+	end_d = getdate(end)
+	while d <= end_d:
+		yield d
+		d = add_days(d, 1)
+
+
+def slot_calendar_days_in_range(slot_date_from, slot_date_to, range_from, range_to):
+	"""
+	Calendar days where a slot is active and overlaps the requested query range.
+	Both ranges are inclusive.
+	"""
+	sf, st = getdate(slot_date_from), getdate(slot_date_to)
+	rf, rt = getdate(range_from), getdate(range_to)
+	a = max(sf, rf)
+	b = min(st, rt)
+	if a > b:
+		return []
+	return list(iter_calendar_days_inclusive(a, b))
+
+
+def peak_reserved_capacity_for_slot_document(slot_doc):
+	"""
+	Aggregate reserved count for storing on Cheese Experience Slot.
+
+	Single-day slot: reserved for that day only.
+	Multi-day slot: max reserved on any single calendar day (peak load).
+	"""
+	df, dt = getdate(slot_doc.date_from), getdate(slot_doc.date_to)
+	if df == dt:
+		return calculate_reserved_capacity(slot_doc.name, df)
+	peak = 0
+	for d in iter_calendar_days_inclusive(df, dt):
+		r = calculate_reserved_capacity(slot_doc.name, d)
+		if r > peak:
+			peak = r
+	return peak
 
 
 def calculate_reserved_capacity(slot_name, selected_date=None):
