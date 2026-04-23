@@ -839,14 +839,14 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n  \"contact_id\": \"CONTACT-001\",\n  \"route_id\": \"ROUTE-001\",\n  \"party_size\": 2,\n  \"date_from\": \"2024-12-31\",\n  \"date_to\": \"2024-12-31\",\n  \"conversation_id\": \"CONV-001\"\n}"
+							"raw": "{\n  \"contact_id\": \"CONTACT-001\",\n  \"route_id\": \"ROUTE-001\",\n  \"party_size\": 2,\n  \"date_from\": \"2024-12-31\",\n  \"date_to\": \"2024-12-31\",\n  \"time_from\": \"10:00\",\n  \"time_to\": \"11:00\",\n  \"conversation_id\": \"CONV-001\"\n}"
 						},
 						"url": {
 							"raw": "{{base_url}}/api/method/cheese.api.v1.route_booking_controller.create_route_reservation",
 							"host": ["{{base_url}}"],
 							"path": ["api", "method", "cheese.api.v1.route_booking_controller.create_route_reservation"]
 						},
-						"description": "ERP: Creates RouteBooking = PENDING + internal reservations, locks capacity. Bot: Guides and executes.\n\n**Booking date / slots:** Omit `experiences_with_slots` and pass `date_from` and optionally `date_to` (YYYY-MM-DD) to auto-select OPEN slots in that range; single-day bookings can set both to the same date. Alternatively pass `experiences_with_slots` with explicit `experience_id` / `slot_id` pairs. The `date` field is accepted as a synonym for `date_from` when `date_from` is not set."
+						"description": "ERP: Creates RouteBooking = PENDING + internal reservations, locks capacity. Bot: Guides and executes.\n\n**Booking date / time / slots:** Omit `experiences_with_slots` and pass `date_from` and optionally `date_to` (YYYY-MM-DD) to auto-select OPEN slots in that range; single-day bookings can set both to the same date. You can also pass `time_from` and `time_to` (HH:MM or HH:MM:SS) to constrain auto-selection to that exact time window. Alternatively pass `experiences_with_slots` with explicit `experience_id` / `slot_id` pairs. The `date` field is accepted as a synonym for `date_from` when `date_from` is not set."
 					},
 					"response": []
 				},
