@@ -60,13 +60,6 @@ def expire_pending_tickets():
 		except Exception as e:
 			frappe.log_error(f"Failed to expire stale pending ticket {ticket_data.name}: {e}")
 
-	# Update capacity for affected slots
-	for slot_name in slots_to_update:
-		try:
-			update_slot_capacity(slot_name)
-		except Exception as e:
-			frappe.log_error(f"Failed to update capacity for slot {slot_name}: {e}")
-
 	# Expire PENDING RouteBookings
 	pending_route_bookings = frappe.get_all(
 		"Cheese Route Booking",

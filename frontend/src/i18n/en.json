@@ -142,6 +142,30 @@
     "pricing": "Pricing",
     "depositStatus": "Deposit Status"
   },
+  "dashboard": {
+    "totalTickets": "Total Tickets",
+    "revenueCollected": "Revenue Collected",
+    "pendingDeposits": "Pending Deposits",
+    "loadFailed": "Failed to load dashboard",
+    "overview": "Overview of your cheese operations",
+    "today": "Today",
+    "yesterday": "Yesterday",
+    "last7": "Last 7 Days",
+    "last30": "Last 30 Days",
+    "ticketsByStatus": "Tickets by Status",
+    "noTicketData": "No ticket data for this period"
+  },
+  "deposits": {
+    "loadFailed": "Failed to load deposits",
+    "items": "deposits",
+    "allStatus": "All Status",
+    "createNew": "Create New",
+    "noneFound": "No deposits found"
+  },
+  "bookingPolicy": {
+    "items": "policies",
+    "new": "New Policy"
+  },
   "booking": {
     "title": "Bookings"
   }

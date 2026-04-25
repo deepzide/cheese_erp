@@ -10,8 +10,10 @@ export const dashboardService = {
         return apiRequest(`${BASE}.get_central_dashboard?${params}`);
     },
 
-    getEstablishmentDashboard: async (establishmentId, period = 'today') => {
+    getEstablishmentDashboard: async (establishmentId, period = 'today', dateFrom = null, dateTo = null) => {
         const params = new URLSearchParams({ establishment_id: establishmentId, period });
+        if (dateFrom) params.append('date_from', dateFrom);
+        if (dateTo) params.append('date_to', dateTo);
         return apiRequest(`${BASE}.get_establishment_dashboard?${params}`);
     },
 

@@ -11,7 +11,9 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Shield, Search, AlertCircle, RefreshCw, Loader2, Plus, Clock, MoreHorizontal, Sparkles } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
-import { useFrappeList, useFrappeCreate, useFrappeUpdate } from "@/lib/useApiData";
+import { useFrappeList, useFrappeCreate } from "@/lib/useApiData";
+import { apiRequest } from "@/api/client";
+import { useTranslation } from "react-i18next";
 
 const parseHours = (value, fallback) => {
     const parsed = Number.parseInt(value, 10);
@@ -20,6 +22,7 @@ const parseHours = (value, fallback) => {
 
 export default function BookingPolicy() {
     const navigate = useNavigate();
+    const { t } = useTranslation();
     const [searchParams] = useSearchParams();
     const experienceFilter = searchParams.get("experience") || "";
     const [searchTerm, setSearchTerm] = useState("");
@@ -34,7 +37,6 @@ export default function BookingPolicy() {
     });
 
     const createMutation = useFrappeCreate("Cheese Booking Policy");
-    const updateMutation = useFrappeUpdate("Cheese Booking Policy");
 
     const filtered = (Array.isArray(policies) ? policies : []).filter(p => {
         if (experienceFilter && p.experience !== experienceFilter) return false;
@@ -64,23 +66,24 @@ export default function BookingPolicy() {
         });
     };
 
-    const handleEditSave = () => {
+    const handleEditSave = async () => {
         if (!editPolicy?.name) return;
-        updateMutation.mutate({
-            name: editPolicy.name,
-            data: {
-                cancel_until_hours_before: parseHours(editForm.cancel_until_hours_before, 24),
-                modify_until_hours_before: parseHours(editForm.modify_until_hours_before, 12),
-                min_hours_before_booking: parseHours(editForm.min_hours_before_booking, 2),
-            },
-        }, {
-            onSuccess: () => {
-                toast.success("Policy updated");
-                setEditPolicy(null);
-                refetch();
-            },
-            onError: (err) => toast.error(err?.message || "Failed to update"),
-        });
+        try {
+            await apiRequest("/api/method/cheese.api.v1.experience_controller.update_booking_policy", {
+                method: "POST",
+                body: JSON.stringify({
+                    experience_id: editPolicy.experience,
+                    cancel_until_hours_before: parseHours(editForm.cancel_until_hours_before, 24),
+                    modify_until_hours_before: parseHours(editForm.modify_until_hours_before, 12),
+                    min_hours_before_booking: parseHours(editForm.min_hours_before_booking, 2),
+                }),
+            });
+            toast.success("Policy updated");
+            setEditPolicy(null);
+            refetch();
+        } catch (err) {
+            toast.error(err?.message || "Failed to update");
+        }
     };
 
     if (error) {
@@ -98,15 +101,15 @@ export default function BookingPolicy() {
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="p-6 space-y-6">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
-                    <h1 className="text-2xl font-bold text-foreground flex items-center gap-2"><Shield className="w-6 h-6 text-cheese-600" /> Booking Policies</h1>
-                    <p className="text-sm text-muted-foreground mt-1">{isLoading ? '...' : `${filtered.length} policies`}</p>
+                    <h1 className="text-2xl font-bold text-foreground flex items-center gap-2"><Shield className="w-6 h-6 text-cheese-600" /> {t("nav.bookingPolicy", "Booking Policies")}</h1>
+                    <p className="text-sm text-muted-foreground mt-1">{isLoading ? '...' : `${filtered.length} ${t("bookingPolicy.items", "policies")}`}</p>
                     {experienceFilter && (
                         <p className="text-xs text-muted-foreground mt-1">Filtered by Experience: {experienceFilter}</p>
                     )}
                 </div>
                 <div className="flex gap-2">
-                    <div className="relative"><Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" /><Input placeholder="Search..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-9 w-56 h-9" /></div>
-                    <Button className="cheese-gradient text-black font-semibold border-0 h-9" onClick={() => navigate("/cheese/booking-policy/new")}><Plus className="w-4 h-4 mr-1" /> New Policy</Button>
+                    <div className="relative"><Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" /><Input placeholder={t("common.search", "Search") + "..."} value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-9 w-56 h-9" /></div>
+                    <Button className="cheese-gradient text-black font-semibold border-0 h-9" onClick={() => navigate("/cheese/booking-policy/new")}><Plus className="w-4 h-4 mr-1" /> {t("bookingPolicy.new", "New Policy")}</Button>
                     <Button variant="ghost" size="icon" onClick={() => refetch()} className="h-9 w-9"><RefreshCw className="w-4 h-4" /></Button>
                 </div>
             </div>
@@ -189,8 +192,7 @@ export default function BookingPolicy() {
                     </div>
                     <DialogFooter>
                         <Button variant="outline" onClick={() => setEditPolicy(null)}>Cancel</Button>
-                        <Button onClick={handleEditSave} disabled={updateMutation.isPending}>
-                            {updateMutation.isPending ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : null}
+                        <Button onClick={handleEditSave}>
                             Save changes
                         </Button>
                     </DialogFooter>

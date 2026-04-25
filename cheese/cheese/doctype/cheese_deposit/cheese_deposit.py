@@ -50,7 +50,7 @@ class CheeseDeposit(Document):
 			self.status = "OVERDUE"
 
 	def validate_unique_active_deposit(self):
-		"""Ensure no duplicate active deposit — but allow remaining balance after advance PAID"""
+		"""Ensure there is only one active deposit per entity."""
 		if not (self.entity_type and self.entity_id):
 			return
 
@@ -64,18 +64,6 @@ class CheeseDeposit(Document):
 
 		existing = frappe.db.exists("Cheese Deposit", filters)
 		if existing:
-			# If there's already a PAID deposit, this is a remaining-balance flow — allow it
-			has_paid = frappe.db.exists("Cheese Deposit", {
-				"entity_type": self.entity_type,
-				"entity_id": self.entity_id,
-				"status": "PAID",
-			})
-			if has_paid:
-				# Cancel the stale pending deposit and let the new one through
-				frappe.db.set_value("Cheese Deposit", existing, "status", "CANCELLED")
-				frappe.db.commit()
-				return
-
 			frappe.throw(
 				_("A pending deposit ({0}) already exists for this entity. Pay or cancel it before creating another.").format(
 					existing

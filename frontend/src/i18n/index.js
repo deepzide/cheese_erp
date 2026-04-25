@@ -12,7 +12,7 @@ i18n
       en: { translation: en },
       es: { translation: es },
     },
-    lng: "es", // Force Spanish
+    lng: undefined,
     fallbackLng: "es",
     interpolation: {
       escapeValue: false,

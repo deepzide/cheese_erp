@@ -142,6 +142,30 @@
     "pricing": "Precios",
     "depositStatus": "Estado del Depósito"
   },
+  "dashboard": {
+    "totalTickets": "Tickets Totales",
+    "revenueCollected": "Ingresos Cobrados",
+    "pendingDeposits": "Depósitos Pendientes",
+    "loadFailed": "No se pudo cargar el panel",
+    "overview": "Resumen de las operaciones",
+    "today": "Hoy",
+    "yesterday": "Ayer",
+    "last7": "Últimos 7 Días",
+    "last30": "Últimos 30 Días",
+    "ticketsByStatus": "Tickets por Estado",
+    "noTicketData": "No hay datos de tickets para este período"
+  },
+  "deposits": {
+    "loadFailed": "No se pudieron cargar los depósitos",
+    "items": "depósitos",
+    "allStatus": "Todos los estados",
+    "createNew": "Crear nuevo",
+    "noneFound": "No se encontraron depósitos"
+  },
+  "bookingPolicy": {
+    "items": "políticas",
+    "new": "Nueva política"
+  },
   "booking": {
     "title": "Reservas"
   },

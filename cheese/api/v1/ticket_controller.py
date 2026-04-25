@@ -1134,17 +1134,9 @@ def update_ticket_status(ticket_id, new_status, reason=None):
 		ticket = frappe.get_doc("Cheese Ticket", ticket_id)
 		old_status = ticket.status
 		
-		# Validate status transition
-		allowed_transitions = {
-			"PENDING": ["CONFIRMED", "REJECTED", "EXPIRED", "CANCELLED"],
-			"CONFIRMED": ["CHECKED_IN", "CANCELLED", "NO_SHOW"],
-			"CHECKED_IN": ["COMPLETED", "NO_SHOW"],
-			"COMPLETED": [],
-			"EXPIRED": [],
-			"REJECTED": [],
-			"CANCELLED": [],
-			"NO_SHOW": []
-		}
+		# Validate status transition using the doctype state machine.
+		from cheese.cheese.doctype.cheese_ticket.cheese_ticket import CheeseTicket
+		allowed_transitions = CheeseTicket.VALID_TRANSITIONS
 		
 		if new_status not in allowed_transitions.get(old_status, []):
 			return validation_error(

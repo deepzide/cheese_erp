@@ -21,9 +21,11 @@ export default function DepositCreate() {
         amount_required: "",
         payment_amount: "",
         due_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().slice(0, 16),
+        bank_account: "",
     });
 
     const [submitting, setSubmitting] = useState(false);
+    const [bankAccounts, setBankAccounts] = useState([]);
 
     const { data: ticket, isLoading: ticketLoading } = useFrappeDoc("Cheese Ticket", form.entity_type === "Cheese Ticket" ? form.entity_id : "", {
         enabled: form.entity_type === "Cheese Ticket" && !!form.entity_id,
@@ -42,6 +44,28 @@ export default function DepositCreate() {
             setForm((prev) => ({ ...prev, contact: prefilledTicket.contact }));
         }
     }, [prefilledTicket]);
+
+    useEffect(() => {
+        const loadInstructions = async () => {
+            if (form.entity_type !== "Cheese Ticket" || !form.entity_id) {
+                setBankAccounts([]);
+                return;
+            }
+            try {
+                const res = await apiRequest(`/api/method/cheese.api.v1.deposit_controller.get_deposit_instructions?ticket_id=${encodeURIComponent(form.entity_id)}`);
+                const payload = res?.data?.message || res?.data || res;
+                const data = payload?.data || {};
+                const accounts = Array.isArray(data.bank_account) ? data.bank_account : [];
+                setBankAccounts(accounts);
+                if (!form.bank_account && accounts.length > 0 && accounts[0].bank_account_id) {
+                    setForm((prev) => ({ ...prev, bank_account: accounts[0].bank_account_id }));
+                }
+            } catch {
+                setBankAccounts([]);
+            }
+        };
+        loadInstructions();
+    }, [form.entity_type, form.entity_id]);
 
     useEffect(() => {
         if (form.entity_type === "Cheese Ticket" && ticket) {
@@ -125,6 +149,7 @@ export default function DepositCreate() {
                             value={form.contact}
                             onChange={(v) => setForm((prev) => ({ ...prev, contact: v, entity_id: "" }))}
                             placeholder="Select contact..."
+                            disabled={!!ticketId}
                         />
                     </div>
                     <div className="space-y-2">
@@ -202,14 +227,20 @@ export default function DepositCreate() {
                         />
                     </div>
                     <div className="space-y-2">
-                        <p className="text-xs text-muted-foreground">Bank Account (for route deposits)</p>
+                        <p className="text-xs text-muted-foreground">Bank Account</p>
                         <FrappeSearchSelect
                             doctype="Cheese Bank Account"
                             label="holder"
                             value={form.bank_account || ""}
                             onChange={(v) => setForm((prev) => ({ ...prev, bank_account: v }))}
-                            filters={form.entity_type === "Cheese Route Booking" && booking?.route ? { entity_type: "Cheese Route", entity_id: booking.route } : {}}
-                            placeholder={booking?.route ? "Select bank account..." : "Select reservation first..."}
+                            filters={
+                                form.entity_type === "Cheese Route Booking" && booking?.route
+                                    ? { entity_type: "Cheese Route", entity_id: booking.route }
+                                    : form.entity_type === "Cheese Ticket" && bankAccounts.length > 0
+                                        ? { name: ["in", bankAccounts.map((a) => a.bank_account_id).filter(Boolean)] }
+                                        : {}
+                            }
+                            placeholder={form.entity_type === "Cheese Ticket" ? "Select establishment bank account..." : "Select bank account..."}
                             disabled={form.entity_type === "Cheese Route Booking" && !booking?.route}
                         />
                     </div>

@@ -9,9 +9,11 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { LayoutDashboard, Ticket, Users, DollarSign, Clock, TrendingUp, AlertCircle, RefreshCw, CalendarDays, Shield, Sparkles } from "lucide-react";
 import { dashboardService } from "@/api/dashboardService";
+import { useTranslation } from "react-i18next";
 
 export default function Dashboard() {
     const navigate = useNavigate();
+    const { t } = useTranslation();
     const [period, setPeriod] = useState("today");
 
     const { dateFrom, dateTo } = useMemo(() => {
@@ -40,9 +42,9 @@ export default function Dashboard() {
     }, [period]);
 
     const { data: dashRaw, isLoading, error, refetch } = useQuery({
-        queryKey: ['dashboard', period],
+        queryKey: ['dashboard', period, dateFrom, dateTo],
         queryFn: async () => {
-            const result = await dashboardService.getCentralDashboard(period);
+            const result = await dashboardService.getCentralDashboard(period, dateFrom, dateTo);
             const payload = result?.data?.message || result?.data || result;
             return payload?.data || payload || {};
         },
@@ -60,7 +62,7 @@ export default function Dashboard() {
     const kpis = kpisRaw || {};
 
     // Use server-side aggregated dashboard response to avoid stale local fallback totals.
-    let ticketsByStatus = dashboard.tickets_by_status || {};
+    let ticketsByStatus = dashboard.tickets_by_status || dashboard.tickets || {};
     const totalTickets = Object.values(ticketsByStatus).reduce((sum, v) => sum + (Number(v) || 0), 0) || kpis?.conversion_rates?.total_tickets || 0;
 
     const convRates = kpis?.conversion_rates || {};
@@ -73,10 +75,10 @@ export default function Dashboard() {
     const satisfaction = kpis?.average_satisfaction || 0;
 
     const kpiCards = [
-        { title: "Total Tickets", value: totalTickets || convRates.total_tickets || 0, icon: Ticket, color: "text-blue-600", onClick: () => navigate('/cheese/tickets') },
-        { title: "Revenue Collected", value: `$${Number(collectedRevenue).toLocaleString()}`, icon: DollarSign, color: "text-emerald-600", onClick: () => navigate('/cheese/deposits') },
-        { title: "Leads", value: totalLeads, icon: Users, color: "text-purple-600", onClick: () => navigate('/cheese/leads') },
-        { title: "Pending Deposits", value: pendingDeposits, icon: Clock, color: "text-orange-600", onClick: () => navigate('/cheese/deposits?status=PENDING') },
+        { title: t("dashboard.totalTickets", "Total Tickets"), value: totalTickets || convRates.total_tickets || 0, icon: Ticket, color: "text-blue-600", onClick: () => navigate('/cheese/tickets') },
+        { title: t("dashboard.revenueCollected", "Revenue Collected"), value: `$${Number(collectedRevenue).toLocaleString()}`, icon: DollarSign, color: "text-emerald-600", onClick: () => navigate('/cheese/deposits') },
+        { title: t("nav.leads", "Leads"), value: totalLeads, icon: Users, color: "text-purple-600", onClick: () => navigate('/cheese/leads') },
+        { title: t("dashboard.pendingDeposits", "Pending Deposits"), value: pendingDeposits, icon: Clock, color: "text-orange-600", onClick: () => navigate('/cheese/deposits?status=PENDING') },
     ];
 
     // Ticket status breakdown for chart
@@ -112,9 +114,9 @@ export default function Dashboard() {
         return (
             <div className="p-6 flex flex-col items-center justify-center min-h-[400px] text-center">
                 <AlertCircle className="w-12 h-12 text-red-400 mb-4" />
-                <h2 className="text-lg font-semibold mb-2">Failed to load dashboard</h2>
+                <h2 className="text-lg font-semibold mb-2">{t("dashboard.loadFailed", "Failed to load dashboard")}</h2>
                 <p className="text-sm text-muted-foreground mb-4">{error?.message}</p>
-                <Button onClick={() => refetch()} variant="outline"><RefreshCw className="w-4 h-4 mr-2" /> Retry</Button>
+                <Button onClick={() => refetch()} variant="outline"><RefreshCw className="w-4 h-4 mr-2" /> {t("common.retry", "Retry")}</Button>
             </div>
         );
     }
@@ -124,18 +126,18 @@ export default function Dashboard() {
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
                     <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
-                        <LayoutDashboard className="w-6 h-6 text-cheese-600" /> Dashboard
+                        <LayoutDashboard className="w-6 h-6 text-cheese-600" /> {t("nav.dashboard", "Dashboard")}
                     </h1>
-                    <p className="text-sm text-muted-foreground mt-1">Overview of your cheese operations</p>
+                    <p className="text-sm text-muted-foreground mt-1">{t("dashboard.overview", "Overview of your cheese operations")}</p>
                 </div>
                 <div className="flex gap-2">
                     <Select value={period} onValueChange={setPeriod}>
                         <SelectTrigger className="w-36 h-9"><SelectValue /></SelectTrigger>
                         <SelectContent>
-                            <SelectItem value="today">Today</SelectItem>
-                            <SelectItem value="yesterday">Yesterday</SelectItem>
-                            <SelectItem value="7">Last 7 Days</SelectItem>
-                            <SelectItem value="30">Last 30 Days</SelectItem>
+                            <SelectItem value="today">{t("dashboard.today", "Today")}</SelectItem>
+                            <SelectItem value="yesterday">{t("dashboard.yesterday", "Yesterday")}</SelectItem>
+                            <SelectItem value="7">{t("dashboard.last7", "Last 7 Days")}</SelectItem>
+                            <SelectItem value="30">{t("dashboard.last30", "Last 30 Days")}</SelectItem>
                         </SelectContent>
                     </Select>
                     <Button variant="ghost" size="icon" onClick={() => refetch()} className="h-9 w-9"><RefreshCw className="w-4 h-4" /></Button>
@@ -167,7 +169,7 @@ export default function Dashboard() {
                 {/* Ticket Status Chart */}
                 <Card className="border-0 shadow-lg">
                     <CardHeader className="pb-2">
-                        <CardTitle className="text-base flex items-center gap-2"><Ticket className="w-4 h-4 text-cheese-600" /> Tickets by Status</CardTitle>
+                        <CardTitle className="text-base flex items-center gap-2"><Ticket className="w-4 h-4 text-cheese-600" /> {t("dashboard.ticketsByStatus", "Tickets by Status")}</CardTitle>
                     </CardHeader>
                     <CardContent>
                         {isLoading ? (
@@ -185,7 +187,7 @@ export default function Dashboard() {
                                 ))}
                             </div>
                         ) : (
-                            <p className="text-center text-muted-foreground py-8">No ticket data for this period</p>
+                            <p className="text-center text-muted-foreground py-8">{t("dashboard.noTicketData", "No ticket data for this period")}</p>
                         )}
                     </CardContent>
                 </Card>

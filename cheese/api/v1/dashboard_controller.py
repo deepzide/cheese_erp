@@ -131,6 +131,7 @@ def get_central_dashboard(period="today", date_from=None, date_to=None):
 					"pending": pending,
 					"total": sum(current_counts.values())
 				},
+				"tickets_by_status": current_counts,
 				"comparison": {
 					"confirmed_change": confirmed - prev_confirmed,
 					"checked_in_change": checked_in - prev_checked_in,
@@ -243,10 +244,11 @@ def get_establishment_dashboard(establishment_id, period="today", date_from=None
 		today_slots = frappe.get_all(
 			"Cheese Experience Slot",
 			filters={
-				"date": today_date,
+				"date_from": ["<=", today_date],
+				"date_to": [">=", today_date],
 				"experience": ["in", exp_ids]
 			},
-			fields=["name", "time"]
+			fields=["name", "time_from", "date_from", "date_to"]
 		)
 		
 		today_tickets = []

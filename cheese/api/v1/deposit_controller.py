@@ -53,15 +53,35 @@ def _get_paid_amount_for_entity(entity_type, entity_id):
 	return sum(flt(row.amount_paid or 0) for row in paid_rows)
 
 
+def _get_amount_received_for_entity(entity_type, entity_id):
+	"""Total amount received excluding cancelled/refunded deposits."""
+	rows = frappe.get_all(
+		"Cheese Deposit",
+		filters={
+			"entity_type": entity_type,
+			"entity_id": entity_id,
+			"status": ["not in", ["CANCELLED", "REFUNDED"]],
+		},
+		fields=["amount_paid"],
+	)
+	return sum(flt(row.amount_paid or 0) for row in rows)
+
+
 def _create_balance_deposit(entity_type, entity_doc, due_at=None):
 	total_price = _get_entity_total_price(entity_type, entity_doc)
-	paid_total = _get_paid_amount_for_entity(entity_type, entity_doc.name)
+	paid_total = _get_amount_received_for_entity(entity_type, entity_doc.name)
 	remaining = total_price - paid_total
 	if remaining <= 0:
 		frappe.throw(
 			_("No remaining balance. Total price: {0}, already paid: {1}").format(total_price, paid_total),
 			frappe.ValidationError,
 		)
+
+	if due_at is None:
+		ttl = 24
+		if entity_type == "Cheese Ticket" and getattr(entity_doc, "experience", None):
+			ttl = frappe.db.get_value("Cheese Experience", entity_doc.experience, "deposit_ttl_hours") or 24
+		due_at = add_to_date(now_datetime(), hours=ttl, as_string=False)
 
 	new_deposit = frappe.get_doc(
 		{
@@ -75,6 +95,26 @@ def _create_balance_deposit(entity_type, entity_doc, due_at=None):
 	)
 	new_deposit.insert()
 	return new_deposit
+
+
+def _select_open_deposit(entity_type, entity_id, payment_type=None):
+	"""Pick the best active deposit for the requested payment phase."""
+	open_deposits = frappe.get_all(
+		"Cheese Deposit",
+		filters={
+			"entity_type": entity_type,
+			"entity_id": entity_id,
+			"status": ["in", ["PENDING", "OVERDUE"]],
+		},
+		fields=["name", "creation", "due_at", "amount_required"],
+		order_by="creation asc",
+	)
+	if not open_deposits:
+		return None
+	if payment_type == "Balance":
+		return open_deposits[-1].name
+	# Default and "Deposit": use earliest active deposit.
+	return open_deposits[0].name
 
 
 def _build_deposit_payload(deposit):
@@ -240,19 +280,9 @@ def get_deposit_instructions(ticket_id, payment_type=None):
 				}
 			)
 
-		# Get or create deposit based on payment_type
-		# Advance deposit is usually the first one created
+		# Get or create deposit based on payment_type.
 		filters = {"entity_type": "Cheese Ticket", "entity_id": ticket_id}
-		
-		# If Balance is explicitly requested, or if Advance is already PAID, we look for Balance
-		if payment_type == "Balance":
-			# Try to find a deposit created *after* the initial one (naively by creation date desc or status)
-			# Or if not existing, we will create the balance deposit
-			deposit = frappe.db.get_value("Cheese Deposit", {**filters, "status": ["in", ["PENDING", "OVERDUE"]], "amount_required": ["!=", ticket.deposit_amount]}, "name")
-		elif payment_type == "Deposit":
-			deposit = frappe.db.get_value("Cheese Deposit", {**filters, "amount_required": ticket.deposit_amount}, "name")
-		else:
-			deposit = frappe.db.get_value("Cheese Deposit", filters, "name")
+		deposit = _select_open_deposit("Cheese Ticket", ticket_id, payment_type=payment_type)
 
 		if not deposit:
 			# Create deposit based on payment_type
@@ -354,7 +384,14 @@ def record_deposit_payment(
 	try:
 		if not ticket_id and not deposit_id:
 			return validation_error("Either ticket_id or deposit_id is required")
-		bank_account = frappe.form_dict.get("bank_account")
+		json_body = {}
+		if getattr(frappe, "request", None):
+			json_body = frappe.request.get_json(silent=True) or {}
+		bank_account = (
+			frappe.form_dict.get("bank_account")
+			or getattr(frappe.local, "form_dict", {}).get("bank_account")
+			or json_body.get("bank_account")
+		)
 		amount = flt(amount)
 		if not amount or amount <= 0:
 			return validation_error("amount must be greater than 0")
@@ -381,53 +418,15 @@ def record_deposit_payment(
 			ticket_doc = frappe.get_doc(entity_type, ticket_id)
 			deposit_name = None
 			
-			if payment_type == "Balance":
-				deposit_name = frappe.db.get_value(
-					"Cheese Deposit",
-					{
-						"entity_type": entity_type, 
-						"entity_id": ticket_id,
-						"status": ["in", ["PENDING", "OVERDUE"]],
-						"amount_required": ["!=", ticket_doc.deposit_amount] if hasattr(ticket_doc, "deposit_amount") else None
-					},
-					"name"
-				)
-			elif payment_type == "Deposit":
-				deposit_name = frappe.db.get_value(
-					"Cheese Deposit",
-					{
-						"entity_type": entity_type, 
-						"entity_id": ticket_id,
-						"status": ["in", ["PENDING", "OVERDUE"]],
-						"amount_required": ticket_doc.deposit_amount if hasattr(ticket_doc, "deposit_amount") else None
-					},
-					"name"
-				)
-			else:
-				deposit_name = frappe.db.get_value(
-					"Cheese Deposit",
-					{
-						"entity_type": entity_type, 
-						"entity_id": ticket_id,
-						"status": ["in", ["PENDING", "OVERDUE"]]
-					},
-					"name"
-				)
+			deposit_name = _select_open_deposit(entity_type, ticket_id, payment_type=payment_type)
 
 			if not deposit_name:
 				# Check if advance deposit already PAID — need remaining balance deposit OR explicitly requested Balance
-				paid_advance = frappe.db.get_value(
-					"Cheese Deposit",
-					{
-						"entity_type": entity_type,
-						"entity_id": ticket_id,
-						"status": "PAID",
-					},
-					["name", "amount_paid", "amount_required"],
-					as_dict=True,
-				)
+				total_received = _get_amount_received_for_entity(entity_type, ticket_id)
+				total_due = _get_entity_total_price(entity_type, ticket_doc)
+				needs_balance = total_received > 0 and total_received < total_due
 
-				if paid_advance or payment_type == "Balance":
+				if needs_balance or payment_type == "Balance":
 					# Advance is PAID or explicitly requested Balance — create remaining balance deposit
 					new_deposit = _create_balance_deposit(entity_type, ticket_doc)
 					frappe.db.commit()
@@ -460,7 +459,33 @@ def record_deposit_payment(
 			deposit = frappe.get_doc("Cheese Deposit", deposit_name)
 		old_status = deposit.status
 		if bank_account and frappe.db.exists("Cheese Bank Account", bank_account):
+			if deposit.entity_type == "Cheese Ticket":
+				ticket_currency = frappe.db.get_value("Cheese Ticket", deposit.entity_id, "currency")
+				account_currency = frappe.db.get_value("Cheese Bank Account", bank_account, "currency")
+				if ticket_currency and account_currency and ticket_currency != account_currency:
+					return validation_error(
+						"Ticket currency and selected bank account currency do not match",
+						{
+							"ticket_currency": ticket_currency,
+							"bank_account_currency": account_currency,
+							"bank_account": bank_account,
+						},
+					)
 			deposit.bank_account = bank_account
+
+		projected_total = _get_amount_received_for_entity(deposit.entity_type, deposit.entity_id) + amount
+		entity_doc = frappe.get_doc(deposit.entity_type, deposit.entity_id)
+		total_price = _get_entity_total_price(deposit.entity_type, entity_doc)
+		if projected_total - total_price > 0.01:
+			return validation_error(
+				"Payment exceeds the booking total. Please review for refund/adjustment.",
+				{
+					"entity_type": deposit.entity_type,
+					"entity_id": deposit.entity_id,
+					"projected_total_paid": projected_total,
+					"total_price": total_price,
+				},
+			)
 
 		deposit.record_payment(amount, verification_method, ocr_payload)
 
@@ -1013,7 +1038,7 @@ def create_remaining_balance_deposit(ticket_id=None, route_booking_id=None):
 				"No PAID advance deposit found. The advance must be paid before creating a remaining-balance deposit."
 			)
 
-		advance_paid = _get_paid_amount_for_entity(entity_type, entity_id)
+		advance_paid = _get_amount_received_for_entity(entity_type, entity_id)
 		remaining = total_price - advance_paid
 		if remaining <= 0:
 			return validation_error(
