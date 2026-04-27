@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Textarea } from "@/components/ui/textarea";
 import {
     Building2,
     ArrowLeft,
@@ -254,11 +255,12 @@ export default function EstablishmentDetail() {
                             <div className="space-y-2 sm:col-span-2">
                                 <Label>Description</Label>
                                 {editMode ? (
-                                    <Input
+                                    <Textarea
                                         value={form.company_description}
                                         onChange={(e) =>
                                             setForm((f) => ({ ...f, company_description: e.target.value }))
                                         }
+                                        className="min-h-[100px]"
                                     />
                                 ) : (
                                     <p className="text-sm text-muted-foreground">{payload?.description || "—"}</p>

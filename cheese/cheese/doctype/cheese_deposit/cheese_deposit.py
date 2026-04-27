@@ -38,9 +38,10 @@ class CheeseDeposit(Document):
 			frappe.throw(_("Amount Paid cannot be negative"))
 			
 		# Update status based on payment.
-		# Overpayments must also close the down payment as PAID.
+		# Overpayments must also close the down payment as PAID unless it is in REVIEW.
 		if self.amount_paid and self.amount_paid >= self.amount_required:
-			self.status = "PAID"
+			if self.status != "REVIEW":
+				self.status = "PAID"
 			if not self.paid_at:
 				self.paid_at = now_datetime()
 
@@ -92,7 +93,7 @@ class CheeseDeposit(Document):
 			pass
 
 	@frappe.whitelist()
-	def record_payment(self, amount, verification_method="Manual", ocr_payload=None):
+	def record_payment(self, amount, verification_method="Manual", ocr_payload=None, is_overpayment=False):
 		"""Record a payment for this deposit"""
 		if self.status in ["PAID", "REFUNDED", "CANCELLED"]:
 			frappe.throw(_("Cannot record payment for {0} deposit").format(self.status))
@@ -111,7 +112,10 @@ class CheeseDeposit(Document):
 			else:
 				self.ocr_payload = json.dumps(ocr_payload)
 
-		if self.amount_paid >= self.amount_required:
+		if is_overpayment:
+			self.status = "REVIEW"
+			self.paid_at = now_datetime()
+		elif self.amount_paid >= self.amount_required:
 			self.status = "PAID"
 			self.paid_at = now_datetime()
 

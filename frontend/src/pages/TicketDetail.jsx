@@ -280,17 +280,6 @@ export default function TicketDetail() {
                                 </CardContent>
                             </Card>
 
-                            {/* Linked Conversation Card */}
-                            <Card className="border-border/60 shadow-sm">
-                                <CardHeader className="border-b bg-muted/20 pb-4">
-                                    <CardTitle className="text-sm font-semibold text-muted-foreground uppercase flex items-center">
-                                        <MessageSquare className="w-4 h-4 mr-2" /> Related Conversation
-                                    </CardTitle>
-                                </CardHeader>
-                                <CardContent className="p-6">
-                                    <EditableField label="Conversation" value={form.conversation} onChange={(v) => handleFieldChange("conversation", v)} editMode={editMode} doctype="Conversation" searchLabel="name" />
-                                </CardContent>
-                            </Card>
                         </TabsContent>
 
                         {/* ─── Financials Tab ─── */}

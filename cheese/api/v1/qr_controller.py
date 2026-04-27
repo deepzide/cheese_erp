@@ -137,12 +137,9 @@ def _qr_generation_allowed(ticket):
 	if not ticket.deposit_required or (ticket.deposit_amount or 0) <= 0:
 		return True
 
-	deposit_status = frappe.db.get_value(
-		"Cheese Deposit",
-		{"entity_type": "Cheese Ticket", "entity_id": ticket.name},
-		"status",
-	)
-	return deposit_status == "PAID"
+	from cheese.api.v1.deposit_controller import _get_amount_received_for_entity
+	total_received = _get_amount_received_for_entity("Cheese Ticket", ticket.name)
+	return total_received >= ticket.deposit_amount
 
 
 def _can_use_pending_qr_flow():

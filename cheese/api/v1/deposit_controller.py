@@ -99,21 +99,28 @@ def _create_balance_deposit(entity_type, entity_doc, due_at=None):
 
 def _select_open_deposit(entity_type, entity_id, payment_type=None):
 	"""Pick the best active deposit for the requested payment phase."""
-	open_deposits = frappe.get_all(
+	all_deposits = frappe.get_all(
 		"Cheese Deposit",
-		filters={
-			"entity_type": entity_type,
-			"entity_id": entity_id,
-			"status": ["in", ["PENDING", "OVERDUE"]],
-		},
-		fields=["name", "creation", "due_at", "amount_required"],
+		filters={"entity_type": entity_type, "entity_id": entity_id},
+		fields=["name", "status"],
 		order_by="creation asc",
 	)
+	open_deposits = [d for d in all_deposits if d.status in ("PENDING", "OVERDUE")]
+	
 	if not open_deposits:
 		return None
+		
+	first_deposit_name = all_deposits[0].name if all_deposits else None
+
 	if payment_type == "Balance":
-		return open_deposits[-1].name
-	# Default and "Deposit": use earliest active deposit.
+		if len(all_deposits) > 1 and open_deposits[-1].name != first_deposit_name:
+			return open_deposits[-1].name
+		if open_deposits[-1].name == first_deposit_name:
+			return None
+			
+	if payment_type == "Deposit":
+		return first_deposit_name if all_deposits[0].status in ("PENDING", "OVERDUE") else None
+
 	return open_deposits[0].name
 
 
@@ -306,12 +313,16 @@ def get_deposit_instructions(ticket_id, payment_type=None):
 		else:
 			deposit_doc = frappe.get_doc("Cheese Deposit", deposit)
 
+		all_deps = frappe.get_all("Cheese Deposit", filters={"entity_type": "Cheese Ticket", "entity_id": ticket_id}, order_by="creation asc")
+		inferred_payment_type = "Balance" if all_deps and all_deps[0].name != deposit_doc.name else "Deposit"
+
 		return success(
 			"Deposit instructions retrieved successfully",
 			{
 				"deposit_required": True,
 				"deposit_id": deposit,
 				"ticket_id": ticket_id,
+				"payment_type": inferred_payment_type,
 				"amount_required": deposit_doc.amount_required,
 				"amount_paid": deposit_doc.amount_paid or 0,
 				"amount_remaining": deposit_doc.amount_required - (deposit_doc.amount_paid or 0),
@@ -392,6 +403,8 @@ def record_deposit_payment(
 			or getattr(frappe.local, "form_dict", {}).get("bank_account")
 			or json_body.get("bank_account")
 		)
+		if verification_method == "Manual" and not bank_account:
+			return validation_error("Selecting a bank account is mandatory for manual deposits")
 		amount = flt(amount)
 		if not amount or amount <= 0:
 			return validation_error("amount must be greater than 0")
@@ -476,18 +489,9 @@ def record_deposit_payment(
 		projected_total = _get_amount_received_for_entity(deposit.entity_type, deposit.entity_id) + amount
 		entity_doc = frappe.get_doc(deposit.entity_type, deposit.entity_id)
 		total_price = _get_entity_total_price(deposit.entity_type, entity_doc)
-		if projected_total - total_price > 0.01:
-			return validation_error(
-				"Payment exceeds the booking total. Please review for refund/adjustment.",
-				{
-					"entity_type": deposit.entity_type,
-					"entity_id": deposit.entity_id,
-					"projected_total_paid": projected_total,
-					"total_price": total_price,
-				},
-			)
+		is_overpayment = projected_total - total_price > 0.01
 
-		deposit.record_payment(amount, verification_method, ocr_payload)
+		deposit.record_payment(amount, verification_method, ocr_payload, is_overpayment=is_overpayment)
 
 		receipt_file_id = None
 		receipt_file_url = None
@@ -510,7 +514,7 @@ def record_deposit_payment(
 			"old_status": old_status,
 			"new_status": deposit.status,
 			"verification_method": verification_method,
-			"is_complete": deposit.status == "PAID",
+			"is_complete": deposit.status in ["PAID", "REVIEW"],
 		}
 		if receipt_file_id:
 			payload["receipt_file_id"] = receipt_file_id

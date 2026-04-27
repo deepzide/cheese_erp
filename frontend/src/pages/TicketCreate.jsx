@@ -243,19 +243,6 @@ export default function TicketCreate() {
                     )}
                 </div>
 
-                {/* Conversation */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-                    <div className="space-y-2">
-                        <Label>Conversation</Label>
-                        <FrappeSearchSelect
-                            doctype="Conversation"
-                            label="name"
-                            value={form.conversation}
-                            onChange={(v) => setForm(f => ({ ...f, conversation: v }))}
-                            placeholder="Link a conversation..."
-                        />
-                    </div>
-                </div>
             </div>
         </CreatePageLayout>
     );
