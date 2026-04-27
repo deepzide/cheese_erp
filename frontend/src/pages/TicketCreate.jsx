@@ -5,11 +5,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Ticket } from "lucide-react";
 import { toast } from "sonner";
-import { useFrappeCreate } from "@/lib/useApiData";
+import { useFrappeCreate, useFrappeDoc, extractData } from "@/lib/useApiData";
 import CreatePageLayout from "@/components/CreatePageLayout";
 import FrappeSearchSelect from "@/components/FrappeSearchSelect";
 import { routeService } from "@/api/routeService";
-import { extractData } from "@/lib/useApiData";
 
 export default function TicketCreate() {
     const navigate = useNavigate();
@@ -17,6 +16,7 @@ export default function TicketCreate() {
     const [searchParams] = useSearchParams();
     const contactId = searchParams.get("contact") || "";
     const backPath = contactId ? `/cheese/contacts/${contactId}` : "/cheese/tickets";
+    
     const [form, setForm] = useState({
         contact: searchParams.get("contact") || "",
         company: searchParams.get("company") || "",
@@ -24,11 +24,21 @@ export default function TicketCreate() {
         route: searchParams.get("route") || "",
         slot: searchParams.get("slot") || "",
         party_size: searchParams.get("party_size") || "1",
+        rooms_requested: "1",
         conversation: searchParams.get("conversation") || "",
         selected_date: searchParams.get("date") || "",
+        check_in_date: "",
+        check_out_date: "",
     });
+
     const createMutation = useFrappeCreate("Cheese Ticket");
     const todayStr = new Date().toISOString().slice(0, 10);
+
+    // Fetch Experience Type
+    const { data: experienceData } = useFrappeDoc("Cheese Experience", form.experience, {
+        enabled: !!form.experience
+    });
+    const isHotel = experienceData?.experience_type === "HOTEL";
 
     // Cascading filter: fetch experiences for the selected route
     const { data: routeExperiences } = useQuery({
@@ -54,22 +64,50 @@ export default function TicketCreate() {
             toast.error("Contact, experience, and slot are required");
             return;
         }
-        if (form.selected_date && form.selected_date < todayStr) {
-            toast.error("Past dates are not allowed");
-            return;
-        }
-        createMutation.mutate({
+
+        const payload = {
             contact: form.contact,
             company: form.company || undefined,
             experience: form.experience,
             route: form.route || undefined,
             slot: form.slot,
-            party_size: parseInt(form.party_size) || 1,
             status: "PENDING",
             conversation: form.conversation || undefined,
-            selected_date: form.selected_date || undefined,
-        }, {
-            onSuccess: () => { toast.success("Ticket created"); queryClient.invalidateQueries({ queryKey: ['ticket-board'] }); navigate("/cheese/tickets"); },
+        };
+
+        if (isHotel) {
+            if (!form.check_in_date || !form.check_out_date) {
+                toast.error("Check-in and check-out dates are required for hotels");
+                return;
+            }
+            if (form.check_in_date < todayStr) {
+                toast.error("Check-in date cannot be in the past");
+                return;
+            }
+            if (form.check_out_date <= form.check_in_date) {
+                toast.error("Check-out date must be after check-in date");
+                return;
+            }
+            payload.rooms_requested = parseInt(form.rooms_requested) || 1;
+            payload.check_in_date = form.check_in_date;
+            payload.check_out_date = form.check_out_date;
+            // Provide party_size default to bypass frappe mandatory field check, though logic relies on rooms_requested
+            payload.party_size = 1;
+        } else {
+            if (form.selected_date && form.selected_date < todayStr) {
+                toast.error("Past dates are not allowed");
+                return;
+            }
+            payload.party_size = parseInt(form.party_size) || 1;
+            payload.selected_date = form.selected_date || undefined;
+        }
+
+        createMutation.mutate(payload, {
+            onSuccess: () => { 
+                toast.success("Ticket created"); 
+                queryClient.invalidateQueries({ queryKey: ['ticket-board'] }); 
+                navigate("/cheese/tickets"); 
+            },
             onError: (err) => toast.error(err?.message || "Failed to create ticket"),
         });
     };
@@ -135,7 +173,44 @@ export default function TicketCreate() {
                     </div>
                 </div>
 
-                {/* Slot & Party Size */}
+                {/* Date Selection */}
+                {isHotel ? (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 animate-in fade-in slide-in-from-bottom-2">
+                        <div className="space-y-2">
+                            <Label>Check-in Date <span className="text-red-500">*</span></Label>
+                            <Input
+                                type="date"
+                                min={todayStr}
+                                value={form.check_in_date}
+                                onChange={(e) => setForm(f => ({ ...f, check_in_date: e.target.value, slot: "" }))}
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <Label>Check-out Date <span className="text-red-500">*</span></Label>
+                            <Input
+                                type="date"
+                                min={form.check_in_date || todayStr}
+                                value={form.check_out_date}
+                                onChange={(e) => setForm(f => ({ ...f, check_out_date: e.target.value }))}
+                            />
+                        </div>
+                    </div>
+                ) : (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 animate-in fade-in slide-in-from-bottom-2">
+                        <div className="space-y-2">
+                            <Label>Selected Date</Label>
+                            <Input
+                                type="date"
+                                min={todayStr}
+                                value={form.selected_date}
+                                onChange={(e) => setForm(f => ({ ...f, selected_date: e.target.value, slot: "" }))}
+                            />
+                            <p className="text-xs text-muted-foreground">Only today or future dates are allowed</p>
+                        </div>
+                    </div>
+                )}
+
+                {/* Slot & Size */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                     <div className="space-y-2">
                         <Label>Slot <span className="text-red-500">*</span></Label>
@@ -145,33 +220,27 @@ export default function TicketCreate() {
                             value={form.slot}
                             onChange={(v) => setForm(f => ({ ...f, slot: v }))}
                             placeholder="Select a slot..."
-                            // Slot must cover selected date (or today) within date_from..date_to range.
                             filters={form.experience ? {
                                 experience: form.experience,
-                                date_from: ["<=", form.selected_date || todayStr],
-                                date_to: [">=", form.selected_date || todayStr],
+                                date_from: ["<=", isHotel ? (form.check_in_date || todayStr) : (form.selected_date || todayStr)],
+                                date_to: [">=", isHotel ? (form.check_in_date || todayStr) : (form.selected_date || todayStr)],
                             } : {}}
                         />
+                        {isHotel && <p className="text-xs text-muted-foreground">Select the slot corresponding to the first night.</p>}
                     </div>
-                    <div className="space-y-2">
-                        <Label>Party Size <span className="text-red-500">*</span></Label>
-                        <Input type="number" min="1" max="50" value={form.party_size} onChange={(e) => setForm(f => ({ ...f, party_size: e.target.value }))} />
-                        <p className="text-xs text-muted-foreground">Number of guests</p>
-                    </div>
-                </div>
-
-                {/* Selected Date */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-                    <div className="space-y-2">
-                        <Label>Selected Date</Label>
-                        <Input
-                            type="date"
-                            min={todayStr}
-                            value={form.selected_date}
-                            onChange={(e) => setForm(f => ({ ...f, selected_date: e.target.value, slot: "" }))}
-                        />
-                        <p className="text-xs text-muted-foreground">Only today or future dates are allowed</p>
-                    </div>
+                    {isHotel ? (
+                        <div className="space-y-2 animate-in fade-in slide-in-from-bottom-2">
+                            <Label>Rooms Requested <span className="text-red-500">*</span></Label>
+                            <Input type="number" min="1" max="50" value={form.rooms_requested} onChange={(e) => setForm(f => ({ ...f, rooms_requested: e.target.value }))} />
+                            <p className="text-xs text-muted-foreground">Number of rooms</p>
+                        </div>
+                    ) : (
+                        <div className="space-y-2 animate-in fade-in slide-in-from-bottom-2">
+                            <Label>Party Size <span className="text-red-500">*</span></Label>
+                            <Input type="number" min="1" max="50" value={form.party_size} onChange={(e) => setForm(f => ({ ...f, party_size: e.target.value }))} />
+                            <p className="text-xs text-muted-foreground">Number of guests</p>
+                        </div>
+                    )}
                 </div>
 
                 {/* Conversation */}

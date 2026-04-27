@@ -67,6 +67,11 @@ export default function TicketDetail() {
                 slot: ticket.slot || "",
                 selected_date: ticket.selected_date || "",
                 party_size: ticket.party_size || 1,
+                rooms_requested: ticket.rooms_requested || 1,
+                check_in_date: ticket.check_in_date || "",
+                check_out_date: ticket.check_out_date || "",
+                nights: ticket.nights || 0,
+                room_number_assigned: ticket.room_number_assigned || "",
                 status: ticket.status || "PENDING",
                 expires_at: ticket.expires_at || "",
                 conversation: ticket.conversation || "",
@@ -76,6 +81,8 @@ export default function TicketDetail() {
             });
         }
     }, [ticket]);
+
+    const isHotel = experienceDoc?.experience_type === "HOTEL";
 
     const handleFieldChange = (field, value) => {
         setForm(prev => ({ ...prev, [field]: value }));
@@ -139,7 +146,11 @@ export default function TicketDetail() {
     // Computed financials
     const backendTotal = Number(ticket?.total_price || 0);
     const partySize = ticket?.party_size || form.party_size || 1;
-    const unitCost = partySize > 0 ? backendTotal / partySize : 0;
+    const roomsRequested = ticket?.rooms_requested || form.rooms_requested || 1;
+    const nights = ticket?.nights || form.nights || 0;
+    const unitCost = isHotel 
+        ? (roomsRequested > 0 && nights > 0 ? backendTotal / (roomsRequested * nights) : 0)
+        : (partySize > 0 ? backendTotal / partySize : 0);
     const totalPerTicket = backendTotal;
     const depositAmount = ticket?.deposit_amount || form.deposit_amount || 0;
     const totalDepositPaid = deposits.reduce((sum, d) => sum + (d.amount_paid || 0), 0);
@@ -184,7 +195,11 @@ export default function TicketDetail() {
                                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-6 gap-x-8">
                                         <EditableField label="Contact" value={form.contact} onChange={(v) => handleFieldChange("contact", v)} editMode={editMode} doctype="Cheese Contact" searchLabel="full_name" />
                                         <EditableField label="Company" value={form.company} onChange={(v) => handleFieldChange("company", v)} editMode={editMode} doctype="Company" searchLabel="name" />
-                                        <EditableField label="Party Size" type="number" value={form.party_size} onChange={(v) => handleFieldChange("party_size", v)} editMode={editMode} />
+                                        {isHotel ? (
+                                            <EditableField label="Rooms Requested" type="number" value={form.rooms_requested} onChange={(v) => handleFieldChange("rooms_requested", v)} editMode={editMode} />
+                                        ) : (
+                                            <EditableField label="Party Size" type="number" value={form.party_size} onChange={(v) => handleFieldChange("party_size", v)} editMode={editMode} />
+                                        )}
                                         <div className="space-y-1">
                                             {editMode ? (
                                                 <div className="space-y-1.5 animate-in fade-in zoom-in-95 duration-200">
@@ -217,15 +232,40 @@ export default function TicketDetail() {
                                         {editMode ? (
                                             <>
                                                 <EditableField label="Slot" value={form.slot} onChange={(v) => handleFieldChange("slot", v)} editMode={editMode} doctype="Cheese Experience Slot" searchLabel="name" />
-                                                <div className="space-y-1.5 animate-in fade-in zoom-in-95 duration-200">
-                                                    <label className="text-xs text-muted-foreground">Selected Date</label>
-                                                    <input type="date" value={form.selected_date || ""} onChange={(e) => handleFieldChange("selected_date", e.target.value)} className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring" />
-                                                </div>
+                                                {isHotel ? (
+                                                    <>
+                                                        <div className="space-y-1.5 animate-in fade-in zoom-in-95 duration-200">
+                                                            <label className="text-xs text-muted-foreground">Check-in Date</label>
+                                                            <input type="date" value={form.check_in_date || ""} onChange={(e) => handleFieldChange("check_in_date", e.target.value)} className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring" />
+                                                        </div>
+                                                        <div className="space-y-1.5 animate-in fade-in zoom-in-95 duration-200">
+                                                            <label className="text-xs text-muted-foreground">Check-out Date</label>
+                                                            <input type="date" value={form.check_out_date || ""} onChange={(e) => handleFieldChange("check_out_date", e.target.value)} className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring" />
+                                                        </div>
+                                                        <EditableField label="Room Assigned" value={form.room_number_assigned} onChange={(v) => handleFieldChange("room_number_assigned", v)} editMode={editMode} />
+                                                    </>
+                                                ) : (
+                                                    <div className="space-y-1.5 animate-in fade-in zoom-in-95 duration-200">
+                                                        <label className="text-xs text-muted-foreground">Selected Date</label>
+                                                        <input type="date" value={form.selected_date || ""} onChange={(e) => handleFieldChange("selected_date", e.target.value)} className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring" />
+                                                    </div>
+                                                )}
                                             </>
                                         ) : (
                                             <>
-                                                <EditableField label="Date" value={formatSlotDateTime(slotDoc, ticket?.selected_date).date} editMode={false} />
-                                                <EditableField label="Time" value={formatSlotDateTime(slotDoc, ticket?.selected_date).time} editMode={false} />
+                                                {isHotel ? (
+                                                    <>
+                                                        <EditableField label="Check-in" value={form.check_in_date ? new Date(form.check_in_date + "T00:00:00").toLocaleDateString() : "—"} editMode={false} />
+                                                        <EditableField label="Check-out" value={form.check_out_date ? new Date(form.check_out_date + "T00:00:00").toLocaleDateString() : "—"} editMode={false} />
+                                                        <EditableField label="Nights" value={form.nights} editMode={false} />
+                                                        <EditableField label="Room Assigned" value={form.room_number_assigned || "—"} editMode={false} />
+                                                    </>
+                                                ) : (
+                                                    <>
+                                                        <EditableField label="Date" value={formatSlotDateTime(slotDoc, ticket?.selected_date).date} editMode={false} />
+                                                        <EditableField label="Time" value={formatSlotDateTime(slotDoc, ticket?.selected_date).time} editMode={false} />
+                                                    </>
+                                                )}
                                             </>
                                         )}
                                         {editMode ? (
@@ -269,8 +309,8 @@ export default function TicketDetail() {
                                                 <tr className="bg-muted/30 text-muted-foreground text-xs uppercase">
                                                     <th className="text-left px-4 py-3 font-semibold">Experience</th>
                                                     <th className="text-left px-4 py-3 font-semibold">Ticket ID</th>
-                                                    <th className="text-right px-4 py-3 font-semibold">Unit Cost</th>
-                                                    <th className="text-center px-4 py-3 font-semibold">Party Size</th>
+                                                    <th className="text-right px-4 py-3 font-semibold">{isHotel ? "Price / Night" : "Unit Cost"}</th>
+                                                    <th className="text-center px-4 py-3 font-semibold">{isHotel ? "Rooms x Nights" : "Party Size"}</th>
                                                     <th className="text-right px-4 py-3 font-semibold">Total</th>
                                                     <th className="text-right px-4 py-3 font-semibold">Seña 10%</th>
                                                 </tr>
@@ -284,7 +324,7 @@ export default function TicketDetail() {
                                                     </td>
                                                     <td className="px-4 py-3 font-mono text-xs text-muted-foreground">{id}</td>
                                                     <td className="px-4 py-3 text-right tabular-nums">{fmt(unitCost)}</td>
-                                                    <td className="px-4 py-3 text-center">{partySize}</td>
+                                                    <td className="px-4 py-3 text-center">{isHotel ? `${roomsRequested} x ${nights}` : partySize}</td>
                                                     <td className="px-4 py-3 text-right font-semibold tabular-nums">{fmt(totalPerTicket)}</td>
                                                     <td className="px-4 py-3 text-right tabular-nums">{fmt(depositAmount)}</td>
                                                 </tr>

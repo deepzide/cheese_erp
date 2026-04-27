@@ -60,6 +60,7 @@ export default function ExperienceDetail() {
         if (exp) {
             const hours = exp.event_duration ? exp.event_duration / 3600 : 0;
             setForm({
+                experience_type: exp.experience_type || "ACTIVITY",
                 company: exp.company || "",
                 google_maps_link: exp.google_maps_link || "",
                 description: exp.description || "",
@@ -67,6 +68,13 @@ export default function ExperienceDetail() {
                 event_duration: Number(hours.toFixed(2)),
                 individual_price: exp.individual_price || 0,
                 route_price: exp.route_price || 0,
+                price_per_night: exp.price_per_night || 0,
+                max_occupancy_per_unit: exp.max_occupancy_per_unit || 2,
+                min_nights_stay: exp.min_nights_stay || 1,
+                cancel_days_before: exp.cancel_days_before || 0,
+                modify_days_before: exp.modify_days_before || 0,
+                refund_policy: exp.refund_policy || "FULL",
+                deposit_ttl_days: exp.deposit_ttl_days || 2,
                 package_mode: exp.package_mode || "Both",
                 deposit_required: exp.deposit_required || 0,
                 deposit_type: exp.deposit_type || "Amount",
@@ -167,7 +175,14 @@ export default function ExperienceDetail() {
     return (
         <DetailPageLayout
             title={id}
-            subtitle={`Experience Provider: ${exp?.company || "Loading..."}`}
+            subtitle={
+                <div className="flex items-center gap-2">
+                    <Badge variant="outline" className={exp?.experience_type === "HOTEL" ? "bg-primary/10 text-primary border-primary/20" : "bg-purple-50 text-purple-700 border-purple-200"}>
+                        {exp?.experience_type || "ACTIVITY"}
+                    </Badge>
+                    <span>Provider: {exp?.company || "Loading..."}</span>
+                </div>
+            }
             backPath="/cheese/experiences"
             isLoading={isLoading}
             statusBadge={getStatusBadge(exp?.status)}
@@ -227,13 +242,15 @@ export default function ExperienceDetail() {
                                             </div>
                                         </div>
 
-                                        <EditableField
-                                            label="Event Duration (Hours)"
-                                            type="number"
-                                            value={form.event_duration}
-                                            onChange={(v) => handleFieldChange("event_duration", v)}
-                                            editMode={editMode}
-                                        />
+                                        {form.experience_type === "ACTIVITY" && (
+                                            <EditableField
+                                                label="Event Duration (Hours)"
+                                                type="number"
+                                                value={form.event_duration}
+                                                onChange={(v) => handleFieldChange("event_duration", v)}
+                                                editMode={editMode}
+                                            />
+                                        )}
 
                                         <div className="space-y-1">
                                             {editMode ? (
@@ -326,11 +343,56 @@ export default function ExperienceDetail() {
                                             )}
                                         </div>
                                         <div /> {/* Spacing */}
-                                        <EditableField label="Individual Price ($)" type="number" value={form.individual_price} onChange={(v) => handleFieldChange("individual_price", v)} editMode={editMode} />
-                                        <EditableField label="Route Price ($)" type="number" value={form.route_price} onChange={(v) => handleFieldChange("route_price", v)} editMode={editMode} />
+                                        {form.experience_type === "HOTEL" ? (
+                                            <>
+                                                <EditableField label="Price per Night ($)" type="number" value={form.price_per_night} onChange={(v) => handleFieldChange("price_per_night", v)} editMode={editMode} />
+                                                <EditableField label="Max Occupancy / Room" type="number" value={form.max_occupancy_per_unit} onChange={(v) => handleFieldChange("max_occupancy_per_unit", v)} editMode={editMode} />
+                                                <EditableField label="Min Nights Stay" type="number" value={form.min_nights_stay} onChange={(v) => handleFieldChange("min_nights_stay", v)} editMode={editMode} />
+                                            </>
+                                        ) : (
+                                            <>
+                                                <EditableField label="Individual Price ($)" type="number" value={form.individual_price} onChange={(v) => handleFieldChange("individual_price", v)} editMode={editMode} />
+                                                <EditableField label="Route Price ($)" type="number" value={form.route_price} onChange={(v) => handleFieldChange("route_price", v)} editMode={editMode} />
+                                            </>
+                                        )}
                                     </div>
                                 </CardContent>
                             </Card>
+
+                            {/* Policies & Deposits */}
+                            {form.experience_type === "HOTEL" && (
+                                <Card className="border-border/60 shadow-sm mt-6">
+                                    <CardHeader className="border-b bg-muted/20 pb-4">
+                                        <CardTitle className="text-sm font-semibold text-muted-foreground uppercase flex items-center">
+                                            <Building2 className="w-4 h-4 mr-2" /> Hotel Policies
+                                        </CardTitle>
+                                    </CardHeader>
+                                    <CardContent className="p-6">
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-y-6 gap-x-8">
+                                            <EditableField label="Cancel Deadline (Days)" type="number" value={form.cancel_days_before} onChange={(v) => handleFieldChange("cancel_days_before", v)} editMode={editMode} />
+                                            <EditableField label="Modify Deadline (Days)" type="number" value={form.modify_days_before} onChange={(v) => handleFieldChange("modify_days_before", v)} editMode={editMode} />
+                                            <div className="space-y-1">
+                                                {editMode ? (
+                                                    <div className="space-y-1.5">
+                                                        <label className="text-xs text-muted-foreground">Refund Policy</label>
+                                                        <select
+                                                            value={form.refund_policy}
+                                                            onChange={(e) => handleFieldChange("refund_policy", e.target.value)}
+                                                            className="flex h-9 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm ring-offset-background disabled:cursor-not-allowed disabled:opacity-50"
+                                                        >
+                                                            <option value="FULL">FULL</option>
+                                                            <option value="PARTIAL">PARTIAL</option>
+                                                            <option value="NONE">NONE</option>
+                                                        </select>
+                                                    </div>
+                                                ) : (
+                                                    <EditableField label="Refund Policy" value={form.refund_policy} editMode={false} />
+                                                )}
+                                            </div>
+                                        </div>
+                                    </CardContent>
+                                </Card>
+                            )}
 
                             {/* Experience Deposit Rules */}
                             <Card className="border-border/60 shadow-sm">
@@ -380,7 +442,11 @@ export default function ExperienceDetail() {
                                                     )}
                                                 </div>
                                                 <EditableField label="Deposit Value" type="number" value={form.deposit_value} onChange={(v) => handleFieldChange("deposit_value", v)} editMode={editMode} />
-                                                <EditableField label="TTL (Hours)" type="number" value={form.deposit_ttl_hours} onChange={(v) => handleFieldChange("deposit_ttl_hours", v)} editMode={editMode} />
+                                                {form.experience_type === "HOTEL" ? (
+                                                    <EditableField label="TTL (Days)" type="number" value={form.deposit_ttl_days} onChange={(v) => handleFieldChange("deposit_ttl_days", v)} editMode={editMode} />
+                                                ) : (
+                                                    <EditableField label="TTL (Hours)" type="number" value={form.deposit_ttl_hours} onChange={(v) => handleFieldChange("deposit_ttl_hours", v)} editMode={editMode} />
+                                                )}
                                             </div>
                                         )}
                                     </div>

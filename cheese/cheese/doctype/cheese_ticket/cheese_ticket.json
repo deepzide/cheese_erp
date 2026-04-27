@@ -15,7 +15,12 @@
         "route",
         "slot",
         "selected_date",
+        "check_in_date",
+        "check_out_date",
+        "nights",
         "party_size",
+        "rooms_requested",
+        "room_number_assigned",
         "status",
         "expires_at",
         "conversation",
@@ -83,11 +88,37 @@
             "description": "The date selected by the user when booking (may differ from slot.date_from for slots with date ranges)"
         },
         {
+            "fieldname": "check_in_date",
+            "fieldtype": "Date",
+            "label": "Check-in Date"
+        },
+        {
+            "fieldname": "check_out_date",
+            "fieldtype": "Date",
+            "label": "Check-out Date"
+        },
+        {
+            "fieldname": "nights",
+            "fieldtype": "Int",
+            "label": "Nights",
+            "read_only": 1
+        },
+        {
             "fieldname": "party_size",
             "fieldtype": "Int",
             "in_list_view": 1,
             "label": "Party Size",
             "reqd": 1
+        },
+        {
+            "fieldname": "rooms_requested",
+            "fieldtype": "Int",
+            "label": "Rooms Requested"
+        },
+        {
+            "fieldname": "room_number_assigned",
+            "fieldtype": "Data",
+            "label": "Room Number Assigned"
         },
         {
             "fieldname": "status",

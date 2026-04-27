@@ -41,9 +41,20 @@ class CheeseExperience(Document):
 				frappe.throw(_("Deposit Type is required when Deposit Required is checked"))
 			if not self.deposit_value:
 				frappe.throw(_("Deposit Value is required when Deposit Required is checked"))
-			if not self.deposit_ttl_hours:
-				frappe.throw(_("Deposit TTL Hours is required when Deposit Required is checked"))
+			
+			if self.experience_type == "HOTEL":
+				if not self.deposit_ttl_days:
+					frappe.throw(_("Deposit TTL Days is required when Deposit Required is checked for Hotels"))
+			else:
+				if not self.deposit_ttl_hours:
+					frappe.throw(_("Deposit TTL Hours is required when Deposit Required is checked for Activities"))
 
-		# Validate pricing
-		if self.package_mode == "Route" and not self.route_price:
-			frappe.throw(_("Route Price is required when Package Mode is Route"))
+		if self.experience_type == "HOTEL":
+			if not self.price_per_night:
+				frappe.throw(_("Price per Night is required for Hotel experiences"))
+			if not self.max_occupancy_per_unit or self.max_occupancy_per_unit < 1:
+				frappe.throw(_("Max Occupancy per Unit must be at least 1 for Hotel experiences"))
+		else:
+			# Validate pricing for activities
+			if self.package_mode == "Route" and not self.route_price:
+				frappe.throw(_("Route Price is required when Package Mode is Route"))

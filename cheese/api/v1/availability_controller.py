@@ -165,6 +165,105 @@ def get_available_slots(experience_id=None, date=None, date_from=None, date_to=N
 
 
 @frappe.whitelist()
+def get_hotel_availability(experience_id, check_in_date, check_out_date):
+	"""
+	Get bottleneck availability for a hotel experience over a date range.
+	
+	Args:
+		experience_id: ID of the hotel experience
+		check_in_date: Check-in date (YYYY-MM-DD)
+		check_out_date: Check-out date (YYYY-MM-DD)
+		
+	Returns:
+		Success response with bottleneck availability
+	"""
+	try:
+		if not experience_id:
+			return validation_error("experience_id is required")
+		if not check_in_date or not check_out_date:
+			return validation_error("check_in_date and check_out_date are required")
+			
+		check_in_obj = getdate(check_in_date)
+		check_out_obj = getdate(check_out_date)
+		
+		if check_in_obj >= check_out_obj:
+			return validation_error("check_in_date must be before check_out_date")
+			
+		from frappe.utils import today, add_days
+		today_obj = getdate(today())
+		
+		if check_in_obj < today_obj:
+			return validation_error("check_in_date cannot be in the past")
+			
+		if not frappe.db.exists("Cheese Experience", experience_id):
+			return not_found("Experience", experience_id)
+			
+		experience = frappe.get_doc("Cheese Experience", experience_id)
+		if experience.experience_type != "HOTEL":
+			return validation_error("Experience is not a hotel")
+			
+		# Check availability for each night from check_in to check_out - 1
+		current_date = check_in_obj
+		bottleneck_capacity = float("inf")
+		daily_availability = []
+		
+		# Get slots for the date range
+		slots = frappe.get_all(
+			"Cheese Experience Slot",
+			filters={
+				"experience": experience_id,
+				"date_from": ["<", check_out_obj],
+				"date_to": [">=", check_in_obj],
+				"slot_status": ["in", ["OPEN", "CLOSED"]]
+			},
+			fields=["name", "date_from", "date_to", "max_capacity"]
+		)
+		
+		# Map slot date to slot id
+		slot_map = {getdate(s.date_from): s.name for s in slots if getdate(s.date_from) == getdate(s.date_to)}
+		
+		while current_date < check_out_obj:
+			slot_id = slot_map.get(current_date)
+			
+			if not slot_id:
+				# No slot defined for this night
+				available = 0
+			else:
+				available = get_available_capacity(slot_id, selected_date=current_date)
+				
+			daily_availability.append({
+				"date": str(current_date),
+				"available_capacity": available,
+				"slot_id": slot_id
+			})
+			
+			if available < bottleneck_capacity:
+				bottleneck_capacity = available
+				
+			current_date = add_days(current_date, 1)
+			
+		if bottleneck_capacity == float("inf"):
+			bottleneck_capacity = 0
+			
+		return success(
+			"Hotel availability retrieved successfully",
+			{
+				"experience_id": experience_id,
+				"check_in_date": check_in_date,
+				"check_out_date": check_out_date,
+				"bottleneck_capacity": bottleneck_capacity,
+				"is_available": bottleneck_capacity > 0,
+				"daily_availability": daily_availability
+			}
+		)
+	except frappe.ValidationError as e:
+		return validation_error(str(e))
+	except Exception as e:
+		frappe.log_error(f"Error in get_hotel_availability: {str(e)}")
+		return error("Failed to get hotel availability", "SERVER_ERROR", {"error": str(e)}, 500)
+
+
+@frappe.whitelist()
 def get_availability(experience_id=None, date=None, date_from=None, date_to=None):
 	"""
 	Get availability by experience - alias for get_available_slots

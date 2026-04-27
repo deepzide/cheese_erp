@@ -110,7 +110,7 @@ def _recalculate_ticket_financials(ticket):
 
 
 @frappe.whitelist()
-def create_pending_reservation(contact_id, experience_id, slot_id, party_size, selected_date=None, route_id=None):
+def create_pending_reservation(contact_id, experience_id, slot_id, party_size=1, selected_date=None, route_id=None, check_in_date=None, check_out_date=None, rooms_requested=None):
 	"""
 	Create pending reservation (individual) - alias for create_pending_ticket
 	
@@ -118,15 +118,17 @@ def create_pending_reservation(contact_id, experience_id, slot_id, party_size, s
 		contact_id: ID of the contact
 		experience_id: ID of the experience
 		slot_id: ID of the slot
-		party_size: Number of people
+		party_size: Number of people (for activities)
 		selected_date: Optional specific date within the slot range chosen by the user (YYYY-MM-DD).
 		              This is important for multi-day slots: pass the date the user actually selected
 		              so that booking policy validation uses that date instead of slot.date_from.
-		
+		check_in_date: Check in date (for hotels)
+		check_out_date: Check out date (for hotels)
+		rooms_requested: Number of rooms (for hotels)
 	Returns:
 		Success response with reservation data
 	"""
-	return create_pending_ticket(contact_id, experience_id, slot_id, party_size, selected_date=selected_date, route_id=route_id)
+	return create_pending_ticket(contact_id, experience_id, slot_id, party_size, selected_date=selected_date, route_id=route_id, check_in_date=check_in_date, check_out_date=check_out_date, rooms_requested=rooms_requested)
 
 
 @frappe.whitelist()
@@ -144,7 +146,7 @@ def get_reservation_status(reservation_id):
 
 
 @frappe.whitelist()
-def create_pending_ticket(contact_id, experience_id, slot_id, party_size, selected_date=None, route_id=None):
+def create_pending_ticket(contact_id, experience_id, slot_id, party_size=1, selected_date=None, route_id=None, check_in_date=None, check_out_date=None, rooms_requested=None):
 	"""
 	Create a pending ticket with TTL
 	
@@ -168,8 +170,6 @@ def create_pending_ticket(contact_id, experience_id, slot_id, party_size, select
 			return validation_error("experience_id is required")
 		if not slot_id:
 			return validation_error("slot_id is required")
-		if not party_size or party_size < 1:
-			return validation_error("party_size must be at least 1")
 
 		if not frappe.db.exists("Cheese Contact", contact_id):
 			return not_found("Contact", contact_id)
@@ -194,9 +194,12 @@ def create_pending_ticket(contact_id, experience_id, slot_id, party_size, select
 			return validation_error(str(e))
 
 		# Validation 1: Capacity check
-		available = get_available_capacity(slot_id, selected_date)
-		if party_size > available:
-			return validation_error(f"Cannot book {party_size} tickets. Only {available} slots available.")
+		if experience.experience_type != "HOTEL":
+			if not party_size or party_size < 1:
+				return validation_error("party_size must be at least 1")
+			available = get_available_capacity(slot_id, selected_date)
+			if party_size > available:
+				return validation_error(f"Cannot book {party_size} tickets. Only {available} slots available.")
 
 		# Validate booking policy using the same date resolver as modification endpoints.
 		try:
@@ -210,7 +213,8 @@ def create_pending_ticket(contact_id, experience_id, slot_id, party_size, select
 			return validation_error(str(e))
 
 		# Calculate price
-		price_data = calculate_ticket_price(experience_id, party_size, route_id=route_id)
+		party_size_for_price = rooms_requested if experience.experience_type == "HOTEL" else party_size
+		price_data = calculate_ticket_price(experience_id, party_size_for_price, route_id=route_id)
 		
 		# Calculate deposit
 		deposit_amount = calculate_deposit_amount(experience_id, price_data["total_price"], route_id=route_id)
@@ -226,7 +230,10 @@ def create_pending_ticket(contact_id, experience_id, slot_id, party_size, select
 			"status": "PENDING",
 			"total_price": price_data["total_price"],
 			"deposit_required": bool(deposit_amount > 0),
-			"deposit_amount": deposit_amount
+			"deposit_amount": deposit_amount,
+			"check_in_date": check_in_date,
+			"check_out_date": check_out_date,
+			"rooms_requested": rooms_requested
 		}
 		
 		# Store selected_date if provided

@@ -53,6 +53,11 @@ class CheeseExperienceSlot(Document):
 		if self.date_from and self.date_to:
 			if str(self.date_from) > str(self.date_to):
 				frappe.throw(_("Date From must be before or equal to Date To"))
+			
+			if self.experience:
+				experience = frappe.get_doc("Cheese Experience", self.experience)
+				if experience.experience_type == "HOTEL" and str(self.date_from) != str(self.date_to):
+					frappe.throw(_("Hotel experience slots must have the same Date From and Date To (one slot per night)"))
 
 		# Get time range fields (optional)
 		time_from = getattr(self, 'time_from', None)

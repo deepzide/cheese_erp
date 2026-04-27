@@ -219,13 +219,22 @@ def create_route_reservation(
 			
 			# Create pending ticket
 			# Pass selected_date if it was provided during auto-selection
+			
+			# For HOTEL experiences, pass check_in/check_out dates
+			check_in = str(start_date) if date_from else None
+			check_out = str(end_date) if date_to else None
+			rooms = party_size
+			
 			ticket_result = create_pending_ticket(
 				contact_id, 
 				experience_id, 
 				slot_id, 
 				party_size,
 				selected_date=str(selected_date_for_tickets) if selected_date_for_tickets else None,
-				route_id=route_id
+				route_id=route_id,
+				check_in_date=check_in,
+				check_out_date=check_out,
+				rooms_requested=rooms
 			)
 			
 			if not ticket_result.get("success"):

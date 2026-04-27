@@ -8,12 +8,17 @@
  "document_type": "Document",
  "engine": "InnoDB",
  "field_order": [
+  "experience_type",
   "experience_info",
   "company",
+  "google_maps_link",
   "description",
+  "max_occupancy_per_unit",
+  "min_nights_stay",
   "event_duration",
   "pricing_section",
   "individual_price",
+  "price_per_night",
   "route_price",
   "package_mode",
   "deposit_section",
@@ -21,12 +26,26 @@
   "deposit_type",
   "deposit_value",
   "deposit_ttl_hours",
+  "deposit_ttl_days",
+  "hotel_policy_section",
+  "cancel_days_before",
+  "modify_days_before",
+  "refund_policy",
   "settings_section",
   "manual_confirmation",
-  "status",
-  "google_maps_link"
+  "status"
  ],
  "fields": [
+  {
+   "fieldname": "experience_type",
+   "fieldtype": "Select",
+   "label": "Experience Type",
+   "options": "ACTIVITY\nHOTEL",
+   "default": "ACTIVITY",
+   "reqd": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1
+  },
   {
    "fieldname": "experience_info",
    "fieldtype": "Section Break",
@@ -52,9 +71,24 @@
    "label": "Description"
   },
   {
+   "fieldname": "max_occupancy_per_unit",
+   "fieldtype": "Int",
+   "label": "Max Occupancy per Unit",
+   "depends_on": "eval:doc.experience_type==\"HOTEL\"",
+   "mandatory_depends_on": "eval:doc.experience_type==\"HOTEL\""
+  },
+  {
+   "fieldname": "min_nights_stay",
+   "fieldtype": "Int",
+   "label": "Minimum Nights Stay",
+   "default": "1",
+   "depends_on": "eval:doc.experience_type==\"HOTEL\""
+  },
+  {
    "fieldname": "event_duration",
    "fieldtype": "Duration",
-   "label": "Event Duration"
+   "label": "Event Duration",
+   "depends_on": "eval:doc.experience_type!=\"HOTEL\""
   },
   {
    "fieldname": "pricing_section",
@@ -64,12 +98,21 @@
   {
    "fieldname": "individual_price",
    "fieldtype": "Currency",
-   "label": "Individual Price"
+   "label": "Individual Price",
+   "depends_on": "eval:doc.experience_type!=\"HOTEL\""
+  },
+  {
+   "fieldname": "price_per_night",
+   "fieldtype": "Currency",
+   "label": "Price per Night",
+   "depends_on": "eval:doc.experience_type==\"HOTEL\"",
+   "mandatory_depends_on": "eval:doc.experience_type==\"HOTEL\""
   },
   {
    "fieldname": "route_price",
    "fieldtype": "Currency",
-   "label": "Route Price"
+   "label": "Route Price",
+   "depends_on": "eval:doc.experience_type!=\"HOTEL\""
   },
   {
    "fieldname": "package_mode",
@@ -102,10 +145,42 @@
    "label": "Deposit Value"
   },
   {
-   "depends_on": "eval:doc.deposit_required",
+   "depends_on": "eval:doc.deposit_required && doc.experience_type!=\"HOTEL\"",
    "fieldname": "deposit_ttl_hours",
    "fieldtype": "Int",
    "label": "Deposit TTL (Hours)"
+  },
+  {
+   "fieldname": "deposit_ttl_days",
+   "fieldtype": "Int",
+   "label": "Deposit TTL (Days)",
+   "depends_on": "eval:doc.deposit_required && doc.experience_type==\"HOTEL\"",
+   "mandatory_depends_on": "eval:doc.deposit_required && doc.experience_type==\"HOTEL\""
+  },
+  {
+   "fieldname": "hotel_policy_section",
+   "fieldtype": "Section Break",
+   "label": "Hotel Policies",
+   "depends_on": "eval:doc.experience_type==\"HOTEL\""
+  },
+  {
+   "fieldname": "cancel_days_before",
+   "fieldtype": "Int",
+   "label": "Cancel Days Before",
+   "depends_on": "eval:doc.experience_type==\"HOTEL\""
+  },
+  {
+   "fieldname": "modify_days_before",
+   "fieldtype": "Int",
+   "label": "Modify Days Before",
+   "depends_on": "eval:doc.experience_type==\"HOTEL\""
+  },
+  {
+   "fieldname": "refund_policy",
+   "fieldtype": "Select",
+   "label": "Refund Policy",
+   "options": "FULL\nPARTIAL\nNONE",
+   "depends_on": "eval:doc.experience_type==\"HOTEL\""
   },
   {
    "fieldname": "settings_section",
