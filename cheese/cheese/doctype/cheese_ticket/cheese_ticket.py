@@ -159,7 +159,7 @@ class CheeseTicket(Document):
 			experience_doc = frappe.get_doc("Cheese Experience", self.experience)
 
 		if experience_doc.experience_type == "HOTEL":
-			from frappe.utils import add_days, getdate
+			from frappe.utils import add_days
 			current_date = getdate(self.check_in_date)
 			end_date = getdate(self.check_out_date)
 			
