@@ -162,6 +162,8 @@ def create_pending_ticket(contact_id, experience_id, slot_id, party_size=1, sele
 	"""
 	try:
 		selected_date = _read_selected_date_input(selected_date)
+		party_size = cint(party_size) if party_size is not None else 1
+		rooms_requested = cint(rooms_requested) if rooms_requested is not None else None
 
 		# Validate inputs
 		if not contact_id:
@@ -194,7 +196,12 @@ def create_pending_ticket(contact_id, experience_id, slot_id, party_size=1, sele
 			return validation_error(str(e))
 
 		# Validation 1: Capacity check
-		if experience.experience_type != "HOTEL":
+		if experience.experience_type == "HOTEL":
+			if not check_in_date or not check_out_date:
+				return validation_error("check_in_date and check_out_date are required for hotel reservations")
+			if not rooms_requested or rooms_requested < 1:
+				return validation_error("rooms_requested must be at least 1 for hotel reservations")
+		else:
 			if not party_size or party_size < 1:
 				return validation_error("party_size must be at least 1")
 			available = get_available_capacity(slot_id, selected_date)
