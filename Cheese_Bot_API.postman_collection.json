@@ -618,14 +618,14 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n  \"contact_id\": \"CONTACT-001\",\n  \"experience_id\": \"EXP-001\",\n  \"slot_id\": \"SLOT-001\",\n  \"party_size\": 2\n}"
+							"raw": "{\n  \"contact_id\": \"CONTACT-001\",\n  \"experience_id\": \"EXP-HOTEL-001\",\n  \"slot_id\": \"SLOT-001\",\n  \"party_size\": 4,\n  \"check_in_date\": \"2026-05-05\",\n  \"check_out_date\": \"2026-05-08\",\n  \"rooms_requested\": 1\n}"
 						},
 						"url": {
 							"raw": "{{base_url}}/api/method/cheese.api.v1.ticket_controller.create_pending_reservation",
 							"host": ["{{base_url}}"],
 							"path": ["api", "method", "cheese.api.v1.ticket_controller.create_pending_reservation"]
 						},
-						"description": "ERP: Validates, locks slot, creates Reservation = PENDING, sets expiration. Bot: Guides data and executes."
+						"description": "ERP: Validates, locks slot, creates Reservation = PENDING, sets expiration. Bot: Guides data and executes.\n\nFor HOTEL experiences, include `check_in_date`, `check_out_date`, and `rooms_requested` (>= 1). `party_size` remains total guests."
 					},
 					"response": []
 				},
@@ -780,14 +780,14 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n  \"contact_id\": \"CONTACT-001\",\n  \"experience_id\": \"EXP-001\",\n  \"slot_id\": \"SLOT-001\",\n  \"party_size\": 2\n}"
+							"raw": "{\n  \"contact_id\": \"CONTACT-001\",\n  \"experience_id\": \"EXP-HOTEL-001\",\n  \"slot_id\": \"SLOT-001\",\n  \"party_size\": 4,\n  \"check_in_date\": \"2026-05-05\",\n  \"check_out_date\": \"2026-05-08\",\n  \"rooms_requested\": 1\n}"
 						},
 						"url": {
 							"raw": "{{base_url}}/api/method/cheese.api.v1.ticket_controller.create_pending_ticket",
 							"host": ["{{base_url}}"],
 							"path": ["api", "method", "cheese.api.v1.ticket_controller.create_pending_ticket"]
 						},
-						"description": "Legacy endpoint - use create_pending_reservation instead."
+						"description": "Legacy endpoint - use create_pending_reservation instead.\n\nFor HOTEL experiences, include `check_in_date`, `check_out_date`, and `rooms_requested` (>= 1)."
 					},
 					"response": []
 				},

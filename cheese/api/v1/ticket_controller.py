@@ -161,6 +161,8 @@ def create_pending_ticket(contact_id, experience_id, slot_id, party_size=1, sele
 		Success response with ticket data
 	"""
 	try:
+		# Keep a local binding to avoid any accidental local-scope shadowing later.
+		parse_date = getdate
 		selected_date = _read_selected_date_input(selected_date)
 		party_size = cint(party_size) if party_size is not None else 1
 		rooms_requested = cint(rooms_requested) if rooms_requested is not None else None
@@ -201,6 +203,13 @@ def create_pending_ticket(contact_id, experience_id, slot_id, party_size=1, sele
 				return validation_error("check_in_date and check_out_date are required for hotel reservations")
 			if not rooms_requested or rooms_requested < 1:
 				return validation_error("rooms_requested must be at least 1 for hotel reservations")
+			try:
+				check_in_obj = parse_date(check_in_date)
+				check_out_obj = parse_date(check_out_date)
+			except Exception:
+				return validation_error("check_in_date and check_out_date must be valid dates (YYYY-MM-DD)")
+			if check_out_obj <= check_in_obj:
+				return validation_error("check_out_date must be after check_in_date")
 		else:
 			if not party_size or party_size < 1:
 				return validation_error("party_size must be at least 1")
