@@ -5,6 +5,7 @@ import frappe
 from frappe import _
 from frappe.utils import getdate, cint
 from cheese.api.common.responses import success, error, not_found, validation_error, paginated_response
+from cheese.api.v1.user_controller import _get_current_user_company
 from cheese.api.v1.bank_account_controller import (
 	get_active_company_bank_accounts_list,
 	get_active_company_bank_accounts_map,
@@ -80,6 +81,10 @@ def list_establishments(page=1, page_size=20, search=None, status=None, locality
 
 		# Build search query
 		search_fields = ["company_name"]
+		user_company = _get_current_user_company()
+		if user_company:
+			filters["name"] = user_company
+			
 		or_filters = []
 		
 		if search:

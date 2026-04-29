@@ -2,7 +2,7 @@
  "actions": [],
  "allow_import": 1,
  "allow_rename": 1,
- "autoname": "format:{experience}-{date_from}",
+ "autoname": "format:{experience}-{date_from}-{time_from}",
  "creation": "2024-01-01 00:00:00",
  "doctype": "DocType",
  "name": "Cheese Experience Slot",

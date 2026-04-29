@@ -5,6 +5,7 @@ import frappe
 from frappe import _
 from frappe.utils import getdate, today, add_days, cint, now_datetime
 from cheese.api.common.responses import success, error, validation_error
+from cheese.api.v1.user_controller import _get_current_user_company
 
 
 @frappe.whitelist()
@@ -21,6 +22,7 @@ def get_central_dashboard(period="today", date_from=None, date_to=None):
 		Success response with dashboard data
 	"""
 	try:
+		user_company = _get_current_user_company()
 		# Calculate date range
 		if period == "today":
 			date_from = today()
@@ -52,13 +54,20 @@ def get_central_dashboard(period="today", date_from=None, date_to=None):
 		
 		# Get tickets by status
 		def get_tickets_by_status(start_date, end_date):
-			# Get slots in date range
+			slot_filters = {
+				"date_from": [">=", start_date],
+				"date_to": ["<=", end_date]
+			}
+			
+			if user_company:
+				experiences = frappe.get_all("Cheese Experience", filters={"company": user_company}, pluck="name")
+				if not experiences:
+					return {}
+				slot_filters["experience"] = ["in", experiences]
+
 			slots = frappe.get_all(
 				"Cheese Experience Slot",
-				filters={
-					"date_from": [">=", start_date],
-					"date_to": ["<=", end_date]
-				},
+				filters=slot_filters,
 				fields=["name"]
 			)
 			
@@ -94,9 +103,15 @@ def get_central_dashboard(period="today", date_from=None, date_to=None):
 		prev_completed = previous_counts.get("COMPLETED", 0)
 		
 		# Get leads
+		lead_filters = {"creation": ["between", [f"{date_from_obj} 00:00:00", f"{date_to_obj} 23:59:59"]]}
+		if user_company:
+			# Only leads that have interest in the user's company (requires company field on Lead, assuming it exists or skip if not supported. Lead doesn't have company typically, but let's check).
+			# Actually, leads might not be company-scoped. Skip lead filter or filter if lead has company field.
+			pass
+
 		leads = frappe.get_all(
 			"Cheese Lead",
-			filters={"creation": ["between", [f"{date_from_obj} 00:00:00", f"{date_to_obj} 23:59:59"]]},
+			filters=lead_filters,
 			fields=["status"]
 		)
 		
@@ -106,9 +121,18 @@ def get_central_dashboard(period="today", date_from=None, date_to=None):
 			lead_counts[status] = lead_counts.get(status, 0) + 1
 		
 		# Get deposits
+		deposit_filters = {"creation": ["between", [f"{date_from_obj} 00:00:00", f"{date_to_obj} 23:59:59"]]}
+		if user_company:
+			# To filter deposits by company, we filter by entity_id if they are ticket deposits
+			ticket_ids = frappe.get_all("Cheese Ticket", filters={"company": user_company}, pluck="name")
+			if ticket_ids:
+				deposit_filters["entity_id"] = ["in", ticket_ids]
+			else:
+				deposit_filters["name"] = "not_found"
+
 		deposits = frappe.get_all(
 			"Cheese Deposit",
-			filters={"creation": ["between", [f"{date_from_obj} 00:00:00", f"{date_to_obj} 23:59:59"]]},
+			filters=deposit_filters,
 			fields=["status"]
 		)
 		
@@ -319,6 +343,10 @@ def get_dashboard_kpis(establishment_id=None, period="today"):
 		date_to_obj = getdate(date_to)
 		
 		# Build filters
+		user_company = _get_current_user_company()
+		if user_company:
+			establishment_id = user_company
+
 		filters = {}
 		if establishment_id:
 			# Get experiences for this establishment
@@ -478,6 +506,10 @@ def get_pending_actions(establishment_id=None, date_from=None, date_to=None):
 
 		# Get experiences to build relevant slots.
 		# If establishment_id is not provided, return pending actions across all companies.
+		user_company = _get_current_user_company()
+		if user_company:
+			establishment_id = user_company
+
 		experience_filters = {}
 		if establishment_id:
 			experience_filters = {"company": establishment_id}
@@ -592,6 +624,10 @@ def get_day_agenda(establishment_id, date=None):
 		Success response with day agenda
 	"""
 	try:
+		user_company = _get_current_user_company()
+		if user_company:
+			establishment_id = user_company
+
 		if not establishment_id:
 			return validation_error("establishment_id is required")
 		

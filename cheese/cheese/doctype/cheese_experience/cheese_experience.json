@@ -13,6 +13,8 @@
   "company",
   "google_maps_link",
   "description",
+  "is_room",
+  "room_size",
   "max_occupancy_per_unit",
   "min_nights_stay",
   "event_duration",
@@ -69,6 +71,21 @@
    "fieldname": "description",
    "fieldtype": "Text Editor",
    "label": "Description"
+  },
+  {
+   "fieldname": "is_room",
+   "fieldtype": "Check",
+   "label": "Is Room",
+   "default": "0",
+   "depends_on": "eval:doc.experience_type==\"HOTEL\"",
+   "description": "Check if this experience represents a specific room type"
+  },
+  {
+   "fieldname": "room_size",
+   "fieldtype": "Int",
+   "label": "Room Size (Max Guests)",
+   "depends_on": "eval:doc.experience_type==\"HOTEL\" && doc.is_room",
+   "description": "Maximum number of guests for this room type"
   },
   {
    "fieldname": "max_occupancy_per_unit",

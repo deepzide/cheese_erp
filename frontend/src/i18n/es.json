@@ -20,12 +20,17 @@
     "qrScan": "Escaneo QR",
     "documents": "Documentos",
     "surveys": "Encuestas",
+    "hotels": "Hoteles",
+    "hotelReservations": "Reservaciones",
+    "hotelAvailability": "Disponibilidad",
+    "users": "Usuarios",
     "systemEvents": "Eventos del Sistema"
   },
   "sections": {
     "commandCenter": "Centro de Control",
     "flowControl": "Control de Flujo",
     "catalog": "Catálogo",
+    "hotel": "Hotel",
     "crm": "CRM",
     "finance": "Finanzas",
     "operations": "Operaciones",

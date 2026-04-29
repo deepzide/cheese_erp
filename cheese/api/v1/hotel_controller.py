@@ -1,0 +1,470 @@
+# Copyright (c) 2024
+# License: MIT
+
+import frappe
+from frappe import _
+from frappe.utils import getdate, add_days, now_datetime, cint, flt
+from cheese.api.common.responses import success, created, error, not_found, validation_error, paginated_response
+from cheese.api.v1.user_controller import _get_current_user_company
+
+
+@frappe.whitelist()
+def list_hotels(page=1, page_size=20, search=None):
+    """
+    List establishments flagged as hotels.
+
+    Args:
+        page: Page number
+        page_size: Items per page
+        search: Search term
+
+    Returns:
+        Paginated response with hotel establishments
+    """
+    try:
+        page = cint(page) or 1
+        page_size = cint(page_size) or 20
+
+        user_company = _get_current_user_company()
+
+        filters = {"cheese_is_hotel": 1}
+        if user_company:
+            filters["name"] = user_company
+
+        or_filters = []
+        if search:
+            or_filters.append(["company_name", "like", f"%{search}%"])
+
+        hotels = frappe.get_all(
+            "Company",
+            filters=filters,
+            or_filters=or_filters if or_filters else None,
+            fields=["name", "company_name", "administrator_contact", "cheese_is_hotel",
+                     "cheese_payment_methods", "cheese_operating_hours"],
+            limit_start=(page - 1) * page_size,
+            limit_page_length=page_size,
+            order_by="company_name asc",
+        )
+
+        # Enrich with experience count
+        for hotel in hotels:
+            hotel["experience_count"] = frappe.db.count(
+                "Cheese Experience",
+                {"company": hotel.name, "experience_type": "HOTEL"},
+            )
+
+        total = frappe.db.count("Company", filters=filters)
+
+        return paginated_response(
+            hotels,
+            "Hotels retrieved successfully",
+            page=page,
+            page_size=page_size,
+            total=total,
+        )
+    except Exception as e:
+        frappe.log_error(f"Error in list_hotels: {str(e)}")
+        return error("Failed to list hotels", "SERVER_ERROR", {"error": str(e)}, 500)
+
+
+@frappe.whitelist()
+def get_hotel_experiences(hotel_id, page=1, page_size=20):
+    """
+    List HOTEL-type experiences for a specific establishment.
+
+    Args:
+        hotel_id: Company ID (establishment)
+        page: Page number
+        page_size: Items per page
+
+    Returns:
+        Paginated response with hotel experiences
+    """
+    try:
+        if not hotel_id:
+            return validation_error("hotel_id is required")
+
+        user_company = _get_current_user_company()
+        if user_company and hotel_id != user_company:
+            return error("Unauthorized", "UNAUTHORIZED", {}, 403)
+
+        if not frappe.db.exists("Company", hotel_id):
+            return not_found("Hotel", hotel_id)
+
+        page = cint(page) or 1
+        page_size = cint(page_size) or 20
+
+        filters = {"company": hotel_id, "experience_type": "HOTEL"}
+
+        experiences = frappe.get_all(
+            "Cheese Experience",
+            filters=filters,
+            fields=[
+                "name", "company", "description", "status", "is_room", "room_size",
+                "price_per_night", "max_occupancy_per_unit", "min_nights_stay",
+                "deposit_required", "deposit_type", "deposit_value",
+            ],
+            limit_start=(page - 1) * page_size,
+            limit_page_length=page_size,
+            order_by="name asc",
+        )
+
+        total = frappe.db.count("Cheese Experience", filters=filters)
+
+        return paginated_response(
+            experiences,
+            "Hotel experiences retrieved successfully",
+            page=page,
+            page_size=page_size,
+            total=total,
+        )
+    except Exception as e:
+        frappe.log_error(f"Error in get_hotel_experiences: {str(e)}")
+        return error("Failed to get hotel experiences", "SERVER_ERROR", {"error": str(e)}, 500)
+
+
+@frappe.whitelist()
+def get_hotel_availability(experience_id, date_from=None, date_to=None):
+    """
+    Get nightly availability for a hotel experience.
+
+    For each night in the range, returns the number of available rooms
+    by querying Cheese Experience Slot records.
+
+    Args:
+        experience_id: Hotel Experience ID
+        date_from: Start date (YYYY-MM-DD), defaults to today
+        date_to: End date (YYYY-MM-DD), defaults to today + 30 days
+
+    Returns:
+        Success response with nightly availability array
+    """
+    try:
+        if not experience_id:
+            return validation_error("experience_id is required")
+
+        if not frappe.db.exists("Cheese Experience", experience_id):
+            return not_found("Experience", experience_id)
+
+        experience = frappe.get_doc("Cheese Experience", experience_id)
+        if experience.experience_type != "HOTEL":
+            return validation_error("Experience is not a HOTEL type")
+
+        today = getdate(now_datetime())
+        start_date = getdate(date_from) if date_from else today
+        end_date = getdate(date_to) if date_to else add_days(today, 30)
+
+        if start_date > end_date:
+            return validation_error("date_from must be before or equal to date_to")
+
+        from cheese.cheese.utils.capacity import get_available_capacity
+
+        # Get all slots for this experience in the date range
+        slots = frappe.get_all(
+            "Cheese Experience Slot",
+            filters={
+                "experience": experience_id,
+                "date_from": ["<=", end_date],
+                "date_to": [">=", start_date],
+            },
+            fields=["name", "date_from", "date_to", "max_capacity", "reserved_capacity", "slot_status"],
+            order_by="date_from asc",
+        )
+
+        # Build nightly availability
+        nights = []
+        current_date = start_date
+        while current_date <= end_date:
+            # Find the slot that covers this night
+            matching_slot = None
+            for slot in slots:
+                if getdate(slot.date_from) <= current_date <= getdate(slot.date_to):
+                    matching_slot = slot
+                    break
+
+            if matching_slot:
+                available = get_available_capacity(matching_slot.name, current_date)
+                nights.append({
+                    "date": str(current_date),
+                    "slot_id": matching_slot.name,
+                    "max_capacity": matching_slot.max_capacity,
+                    "available": available,
+                    "status": matching_slot.slot_status,
+                    "price_per_night": flt(experience.price_per_night),
+                })
+            else:
+                nights.append({
+                    "date": str(current_date),
+                    "slot_id": None,
+                    "max_capacity": 0,
+                    "available": 0,
+                    "status": "NO_SLOT",
+                    "price_per_night": flt(experience.price_per_night),
+                })
+
+            current_date = add_days(current_date, 1)
+
+        return success(
+            "Hotel availability retrieved successfully",
+            {
+                "experience_id": experience_id,
+                "experience_name": experience.name,
+                "date_from": str(start_date),
+                "date_to": str(end_date),
+                "price_per_night": flt(experience.price_per_night),
+                "min_nights_stay": experience.min_nights_stay or 1,
+                "nights": nights,
+            },
+        )
+    except Exception as e:
+        frappe.log_error(f"Error in get_hotel_availability: {str(e)}")
+        return error("Failed to get hotel availability", "SERVER_ERROR", {"error": str(e)}, 500)
+
+
+@frappe.whitelist()
+def create_hotel_slots(experience_id, date_from, date_to, rooms_available, price_override=None):
+    """
+    Bulk create nightly slots for a hotel experience.
+
+    Creates one Cheese Experience Slot per night in the range.
+
+    Args:
+        experience_id: Hotel Experience ID
+        date_from: Start date (YYYY-MM-DD)
+        date_to: End date (YYYY-MM-DD)
+        rooms_available: Number of rooms available per night
+        price_override: Optional price override per night
+
+    Returns:
+        Created response with count of slots
+    """
+    try:
+        if not experience_id:
+            return validation_error("experience_id is required")
+        if not date_from or not date_to:
+            return validation_error("date_from and date_to are required")
+
+        rooms_available = cint(rooms_available)
+        if rooms_available < 1:
+            return validation_error("rooms_available must be at least 1")
+
+        if not frappe.db.exists("Cheese Experience", experience_id):
+            return not_found("Experience", experience_id)
+
+        experience = frappe.get_doc("Cheese Experience", experience_id)
+        if experience.experience_type != "HOTEL":
+            return validation_error("Experience is not a HOTEL type")
+
+        start_date = getdate(date_from)
+        end_date = getdate(date_to)
+        today = getdate(now_datetime())
+
+        if start_date > end_date:
+            return validation_error("date_from must be before or equal to date_to")
+        if start_date < today:
+            return validation_error("Cannot create slots in the past")
+
+        created_slots = []
+        current_date = start_date
+
+        while current_date <= end_date:
+            # Check if slot already exists for this night
+            existing = frappe.db.exists(
+                "Cheese Experience Slot",
+                {"experience": experience_id, "date_from": current_date, "date_to": current_date}
+            )
+            if existing:
+                current_date = add_days(current_date, 1)
+                continue
+
+            slot = frappe.get_doc({
+                "doctype": "Cheese Experience Slot",
+                "experience": experience_id,
+                "date_from": current_date,
+                "date_to": current_date,
+                "max_capacity": rooms_available,
+                "slot_status": "OPEN",
+                "reserved_capacity": 0,
+            })
+            slot.insert()
+            created_slots.append(slot.name)
+            current_date = add_days(current_date, 1)
+
+        frappe.db.commit()
+
+        return created(
+            f"Created {len(created_slots)} hotel slot(s) successfully",
+            {
+                "slots_created": len(created_slots),
+                "slot_ids": created_slots,
+                "experience_id": experience_id,
+                "date_range": {"from": str(start_date), "to": str(end_date)},
+                "rooms_available": rooms_available,
+            },
+        )
+    except frappe.ValidationError as e:
+        return validation_error(str(e))
+    except Exception as e:
+        frappe.log_error(f"Error in create_hotel_slots: {str(e)}")
+        return error("Failed to create hotel slots", "SERVER_ERROR", {"error": str(e)}, 500)
+
+
+@frappe.whitelist()
+def update_hotel_slot(slot_id, rooms_available=None, status=None):
+    """
+    Update a hotel slot's available rooms or status.
+
+    Args:
+        slot_id: Slot ID
+        rooms_available: New number of available rooms
+        status: New status (OPEN/CLOSED/BLOCKED)
+
+    Returns:
+        Success response with updated slot
+    """
+    try:
+        if not slot_id:
+            return validation_error("slot_id is required")
+
+        if not frappe.db.exists("Cheese Experience Slot", slot_id):
+            return not_found("Slot", slot_id)
+
+        slot = frappe.get_doc("Cheese Experience Slot", slot_id)
+
+        if rooms_available is not None:
+            rooms_available = cint(rooms_available)
+            if rooms_available < (slot.reserved_capacity or 0):
+                return validation_error(
+                    f"Cannot reduce rooms below reserved count ({slot.reserved_capacity})"
+                )
+            slot.max_capacity = rooms_available
+
+        if status is not None:
+            if status not in ["OPEN", "CLOSED", "BLOCKED"]:
+                return validation_error(f"Invalid status: {status}")
+            slot.slot_status = status
+
+        slot.save()
+        frappe.db.commit()
+
+        return success(
+            "Hotel slot updated successfully",
+            {
+                "slot_id": slot.name,
+                "date": str(slot.date_from),
+                "max_capacity": slot.max_capacity,
+                "reserved_capacity": slot.reserved_capacity,
+                "slot_status": slot.slot_status,
+            },
+        )
+    except frappe.ValidationError as e:
+        return validation_error(str(e))
+    except Exception as e:
+        frappe.log_error(f"Error in update_hotel_slot: {str(e)}")
+        return error("Failed to update hotel slot", "SERVER_ERROR", {"error": str(e)}, 500)
+
+
+@frappe.whitelist()
+def get_hotel_reservations(hotel_id=None, experience_id=None, date_from=None, date_to=None, status=None, page=1, page_size=20):
+    """
+    Get hotel reservations (tickets for HOTEL-type experiences).
+
+    Args:
+        hotel_id: Company ID (optional)
+        experience_id: Experience ID (optional)
+        date_from: Check-in date from (optional)
+        date_to: Check-in date to (optional)
+        status: Ticket status filter (optional)
+        page: Page number
+        page_size: Items per page
+
+    Returns:
+        Paginated response with hotel reservations
+    """
+    try:
+        user_company = _get_current_user_company()
+        if user_company and hotel_id != user_company:
+            return paginated_response([], "Unauthorized", page=1, page_size=20, total=0)
+
+        page = cint(page) or 1
+        page_size = cint(page_size) or 20
+
+        # Get all HOTEL-type experiences
+        exp_filters = {"experience_type": "HOTEL"}
+        if hotel_id:
+            exp_filters["company"] = hotel_id
+        if experience_id:
+            exp_filters["name"] = experience_id
+
+        hotel_experiences = frappe.get_all(
+            "Cheese Experience",
+            filters=exp_filters,
+            fields=["name"],
+        )
+
+        if not hotel_experiences:
+            return paginated_response([], "No hotel reservations found", page=page, page_size=page_size, total=0)
+
+        exp_names = [e.name for e in hotel_experiences]
+
+        # Build ticket filters
+        ticket_filters = {"experience": ["in", exp_names]}
+        if status:
+            ticket_filters["status"] = status
+
+        # Date filtering based on check_in_date or selected_date
+        if date_from:
+            ticket_filters["selected_date"] = [">=", getdate(date_from)]
+        if date_to:
+            if "selected_date" in ticket_filters and isinstance(ticket_filters["selected_date"], list):
+                # Both date_from and date_to — use between
+                ticket_filters["selected_date"] = ["between", [getdate(date_from), getdate(date_to)]]
+            else:
+                ticket_filters["selected_date"] = ["<=", getdate(date_to)]
+
+        tickets = frappe.get_all(
+            "Cheese Ticket",
+            filters=ticket_filters,
+            fields=[
+                "name", "contact", "company", "experience", "slot",
+                "party_size", "status", "selected_date", "total_price",
+                "deposit_amount", "creation", "modified",
+            ],
+            limit_start=(page - 1) * page_size,
+            limit_page_length=page_size,
+            order_by="modified desc",
+        )
+
+        # Enrich with contact and experience names
+        for ticket in tickets:
+            if ticket.contact:
+                contact = frappe.db.get_value(
+                    "Cheese Contact", ticket.contact,
+                    ["full_name", "phone", "email"], as_dict=True,
+                )
+                if contact:
+                    ticket["contact_name"] = contact.full_name
+                    ticket["contact_phone"] = contact.phone
+                    ticket["contact_email"] = contact.email
+
+            if ticket.experience:
+                ticket["experience_name"] = ticket.experience
+
+            # Get hotel-specific fields
+            ticket["check_in_date"] = frappe.db.get_value("Cheese Ticket", ticket.name, "check_in_date")
+            ticket["check_out_date"] = frappe.db.get_value("Cheese Ticket", ticket.name, "check_out_date")
+            ticket["rooms_requested"] = frappe.db.get_value("Cheese Ticket", ticket.name, "rooms_requested")
+            ticket["nights"] = frappe.db.get_value("Cheese Ticket", ticket.name, "nights")
+
+        total = frappe.db.count("Cheese Ticket", filters=ticket_filters)
+
+        return paginated_response(
+            tickets,
+            "Hotel reservations retrieved successfully",
+            page=page,
+            page_size=page_size,
+            total=total,
+        )
+    except Exception as e:
+        frappe.log_error(f"Error in get_hotel_reservations: {str(e)}")
+        return error("Failed to get hotel reservations", "SERVER_ERROR", {"error": str(e)}, 500)

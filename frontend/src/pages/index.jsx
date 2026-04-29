@@ -48,6 +48,10 @@ import Establishments from './Establishments';
 import EstablishmentCreate from './EstablishmentCreate';
 import EstablishmentDetail from './EstablishmentDetail';
 import QRScan from './QRScan';
+import Hotels from './Hotels';
+import HotelReservations from './HotelReservations';
+import HotelAvailability from './HotelAvailability';
+import UsersPage from './Users';
 
 export default function Pages() {
     return (
@@ -106,6 +110,10 @@ export default function Pages() {
                                         <Route path="/events" element={<SystemEvents />} />
                                         <Route path="/conversations" element={<Conversations />} />
                                         <Route path="/conversations/:id" element={<ConversationDetail />} />
+                                        <Route path="/hotels" element={<Hotels />} />
+                                        <Route path="/hotel-reservations" element={<HotelReservations />} />
+                                        <Route path="/hotel-availability" element={<HotelAvailability />} />
+                                        <Route path="/users" element={<UsersPage />} />
                                         <Route path="/" element={<Navigate to="/cheese/dashboard" replace />} />
                                         <Route path="*" element={<Navigate to="/cheese/dashboard" replace />} />
                                     </Routes>

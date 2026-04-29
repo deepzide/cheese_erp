@@ -7,7 +7,7 @@ import {
     Users, UserPlus, FileText, Wallet, ShoppingCart,
     Bell, Menu, LogOut, ChevronDown, ChevronRight, X,
     Zap, Settings, Sun, Moon, Globe,
-    Shield, Landmark, UserCheck, QrCode, Star, Activity, MessageSquare, Building2, ScanLine
+    Shield, Landmark, UserCheck, QrCode, Star, Activity, MessageSquare, Building2, ScanLine, Hotel, BedDouble
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -43,6 +43,9 @@ const navigationItems = [
     { titleKey: "nav.establishments", url: URL_ESTABLISHMENTS, icon: Building2, section: "catalog" },
     { titleKey: "nav.calendar", url: createPageUrl("calendar"), icon: CalendarDays, section: "catalog" },
     { titleKey: "nav.bookingPolicy", url: createPageUrl("booking-policy"), icon: Shield, section: "catalog" },
+    { titleKey: "nav.hotels", url: createPageUrl("hotels"), icon: Hotel, section: "hotel" },
+    { titleKey: "nav.hotelReservations", url: createPageUrl("hotel-reservations"), icon: BedDouble, section: "hotel" },
+    { titleKey: "nav.hotelAvailability", url: createPageUrl("hotel-availability"), icon: CalendarDays, section: "hotel" },
     { titleKey: "nav.contacts", url: createPageUrl("contacts"), icon: Users, section: "crm" },
     { titleKey: "nav.leads", url: createPageUrl("leads"), icon: UserPlus, section: "crm" },
     { titleKey: "nav.quotations", url: createPageUrl("quotations"), icon: FileText, section: "crm" },
@@ -55,6 +58,7 @@ const navigationItems = [
     { titleKey: "nav.qrScan", url: createPageUrl("scan"), icon: ScanLine, section: "operations" },
     { titleKey: "nav.documents", url: createPageUrl("documents"), icon: FileText, section: "operations" },
     { titleKey: "nav.surveys", url: createPageUrl("surveys"), icon: Star, section: "operations" },
+    { titleKey: "nav.users", url: createPageUrl("users"), icon: Users, section: "system" },
     { titleKey: "nav.systemEvents", url: createPageUrl("events"), icon: Activity, section: "system" },
 ];
 
@@ -62,6 +66,7 @@ const sectionDefs = {
     main: { labelKey: "sections.commandCenter", icon: Zap },
     flow: { labelKey: "sections.flowControl", icon: Route },
     catalog: { labelKey: "sections.catalog", icon: Sparkles },
+    hotel: { labelKey: "sections.hotel", icon: Hotel },
     crm: { labelKey: "sections.crm", icon: Users },
     finance: { labelKey: "sections.finance", icon: Wallet },
     operations: { labelKey: "sections.operations", icon: Shield },

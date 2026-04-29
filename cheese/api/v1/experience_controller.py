@@ -4,8 +4,9 @@
 import frappe
 from frappe.model.rename_doc import rename_doc
 from frappe import _
-from frappe.utils import getdate, get_time, cint, get_datetime, get_url, add_days, add_months
+from frappe.utils import today, getdate, get_time, cint, get_datetime, get_url, add_days, add_months
 from cheese.api.common.responses import success, created, error, not_found, validation_error, paginated_response
+from cheese.api.v1.user_controller import _get_current_user_company
 from cheese.api.v1.bank_account_controller import (
 	get_active_company_bank_accounts_list,
 	get_active_company_bank_accounts_map,
@@ -67,6 +68,10 @@ def list_experiences(page=1, page_size=20, status=None, company=None, establishm
 		page = cint(page) or 1
 		page_size = cint(page_size) or 20
 		
+		user_company = _get_current_user_company()
+		if user_company:
+			company = user_company
+
 		filters = {}
 		if status:
 			filters["status"] = status
@@ -379,13 +384,14 @@ def create_time_slot(experience_id, date, time, max_capacity, slot_status="OPEN"
 		if not frappe.db.exists("Cheese Experience", experience_id):
 			return not_found("Experience", experience_id)
 
-		if getdate(date) < getdate(now_datetime()):
+		if getdate(date) < getdate(today()):
 			return validation_error("Cannot create a slot on an expired date")
 		
 		slot = frappe.get_doc({
 			"doctype": "Cheese Experience Slot",
 			"experience": experience_id,
 			"date_from": getdate(date),
+			"date_to": getdate(date),
 			"time_from": get_time(time),
 			"max_capacity": max_capacity,
 			"slot_status": slot_status,
@@ -591,7 +597,7 @@ def create_recurring_slots(experience_id, date_from, date_to, time_from=None, ti
 		
 		start_date = getdate(date_from)
 		end_date = getdate(date_to)
-		today_date = getdate(now_datetime())
+		today_date = getdate(today())
 		
 		if start_date > end_date:
 			return validation_error("date_from must be before or equal to date_to")
@@ -746,9 +752,13 @@ def list_time_slots(experience_id, date_from=None, date_to=None, slot_status=Non
 		page = cint(page) or 1
 		page_size = cint(page_size) or 20
 		
+		user_company = _get_current_user_company()
+		if user_company:
+			experience_doc = frappe.db.get_value("Cheese Experience", experience_id, "company")
+			if experience_doc != user_company:
+				return paginated_response([], "Unauthorized to view slots for this experience", page=1, page_size=20, total=0)
+		
 		filters = {"experience": experience_id}
-
-		from frappe.utils import today as today_str
 
 		date_from_obj = getdate(date_from) if date_from else None
 		date_to_obj = getdate(date_to) if date_to else None

@@ -51,7 +51,12 @@ class CheeseDeposit(Document):
 			self.status = "OVERDUE"
 
 	def validate_unique_active_deposit(self):
-		"""Ensure there is only one active deposit per entity."""
+		"""Ensure there is only one active deposit per entity per payment phase.
+		Can be bypassed with self.flags.skip_unique_check (set by balance deposit creation).
+		"""
+		if getattr(self.flags, "skip_unique_check", False):
+			return
+
 		if not (self.entity_type and self.entity_id):
 			return
 

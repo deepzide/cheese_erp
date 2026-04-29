@@ -6,6 +6,7 @@ from frappe import _
 from frappe.utils import add_to_date, flt, now_datetime
 from cheese.api.common.responses import success, created, error, not_found, validation_error
 from cheese.api.v1.bank_account_controller import get_active_company_bank_accounts_list
+from cheese.api.v1.user_controller import _get_current_user_company
 
 
 def _instructions_for_deposit(amount_required, bank_accounts):
@@ -93,6 +94,7 @@ def _create_balance_deposit(entity_type, entity_doc, due_at=None):
 			"due_at": due_at,
 		}
 	)
+	new_deposit.flags.skip_unique_check = True
 	new_deposit.insert()
 	return new_deposit
 
@@ -136,8 +138,8 @@ def _build_deposit_payload(deposit):
 		"due_at": str(deposit.due_at) if deposit.due_at else None,
 		"paid_at": str(deposit.paid_at) if deposit.paid_at else None,
 		"verification_method": deposit.verification_method,
-		"bank_account": deposit.bank_account or None,
-		"notes": deposit.notes or None,
+		"bank_account": getattr(deposit, "bank_account", None),
+		"notes": getattr(deposit, "notes", None),
 	}
 
 	if deposit.entity_type == "Cheese Ticket" and frappe.db.exists("Cheese Ticket", deposit.entity_id):
@@ -313,8 +315,31 @@ def get_deposit_instructions(ticket_id, payment_type=None):
 		else:
 			deposit_doc = frappe.get_doc("Cheese Deposit", deposit)
 
-		all_deps = frappe.get_all("Cheese Deposit", filters={"entity_type": "Cheese Ticket", "entity_id": ticket_id}, order_by="creation asc")
-		inferred_payment_type = "Balance" if all_deps and all_deps[0].name != deposit_doc.name else "Deposit"
+		all_deps = frappe.get_all("Cheese Deposit", filters={"entity_type": "Cheese Ticket", "entity_id": ticket_id}, fields=["name", "status", "amount_required", "amount_paid"], order_by="creation asc")
+		if payment_type:
+			inferred_payment_type = payment_type
+		else:
+			inferred_payment_type = "Balance" if all_deps and all_deps[0].name != deposit_doc.name else "Deposit"
+
+		# Build deposits summary
+		deposits_summary = []
+		for d in all_deps:
+			deposits_summary.append({
+				"deposit_id": d.name,
+				"status": d.status,
+				"amount_required": d.amount_required,
+				"amount_paid": d.amount_paid or 0,
+			})
+
+		# Get total received and total price for context
+		total_received = _get_amount_received_for_entity("Cheese Ticket", ticket_id)
+		total_price = flt(ticket.total_price or 0)
+
+		# Enrich with contact info
+		contact_info = None
+		if ticket.contact:
+			contact_name = frappe.db.get_value("Cheese Contact", ticket.contact, "full_name")
+			contact_info = {"contact_id": ticket.contact, "contact_name": contact_name}
 
 		return success(
 			"Deposit instructions retrieved successfully",
@@ -329,6 +354,11 @@ def get_deposit_instructions(ticket_id, payment_type=None):
 				"due_at": str(deposit_doc.due_at) if deposit_doc.due_at else None,
 				"status": deposit_doc.status,
 				"bank_account": bank_account,
+				"contact": contact_info,
+				"ticket_total_price": total_price,
+				"total_received": total_received,
+				"total_remaining": max(0, total_price - total_received),
+				"all_deposits": deposits_summary,
 				"instructions": _instructions_for_deposit(deposit_doc.amount_required, bank_account),
 			}
 		)
@@ -472,18 +502,6 @@ def record_deposit_payment(
 			deposit = frappe.get_doc("Cheese Deposit", deposit_name)
 		old_status = deposit.status
 		if bank_account and frappe.db.exists("Cheese Bank Account", bank_account):
-			if deposit.entity_type == "Cheese Ticket":
-				ticket_currency = frappe.db.get_value("Cheese Ticket", deposit.entity_id, "currency")
-				account_currency = frappe.db.get_value("Cheese Bank Account", bank_account, "currency")
-				if ticket_currency and account_currency and ticket_currency != account_currency:
-					return validation_error(
-						"Ticket currency and selected bank account currency do not match",
-						{
-							"ticket_currency": ticket_currency,
-							"bank_account_currency": account_currency,
-							"bank_account": bank_account,
-						},
-					)
 			deposit.bank_account = bank_account
 
 		projected_total = _get_amount_received_for_entity(deposit.entity_type, deposit.entity_id) + amount
@@ -504,6 +522,11 @@ def record_deposit_payment(
 
 		frappe.db.commit()
 
+		# Build enriched response
+		total_received = _get_amount_received_for_entity(deposit.entity_type, deposit.entity_id)
+		entity_total = _get_entity_total_price(deposit.entity_type, entity_doc)
+		overpayment_amount = max(0, total_received - entity_total)
+
 		payload = {
 			"deposit_id": deposit.name,
 			"ticket_id": ticket_id,
@@ -515,10 +538,37 @@ def record_deposit_payment(
 			"new_status": deposit.status,
 			"verification_method": verification_method,
 			"is_complete": deposit.status in ["PAID", "REVIEW"],
+			"is_overpayment": is_overpayment,
+			"overpayment_amount": overpayment_amount if is_overpayment else 0,
+			"total_received_for_ticket": total_received,
+			"ticket_total_price": entity_total,
 		}
+
+		# Enrich with bank account and contact info
+		if ticket_id and frappe.db.exists("Cheese Ticket", ticket_id):
+			ticket_doc_info = frappe.get_doc("Cheese Ticket", ticket_id)
+			payload["bank_accounts"] = _bank_accounts_for_ticket(ticket_doc_info)
+			if ticket_doc_info.contact:
+				contact_name = frappe.db.get_value("Cheese Contact", ticket_doc_info.contact, "full_name")
+				payload["contact"] = ticket_doc_info.contact
+				payload["contact_name"] = contact_name
+
 		if receipt_file_id:
 			payload["receipt_file_id"] = receipt_file_id
 			payload["receipt_file_url"] = receipt_file_url
+
+		# Log overpayment event
+		if is_overpayment:
+			try:
+				from cheese.cheese.utils.events import log_event
+				log_event(
+					entity_type="Cheese Deposit",
+					entity_id=deposit.name,
+					event_type="OVERPAYMENT_DETECTED",
+					payload={"overpayment_amount": overpayment_amount, "total_received": total_received, "ticket_total": entity_total}
+				)
+			except Exception:
+				pass
 
 		return success("Deposit payment recorded successfully", payload)
 	except frappe.ValidationError as e:
@@ -793,6 +843,10 @@ def list_deposits(page=1, page_size=20, status=None, entity_type=None, entity_id
 		page = cint(page) or 1
 		page_size = cint(page_size) or 20
 		
+		user_company = _get_current_user_company()
+		if user_company:
+			company_id = user_company
+
 		filters = {}
 		if status:
 			filters["status"] = status

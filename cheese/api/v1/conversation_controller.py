@@ -70,8 +70,36 @@ def open_or_resume_conversation(contact_id, channel, status="ACTIVE"):
 			"channel": channel,
 			"status": status
 		})
-		conversation.insert()
-		frappe.db.commit()
+		try:
+			conversation.insert()
+			frappe.db.commit()
+		except frappe.DuplicateEntryError:
+			# Race condition: another request created the conversation first
+			frappe.db.rollback()
+			existing = frappe.db.get_value(
+				"Conversation",
+				{
+					"contact": contact_id,
+					"channel": channel,
+					"status": "ACTIVE",
+				},
+				"name",
+				order_by="modified desc"
+			)
+			if existing:
+				conversation = frappe.get_doc("Conversation", existing)
+				return success(
+					"Conversation resumed",
+					{
+						"conversation_id": conversation.name,
+						"contact_id": contact_id,
+						"channel": conversation.channel,
+						"status": conversation.status,
+						"is_new": False
+					}
+				)
+			# If somehow no existing conversation found, re-raise
+			raise
 		
 		return created(
 			"Conversation opened successfully",

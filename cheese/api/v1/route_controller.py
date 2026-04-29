@@ -6,6 +6,7 @@ from frappe import _
 from frappe.utils import add_to_date, now_datetime, cint
 from cheese.api.common.responses import success, created, error, not_found, validation_error, paginated_response
 from cheese.api.v1.bank_account_controller import get_active_bank_account_doc
+from cheese.api.v1.user_controller import _get_current_user_company
 import json
 
 
@@ -306,6 +307,22 @@ def list_routes(page=1, page_size=20, status=None, search=None, experiences=None
 		filters = {}
 		if status:
 			filters["status"] = status
+			
+		user_company = _get_current_user_company()
+		if user_company:
+			company_exps = frappe.get_all("Cheese Experience", filters={"company": user_company}, pluck="name")
+			if not company_exps:
+				return paginated_response([], "No routes", page=page, page_size=page_size, total=0)
+			
+			user_route_rows = frappe.db.sql(
+				"SELECT DISTINCT parent FROM `tabCheese Route Experience` WHERE experience IN %(exps)s",
+				{"exps": tuple(company_exps)},
+				as_dict=True
+			)
+			if not user_route_rows:
+				return paginated_response([], "No routes", page=page, page_size=page_size, total=0)
+			
+			filters["name"] = ["in", [r.parent for r in user_route_rows]]
 
 		if experiences:
 			try:
@@ -346,7 +363,15 @@ def list_routes(page=1, page_size=20, status=None, search=None, experiences=None
 					total=0
 				)
 
-			filters["name"] = ["in", [row.parent for row in route_rows]]
+			if "name" in filters:
+				allowed_routes = set(filters["name"][1])
+				matched_routes = set([row.parent for row in route_rows])
+				final_routes = list(allowed_routes & matched_routes)
+				if not final_routes:
+					return paginated_response([], "No routes found for these experiences", page=page, page_size=page_size, total=0)
+				filters["name"] = ["in", final_routes]
+			else:
+				filters["name"] = ["in", [row.parent for row in route_rows]]
 		
 		or_filters = []
 		if search:

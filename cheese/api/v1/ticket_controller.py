@@ -8,6 +8,7 @@ from cheese.cheese.utils.pricing import calculate_ticket_price, calculate_deposi
 from cheese.cheese.utils.validation import validate_booking_policy
 from cheese.cheese.utils.capacity import update_slot_capacity, get_available_capacity
 from cheese.api.common.responses import success, created, error, not_found, validation_error
+from cheese.api.v1.user_controller import _get_current_user_company
 import json
 
 
@@ -802,6 +803,10 @@ def list_tickets(page=1, page_size=20, status=None, route_id=None, establishment
 		page = cint(page) or 1
 		page_size = cint(page_size) or 20
 		
+		user_company = _get_current_user_company()
+		if user_company:
+			establishment_id = user_company
+			
 		filters = {}
 		if status:
 			filters["status"] = status
