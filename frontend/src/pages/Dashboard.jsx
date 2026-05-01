@@ -195,20 +195,20 @@ export default function Dashboard() {
                 {/* Quick Actions / Pending */}
                 <Card className="border-0 shadow-lg">
                     <CardHeader className="pb-2">
-                        <CardTitle className="text-base flex items-center gap-2"><Shield className="w-4 h-4 text-cheese-600" /> Quick Links</CardTitle>
+                        <CardTitle className="text-base flex items-center gap-2"><Shield className="w-4 h-4 text-cheese-600" /> {t("common.quickLinks", "Quick Links")}</CardTitle>
                     </CardHeader>
                     <CardContent>
                         <div className="grid grid-cols-2 gap-3">
                             {[
-                                { label: "Tickets", icon: Ticket, path: "/cheese/tickets", color: "bg-blue-50 dark:bg-blue-950 text-blue-700 dark:text-blue-400" },
-                                { label: "Routes", icon: Sparkles, path: "/cheese/routes", color: "bg-emerald-50 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-400" },
-                                { label: "Experiences", icon: Sparkles, path: "/cheese/experiences", color: "bg-purple-50 dark:bg-purple-950 text-purple-700 dark:text-purple-400" },
-                                { label: "New Experience", icon: Sparkles, path: "/cheese/experiences/new", color: "bg-purple-100 dark:bg-purple-900 text-purple-800 dark:text-purple-300" },
-                                { label: "Calendar", icon: CalendarDays, path: "/cheese/calendar", color: "bg-orange-50 dark:bg-orange-950 text-orange-700 dark:text-orange-400" },
-                                { label: "Deposits", icon: DollarSign, path: "/cheese/deposits", color: "bg-yellow-50 dark:bg-yellow-950 text-yellow-700 dark:text-yellow-400" },
-                                { label: "Support", icon: Shield, path: "/cheese/support", color: "bg-red-50 dark:bg-red-950 text-red-700 dark:text-red-400" },
-                                { label: "Contacts", icon: Users, path: "/cheese/contacts", color: "bg-teal-50 dark:bg-teal-950 text-teal-700 dark:text-teal-400" },
-                                { label: "Events Log", icon: Clock, path: "/cheese/events", color: "bg-gray-50 dark:bg-gray-900 text-gray-700 dark:text-gray-400" },
+                                { label: t("nav.tickets", "Tickets"), icon: Ticket, path: "/cheese/tickets", color: "bg-blue-50 dark:bg-blue-950 text-blue-700 dark:text-blue-400" },
+                                { label: t("nav.routes", "Routes"), icon: Sparkles, path: "/cheese/routes", color: "bg-emerald-50 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-400" },
+                                { label: t("nav.experiences", "Experiences"), icon: Sparkles, path: "/cheese/experiences", color: "bg-purple-50 dark:bg-purple-950 text-purple-700 dark:text-purple-400" },
+                                { label: t("routes.newExperience", "New Experience"), icon: Sparkles, path: "/cheese/experiences/new", color: "bg-purple-100 dark:bg-purple-900 text-purple-800 dark:text-purple-300" },
+                                { label: t("nav.calendar", "Calendar"), icon: CalendarDays, path: "/cheese/calendar", color: "bg-orange-50 dark:bg-orange-950 text-orange-700 dark:text-orange-400" },
+                                { label: t("nav.deposits", "Deposits"), icon: DollarSign, path: "/cheese/deposits", color: "bg-yellow-50 dark:bg-yellow-950 text-yellow-700 dark:text-yellow-400" },
+                                { label: t("nav.support", "Support"), icon: Shield, path: "/cheese/support", color: "bg-red-50 dark:bg-red-950 text-red-700 dark:text-red-400" },
+                                { label: t("nav.contacts", "Contacts"), icon: Users, path: "/cheese/contacts", color: "bg-teal-50 dark:bg-teal-950 text-teal-700 dark:text-teal-400" },
+                                { label: t("nav.eventsLog", "Events Log"), icon: Clock, path: "/cheese/events", color: "bg-gray-50 dark:bg-gray-900 text-gray-700 dark:text-gray-400" },
                             ].map((item) => (
                                 <Button key={item.label} variant="ghost" className={`h-auto flex flex-col items-center gap-2 py-4 rounded-xl ${item.color}`} onClick={() => navigate(item.path)}>
                                     <item.icon className="w-5 h-5" />
@@ -224,7 +224,7 @@ export default function Dashboard() {
             {(Array.isArray(agenda) && agenda.length > 0) && (
                 <Card className="border-0 shadow-lg">
                     <CardHeader className="pb-2">
-                        <CardTitle className="text-base flex items-center gap-2"><CalendarDays className="w-4 h-4 text-cheese-600" /> Today's Agenda</CardTitle>
+                        <CardTitle className="text-base flex items-center gap-2"><CalendarDays className="w-4 h-4 text-cheese-600" /> {t("dashboard.todaysAgenda", "Today's Agenda")}</CardTitle>
                     </CardHeader>
                     <CardContent>
                         <div className="space-y-2">
@@ -247,13 +247,13 @@ export default function Dashboard() {
             <Card className="border-0 shadow-lg">
                 <CardHeader className="pb-2">
                     <CardTitle className="text-base flex items-center gap-2">
-                        <Clock className="w-4 h-4 text-cheese-600" /> Pending Confirmations
+                        <Clock className="w-4 h-4 text-cheese-600" /> {t("dashboard.pendingConfirmations", "Pending Confirmations")}
                     </CardTitle>
                 </CardHeader>
                 <CardContent>
                     {pendingActionsError ? (
                         <div className="p-3 text-sm text-red-500">
-                            Failed to load pending confirmations.
+                            {t("dashboard.failedToLoadPending", "Failed to load pending confirmations.")}
                         </div>
                     ) : pendingActionsLoading ? (
                         <div className="space-y-2">
@@ -263,35 +263,35 @@ export default function Dashboard() {
                         </div>
                     ) : pendingConfirmations.length > 0 ? (
                         <div className="space-y-2">
-                            {pendingConfirmations.slice(0, 10).map((t) => (
-                                <div key={t.name} className="flex items-start justify-between gap-3 p-3 bg-muted/30 rounded-lg">
+                            {pendingConfirmations.slice(0, 10).map((ticketItem) => (
+                                <div key={ticketItem.name} className="flex items-start justify-between gap-3 p-3 bg-muted/30 rounded-lg">
                                     <div className="min-w-0">
-                                        <p className="text-sm font-medium truncate">{t.name}</p>
+                                        <p className="text-sm font-medium truncate">{ticketItem.name}</p>
                                         <p className="text-xs text-muted-foreground truncate">
-                                            {t.experience ? `Exp: ${t.experience}` : ""} {t.route ? `• Route: ${t.route}` : ""}
+                                            {ticketItem.experience ? `${t("routes.experiences", "Exp")}: ${ticketItem.experience}` : ""} {ticketItem.route ? `• ${t("routes.route", "Route")}: ${ticketItem.route}` : ""}
                                         </p>
                                         <p className="text-xs text-muted-foreground truncate">
-                                            {t.slot_date_from ? `Date: ${t.slot_date_from}` : ""} {t.slot_time_from ? `• Time: ${t.slot_time_from}` : ""}
-                                            {t.party_size ? ` • Ppl: ${t.party_size}` : ""}
+                                            {ticketItem.slot_date_from ? `${t("calendar.date", "Date")}: ${ticketItem.slot_date_from}` : ""} {ticketItem.slot_time_from ? `• ${t("calendar.time", "Time")}: ${ticketItem.slot_time_from}` : ""}
+                                            {ticketItem.party_size ? ` • ${t("tickets.partySize", "Ppl")}: ${ticketItem.party_size}` : ""}
                                         </p>
                                     </div>
                                     <div className="flex flex-col gap-2 shrink-0">
                                         <Button
                                             variant="outline"
                                             className="h-8"
-                                            onClick={() => navigate(`/cheese/bookings/new?ticket=${t.name}`)}
+                                            onClick={() => navigate(`/cheese/bookings/new?ticket=${ticketItem.name}`)}
                                         >
-                                            Convert to Booking
+                                            {t("tickets.convertToBooking", "Convert to Booking")}
                                         </Button>
                                     </div>
                                 </div>
                             ))}
                         </div>
                     ) : (
-                        <p className="text-sm text-muted-foreground">No pending confirmations for this period.</p>
+                        <p className="text-sm text-muted-foreground">{t("dashboard.noPendingConfirmations", "No pending confirmations for this period.")}</p>
                     )}
                     {pendingConfirmations.length > 10 ? (
-                        <p className="text-xs text-muted-foreground mt-2">Showing first 10 items.</p>
+                        <p className="text-xs text-muted-foreground mt-2">{t("common.showingFirst10", "Showing first 10 items.")}</p>
                     ) : null}
                 </CardContent>
             </Card>

@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { motion } from "framer-motion";
+import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -26,6 +27,7 @@ const LOST_REASONS = ["No Response", "Price Too High", "Not Interested", "Other"
 
 export default function Leads() {
     const navigate = useNavigate();
+    const { t } = useTranslation();
     const [searchTerm, setSearchTerm] = useState("");
     const [createOpen, setCreateOpen] = useState(false);
     const [form, setForm] = useState({ contact: "", interest_type: "", status: "OPEN" });
@@ -46,10 +48,10 @@ export default function Leads() {
     });
 
     const handleCreate = () => {
-        if (!form.contact || !form.interest_type) { toast.error("Contact and interest type are required"); return; }
+        if (!form.contact || !form.interest_type) { toast.error(t("leads.contactInterestRequired", "Contact and interest type are required")); return; }
         createMutation.mutate({ contact: form.contact, interest_type: form.interest_type, status: "OPEN" }, {
-            onSuccess: () => { setForm({ contact: "", interest_type: "", status: "OPEN" }); setCreateOpen(false); toast.success("Lead created"); },
-            onError: (err) => toast.error(err?.message || "Failed"),
+            onSuccess: () => { setForm({ contact: "", interest_type: "", status: "OPEN" }); setCreateOpen(false); toast.success(t("leads.createSuccess", "Lead created")); },
+            onError: (err) => toast.error(err?.message || t("common.failed", "Failed")),
         });
     };
 
@@ -61,15 +63,15 @@ export default function Leads() {
                 ...(newStatus === "LOST" && lostReason ? { lost_reason: lostReason } : {}),
             },
         }, {
-            onSuccess: () => toast.success(`Lead → ${newStatus}`),
-            onError: (err) => toast.error(err?.message || "Failed"),
+            onSuccess: () => toast.success(t("leads.statusUpdated", "Lead → {{status}}", { status: t(`status.${newStatus}`, newStatus) })),
+            onError: (err) => toast.error(err?.message || t("common.failed", "Failed")),
         });
     };
 
     const handleDelete = (name) => {
         deleteMutation.mutate(name, {
-            onSuccess: () => toast.success("Lead deleted"),
-            onError: (err) => toast.error(err?.message || "Failed"),
+            onSuccess: () => toast.success(t("leads.deleteSuccess", "Lead deleted")),
+            onError: (err) => toast.error(err?.message || t("common.failed", "Failed")),
         });
     };
 
@@ -77,9 +79,9 @@ export default function Leads() {
         return (
             <div className="p-6 flex flex-col items-center justify-center min-h-[400px] text-center">
                 <AlertCircle className="w-12 h-12 text-red-400 mb-4" />
-                <h2 className="text-lg font-semibold mb-2">Failed to load leads</h2>
+                <h2 className="text-lg font-semibold mb-2">{t("leads.loadFailed", "Failed to load leads")}</h2>
                 <p className="text-sm text-muted-foreground mb-4">{error?.message}</p>
-                <Button onClick={() => refetch()} variant="outline"><RefreshCw className="w-4 h-4 mr-2" /> Retry</Button>
+                <Button onClick={() => refetch()} variant="outline"><RefreshCw className="w-4 h-4 mr-2" /> {t("common.retry", "Retry")}</Button>
             </div>
         );
     }
@@ -88,12 +90,12 @@ export default function Leads() {
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="p-6 space-y-6">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
-                    <h1 className="text-2xl font-bold text-foreground flex items-center gap-2"><UserPlus className="w-6 h-6 text-cheese-600" /> Leads</h1>
-                    <p className="text-sm text-muted-foreground mt-1">{isLoading ? '...' : `${filtered.length} leads`}</p>
+                    <h1 className="text-2xl font-bold text-foreground flex items-center gap-2"><UserPlus className="w-6 h-6 text-cheese-600" /> {t("nav.leads", "Leads")}</h1>
+                    <p className="text-sm text-muted-foreground mt-1">{isLoading ? '...' : `${filtered.length} ${t("leads.items", "leads")}`}</p>
                 </div>
                 <div className="flex gap-2">
-                    <div className="relative"><Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" /><Input placeholder="Search..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-9 w-56 h-9" /></div>
-                    <Button className="cheese-gradient text-black font-semibold border-0 h-9" onClick={() => navigate("/cheese/leads/new")}><Plus className="w-4 h-4 mr-1" /> Add Lead</Button>
+                    <div className="relative"><Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" /><Input placeholder={t("common.search", "Search") + "..."} value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-9 w-56 h-9" /></div>
+                    <Button className="cheese-gradient text-black font-semibold border-0 h-9" onClick={() => navigate("/cheese/leads/new")}><Plus className="w-4 h-4 mr-1" /> {t("leads.addLead", "Add Lead")}</Button>
                     <Button variant="ghost" size="icon" onClick={() => refetch()} className="h-9 w-9"><RefreshCw className="w-4 h-4" /></Button>
                 </div>
             </div>
@@ -117,7 +119,7 @@ export default function Leads() {
                                     <DropdownMenu>
                                         <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8 opacity-0 group-hover:opacity-100"><ArrowRight className="w-4 h-4" /></Button></DropdownMenuTrigger>
                                         <DropdownMenuContent align="end">
-                                            <DropdownMenuItem onClick={() => navigate(`/cheese/leads/${lead.name}`)}><Eye className="w-3 h-3 mr-2" /> View Details</DropdownMenuItem>
+                                            <DropdownMenuItem onClick={() => navigate(`/cheese/leads/${lead.name}`)}><Eye className="w-3 h-3 mr-2" /> {t("common.viewDetails", "View Details")}</DropdownMenuItem>
                                             <DropdownMenuSeparator />
                                             {Object.keys(LEAD_STATUSES)
                                                 .filter(s => s !== lead.status)
@@ -127,13 +129,13 @@ export default function Leads() {
                                                         onClick={() => {
                                                             if (s === "LOST") {
                                                                 const reason = window.prompt(
-                                                                    `Lost reason for ${lead.name} (one of: ${LOST_REASONS.join(", ")})`,
+                                                                    t("leads.lostReasonPrompt", "Lost reason for {{name}} (one of: {{reasons}})", { name: lead.name, reasons: LOST_REASONS.join(", ") }),
                                                                     lead.lost_reason || LOST_REASONS[0]
                                                                 );
                                                                 if (!reason) return;
                                                                 const trimmed = reason.trim();
                                                                 if (!LOST_REASONS.includes(trimmed)) {
-                                                                    toast.error("Invalid lost reason. Please use one of the suggested values.");
+                                                                    toast.error(t("leads.invalidLostReason", "Invalid lost reason. Please use one of the suggested values."));
                                                                     return;
                                                                 }
                                                                 updateStatus(lead.name, s, trimmed);
@@ -142,21 +144,21 @@ export default function Leads() {
                                                             }
                                                         }}
                                                     >
-                                                        Move to {s}
+                                                        {t("leads.moveTo", "Move to {{status}}", { status: t(`status.${s}`, s) })}
                                                     </DropdownMenuItem>
                                                 ))}
                                             <DropdownMenuSeparator />
-                                            <DropdownMenuItem onClick={() => navigate(`/cheese/quotations/new?lead=${lead.name}`)}><FileText className="w-3 h-3 mr-2" /> Create Quotation</DropdownMenuItem>
-                                            <DropdownMenuItem onClick={() => navigate(`/cheese/conversations?lead=${lead.name}`)}>Conversations</DropdownMenuItem>
+                                            <DropdownMenuItem onClick={() => navigate(`/cheese/quotations/new?lead=${lead.name}`)}><FileText className="w-3 h-3 mr-2" /> {t("leads.createQuotation", "Create Quotation")}</DropdownMenuItem>
+                                            <DropdownMenuItem onClick={() => navigate(`/cheese/conversations?lead=${lead.name}`)}>{t("nav.conversations", "Conversations")}</DropdownMenuItem>
                                             <DropdownMenuSeparator />
-                                            <DropdownMenuItem className="text-red-600" onClick={() => handleDelete(lead.name)}><Trash2 className="w-3 h-3 mr-2" /> Delete</DropdownMenuItem>
+                                            <DropdownMenuItem className="text-red-600" onClick={() => handleDelete(lead.name)}><Trash2 className="w-3 h-3 mr-2" /> {t("common.delete", "Delete")}</DropdownMenuItem>
                                         </DropdownMenuContent>
                                     </DropdownMenu>
                                 </div>
-                                <Badge className={LEAD_STATUSES[lead.status] || LEAD_STATUSES.OPEN}>{lead.status || 'OPEN'}</Badge>
-                                {lead.interest_type && <p className="text-sm text-muted-foreground mt-2">Interest: <span className="font-medium text-foreground">{lead.interest_type}</span></p>}
+                                <Badge className={LEAD_STATUSES[lead.status] || LEAD_STATUSES.OPEN}>{lead.status ? t(`status.${lead.status}`, lead.status) : t("status.OPEN", "OPEN")}</Badge>
+                                {lead.interest_type && <p className="text-sm text-muted-foreground mt-2">{t("leads.interest", "Interest:")} <span className="font-medium text-foreground">{lead.interest_type}</span></p>}
                                 <div className="flex items-center justify-between mt-3 pt-3 border-t border-border text-xs text-muted-foreground">
-                                    <span>{lead.lost_reason ? `Lost: ${lead.lost_reason}` : ''}</span><span>{lead.last_interaction_at || '—'}</span>
+                                    <span>{lead.lost_reason ? `${t("leads.lostReason", "Lost:")} ${lead.lost_reason}` : ''}</span><span>{lead.last_interaction_at || '—'}</span>
                                 </div>
                             </CardContent>
                         </Card>
@@ -165,28 +167,28 @@ export default function Leads() {
             </div>
 
             {!isLoading && filtered.length === 0 && (
-                <div className="text-center py-16"><UserPlus className="w-16 h-16 text-muted-foreground/20 mx-auto mb-4" /><p className="text-muted-foreground">No leads found</p></div>
+                <div className="text-center py-16"><UserPlus className="w-16 h-16 text-muted-foreground/20 mx-auto mb-4" /><p className="text-muted-foreground">{t("leads.noneFound", "No leads found")}</p></div>
             )}
 
             <Dialog open={createOpen} onOpenChange={setCreateOpen}>
                 <DialogContent className="max-w-sm">
-                    <DialogHeader><DialogTitle className="flex items-center gap-2"><Plus className="w-5 h-5 text-cheese-600" /> Add Lead</DialogTitle><DialogDescription>Register a new lead</DialogDescription></DialogHeader>
+                    <DialogHeader><DialogTitle className="flex items-center gap-2"><Plus className="w-5 h-5 text-cheese-600" /> {t("leads.addLead", "Add Lead")}</DialogTitle><DialogDescription>{t("leads.registerNew", "Register a new lead")}</DialogDescription></DialogHeader>
                     <div className="space-y-4">
-                        <div className="space-y-2"><Label>Contact *</Label><Input placeholder="Contact ID" value={form.contact} onChange={(e) => setForm(f => ({ ...f, contact: e.target.value }))} /></div>
-                        <div className="space-y-2"><Label>Interest Type *</Label>
+                        <div className="space-y-2"><Label>{t("leads.contactRequired", "Contact *")}</Label><Input placeholder={t("leads.contactIdPlaceholder", "Contact ID")} value={form.contact} onChange={(e) => setForm(f => ({ ...f, contact: e.target.value }))} /></div>
+                        <div className="space-y-2"><Label>{t("leads.interestTypeRequired", "Interest Type *")}</Label>
                             <Select value={form.interest_type} onValueChange={(v) => setForm(f => ({ ...f, interest_type: v }))}>
-                                <SelectTrigger><SelectValue placeholder="Select interest" /></SelectTrigger>
+                                <SelectTrigger><SelectValue placeholder={t("leads.selectInterest", "Select interest")} /></SelectTrigger>
                                 <SelectContent>
-                                    <SelectItem value="Route">Route</SelectItem>
-                                    <SelectItem value="Experience">Experience</SelectItem>
+                                    <SelectItem value="Route">{t("leads.interestRoute", "Route")}</SelectItem>
+                                    <SelectItem value="Experience">{t("leads.interestExperience", "Experience")}</SelectItem>
                                 </SelectContent>
                             </Select>
                         </div>
                     </div>
                     <DialogFooter>
-                        <Button variant="outline" onClick={() => setCreateOpen(false)}>Cancel</Button>
+                        <Button variant="outline" onClick={() => setCreateOpen(false)}>{t("common.cancel", "Cancel")}</Button>
                         <Button className="cheese-gradient text-black font-semibold border-0" onClick={handleCreate} disabled={createMutation.isPending}>
-                            {createMutation.isPending ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Plus className="w-4 h-4 mr-1" />} Add Lead
+                            {createMutation.isPending ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Plus className="w-4 h-4 mr-1" />} {t("leads.addLead", "Add Lead")}
                         </Button>
                     </DialogFooter>
                 </DialogContent>

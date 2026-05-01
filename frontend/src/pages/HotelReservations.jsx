@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { motion } from "framer-motion";
+import { useTranslation } from "react-i18next";
 import { useQuery } from "@tanstack/react-query";
 import { useSearchParams } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -25,6 +26,7 @@ const STATUS_COLORS = {
 export default function HotelReservations() {
     const [searchParams] = useSearchParams();
     const hotelId = searchParams.get("hotel");
+    const { t } = useTranslation();
     const [statusFilter, setStatusFilter] = useState("all");
     const [dateFrom, setDateFrom] = useState("");
     const [dateTo, setDateTo] = useState("");
@@ -48,9 +50,9 @@ export default function HotelReservations() {
         return (
             <div className="p-6 flex flex-col items-center justify-center min-h-[400px] text-center">
                 <AlertCircle className="w-12 h-12 text-red-400 mb-4" />
-                <h2 className="text-lg font-semibold mb-2">Failed to load hotel reservations</h2>
+                <h2 className="text-lg font-semibold mb-2">{t("hotelReservations.failedToLoadList", "Failed to load hotel reservations")}</h2>
                 <Button onClick={() => refetch()} variant="outline">
-                    <RefreshCw className="w-4 h-4 mr-2" /> Retry
+                    <RefreshCw className="w-4 h-4 mr-2" /> {t("common.retry", "Retry")}
                 </Button>
             </div>
         );
@@ -61,28 +63,28 @@ export default function HotelReservations() {
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
                     <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
-                        <BedDouble className="w-6 h-6 text-indigo-500" /> Hotel Reservations
+                        <BedDouble className="w-6 h-6 text-indigo-500" /> {t("hotelReservations.title", "Hotel Reservations")}
                     </h1>
                     <p className="text-sm text-muted-foreground mt-1">
-                        {isLoading ? "…" : `${reservations.length} reservations`}
-                        {hotelId ? ` for ${hotelId}` : ""}
+                        {isLoading ? "…" : `${reservations.length} ${t("hotelReservations.reservationsCount", "reservations")}`}
+                        {hotelId ? ` ${t("common.for", "for")} ${hotelId}` : ""}
                     </p>
                 </div>
                 <div className="flex flex-wrap gap-2 items-center">
-                    <Input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} className="h-9 w-40" placeholder="From" />
-                    <Input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} className="h-9 w-40" placeholder="To" />
+                    <Input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} className="h-9 w-40" placeholder={t("common.from", "From")} />
+                    <Input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} className="h-9 w-40" placeholder={t("common.to", "To")} />
                     <Select value={statusFilter} onValueChange={setStatusFilter}>
                         <SelectTrigger className="w-36 h-9">
-                            <SelectValue placeholder="Status" />
+                            <SelectValue placeholder={t("common.status", "Status")} />
                         </SelectTrigger>
                         <SelectContent>
-                            <SelectItem value="all">All Status</SelectItem>
-                            <SelectItem value="PENDING">Pending</SelectItem>
-                            <SelectItem value="CONFIRMED">Confirmed</SelectItem>
-                            <SelectItem value="CHECKED_IN">Checked In</SelectItem>
-                            <SelectItem value="COMPLETED">Completed</SelectItem>
-                            <SelectItem value="CANCELLED">Cancelled</SelectItem>
-                            <SelectItem value="NO_SHOW">No Show</SelectItem>
+                            <SelectItem value="all">{t("common.allStatus", "All Status")}</SelectItem>
+                            <SelectItem value="PENDING">{t("status.PENDING", "Pending")}</SelectItem>
+                            <SelectItem value="CONFIRMED">{t("status.CONFIRMED", "Confirmed")}</SelectItem>
+                            <SelectItem value="CHECKED_IN">{t("status.CHECKED_IN", "Checked In")}</SelectItem>
+                            <SelectItem value="COMPLETED">{t("status.COMPLETED", "Completed")}</SelectItem>
+                            <SelectItem value="CANCELLED">{t("status.CANCELLED", "Cancelled")}</SelectItem>
+                            <SelectItem value="NO_SHOW">{t("status.NO_SHOW", "No Show")}</SelectItem>
                         </SelectContent>
                     </Select>
                     <Button variant="ghost" size="icon" onClick={() => refetch()} className="h-9 w-9">
@@ -102,15 +104,21 @@ export default function HotelReservations() {
                         </Card>
                     ))
                     : reservations.map((res) => (
-                        <motion.div key={res.name} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
-                            <Card className="border border-border shadow-sm hover:shadow-md transition-all">
+                        <motion.div 
+                            key={res.name} 
+                            initial={{ opacity: 0, y: 10 }} 
+                            animate={{ opacity: 1, y: 0 }}
+                            onClick={() => window.location.href = `/cheese/hotels/reservations/${res.name}`}
+                            className="cursor-pointer"
+                        >
+                            <Card className="border border-border shadow-sm hover:shadow-md transition-all hover:border-primary/40">
                                 <CardContent className="p-5">
                                     <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
                                         <div className="space-y-2 flex-1">
                                             <div className="flex items-center gap-2">
                                                 <span className="font-mono text-sm font-semibold text-foreground">{res.name}</span>
                                                 <Badge className={STATUS_COLORS[res.status] || "bg-gray-500/15 text-gray-600"}>
-                                                    {res.status}
+                                                    {t(`status.${res.status}`, res.status)}
                                                 </Badge>
                                             </div>
                                             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 text-sm text-muted-foreground">
@@ -136,22 +144,22 @@ export default function HotelReservations() {
                                             <div className="flex flex-wrap gap-4 text-xs text-muted-foreground mt-1">
                                                 {res.check_in_date && (
                                                     <span className="flex items-center gap-1">
-                                                        <Calendar className="w-3 h-3" /> In: {res.check_in_date}
+                                                        <Calendar className="w-3 h-3" /> {t("common.in", "In")}: {res.check_in_date}
                                                     </span>
                                                 )}
                                                 {res.check_out_date && (
                                                     <span className="flex items-center gap-1">
-                                                        <Calendar className="w-3 h-3" /> Out: {res.check_out_date}
+                                                        <Calendar className="w-3 h-3" /> {t("common.out", "Out")}: {res.check_out_date}
                                                     </span>
                                                 )}
                                                 {res.nights && (
                                                     <span className="flex items-center gap-1">
-                                                        <Moon className="w-3 h-3" /> {res.nights} night{res.nights !== 1 ? "s" : ""}
+                                                        <Moon className="w-3 h-3" /> {res.nights} {res.nights !== 1 ? t("common.nights", "nights") : t("common.night", "night")}
                                                     </span>
                                                 )}
                                                 {res.rooms_requested && (
                                                     <span className="flex items-center gap-1">
-                                                        <BedDouble className="w-3 h-3" /> {res.rooms_requested} room{res.rooms_requested !== 1 ? "s" : ""}
+                                                        <BedDouble className="w-3 h-3" /> {res.rooms_requested} {res.rooms_requested !== 1 ? t("common.rooms", "rooms") : t("common.room", "room")}
                                                     </span>
                                                 )}
                                                 {res.total_price != null && (
@@ -171,8 +179,8 @@ export default function HotelReservations() {
             {!isLoading && reservations.length === 0 && (
                 <div className="text-center py-16">
                     <BedDouble className="w-12 h-12 text-muted-foreground/30 mx-auto mb-4" />
-                    <h3 className="text-lg font-semibold text-muted-foreground">No reservations found</h3>
-                    <p className="text-sm text-muted-foreground mt-1">Hotel reservations will appear here when guests book.</p>
+                    <h3 className="text-lg font-semibold text-muted-foreground">{t("hotelReservations.noReservations", "No reservations found")}</h3>
+                    <p className="text-sm text-muted-foreground mt-1">{t("hotelReservations.noReservationsDesc", "Hotel reservations will appear here when guests book.")}</p>
                 </div>
             )}
         </motion.div>

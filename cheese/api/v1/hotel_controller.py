@@ -468,3 +468,221 @@ def get_hotel_reservations(hotel_id=None, experience_id=None, date_from=None, da
     except Exception as e:
         frappe.log_error(f"Error in get_hotel_reservations: {str(e)}")
         return error("Failed to get hotel reservations", "SERVER_ERROR", {"error": str(e)}, 500)
+
+@frappe.whitelist(allow_guest=True)
+def bot_get_hotel_catalog():
+    """
+    Bot Endpoint: Get a catalog of all hotels and their available rooms.
+    """
+    try:
+        hotels = frappe.get_all(
+            "Company",
+            filters={"cheese_is_hotel": 1},
+            fields=["name", "company_name", "cheese_operating_hours"],
+            order_by="company_name asc",
+        )
+        for hotel in hotels:
+            rooms = frappe.get_all(
+                "Cheese Experience",
+                filters={"company": hotel.name, "experience_type": "HOTEL", "status": "ONLINE"},
+                fields=["name", "description", "price_per_night", "max_occupancy_per_unit", "min_nights_stay"]
+            )
+            hotel["rooms"] = rooms
+            
+        return success("Hotel catalog retrieved", {"hotels": hotels})
+    except Exception as e:
+        frappe.log_error(f"Error in bot_get_hotel_catalog: {str(e)}")
+        return error("Failed to get hotel catalog", "SERVER_ERROR", {"error": str(e)}, 500)
+
+@frappe.whitelist(allow_guest=True)
+def bot_check_hotel_availability(room_id, date_from, date_to=None):
+    """
+    Bot Endpoint: Check availability for a specific room on a date or date range.
+    """
+    try:
+        if not date_to:
+            date_to = date_from
+            
+        # We can reuse the existing get_hotel_availability logic internally, 
+        # but format it for the bot
+        res = get_hotel_availability(room_id, date_from, date_to)
+        
+        # Check if error
+        if res.get("status") == "error":
+            return res
+            
+        data = res.get("data", {})
+        nights = data.get("nights", [])
+        
+        # Check if all nights are available
+        all_available = True
+        min_available = float('inf')
+        
+        for night in nights:
+            if night["available"] <= 0:
+                all_available = False
+                min_available = 0
+                break
+            if night["available"] < min_available:
+                min_available = night["available"]
+                
+        if min_available == float('inf'):
+            min_available = 0
+            
+        total_price = flt(data.get("price_per_night")) * len(nights)
+        
+        return success("Availability checked", {
+            "room_id": room_id,
+            "date_from": date_from,
+            "date_to": date_to,
+            "nights_count": len(nights),
+            "is_available": all_available,
+            "rooms_available": min_available,
+            "total_price": total_price,
+            "price_per_night": data.get("price_per_night")
+        })
+    except Exception as e:
+        frappe.log_error(f"Error in bot_check_hotel_availability: {str(e)}")
+        return error("Failed to check availability", "SERVER_ERROR", {"error": str(e)}, 500)
+
+@frappe.whitelist(allow_guest=True)
+def bot_book_hotel_room(contact_phone, room_id, date_from, date_to, rooms_requested=1):
+    """
+    Bot Endpoint: Book a hotel room.
+    Automatically finds or creates contact and creates a pending ticket.
+    """
+    try:
+        from cheese.cheese.api.v1.contact_controller import find_or_create_contact
+        from cheese.cheese.api.v1.ticket_controller import create_pending_reservation
+        
+        contact_res = find_or_create_contact(contact_phone, contact_phone)
+        if contact_res.get("status") == "error":
+            return contact_res
+            
+        contact_id = contact_res.get("data", {}).get("contact_id")
+        
+        # We need the slot ID for the first night to satisfy ticket creation
+        availability = get_hotel_availability(room_id, date_from, date_from)
+        if availability.get("status") == "error":
+            return availability
+            
+        nights = availability.get("data", {}).get("nights", [])
+        if not nights or nights[0]["available"] < cint(rooms_requested):
+            return validation_error(f"Not enough rooms available for requested dates.")
+            
+        slot_id = nights[0]["slot_id"]
+        if not slot_id:
+            return validation_error("No booking slot available for this date.")
+            
+        ticket_res = create_pending_reservation(
+            contact_id=contact_id,
+            experience_id=room_id,
+            slot_id=slot_id,
+            party_size=1, # Default required by base ticket
+            check_in_date=date_from,
+            check_out_date=date_to,
+            rooms_requested=rooms_requested
+        )
+        
+        if ticket_res.get("status") == "error":
+            return ticket_res
+            
+        ticket_id = ticket_res.get("data", {}).get("ticket_id")
+        
+        return success("Booking created successfully", {
+            "ticket_id": ticket_id,
+            "status": "PENDING",
+            "message": "Reservation is pending. Please proceed to payment."
+        })
+    except Exception as e:
+        frappe.log_error(f"Error in bot_book_hotel_room: {str(e)}")
+        return error("Failed to book room", "SERVER_ERROR", {"error": str(e)}, 500)
+
+@frappe.whitelist()
+def get_hotel_reservation_details(ticket_id):
+    """
+    Get full details for a hotel reservation.
+    """
+    try:
+        if not ticket_id:
+            return validation_error("ticket_id is required")
+
+        if not frappe.db.exists("Cheese Ticket", ticket_id):
+            return not_found("Ticket", ticket_id)
+
+        ticket = frappe.get_doc("Cheese Ticket", ticket_id)
+        
+        # Ensure it's a hotel ticket
+        if ticket.experience:
+            exp_type = frappe.db.get_value("Cheese Experience", ticket.experience, "experience_type")
+            if exp_type != "HOTEL":
+                return validation_error("Not a hotel reservation")
+                
+        user_company = _get_current_user_company()
+        if user_company and ticket.company != user_company:
+            return error("Unauthorized", "UNAUTHORIZED", {}, 403)
+
+        contact = {}
+        if ticket.contact:
+            contact = frappe.db.get_value(
+                "Cheese Contact", ticket.contact,
+                ["name", "full_name", "phone", "email"], as_dict=True
+            ) or {}
+
+        # Get payments
+        raw_payments = frappe.get_all(
+            "Cheese Deposit",
+            filters={"entity_type": "Cheese Ticket", "entity_id": ticket.name},
+            fields=["name", "amount_paid", "amount_required", "bank_account", "status", "creation", "paid_at"],
+            order_by="creation desc"
+        )
+        
+        payments = []
+        amount_paid_total = 0
+        for p in raw_payments:
+            paid = p.amount_paid or 0
+            if p.status in ("CONFIRMED", "VERIFIED"):
+                amount_paid_total += paid
+            payments.append({
+                "name": p.name,
+                "amount": paid,
+                "amount_required": p.amount_required or 0,
+                "bank_account": p.bank_account or "",
+                "status": p.status,
+                "deposit_date": str(p.creation) if p.creation else "",
+                "paid_at": str(p.paid_at) if p.paid_at else "",
+            })
+
+        total_price = float(ticket.total_price or 0)
+        is_paid = amount_paid_total >= total_price > 0
+        remaining_balance = max(0, total_price - amount_paid_total)
+
+        return success(
+            "Hotel reservation details retrieved successfully",
+            {
+                "ticket": {
+                    "name": ticket.name,
+                    "status": ticket.status,
+                    "company": ticket.company,
+                    "experience": ticket.experience,
+                    "check_in_date": ticket.check_in_date,
+                    "check_out_date": ticket.check_out_date,
+                    "nights": ticket.nights,
+                    "rooms_requested": ticket.rooms_requested,
+                    "total_price": ticket.total_price,
+                    "deposit_amount": ticket.deposit_amount,
+                    "is_paid": is_paid,
+                    "amount_paid_total": amount_paid_total,
+                    "remaining_balance": remaining_balance,
+                    "party_size": ticket.party_size,
+                    "expires_at": ticket.expires_at,
+                    "creation": ticket.creation,
+                    "modified": ticket.modified
+                },
+                "contact": contact,
+                "payments": payments
+            }
+        )
+    except Exception as e:
+        frappe.log_error(f"Error in get_hotel_reservation_details: {str(e)}")
+        return error("Failed to get reservation details", "SERVER_ERROR", {"error": str(e)}, 500)

@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -36,6 +37,7 @@ export default function EstablishmentDetail() {
     const companyId = id ? decodeURIComponent(id) : "";
     const navigate = useNavigate();
     const queryClient = useQueryClient();
+    const { t } = useTranslation();
     const [editMode, setEditMode] = useState(false);
     const [form, setForm] = useState({});
     const [deleteOpen, setDeleteOpen] = useState(false);
@@ -46,7 +48,7 @@ export default function EstablishmentDetail() {
             const res = await establishmentService.getEstablishmentDetails(companyId);
             const msg = res?.data?.message || {};
             if (!msg.success) {
-                throw new Error(msg.error?.message || "Failed to load");
+                throw new Error(msg.error?.message || t("experiences.loadError", "Failed to load"));
             }
             return msg.data;
         },
@@ -77,15 +79,15 @@ export default function EstablishmentDetail() {
         onSuccess: (res) => {
             const msg = res?.data?.message || {};
             if (!msg.success) {
-                toast.error(msg.error?.message || "Update failed");
+                toast.error(msg.error?.message || t("common.failed", "Update failed"));
                 return;
             }
-            toast.success("Saved");
+            toast.success(t("common.saved", "Saved"));
             setEditMode(false);
             queryClient.invalidateQueries({ queryKey: ["establishment", companyId] });
             queryClient.invalidateQueries({ queryKey: ["establishments"] });
         },
-        onError: (err) => toast.error(err?.message || "Failed"),
+        onError: (err) => toast.error(err?.message || t("common.failed", "Failed")),
     });
 
     const archiveMutation = useMutation({
@@ -93,14 +95,14 @@ export default function EstablishmentDetail() {
         onSuccess: (res) => {
             const msg = res?.data?.message || {};
             if (!msg.success) {
-                toast.error(msg.error?.message || "Failed");
+                toast.error(msg.error?.message || t("common.failed", "Failed"));
                 return;
             }
-            toast.success("Archived");
+            toast.success(t("experiences.archived", "Archived"));
             refetch();
             queryClient.invalidateQueries({ queryKey: ["establishments"] });
         },
-        onError: (err) => toast.error(err?.message || "Failed"),
+        onError: (err) => toast.error(err?.message || t("common.failed", "Failed")),
     });
 
     const unarchiveMutation = useMutation({
@@ -108,14 +110,14 @@ export default function EstablishmentDetail() {
         onSuccess: (res) => {
             const msg = res?.data?.message || {};
             if (!msg.success) {
-                toast.error(msg.error?.message || "Failed");
+                toast.error(msg.error?.message || t("common.failed", "Failed"));
                 return;
             }
-            toast.success("Unarchived");
+            toast.success(t("experiences.unarchived", "Unarchived"));
             refetch();
             queryClient.invalidateQueries({ queryKey: ["establishments"] });
         },
-        onError: (err) => toast.error(err?.message || "Failed"),
+        onError: (err) => toast.error(err?.message || t("common.failed", "Failed")),
     });
 
     const deleteMutation = useMutation({
@@ -123,15 +125,15 @@ export default function EstablishmentDetail() {
         onSuccess: (res) => {
             const msg = res?.data?.message || {};
             if (!msg.success) {
-                toast.error(msg.error?.message || "Delete failed — archive instead if linked data exists");
+                toast.error(msg.error?.message || t("experiences.deleteFailedArchive", "Delete failed — archive instead if linked data exists"));
                 return;
             }
-            toast.success("Deleted");
+            toast.success(t("common.deleted", "Deleted"));
             setDeleteOpen(false);
             queryClient.invalidateQueries({ queryKey: ["establishments"] });
             navigate("/cheese/establishments");
         },
-        onError: (err) => toast.error(err?.message || "Failed"),
+        onError: (err) => toast.error(err?.message || t("common.failed", "Failed")),
     });
 
     if (!companyId) {
@@ -144,7 +146,7 @@ export default function EstablishmentDetail() {
                 <AlertCircle className="w-12 h-12 text-red-400 mb-4" />
                 <p className="text-muted-foreground mb-4">{error.message}</p>
                 <Button variant="outline" onClick={() => refetch()}>
-                    <RefreshCw className="w-4 h-4 mr-2" /> Retry
+                    <RefreshCw className="w-4 h-4 mr-2" /> {t("common.retry", "Retry")}
                 </Button>
             </div>
         );
@@ -180,19 +182,19 @@ export default function EstablishmentDetail() {
                 </div>
                 <div className="flex flex-wrap gap-2">
                     <Button variant="outline" size="sm" onClick={() => refetch()}>
-                        <RefreshCw className="w-4 h-4 mr-1" /> Refresh
+                        <RefreshCw className="w-4 h-4 mr-1" /> {t("common.refresh", "Refresh")}
                     </Button>
                     {!editMode ? (
                         <Button size="sm" onClick={() => setEditMode(true)}>
-                            Edit
+                            {t("common.edit", "Edit")}
                         </Button>
                     ) : (
                         <>
                             <Button variant="outline" size="sm" onClick={() => setEditMode(false)}>
-                                Cancel
+                                {t("common.cancel", "Cancel")}
                             </Button>
                             <Button size="sm" onClick={() => updateMutation.mutate()} disabled={updateMutation.isPending}>
-                                Save
+                                {t("common.save", "Save")}
                             </Button>
                         </>
                     )}
@@ -205,11 +207,11 @@ export default function EstablishmentDetail() {
                 <>
                     <Card>
                         <CardHeader>
-                            <CardTitle className="text-base">Details</CardTitle>
+                            <CardTitle className="text-base">{t("support.caseDetails", "Details")}</CardTitle>
                         </CardHeader>
                         <CardContent className="grid gap-4 sm:grid-cols-2">
                             <div className="space-y-2 sm:col-span-2">
-                                <Label>Company name</Label>
+                                <Label>{t("experiences.providerCompany", "Company name")}</Label>
                                 {editMode ? (
                                     <Input
                                         value={form.company_name}
@@ -220,7 +222,7 @@ export default function EstablishmentDetail() {
                                 )}
                             </div>
                             <div className="space-y-2">
-                                <Label>Email</Label>
+                                <Label>{t("common.email", "Email")}</Label>
                                 {editMode ? (
                                     <Input
                                         value={form.email}
@@ -231,7 +233,7 @@ export default function EstablishmentDetail() {
                                 )}
                             </div>
                             <div className="space-y-2">
-                                <Label>Phone</Label>
+                                <Label>{t("common.phone", "Phone")}</Label>
                                 {editMode ? (
                                     <Input
                                         value={form.phone_no}
@@ -242,7 +244,7 @@ export default function EstablishmentDetail() {
                                 )}
                             </div>
                             <div className="space-y-2 sm:col-span-2">
-                                <Label>Website</Label>
+                                <Label>{t("experiences.website", "Website")}</Label>
                                 {editMode ? (
                                     <Input
                                         value={form.website}
@@ -253,7 +255,7 @@ export default function EstablishmentDetail() {
                                 )}
                             </div>
                             <div className="space-y-2 sm:col-span-2">
-                                <Label>Description</Label>
+                                <Label>{t("support.description", "Description")}</Label>
                                 {editMode ? (
                                     <Textarea
                                         value={form.company_description}
@@ -272,7 +274,7 @@ export default function EstablishmentDetail() {
                     <Card>
                         <CardHeader className="flex flex-row items-center justify-between">
                             <CardTitle className="text-base flex items-center gap-2">
-                                <Landmark className="w-4 h-4" /> Bank accounts
+                                <Landmark className="w-4 h-4" /> {t("experiences.bankAccounts", "Bank accounts")}
                             </CardTitle>
                             <Button
                                 size="sm"
@@ -281,12 +283,12 @@ export default function EstablishmentDetail() {
                                     navigate(`/cheese/bank-accounts/new?company=${encodeURIComponent(companyId)}`)
                                 }
                             >
-                                <Plus className="w-4 h-4 mr-1" /> Add
+                                <Plus className="w-4 h-4 mr-1" /> {t("common.add", "Add")}
                             </Button>
                         </CardHeader>
                         <CardContent className="space-y-3">
                             {bankAccounts.length === 0 ? (
-                                <p className="text-sm text-muted-foreground">No active bank accounts.</p>
+                                <p className="text-sm text-muted-foreground">{t("experiences.noBankAccounts", "No active bank accounts.")}</p>
                             ) : (
                                 bankAccounts.map((ba) => (
                                     <div
@@ -308,11 +310,11 @@ export default function EstablishmentDetail() {
 
                     <Card>
                         <CardHeader>
-                            <CardTitle className="text-base">Experiences</CardTitle>
+                            <CardTitle className="text-base">{t("nav.experiences", "Experiences")}</CardTitle>
                         </CardHeader>
                         <CardContent className="space-y-2">
                             {(payload?.experiences || []).length === 0 ? (
-                                <p className="text-sm text-muted-foreground">None linked.</p>
+                                <p className="text-sm text-muted-foreground">{t("experiences.noneLinked", "None linked.")}</p>
                             ) : (
                                 (payload.experiences || []).map((ex) => (
                                     <button
@@ -335,7 +337,7 @@ export default function EstablishmentDetail() {
                                 onClick={() => unarchiveMutation.mutate()}
                                 disabled={unarchiveMutation.isPending}
                             >
-                                <ArchiveRestore className="w-4 h-4 mr-2" /> Unarchive
+                                <ArchiveRestore className="w-4 h-4 mr-2" /> {t("experiences.unarchive", "Unarchive")}
                             </Button>
                         ) : (
                             <Button
@@ -343,27 +345,26 @@ export default function EstablishmentDetail() {
                                 onClick={() => archiveMutation.mutate()}
                                 disabled={archiveMutation.isPending}
                             >
-                                <Archive className="w-4 h-4 mr-2" /> Archive
+                                <Archive className="w-4 h-4 mr-2" /> {t("experiences.archive", "Archive")}
                             </Button>
                         )}
                         <Button variant="destructive" type="button" onClick={() => setDeleteOpen(true)}>
-                            <Trash2 className="w-4 h-4 mr-2" /> Delete
+                            <Trash2 className="w-4 h-4 mr-2" /> {t("common.delete", "Delete")}
                         </Button>
                         <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
                             <DialogContent>
                                 <DialogHeader>
-                                    <DialogTitle>Delete establishment?</DialogTitle>
+                                    <DialogTitle>{t("experiences.deleteEstablishmentTitle", "Delete establishment?")}</DialogTitle>
                                     <DialogDescription>
-                                        Only allowed when there are no linked experiences, tickets, or bank accounts.
-                                        Otherwise use Archive.
+                                        {t("experiences.deleteEstablishmentDesc", "Only allowed when there are no linked experiences, tickets, or bank accounts. Otherwise use Archive.")}
                                     </DialogDescription>
                                 </DialogHeader>
                                 <DialogFooter className="gap-2 sm:gap-0">
                                     <Button variant="outline" onClick={() => setDeleteOpen(false)}>
-                                        Cancel
+                                        {t("common.cancel", "Cancel")}
                                     </Button>
                                     <Button variant="destructive" onClick={() => deleteMutation.mutate()}>
-                                        Delete
+                                        {t("common.delete", "Delete")}
                                     </Button>
                                 </DialogFooter>
                             </DialogContent>

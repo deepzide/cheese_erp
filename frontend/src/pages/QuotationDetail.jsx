@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { useFrappeDoc, useFrappeUpdate } from "@/lib/useApiData";
 import { toast } from "sonner";
 import DetailPageLayout from "@/components/DetailPageLayout";
@@ -13,6 +14,7 @@ import { Badge } from "@/components/ui/badge";
 export default function QuotationDetail() {
     const { id } = useParams();
     const navigate = useNavigate();
+    const { t } = useTranslation();
 
     // Fetch Data
     const { data: quotation, isLoading } = useFrappeDoc("Cheese Quotation", id);
@@ -45,7 +47,7 @@ export default function QuotationDetail() {
 
     const handleSave = () => {
         if (!form.status) {
-            toast.error("Status is required.");
+            toast.error(t("common.statusRequired", "Status is required."));
             return;
         }
 
@@ -64,20 +66,20 @@ export default function QuotationDetail() {
 
         updateMutation.mutate({ name: id, data: changes }, {
             onSuccess: () => {
-                toast.success("Quotation updated successfully.");
+                toast.success(t("quotations.updateSuccess", "Quotation updated successfully."));
                 setEditMode(false);
             },
-            onError: (err) => toast.error(err?.message || "Failed to update quotation")
+            onError: (err) => toast.error(err?.message || t("quotations.updateError", "Failed to update quotation"))
         });
     };
 
     const getStatusBadge = (status) => {
         const normalized = (status || "DRAFT").toUpperCase();
         switch (normalized) {
-            case "DRAFT": return <Badge variant="outline" className="bg-slate-500/15 text-slate-700 border-slate-300 dark:text-slate-300 dark:border-slate-700">DRAFT</Badge>;
-            case "SENT": return <Badge variant="outline" className="bg-blue-500/15 text-blue-700 border-blue-300 dark:text-blue-300 dark:border-blue-700">SENT</Badge>;
-            case "ACCEPTED": return <Badge variant="outline" className="bg-emerald-500/15 text-emerald-700 border-emerald-300 dark:text-emerald-300 dark:border-emerald-700">ACCEPTED</Badge>;
-            case "EXPIRED": return <Badge variant="outline" className="bg-red-500/15 text-red-700 border-red-300 dark:text-red-300 dark:border-red-700">EXPIRED</Badge>;
+            case "DRAFT": return <Badge variant="outline" className="bg-slate-500/15 text-slate-700 border-slate-300 dark:text-slate-300 dark:border-slate-700">{t("status.DRAFT", "DRAFT")}</Badge>;
+            case "SENT": return <Badge variant="outline" className="bg-blue-500/15 text-blue-700 border-blue-300 dark:text-blue-300 dark:border-blue-700">{t("status.SENT", "SENT")}</Badge>;
+            case "ACCEPTED": return <Badge variant="outline" className="bg-emerald-500/15 text-emerald-700 border-emerald-300 dark:text-emerald-300 dark:border-emerald-700">{t("status.ACCEPTED", "ACCEPTED")}</Badge>;
+            case "EXPIRED": return <Badge variant="outline" className="bg-red-500/15 text-red-700 border-red-300 dark:text-red-300 dark:border-red-700">{t("status.EXPIRED", "EXPIRED")}</Badge>;
             default: return <Badge variant="outline">{normalized}</Badge>;
         }
     };
@@ -85,7 +87,7 @@ export default function QuotationDetail() {
     return (
         <DetailPageLayout
             title={id}
-            subtitle={`Linked to Lead: ${quotation?.lead || "None"}`}
+            subtitle={`${t("quotations.linkedToLead", "Linked to Lead")}: ${quotation?.lead || t("common.none", "None")}`}
             backPath="/cheese/quotations"
             isLoading={isLoading}
             statusBadge={getStatusBadge(quotation?.status)}
@@ -99,8 +101,8 @@ export default function QuotationDetail() {
                 <div className="lg:col-span-2 space-y-6">
                     <Tabs defaultValue="details" className="w-full">
                         <TabsList className="w-full justify-start h-12 bg-muted/50 p-1">
-                            <TabsTrigger value="details" className="flex-1 max-w-[200px] h-full data-[state=active]:bg-background data-[state=active]:shadow-sm"><FileText className="w-4 h-4 mr-2" /> Quote Details</TabsTrigger>
-                            <TabsTrigger value="experiences" className="flex-1 max-w-[200px] h-full data-[state=active]:bg-background data-[state=active]:shadow-sm"><Calendar className="w-4 h-4 mr-2" /> Experiences List</TabsTrigger>
+                            <TabsTrigger value="details" className="flex-1 max-w-[200px] h-full data-[state=active]:bg-background data-[state=active]:shadow-sm"><FileText className="w-4 h-4 mr-2" /> {t("quotations.quoteDetails", "Quote Details")}</TabsTrigger>
+                            <TabsTrigger value="experiences" className="flex-1 max-w-[200px] h-full data-[state=active]:bg-background data-[state=active]:shadow-sm"><Calendar className="w-4 h-4 mr-2" /> {t("routes.experiencesList", "Experiences List")}</TabsTrigger>
                         </TabsList>
 
                         <TabsContent value="details" className="pt-4 space-y-6">
@@ -108,33 +110,33 @@ export default function QuotationDetail() {
                             <Card className="border-border/60 shadow-sm">
                                 <CardHeader className="border-b bg-muted/20 pb-4">
                                     <CardTitle className="text-sm font-semibold text-muted-foreground uppercase flex items-center">
-                                        <Info className="w-4 h-4 mr-2" /> Proposal Information
+                                        <Info className="w-4 h-4 mr-2" /> {t("quotations.proposalInfo", "Proposal Information")}
                                     </CardTitle>
                                 </CardHeader>
                                 <CardContent className="p-6">
                                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-6 gap-x-8">
-                                        <EditableField label="Lead" value={form.lead} onChange={(v) => handleFieldChange("lead", v)} editMode={editMode} doctype="Cheese Lead" searchLabel="contact" />
-                                        <EditableField label="Establishment (Company)" value={form.establishment} onChange={(v) => handleFieldChange("establishment", v)} editMode={editMode} doctype="Company" searchLabel="name" />
-                                        <EditableField label="Route" value={form.route} onChange={(v) => handleFieldChange("route", v)} editMode={editMode} doctype="Cheese Route" searchLabel="route_info" />
-                                        <EditableField label="Conversation" value={form.conversation} onChange={(v) => handleFieldChange("conversation", v)} editMode={editMode} doctype="Conversation" searchLabel="name" />
+                                        <EditableField label={t("nav.leads", "Lead")} value={form.lead} onChange={(v) => handleFieldChange("lead", v)} editMode={editMode} doctype="Cheese Lead" searchLabel="contact" />
+                                        <EditableField label={t("experiences.establishmentCompany", "Establishment (Company)")} value={form.establishment} onChange={(v) => handleFieldChange("establishment", v)} editMode={editMode} doctype="Company" searchLabel="name" />
+                                        <EditableField label={t("routes.route", "Route")} value={form.route} onChange={(v) => handleFieldChange("route", v)} editMode={editMode} doctype="Cheese Route" searchLabel="route_info" />
+                                        <EditableField label={t("common.conversation", "Conversation")} value={form.conversation} onChange={(v) => handleFieldChange("conversation", v)} editMode={editMode} doctype="Conversation" searchLabel="name" />
 
                                         <div className="space-y-1">
                                             {editMode ? (
                                                 <div className="space-y-1.5 animate-in fade-in zoom-in-95 duration-200">
-                                                    <label className="text-xs text-muted-foreground">Status</label>
+                                                    <label className="text-xs text-muted-foreground">{t("common.status", "Status")}</label>
                                                     <select
                                                         value={form.status}
                                                         onChange={(e) => handleFieldChange("status", e.target.value)}
                                                         className="flex h-9 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
                                                     >
-                                                        <option value="DRAFT">DRAFT</option>
-                                                        <option value="SENT">SENT</option>
-                                                        <option value="ACCEPTED">ACCEPTED</option>
-                                                        <option value="EXPIRED">EXPIRED</option>
+                                                        <option value="DRAFT">{t("status.DRAFT", "DRAFT")}</option>
+                                                        <option value="SENT">{t("status.SENT", "SENT")}</option>
+                                                        <option value="ACCEPTED">{t("status.ACCEPTED", "ACCEPTED")}</option>
+                                                        <option value="EXPIRED">{t("status.EXPIRED", "EXPIRED")}</option>
                                                     </select>
                                                 </div>
                                             ) : (
-                                                <EditableField label="Status" value={form.status} editMode={false} />
+                                                <EditableField label={t("common.status", "Status")} value={t(`status.${form.status}`, form.status)} editMode={false} />
                                             )}
                                         </div>
                                     </div>
@@ -145,17 +147,17 @@ export default function QuotationDetail() {
                             <Card className="border-border/60 shadow-sm">
                                 <CardHeader className="border-b bg-muted/20 pb-4">
                                     <CardTitle className="text-sm font-semibold text-muted-foreground uppercase flex items-center">
-                                        <DollarSign className="w-4 h-4 mr-2" /> Pricing & Terms
+                                        <DollarSign className="w-4 h-4 mr-2" /> {t("quotations.pricingTerms", "Pricing & Terms")}
                                     </CardTitle>
                                 </CardHeader>
                                 <CardContent className="p-6">
                                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-6 gap-x-8">
-                                        <EditableField label="Total Price ($)" type="number" value={form.total_price} onChange={(v) => handleFieldChange("total_price", v)} editMode={editMode} />
-                                        <EditableField label="Deposit Amount ($)" type="number" value={form.deposit_amount} onChange={(v) => handleFieldChange("deposit_amount", v)} editMode={editMode} />
+                                        <EditableField label={t("experiences.totalPrice", "Total Price ($)")} type="number" value={form.total_price} onChange={(v) => handleFieldChange("total_price", v)} editMode={editMode} />
+                                        <EditableField label={t("experiences.depositAmount", "Deposit Amount ($)")} type="number" value={form.deposit_amount} onChange={(v) => handleFieldChange("deposit_amount", v)} editMode={editMode} />
 
                                         {editMode ? (
                                             <div className="space-y-1.5 animate-in fade-in zoom-in-95 duration-200">
-                                                <label className="text-xs text-muted-foreground">Valid Until</label>
+                                                <label className="text-xs text-muted-foreground">{t("quotations.validUntil", "Valid Until")}</label>
                                                 <input
                                                     type="datetime-local"
                                                     value={form.valid_until ? form.valid_until.substring(0, 16) : ""}
@@ -165,7 +167,7 @@ export default function QuotationDetail() {
                                                 />
                                             </div>
                                         ) : (
-                                            <EditableField label="Valid Until" value={form.valid_until ? new Date(form.valid_until).toLocaleString() : ""} editMode={false} />
+                                            <EditableField label={t("quotations.validUntil", "Valid Until")} value={form.valid_until ? new Date(form.valid_until).toLocaleString() : ""} editMode={false} />
                                         )}
                                     </div>
                                 </CardContent>
@@ -175,7 +177,7 @@ export default function QuotationDetail() {
                         <TabsContent value="experiences" className="pt-4">
                             <Card className="border-border/60 shadow-sm">
                                 <CardHeader className="border-b bg-muted/20 pb-4">
-                                    <CardTitle className="text-sm font-semibold text-muted-foreground uppercase">Included Experiences</CardTitle>
+                                    <CardTitle className="text-sm font-semibold text-muted-foreground uppercase">{t("quotations.includedExperiences", "Included Experiences")}</CardTitle>
                                 </CardHeader>
                                 <CardContent className="p-0">
                                     {quotation?.experiences && quotation.experiences.length > 0 ? (
@@ -198,12 +200,12 @@ export default function QuotationDetail() {
                                     ) : (
                                         <div className="p-12 text-center text-muted-foreground flex flex-col items-center">
                                             <Calendar className="w-8 h-8 mb-4 opacity-20" />
-                                            <p>No specific experiences attached to this quotation yet.</p>
+                                            <p>{t("quotations.noExperiencesAttached", "No specific experiences attached to this quotation yet.")}</p>
                                         </div>
                                     )}
                                     {editMode && (
                                         <div className="p-4 bg-primary/5 text-primary text-xs text-center border-t border-primary/10">
-                                            Child table editing is currently read-only in inline edit mode. Navigate to the full form to modify experiences.
+                                            {t("common.childTableReadOnly", "Child table editing is currently read-only in inline edit mode. Navigate to the full form to modify experiences.")}
                                         </div>
                                     )}
                                 </CardContent>
@@ -216,19 +218,19 @@ export default function QuotationDetail() {
                 <div className="lg:col-span-1 space-y-6">
                     <Card className="border-border/60 shadow-sm">
                         <CardHeader className="border-b bg-muted/20 pb-4">
-                            <CardTitle className="text-sm font-semibold text-muted-foreground uppercase">System Information</CardTitle>
+                            <CardTitle className="text-sm font-semibold text-muted-foreground uppercase">{t("experiences.systemInfo", "System Information")}</CardTitle>
                         </CardHeader>
                         <CardContent className="p-6 space-y-4">
                             <div className="space-y-1">
-                                <Label className="text-xs text-muted-foreground">Created On</Label>
+                                <Label className="text-xs text-muted-foreground">{t("experiences.createdOn", "Created On")}</Label>
                                 <p className="text-sm font-medium">{quotation?.creation ? new Date(quotation.creation).toLocaleString() : "—"}</p>
                             </div>
                             <div className="space-y-1">
-                                <Label className="text-xs text-muted-foreground">Last Modified</Label>
+                                <Label className="text-xs text-muted-foreground">{t("experiences.lastModified", "Last Modified")}</Label>
                                 <p className="text-sm font-medium">{quotation?.modified ? new Date(quotation.modified).toLocaleString() : "—"}</p>
                             </div>
                             <div className="space-y-1">
-                                <Label className="text-xs text-muted-foreground">Owner</Label>
+                                <Label className="text-xs text-muted-foreground">{t("experiences.owner", "Owner")}</Label>
                                 <p className="text-sm font-medium">{quotation?.owner || "—"}</p>
                             </div>
                         </CardContent>
@@ -236,23 +238,23 @@ export default function QuotationDetail() {
 
                     <Card className="border-border/60 shadow-sm bg-primary/5 border-primary/20">
                         <CardHeader className="pb-2">
-                            <CardTitle className="text-sm font-semibold text-primary">Quotation Actions</CardTitle>
+                            <CardTitle className="text-sm font-semibold text-primary">{t("quotations.quotationActions", "Quotation Actions")}</CardTitle>
                         </CardHeader>
                         <CardContent className="space-y-2 p-4 pt-0">
                             <div className="flex flex-col gap-2">
                                 {quotation?.status !== "ACCEPTED" && (
                                     <button onClick={() => updateMutation.mutate({ name: id, data: { status: "ACCEPTED" } })} disabled={updateMutation.isPending} className="text-sm text-left px-3 py-2 rounded-md bg-emerald-50 hover:bg-emerald-100 transition-colors text-emerald-700 font-medium flex items-center justify-between">
-                                        <span className="flex items-center"><CheckCircle className="w-4 h-4 mr-2" /> Mark as Accepted</span>
+                                        <span className="flex items-center"><CheckCircle className="w-4 h-4 mr-2" /> {t("quotations.markAsAccepted", "Mark as Accepted")}</span>
                                     </button>
                                 )}
                                 {quotation?.lead && (
                                     <button onClick={() => navigate(`/cheese/leads/${quotation.lead}`)} className="text-sm text-left px-3 py-2 rounded-md hover:bg-primary/10 transition-colors text-primary font-medium flex items-center justify-between">
-                                        <span className="flex items-center"><FileText className="w-4 h-4 mr-2" /> View Lead</span>
+                                        <span className="flex items-center"><FileText className="w-4 h-4 mr-2" /> {t("nav.viewLead", "View Lead")}</span>
                                     </button>
                                 )}
                                 {quotation?.route && (
                                     <button onClick={() => navigate(`/cheese/routes/${quotation.route}`)} className="text-sm text-left px-3 py-2 rounded-md hover:bg-primary/10 transition-colors text-primary font-medium flex items-center justify-between">
-                                        <span className="flex items-center"><FileText className="w-4 h-4 mr-2" /> View Route</span>
+                                        <span className="flex items-center"><FileText className="w-4 h-4 mr-2" /> {t("nav.viewRoute", "View Route")}</span>
                                     </button>
                                 )}
                                 <button
@@ -262,7 +264,7 @@ export default function QuotationDetail() {
                                     }}
                                     className="text-sm text-left px-3 py-2 rounded-md hover:bg-primary/10 transition-colors text-primary font-medium flex items-center justify-between"
                                 >
-                                    <span className="flex items-center"><FileText className="w-4 h-4 mr-2" /> Print</span>
+                                    <span className="flex items-center"><FileText className="w-4 h-4 mr-2" /> {t("common.print", "Print")}</span>
                                 </button>
                                 <button
                                     onClick={() => {
@@ -271,10 +273,10 @@ export default function QuotationDetail() {
                                     }}
                                     className="text-sm text-left px-3 py-2 rounded-md hover:bg-primary/10 transition-colors text-primary font-medium flex items-center justify-between"
                                 >
-                                    <span className="flex items-center"><FileText className="w-4 h-4 mr-2" /> Export PDF</span>
+                                    <span className="flex items-center"><FileText className="w-4 h-4 mr-2" /> {t("common.exportPdf", "Export PDF")}</span>
                                 </button>
                                 <button className="text-sm text-left px-3 py-2 rounded-md hover:bg-primary/10 transition-colors text-primary font-medium flex items-center">
-                                    <Clock className="w-4 h-4 mr-2" /> Send Follow-up Reminder
+                                    <Clock className="w-4 h-4 mr-2" /> {t("quotations.sendFollowUp", "Send Follow-up Reminder")}
                                 </button>
                             </div>
                         </CardContent>

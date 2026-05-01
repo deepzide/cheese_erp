@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
+import { useQueryClient } from "@tanstack/react-query";
 import { DollarSign } from "lucide-react";
 import { toast } from "sonner";
 import CreatePageLayout from "@/components/CreatePageLayout";
@@ -8,11 +10,23 @@ import { useFrappeDoc } from "@/lib/useApiData";
 import { apiRequest } from "@/api/client";
 
 export default function DepositCreate() {
+    const queryClient = useQueryClient();
     const [searchParams] = useSearchParams();
     const navigate = useNavigate();
+    const { t } = useTranslation();
     const ticketId = searchParams.get("ticket") || "";
     const bookingId = searchParams.get("booking") || "";
+    const fromReservation = searchParams.get("from") === "reservation";
     const defaultEntityType = ticketId ? "Cheese Ticket" : (bookingId ? "Cheese Route Booking" : "");
+
+    // Back path: if came from a hotel reservation ticket, return there
+    const backPath = ticketId && fromReservation
+        ? `/cheese/hotels/reservations/${ticketId}`
+        : ticketId
+            ? `/cheese/tickets/${ticketId}`
+            : bookingId
+                ? `/cheese/bookings/${bookingId}`
+                : "/cheese/deposits";
 
     const [form, setForm] = useState({
         contact: "",
@@ -69,11 +83,15 @@ export default function DepositCreate() {
 
     useEffect(() => {
         if (form.entity_type === "Cheese Ticket" && ticket) {
+            const depositAmt = ticket.deposit_amount ?? 0;
+            // If no advance deposit is configured, prefill amount_required with total_price
+            // so the user can directly log the full payment
+            const required = depositAmt > 0 ? depositAmt : (ticket.total_price ?? 0);
             setForm((prev) => ({
                 ...prev,
                 contact: ticket.contact || prev.contact,
-                amount_required: ticket.deposit_amount != null ? String(ticket.deposit_amount) : prev.amount_required,
-                payment_amount: prev.payment_amount || "",
+                amount_required: required > 0 ? String(required) : prev.amount_required,
+                payment_amount: prev.payment_amount || (required > 0 ? String(required) : ""),
             }));
         }
         if (form.entity_type === "Cheese Route Booking" && booking) {
@@ -88,15 +106,15 @@ export default function DepositCreate() {
 
     const handleSubmit = async () => {
         if (!form.entity_type || !form.entity_id) {
-            toast.error("Select a reservation or ticket");
+            toast.error(t("deposits.selectReservationTicket", "Select a reservation or ticket"));
             return;
         }
         if (!form.payment_amount || Number(form.payment_amount) <= 0) {
-            toast.error("Payment amount must be greater than 0");
+            toast.error(t("deposits.amountGreaterThanZero", "Payment amount must be greater than 0"));
             return;
         }
         if (!form.bank_account) {
-            toast.error("Bank account is required for manual deposits");
+            toast.error(t("deposits.bankAccountRequired", "Bank account is required for manual deposits"));
             return;
         }
         setSubmitting(true);
@@ -112,12 +130,14 @@ export default function DepositCreate() {
             });
             const payload = res?.data?.message || res?.data || res;
             if (payload?.success === false) {
-                throw new Error(payload?.error?.message || payload?.message || "Failed to record deposit payment");
+                throw new Error(payload?.error?.message || payload?.message || t("deposits.recordFailed", "Failed to record deposit payment"));
             }
-            toast.success("Deposit payment recorded");
-            navigate(`/cheese/deposits`);
+            toast.success(t("deposits.recordSuccess", "Deposit payment recorded"));
+            queryClient.invalidateQueries();
+            // Navigate back to the origin
+            navigate(backPath);
         } catch (err) {
-            toast.error(err?.message || "Failed to record deposit payment");
+            toast.error(err?.message || t("deposits.recordFailed", "Failed to record deposit payment"));
         } finally {
             setSubmitting(false);
         }
@@ -125,47 +145,45 @@ export default function DepositCreate() {
 
     return (
         <CreatePageLayout
-            title="Create Deposit"
-            description={
-                "Create a new deposit linked to a ticket or reservation."
-            }
+            title={t("deposits.registerPayment", "Registrar Pago")}
+            description={t("deposits.registerPaymentDesc", "Registra un pago parcial o total contra el ticket o reserva seleccionado.")}
             icon={DollarSign}
-            backPath="/cheese/deposits"
+            backPath={backPath}
             onSubmit={handleSubmit}
             isSubmitting={submitting}
-            submitLabel="Record Payment"
+            submitLabel={t("deposits.registerPayment", "Registrar Pago")}
             isLoading={isLoading}
         >
             <div className="space-y-5">
                 <p className="text-xs text-muted-foreground">
-                    This form records partial/full payments against the existing active deposit for the selected ticket/reservation.
+                    {t("deposits.registerPaymentHelp", "This form records partial/full payments against the existing active deposit for the selected ticket/reservation.")}
                 </p>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                     <div className="space-y-2">
-                        <p className="text-xs text-muted-foreground">Contact</p>
+                        <p className="text-xs text-muted-foreground">{t("nav.contacts", "Contact")}</p>
                         <FrappeSearchSelect
                             doctype="Cheese Contact"
                             label="full_name"
                             value={form.contact}
                             onChange={(v) => setForm((prev) => ({ ...prev, contact: v, entity_id: "" }))}
-                            placeholder="Select contact..."
+                            placeholder={t("tickets.selectContact", "Select contact...")}
                             disabled={!!ticketId}
                         />
                     </div>
                     <div className="space-y-2">
-                        <p className="text-xs text-muted-foreground">Type</p>
+                        <p className="text-xs text-muted-foreground">{t("common.type", "Type")}</p>
                         <select
                             value={form.entity_type}
                             onChange={(e) => setForm((prev) => ({ ...prev, entity_type: e.target.value, entity_id: "" }))}
                             className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm"
                         >
-                            <option value="">Select type...</option>
-                            <option value="Cheese Ticket">Ticket</option>
-                            <option value="Cheese Route Booking">Reservation</option>
+                            <option value="">{t("common.selectType", "Select type...")}</option>
+                            <option value="Cheese Ticket">{t("nav.tickets", "Ticket")}</option>
+                            <option value="Cheese Route Booking">{t("tickets.reservation", "Reservation")}</option>
                         </select>
                     </div>
                     <div className="space-y-2">
-                        <p className="text-xs text-muted-foreground">Ticket / Reservation</p>
+                        <p className="text-xs text-muted-foreground">{t("deposits.ticketOrReservation", "Ticket / Reservation")}</p>
                         {form.entity_type === "Cheese Ticket" ? (
                             <FrappeSearchSelect
                                 doctype="Cheese Ticket"
@@ -173,7 +191,7 @@ export default function DepositCreate() {
                                 value={form.entity_id}
                                 onChange={(v) => setForm((prev) => ({ ...prev, entity_id: v }))}
                                 filters={{ contact: form.contact }}
-                                placeholder={form.contact ? "Select ticket..." : "Select contact first..."}
+                                placeholder={form.contact ? t("tickets.selectTicket", "Select ticket...") : t("deposits.selectContactFirst", "Select contact first...")}
                                 disabled={!form.contact}
                             />
                         ) : form.entity_type === "Cheese Route Booking" ? (
@@ -183,19 +201,19 @@ export default function DepositCreate() {
                                 value={form.entity_id}
                                 onChange={(v) => setForm((prev) => ({ ...prev, entity_id: v }))}
                                 filters={{ contact: form.contact }}
-                                placeholder={form.contact ? "Select reservation..." : "Select contact first..."}
+                                placeholder={form.contact ? t("bookings.selectReservation", "Select reservation...") : t("deposits.selectContactFirst", "Select contact first...")}
                                 disabled={!form.contact}
                             />
                         ) : (
                             <input
                                 disabled
                                 className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm"
-                                placeholder="Select type first..."
+                                placeholder={t("common.selectTypeFirst", "Select type first...")}
                             />
                         )}
                     </div>
                     <div className="space-y-2">
-                        <p className="text-xs text-muted-foreground">Amount Required</p>
+                        <p className="text-xs text-muted-foreground">{t("deposits.amountRequired", "Amount Required")}</p>
                         <input
                             type="number"
                             min="0"
@@ -207,7 +225,7 @@ export default function DepositCreate() {
                         />
                     </div>
                     <div className="space-y-2">
-                        <p className="text-xs text-muted-foreground">Payment Amount</p>
+                        <p className="text-xs text-muted-foreground">{t("deposits.paymentAmount", "Payment Amount")}</p>
                         <input
                             type="number"
                             min="0"
@@ -218,7 +236,7 @@ export default function DepositCreate() {
                         />
                     </div>
                     <div className="space-y-2">
-                        <p className="text-xs text-muted-foreground">Due At</p>
+                        <p className="text-xs text-muted-foreground">{t("deposits.dueAt", "Due At")}</p>
                         <input
                             type="datetime-local"
                             value={form.due_at}
@@ -227,20 +245,22 @@ export default function DepositCreate() {
                         />
                     </div>
                     <div className="space-y-2">
-                        <p className="text-xs text-muted-foreground">Bank Account</p>
+                        <p className="text-xs text-muted-foreground">{t("deposits.bankAccount", "Bank Account")}</p>
                         <FrappeSearchSelect
                             doctype="Cheese Bank Account"
-                            label="holder"
+                            label="bank"
                             value={form.bank_account || ""}
                             onChange={(v) => setForm((prev) => ({ ...prev, bank_account: v }))}
                             filters={
                                 form.entity_type === "Cheese Route Booking" && booking?.route
                                     ? { entity_type: "Cheese Route", entity_id: booking.route }
-                                    : form.entity_type === "Cheese Ticket" && bankAccounts.length > 0
-                                        ? { name: ["in", bankAccounts.map((a) => a.bank_account_id).filter(Boolean)] }
-                                        : {}
+                                    : form.entity_type === "Cheese Ticket" && ticket?.company
+                                        ? { entity_type: "Company", entity_id: ticket.company }
+                                        : form.entity_type === "Cheese Ticket" && bankAccounts.length > 0
+                                            ? { name: ["in", bankAccounts.map((a) => a.bank_account_id).filter(Boolean)] }
+                                            : {}
                             }
-                            placeholder={form.entity_type === "Cheese Ticket" ? "Select establishment bank account..." : "Select bank account..."}
+                            placeholder={form.entity_type === "Cheese Ticket" ? t("deposits.selectEstablishmentBankAccount", "Select establishment bank account...") : t("deposits.selectBankAccount", "Select bank account...")}
                             disabled={form.entity_type === "Cheese Route Booking" && !booking?.route}
                         />
                     </div>
@@ -248,7 +268,7 @@ export default function DepositCreate() {
                 <div className="text-xs text-muted-foreground">
                     {form.entity_type && form.entity_id && (
                         <p>
-                            Linked to: <span className="font-mono">{form.entity_id}</span>
+                            {t("deposits.linkedTo", "Linked to:")} <span className="font-mono">{form.entity_id}</span>
                         </p>
                     )}
                 </div>

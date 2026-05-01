@@ -16,12 +16,12 @@ import FrappeSearchSelect from "@/components/FrappeSearchSelect";
 import { useTranslation } from "react-i18next";
 
 const STATUS_CONFIG = {
-    PENDING: { label: "Pending", badge: "bg-yellow-500/15 text-yellow-700 dark:text-yellow-400", icon: Clock },
-    PAID: { label: "Paid", badge: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400", icon: CheckCircle },
-    PARTIAL: { label: "Partial", badge: "bg-blue-500/15 text-blue-700 dark:text-blue-400", icon: AlertTriangle },
-    OVERDUE: { label: "Overdue", badge: "bg-red-500/15 text-red-700 dark:text-red-400", icon: XCircle },
-    REFUNDED: { label: "Refunded", badge: "bg-gray-500/15 text-gray-600 dark:text-gray-400", icon: XCircle },
-    FORFEITED: { label: "Forfeited", badge: "bg-orange-500/15 text-orange-700 dark:text-orange-400", icon: XCircle },
+    PENDING: { labelKey: "status.PENDING", defaultLabel: "Pending", badge: "bg-yellow-500/15 text-yellow-700 dark:text-yellow-400", icon: Clock },
+    PAID: { labelKey: "status.PAID", defaultLabel: "Paid", badge: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400", icon: CheckCircle },
+    PARTIAL: { labelKey: "status.PARTIAL", defaultLabel: "Partial", badge: "bg-blue-500/15 text-blue-700 dark:text-blue-400", icon: AlertTriangle },
+    OVERDUE: { labelKey: "status.OVERDUE", defaultLabel: "Overdue", badge: "bg-red-500/15 text-red-700 dark:text-red-400", icon: XCircle },
+    REFUNDED: { labelKey: "status.REFUNDED", defaultLabel: "Refunded", badge: "bg-gray-500/15 text-gray-600 dark:text-gray-400", icon: XCircle },
+    FORFEITED: { labelKey: "status.FORFEITED", defaultLabel: "Forfeited", badge: "bg-orange-500/15 text-orange-700 dark:text-orange-400", icon: XCircle },
 };
 
 export default function Deposits() {
@@ -50,8 +50,8 @@ export default function Deposits() {
 
     const verifyMutation = useMutation({
         mutationFn: (depositId) => depositService.verifyDeposit(depositId),
-        onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['deposits'] }); toast.success("Deposit verified"); },
-        onError: (err) => toast.error(err?.message || "Verification failed"),
+        onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['deposits'] }); toast.success(t("deposits.verifiedSuccess", "Deposit verified")); },
+        onError: (err) => toast.error(err?.message || t("deposits.verificationFailed", "Verification failed")),
     });
 
     const filtered = deposits.filter(d => {
@@ -90,7 +90,7 @@ export default function Deposits() {
                         <SelectTrigger className="w-36 h-9"><Filter className="w-3 h-3 mr-1" /><SelectValue /></SelectTrigger>
                         <SelectContent>
                             <SelectItem value="all">{t("deposits.allStatus", "All Status")}</SelectItem>
-                            {Object.entries(STATUS_CONFIG).map(([k, v]) => <SelectItem key={k} value={k}>{v.label}</SelectItem>)}
+                            {Object.entries(STATUS_CONFIG).map(([k, v]) => <SelectItem key={k} value={k}>{t(v.labelKey, v.defaultLabel)}</SelectItem>)}
                         </SelectContent>
                     </Select>
                     <div className="w-48">
@@ -99,7 +99,7 @@ export default function Deposits() {
                             label="route_info"
                             value={routeId}
                             onChange={setRouteId}
-                            placeholder="Route..."
+                            placeholder={t("ticket.route", "Route") + "..."}
                         />
                     </div>
                     <div className="w-48">
@@ -108,7 +108,7 @@ export default function Deposits() {
                             label="name"
                             value={companyId}
                             onChange={setCompanyId}
-                            placeholder="Establishment..."
+                            placeholder={t("hotel.establishment", "Establishment") + "..."}
                         />
                     </div>
                     <Button className="cheese-gradient text-black font-semibold border-0 h-9" onClick={() => navigate("/cheese/deposits/new")}><Plus className="w-4 h-4 mr-1" /> {t("deposits.createNew", "Create New")}</Button>
@@ -137,21 +137,21 @@ export default function Deposits() {
                                             <h3 className="font-semibold text-sm text-foreground">{deposit.name}</h3>
                                             <Badge variant="outline" className="text-[10px]">{deposit.entity_type || '—'}</Badge>
                                         </div>
-                                        <p className="text-xs text-muted-foreground">Entity: {deposit.entity_id || '—'} • Customer: {deposit.contact_name || deposit.contact || '—'} • Bank: {deposit.bank_account || '—'} • Due: {deposit.due_at || '—'}</p>
+                                        <p className="text-xs text-muted-foreground">{t("common.entity", "Entity")}: {deposit.entity_id || '—'} • {t("common.customer", "Customer")}: {deposit.contact_name || deposit.contact || '—'} • {t("bankAccounts.bank", "Bank")}: {deposit.bank_account || '—'} • {t("common.due", "Due")}: {deposit.due_at || '—'}</p>
                                     </div>
                                     <div className="text-right">
                                         <p className="font-bold text-lg text-foreground flex items-center justify-end"><DollarSign className="w-4 h-4" />{Number(deposit.amount_required || 0).toLocaleString()}</p>
-                                        {deposit.amount_paid > 0 && <p className="text-xs text-emerald-600">Paid: ${Number(deposit.amount_paid).toLocaleString()}</p>}
-                                        {remaining > 0 && <p className="text-xs text-red-500">Remaining: ${remaining.toLocaleString()}</p>}
+                                        {deposit.amount_paid > 0 && <p className="text-xs text-emerald-600">{t("deposits.paid", "Paid:")} ${Number(deposit.amount_paid).toLocaleString()}</p>}
+                                        {remaining > 0 && <p className="text-xs text-red-500">{t("deposits.remaining", "Remaining:")} ${remaining.toLocaleString()}</p>}
                                     </div>
-                                    <Badge className={config.badge}><StatusIcon className="w-3 h-3 mr-1" />{config.label}</Badge>
+                                    <Badge className={config.badge}><StatusIcon className="w-3 h-3 mr-1" />{t(config.labelKey, config.defaultLabel)}</Badge>
                                     <DropdownMenu>
                                         <DropdownMenuTrigger asChild>
                                             <Button variant="ghost" size="icon" className="h-8 w-8 opacity-0 group-hover:opacity-100"><MoreHorizontal className="w-4 h-4" /></Button>
                                         </DropdownMenuTrigger>
                                         <DropdownMenuContent align="end">
-                                            {deposit.status === "PENDING" && <DropdownMenuItem onClick={() => verifyMutation.mutate(deposit.name)}><CheckCircle className="w-3 h-3 mr-2" /> Verify</DropdownMenuItem>}
-                                            {deposit.linked_ticket_id && <DropdownMenuItem onClick={() => navigate(`/cheese/tickets/${encodeURIComponent(deposit.linked_ticket_id)}`)}><Ticket className="w-3 h-3 mr-2" /> View Related Ticket</DropdownMenuItem>}
+                                            {deposit.status === "PENDING" && <DropdownMenuItem onClick={() => verifyMutation.mutate(deposit.name)}><CheckCircle className="w-3 h-3 mr-2" /> {t("deposits.verify", "Verify")}</DropdownMenuItem>}
+                                            {deposit.linked_ticket_id && <DropdownMenuItem onClick={() => navigate(`/cheese/tickets/${encodeURIComponent(deposit.linked_ticket_id)}`)}><Ticket className="w-3 h-3 mr-2" /> {t("deposits.viewRelatedTicket", "View Related Ticket")}</DropdownMenuItem>}
                                         </DropdownMenuContent>
                                     </DropdownMenu>
                                 </CardContent>

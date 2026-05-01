@@ -10,7 +10,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { CalendarDays, AlertCircle, RefreshCw, BedDouble, Plus, Check, X, Loader2 } from "lucide-react";
+import { toast } from "sonner";
 import { hotelService } from "@/api/hotelService";
+import { ticketService } from "@/api/ticketService";
+import FrappeSearchSelect from "@/components/FrappeSearchSelect";
 
 const CELL_COLORS = {
     OPEN: "bg-emerald-500/20 text-emerald-700 border-emerald-500/30",
@@ -33,6 +36,9 @@ export default function HotelAvailability() {
     });
     const [showCreateDialog, setShowCreateDialog] = useState(false);
     const [createForm, setCreateForm] = useState({ date_from: "", date_to: "", rooms_available: 10 });
+
+    const [showReservationDialog, setShowReservationDialog] = useState(false);
+    const [resForm, setResForm] = useState({ contact: "", check_in_date: "", check_out_date: "", rooms_requested: 1, slot_id: "" });
 
     // Fetch all hotel experiences to choose from
     const { data: hotelsPayload } = useQuery({
@@ -82,7 +88,9 @@ export default function HotelAvailability() {
         onSuccess: () => {
             setShowCreateDialog(false);
             queryClient.invalidateQueries(["hotel-availability"]);
+            toast.success("Slots created successfully");
         },
+        onError: (err) => toast.error(err?.message || "Failed to create slots"),
     });
 
     const handleCreateSlots = () => {
@@ -92,6 +100,63 @@ export default function HotelAvailability() {
             date_to: createForm.date_to,
             rooms_available: createForm.rooms_available,
         });
+    };
+
+    // Create Reservation mutation
+    const createResMutation = useMutation({
+        mutationFn: (data) => ticketService.createPendingTicket(data),
+        onSuccess: () => {
+            setShowReservationDialog(false);
+            queryClient.invalidateQueries(["hotel-availability"]);
+            toast.success("Reservation created successfully");
+        },
+        onError: (err) => {
+            const msg = err?.response?.data?.exception || err?.response?.data?.message || err?.message || "Failed to create reservation";
+            toast.error(msg);
+        }
+    });
+
+    const handleCreateReservation = () => {
+        if (!resForm.contact) {
+            toast.error("Please select a contact");
+            return;
+        }
+        if (resForm.check_out_date <= resForm.check_in_date) {
+            toast.error("Check-out date must be after check-in date");
+            return;
+        }
+        
+        createResMutation.mutate({
+            contact_id: resForm.contact,
+            experience_id: selectedExperience,
+            slot_id: resForm.slot_id,
+            check_in_date: resForm.check_in_date,
+            check_out_date: resForm.check_out_date,
+            rooms_requested: parseInt(resForm.rooms_requested) || 1,
+            party_size: 1 // default required for API
+        });
+    };
+
+    const handleCellClick = (night) => {
+        if (night.status === "NO_SLOT") {
+            setCreateForm({ date_from: night.date, date_to: night.date, rooms_available: 10 });
+            setShowCreateDialog(true);
+        } else if (night.status === "OPEN" && night.available > 0) {
+            const d = new Date(night.date);
+            d.setDate(d.getDate() + 1);
+            const nextDay = d.toISOString().split("T")[0];
+            
+            setResForm({
+                contact: "",
+                check_in_date: night.date,
+                check_out_date: nextDay,
+                rooms_requested: 1,
+                slot_id: night.slot_id
+            });
+            setShowReservationDialog(true);
+        } else if (night.status === "OPEN" && night.available <= 0) {
+            toast.error("This date is fully booked.");
+        }
     };
 
     // Build calendar grid
@@ -136,7 +201,7 @@ export default function HotelAvailability() {
                     <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
                         <CalendarDays className="w-6 h-6 text-indigo-500" /> Hotel Availability
                     </h1>
-                    <p className="text-sm text-muted-foreground mt-1">Manage nightly room availability</p>
+                    <p className="text-sm text-muted-foreground mt-1">Manage nightly room availability and quick bookings</p>
                 </div>
                 <div className="flex flex-wrap gap-2 items-center">
                     <Select value={selectedExperience} onValueChange={setSelectedExperience}>
@@ -209,10 +274,11 @@ export default function HotelAvailability() {
 
                     {/* Calendar Grid */}
                     <Card className="border border-border">
-                        <CardHeader className="pb-3">
+                        <CardHeader className="pb-3 flex flex-row items-center justify-between">
                             <CardTitle className="text-base flex items-center gap-2">
                                 <CalendarDays className="w-4 h-4" /> Nightly Availability Grid
                             </CardTitle>
+                            <span className="text-xs text-muted-foreground italic">Click a day to book or create a slot</span>
                         </CardHeader>
                         <CardContent className="p-4">
                             <div className="grid grid-cols-7 gap-1 mb-2">
@@ -226,9 +292,20 @@ export default function HotelAvailability() {
                                         if (!night) return <div key={di} className="h-16" />;
                                         const dateObj = new Date(night.date);
                                         const day = dateObj.getDate();
-                                        const statusClass = CELL_COLORS[night.status] || CELL_COLORS.NO_SLOT;
+                                        
+                                        // Fix Full Slots Color Logic
+                                        const isFull = night.status === "OPEN" && night.available <= 0;
+                                        const effectiveStatus = isFull ? "CLOSED" : night.status;
+                                        const statusClass = CELL_COLORS[effectiveStatus] || CELL_COLORS.NO_SLOT;
+                                        
+                                        const isClickable = night.status === "NO_SLOT" || (night.status === "OPEN" && night.available > 0);
+
                                         return (
-                                            <div key={di} className={`h-16 rounded-lg border text-center flex flex-col items-center justify-center transition-all hover:scale-105 cursor-default ${statusClass}`}>
+                                            <div 
+                                                key={di} 
+                                                onClick={() => handleCellClick(night)}
+                                                className={`h-16 rounded-lg border text-center flex flex-col items-center justify-center transition-all ${statusClass} ${isClickable ? "hover:scale-105 hover:ring-2 hover:ring-primary/50 cursor-pointer shadow-sm" : "cursor-not-allowed opacity-80"}`}
+                                            >
                                                 <span className="text-[10px] font-medium opacity-60">{day}</span>
                                                 <span className="text-sm font-bold">{night.available}</span>
                                                 <span className="text-[9px] opacity-50">/{night.max_capacity}</span>
@@ -277,6 +354,48 @@ export default function HotelAvailability() {
                         <Button className="cheese-gradient text-black font-semibold" onClick={handleCreateSlots} disabled={createSlotsMutation.isPending}>
                             {createSlotsMutation.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Plus className="w-4 h-4 mr-1" />}
                             Create Slots
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* Quick Reservation Dialog */}
+            <Dialog open={showReservationDialog} onOpenChange={setShowReservationDialog}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Quick Reservation</DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-4 py-4">
+                        <div className="space-y-2">
+                            <Label>Contact <span className="text-red-500">*</span></Label>
+                            <FrappeSearchSelect
+                                doctype="Cheese Contact"
+                                label="full_name"
+                                value={resForm.contact}
+                                onChange={(v) => setResForm(p => ({ ...p, contact: v }))}
+                                placeholder="Select guest..."
+                            />
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                                <Label>Check-in Date <span className="text-red-500">*</span></Label>
+                                <Input type="date" value={resForm.check_in_date} onChange={(e) => setResForm(p => ({ ...p, check_in_date: e.target.value }))} />
+                            </div>
+                            <div className="space-y-2">
+                                <Label>Check-out Date <span className="text-red-500">*</span></Label>
+                                <Input type="date" value={resForm.check_out_date} onChange={(e) => setResForm(p => ({ ...p, check_out_date: e.target.value }))} />
+                            </div>
+                        </div>
+                        <div className="space-y-2">
+                            <Label>Rooms Requested</Label>
+                            <Input type="number" min="1" value={resForm.rooms_requested} onChange={(e) => setResForm(p => ({ ...p, rooms_requested: parseInt(e.target.value) || 1 }))} />
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setShowReservationDialog(false)}>Cancel</Button>
+                        <Button onClick={handleCreateReservation} disabled={createResMutation.isPending}>
+                            {createResMutation.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Check className="w-4 h-4 mr-1" />}
+                            Book Room
                         </Button>
                     </DialogFooter>
                 </DialogContent>

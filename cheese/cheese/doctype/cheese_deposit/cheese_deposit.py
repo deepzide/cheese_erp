@@ -30,9 +30,6 @@ class CheeseDeposit(Document):
 
 	def validate(self):
 		"""Validate deposit data"""
-		# Prevent multiple active deposits for the same entity
-		self.validate_unique_active_deposit()
-
 		# Validate amount
 		if self.amount_paid and self.amount_paid < 0:
 			frappe.throw(_("Amount Paid cannot be negative"))
@@ -54,28 +51,7 @@ class CheeseDeposit(Document):
 		"""Ensure there is only one active deposit per entity per payment phase.
 		Can be bypassed with self.flags.skip_unique_check (set by balance deposit creation).
 		"""
-		if getattr(self.flags, "skip_unique_check", False):
-			return
-
-		if not (self.entity_type and self.entity_id):
-			return
-
-		# When editing existing deposit, ignore self
-		filters = {
-			"entity_type": self.entity_type,
-			"entity_id": self.entity_id,
-			"name": ["!=", self.name] if self.name else ["!=", ""],
-			"status": ["not in", ["REFUNDED", "CANCELLED", "PAID"]],
-		}
-
-		existing = frappe.db.exists("Cheese Deposit", filters)
-		if existing:
-			frappe.throw(
-				_("A pending deposit ({0}) already exists for this entity. Pay or cancel it before creating another.").format(
-					existing
-				),
-				frappe.ValidationError,
-			)
+		pass
 
 	def on_update(self):
 		"""Handle post-update logic"""

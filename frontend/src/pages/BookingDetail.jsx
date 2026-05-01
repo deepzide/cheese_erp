@@ -1,5 +1,6 @@
 import React from "react";
 import { useParams, useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useFrappeDoc } from "@/lib/useApiData";
 import DetailPageLayout from "@/components/DetailPageLayout";
@@ -32,6 +33,7 @@ const fmt = (v) => `$${Number(v || 0).toLocaleString(undefined, { minimumFractio
 export default function BookingDetail() {
     const { id } = useParams();
     const navigate = useNavigate();
+    const { t } = useTranslation();
     const queryClient = useQueryClient();
 
     const { data: booking, isLoading: isBookingLoading } = useFrappeDoc("Cheese Route Booking", id, {
@@ -57,11 +59,11 @@ export default function BookingDetail() {
 
     return (
         <DetailPageLayout
-            title={booking?.name || "Loading Booking..."}
-            subtitle={`Route booking • ${id}`}
+            title={booking?.name || t("bookings.loading", "Loading Booking...")}
+            subtitle={`${t("bookings.routeBooking", "Route booking")} • ${id}`}
             backPath="/cheese/bookings"
             isLoading={isBookingLoading}
-            statusBadge={<Badge variant="outline" className={config.badge}>{config.label}</Badge>}
+            statusBadge={<Badge variant="outline" className={config.badge}>{t(`status.${status}`, config.label)}</Badge>}
         >
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 <div className="lg:col-span-2 space-y-6">
@@ -70,7 +72,7 @@ export default function BookingDetail() {
                     <Card className="border-border/60 shadow-sm overflow-hidden">
                         <CardHeader className="border-b bg-muted/20 pb-4">
                             <CardTitle className="text-sm font-semibold text-muted-foreground uppercase flex items-center">
-                                <Ticket className="w-4 h-4 mr-2" /> General Details
+                                <Ticket className="w-4 h-4 mr-2" /> {t("bookings.generalDetails", "General Details")}
                             </CardTitle>
                         </CardHeader>
                         <CardContent className="p-0">
@@ -83,12 +85,12 @@ export default function BookingDetail() {
                                     <table className="w-full text-sm">
                                         <thead>
                                             <tr className="bg-muted/30 text-muted-foreground text-xs uppercase">
-                                                <th className="text-left px-4 py-3 font-semibold">Experience</th>
-                                                <th className="text-left px-4 py-3 font-semibold">Ticket ID</th>
-                                                <th className="text-right px-4 py-3 font-semibold">Unit Cost</th>
-                                                <th className="text-center px-4 py-3 font-semibold">Party Size</th>
-                                                <th className="text-right px-4 py-3 font-semibold">Total</th>
-                                                <th className="text-right px-4 py-3 font-semibold">Advance</th>
+                                                <th className="text-left px-4 py-3 font-semibold">{t("routes.experiences", "Experience")}</th>
+                                                <th className="text-left px-4 py-3 font-semibold">{t("tickets.ticketId", "Ticket ID")}</th>
+                                                <th className="text-right px-4 py-3 font-semibold">{t("bookings.unitCost", "Unit Cost")}</th>
+                                                <th className="text-center px-4 py-3 font-semibold">{t("tickets.partySize", "Party Size")}</th>
+                                                <th className="text-right px-4 py-3 font-semibold">{t("bookings.total", "Total")}</th>
+                                                <th className="text-right px-4 py-3 font-semibold">{t("bookings.advance", "Advance")}</th>
                                             </tr>
                                         </thead>
                                         <tbody className="divide-y divide-border/50">
@@ -119,7 +121,7 @@ export default function BookingDetail() {
                                         </tbody>
                                         <tfoot>
                                             <tr className="bg-muted/20 font-semibold">
-                                                <td className="px-4 py-3" colSpan={4}>Total</td>
+                                                <td className="px-4 py-3" colSpan={4}>{t("bookings.total", "Total")}</td>
                                                 <td className="px-4 py-3 text-right tabular-nums">{fmt(ps.grand_total)}</td>
                                                 <td className="px-4 py-3 text-right tabular-nums">{fmt(ps.total_advance_required)}</td>
                                             </tr>
@@ -134,7 +136,7 @@ export default function BookingDetail() {
                     <Card className="border-border/60 shadow-sm overflow-hidden">
                         <CardHeader className="border-b bg-muted/20 pb-4">
                             <CardTitle className="text-sm font-semibold text-muted-foreground uppercase flex items-center">
-                                <DollarSign className="w-4 h-4 mr-2" /> Payment Information
+                                <DollarSign className="w-4 h-4 mr-2" /> {t("tickets.paymentInfo", "Payment Information")}
                             </CardTitle>
                         </CardHeader>
                         <CardContent className="p-0">
@@ -143,10 +145,10 @@ export default function BookingDetail() {
                                     <table className="w-full text-sm">
                                         <thead>
                                             <tr className="bg-muted/30 text-muted-foreground text-xs uppercase">
-                                                <th className="text-left px-4 py-3 font-semibold">Concept</th>
-                                                <th className="text-right px-4 py-3 font-semibold">Total</th>
-                                                <th className="text-right px-4 py-3 font-semibold">Paid</th>
-                                                <th className="text-right px-4 py-3 font-semibold">Pending</th>
+                                                <th className="text-left px-4 py-3 font-semibold">{t("tickets.concept", "Concept")}</th>
+                                                <th className="text-right px-4 py-3 font-semibold">{t("bookings.total", "Total")}</th>
+                                                <th className="text-right px-4 py-3 font-semibold">{t("tickets.paid", "Paid")}</th>
+                                                <th className="text-right px-4 py-3 font-semibold">{t("tickets.pending", "Pending")}</th>
                                             </tr>
                                         </thead>
                                         <tbody className="divide-y divide-border/50">
@@ -157,7 +159,7 @@ export default function BookingDetail() {
                                                 return (
                                                     <tr key={`adv-${it.ticket_id}`} className="hover:bg-muted/10">
                                                         <td className="px-4 py-2.5">
-                                                            <span className="text-muted-foreground">Advance —</span> {it.experience_name}
+                                                            <span className="text-muted-foreground">{t("tickets.advancePay", "Advance")} —</span> {it.experience_name}
                                                         </td>
                                                         <td className="px-4 py-2.5 text-right tabular-nums">{fmt(it.deposit_amount)}</td>
                                                         <td className="px-4 py-2.5 text-right tabular-nums text-emerald-600">{fmt(advancePaid)}</td>
@@ -167,7 +169,7 @@ export default function BookingDetail() {
                                             })}
                                             {/* Advance subtotal */}
                                             <tr className="bg-muted/10 font-medium">
-                                                <td className="px-4 py-2.5">Señas (Advances)</td>
+                                                <td className="px-4 py-2.5">{t("tickets.seña", "Seña (Advance)")}s</td>
                                                 <td className="px-4 py-2.5 text-right tabular-nums">{fmt(ps.total_advance_required)}</td>
                                                 <td className="px-4 py-2.5 text-right tabular-nums text-emerald-600">{fmt(ps.total_advance_paid)}</td>
                                                 <td className="px-4 py-2.5 text-right tabular-nums text-red-600">{fmt(ps.advance_pending)}</td>
@@ -180,7 +182,7 @@ export default function BookingDetail() {
                                                 return (
                                                     <tr key={`rem-${it.ticket_id}`} className="hover:bg-muted/10">
                                                         <td className="px-4 py-2.5">
-                                                            <span className="text-muted-foreground">Remaining —</span> {it.experience_name}
+                                                            <span className="text-muted-foreground">{t("tickets.remanente", "Remanente")} —</span> {it.experience_name}
                                                         </td>
                                                         <td className="px-4 py-2.5 text-right tabular-nums">{fmt(remainingTotal)}</td>
                                                         <td className="px-4 py-2.5 text-right tabular-nums text-emerald-600">{fmt(remainingPaid)}</td>
@@ -190,7 +192,7 @@ export default function BookingDetail() {
                                             })}
                                             {/* Remaining subtotal */}
                                             <tr className="bg-muted/10 font-medium">
-                                                <td className="px-4 py-2.5">Remanentes</td>
+                                                <td className="px-4 py-2.5">{t("tickets.remanente", "Remanente")}s</td>
                                                 <td className="px-4 py-2.5 text-right tabular-nums">
                                                     {fmt((ps.grand_total || 0) - (ps.total_advance_required || 0))}
                                                 </td>
@@ -205,7 +207,7 @@ export default function BookingDetail() {
                                         {/* Grand total */}
                                         <tfoot>
                                             <tr className="bg-muted/30 font-bold text-base">
-                                                <td className="px-4 py-3">Total</td>
+                                                <td className="px-4 py-3">{t("bookings.total", "Total")}</td>
                                                 <td className="px-4 py-3 text-right tabular-nums">{fmt(ps.grand_total)}</td>
                                                 <td className="px-4 py-3 text-right tabular-nums text-emerald-600">{fmt(ps.total_paid)}</td>
                                                 <td className="px-4 py-3 text-right tabular-nums text-red-600">{fmt(ps.total_pending)}</td>
@@ -221,7 +223,7 @@ export default function BookingDetail() {
                     <Card className="border-border/60 shadow-sm overflow-hidden">
                         <CardHeader className="border-b bg-muted/20 pb-4">
                             <CardTitle className="text-sm font-semibold text-muted-foreground uppercase flex items-center">
-                                <CreditCard className="w-4 h-4 mr-2" /> Booking Card
+                                <CreditCard className="w-4 h-4 mr-2" /> {t("tickets.ticketCard", "Booking Card")}
                             </CardTitle>
                         </CardHeader>
                         <CardContent className="p-0">
@@ -229,15 +231,15 @@ export default function BookingDetail() {
                                 <table className="w-full text-sm">
                                     <thead>
                                         <tr className="bg-muted/30 text-muted-foreground text-xs uppercase">
-                                            <th className="text-left px-4 py-3 font-semibold">Concept</th>
-                                            <th className="text-right px-4 py-3 font-semibold">Paid</th>
-                                            <th className="text-right px-4 py-3 font-semibold">Pending</th>
+                                            <th className="text-left px-4 py-3 font-semibold">{t("tickets.concept", "Concept")}</th>
+                                            <th className="text-right px-4 py-3 font-semibold">{t("tickets.paid", "Paid")}</th>
+                                            <th className="text-right px-4 py-3 font-semibold">{t("tickets.pending", "Pending")}</th>
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-border/50">
                                         <tr className="hover:bg-muted/10">
                                             <td className="px-4 py-3 flex items-center gap-2">
-                                                <Wallet className="w-4 h-4 text-cheese-600" /> Advance Payment
+                                                <Wallet className="w-4 h-4 text-cheese-600" /> {t("tickets.advancePay", "Advance Payment")}
                                             </td>
                                             <td className="px-4 py-3 text-right tabular-nums font-medium text-emerald-600">
                                                 {fmt(ps.total_advance_paid)}
@@ -248,7 +250,7 @@ export default function BookingDetail() {
                                         </tr>
                                         <tr className="hover:bg-muted/10">
                                             <td className="px-4 py-3 flex items-center gap-2">
-                                                <DollarSign className="w-4 h-4 text-cheese-600" /> Remaining Balance
+                                                <DollarSign className="w-4 h-4 text-cheese-600" /> {t("tickets.remainingBalance", "Remaining Balance")}
                                             </td>
                                             <td className="px-4 py-3 text-right tabular-nums font-medium text-emerald-600">
                                                 {fmt(Math.max((ps.total_paid || 0) - (ps.total_advance_paid || 0), 0))}
@@ -267,7 +269,7 @@ export default function BookingDetail() {
                     <Card className="border-border/60 shadow-sm">
                         <CardHeader className="border-b bg-muted/20 pb-4">
                             <CardTitle className="text-sm font-semibold text-muted-foreground uppercase flex items-center">
-                                <Calendar className="w-4 h-4 mr-2" /> Itinerary
+                                <Calendar className="w-4 h-4 mr-2" /> {t("routes.itinerary", "Itinerary")}
                             </CardTitle>
                         </CardHeader>
                         <CardContent className="p-0">
@@ -293,15 +295,15 @@ export default function BookingDetail() {
                                             </div>
                                             <div className="flex items-center gap-2 shrink-0">
                                                 <Badge variant="outline" className={DEPOSIT_STATUS_BADGE[it.deposit_status] || DEPOSIT_STATUS_BADGE.NONE}>
-                                                    {it.deposit_status || "—"}
+                                                    {t(`status.${it.deposit_status}`, it.deposit_status || "—")}
                                                 </Badge>
-                                                <Badge variant="outline" className="text-xs">{it.status}</Badge>
+                                                <Badge variant="outline" className="text-xs">{t(`status.${it.status}`, it.status)}</Badge>
                                             </div>
                                         </div>
                                     ))}
                                 </div>
                             ) : (
-                                <div className="p-8 text-center text-muted-foreground text-sm">No itinerary found.</div>
+                                <div className="p-8 text-center text-muted-foreground text-sm">{t("bookings.noItinerary", "No itinerary found.")}</div>
                             )}
                         </CardContent>
                     </Card>
@@ -314,11 +316,11 @@ export default function BookingDetail() {
                         <CardContent className="p-6 space-y-4">
                             <div className="grid grid-cols-1 gap-4">
                                 <div>
-                                    <p className="text-xs text-muted-foreground flex items-center gap-1"><Users className="w-3 h-3" /> Contact</p>
+                                    <p className="text-xs text-muted-foreground flex items-center gap-1"><Users className="w-3 h-3" /> {t("nav.contacts", "Contact")}</p>
                                     <button className="text-sm font-medium hover:text-cheese-600" onClick={() => booking?.contact && navigate(`/cheese/contacts/${booking.contact}`)}>{booking?.contact || "—"}</button>
                                 </div>
                                 <div>
-                                    <p className="text-xs text-muted-foreground flex items-center gap-1"><MapPin className="w-3 h-3" /> Route</p>
+                                    <p className="text-xs text-muted-foreground flex items-center gap-1"><MapPin className="w-3 h-3" /> {t("routes.route", "Route")}</p>
                                     <button className="text-sm font-medium hover:text-cheese-600" onClick={() => booking?.route && navigate(`/cheese/routes/${booking.route}`)}>{booking?.route || "—"}</button>
                                 </div>
                             </div>
@@ -329,19 +331,19 @@ export default function BookingDetail() {
                     <Card className="border-border/60 shadow-sm bg-primary/5 border-primary/20">
                         <CardHeader className="pb-2">
                             <CardTitle className="text-sm font-semibold text-primary flex items-center gap-2">
-                                <ShoppingCart className="w-4 h-4" /> Quick Actions
+                                <ShoppingCart className="w-4 h-4" /> {t("common.quickActions", "Quick Actions")}
                             </CardTitle>
                         </CardHeader>
                         <CardContent className="space-y-2 p-4 pt-0">
                             <div className="flex flex-col gap-2">
                                 <Button variant="outline" size="sm" className="justify-start" onClick={() => navigate(`/cheese/deposits?entity_id=${encodeURIComponent(booking?.name || "")}`)}>
-                                    <Wallet className="w-4 h-4 mr-2" /> Deposits
+                                    <Wallet className="w-4 h-4 mr-2" /> {t("nav.deposits", "Deposits")}
                                 </Button>
                                 <Button variant="outline" size="sm" className="justify-start" onClick={() => navigate(`/cheese/tickets?booking=${encodeURIComponent(booking?.name || "")}`)}>
-                                    <Ticket className="w-4 h-4 mr-2" /> Tickets
+                                    <Ticket className="w-4 h-4 mr-2" /> {t("nav.tickets", "Tickets")}
                                 </Button>
                                 <Button variant="outline" size="sm" className="justify-start" onClick={() => navigate(`/cheese/support/new?contact=${encodeURIComponent(booking?.contact || "")}&booking=${encodeURIComponent(booking?.name || "")}`)}>
-                                    <Shield className="w-4 h-4 mr-2" /> Support Case
+                                    <Shield className="w-4 h-4 mr-2" /> {t("nav.supportCase", "Support Case")}
                                 </Button>
                                 {(status === "PENDING" || status === "CONFIRMED" || status === "PARTIALLY_CONFIRMED") && (
                                     <Button
@@ -349,18 +351,18 @@ export default function BookingDetail() {
                                         size="sm"
                                         className="justify-start"
                                         onClick={() => {
-                                            if (window.confirm("Cancel this booking? This cannot be undone.")) {
+                                            if (window.confirm(t("bookings.cancelConfirm", "Cancel this booking? This cannot be undone."))) {
                                                 apiRequest("/api/method/cheese.api.v1.route_booking_controller.cancel_route_booking", {
                                                     method: "POST",
                                                     body: JSON.stringify({ route_booking_id: booking.name }),
                                                 }).then(() => {
-                                                    toast.success("Booking cancelled");
+                                                    toast.success(t("bookings.cancelSuccess", "Booking cancelled"));
                                                     queryClient.invalidateQueries(["frappe-doc"]);
-                                                }).catch((err) => toast.error(err?.message || "Failed to cancel booking"));
+                                                }).catch((err) => toast.error(err?.message || t("bookings.cancelError", "Failed to cancel booking")));
                                             }
                                         }}
                                     >
-                                        <XCircle className="w-4 h-4 mr-2" /> Cancel Booking
+                                        <XCircle className="w-4 h-4 mr-2" /> {t("bookings.cancelBooking", "Cancel Booking")}
                                     </Button>
                                 )}
                             </div>
@@ -371,7 +373,7 @@ export default function BookingDetail() {
                         <Card className="border-border/60 shadow-sm">
                             <CardContent className="p-6 space-y-2">
                                 <p className="text-xs text-muted-foreground flex items-center gap-2">
-                                    <Clock className="w-3 h-3" /> Expires At
+                                    <Clock className="w-3 h-3" /> {t("tickets.expiresAt", "Expires At")}
                                 </p>
                                 <p className="text-sm font-medium">
                                     {new Date(booking.expires_at).toLocaleString()}

@@ -34,16 +34,12 @@ def open_or_resume_conversation(contact_id, channel, status="ACTIVE"):
 		if not frappe.db.exists("Cheese Contact", contact_id):
 			return not_found("Contact", contact_id)
 		
-		# Check for existing active conversation within time window (e.g., last 24 hours)
-		time_window = add_to_date(now_datetime(), hours=-24, as_string=False)
-		
 		existing = frappe.db.get_value(
 			"Conversation",
 			{
 				"contact": contact_id,
 				"channel": channel,
-				"status": "ACTIVE",
-				"modified": [">", time_window]
+				"status": "ACTIVE"
 			},
 			"name",
 			order_by="modified desc"

@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { useMutation } from "@tanstack/react-query";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -10,6 +11,7 @@ import { establishmentService } from "@/api/establishmentService";
 
 export default function EstablishmentCreate() {
     const navigate = useNavigate();
+    const { t } = useTranslation();
     const [form, setForm] = useState({
         company_name: "",
         abbr: "",
@@ -18,6 +20,7 @@ export default function EstablishmentCreate() {
         email: "",
         phone_no: "",
         website: "",
+        cheese_is_hotel: false,
     });
 
     const createMutation = useMutation({
@@ -30,26 +33,27 @@ export default function EstablishmentCreate() {
                 email: form.email.trim() || undefined,
                 phone_no: form.phone_no.trim() || undefined,
                 website: form.website.trim() || undefined,
+                cheese_is_hotel: form.cheese_is_hotel,
             };
             const res = await establishmentService.createEstablishment(body);
             const msg = res?.data?.message || {};
             if (!msg.success) {
-                throw new Error(msg.error?.message || msg.message || "Failed to create");
+                throw new Error(msg.error?.message || msg.message || t("experiences.createError", "Failed to create"));
             }
             return msg.data;
         },
         onSuccess: (data) => {
-            toast.success("Establishment created");
+            toast.success(t("experiences.createSuccess", "Establishment created"));
             const id = data?.company_id;
             if (id) navigate(`/cheese/establishments/${encodeURIComponent(id)}`);
             else navigate("/cheese/establishments");
         },
-        onError: (err) => toast.error(err?.message || "Failed"),
+        onError: (err) => toast.error(err?.message || t("common.failed", "Failed")),
     });
 
     const handleSubmit = () => {
         if (!form.company_name.trim()) {
-            toast.error("Company name is required");
+            toast.error(t("experiences.nameCompanyRequired", "Company name is required"));
             return;
         }
         createMutation.mutate();
@@ -57,36 +61,36 @@ export default function EstablishmentCreate() {
 
     return (
         <CreatePageLayout
-            title="New Establishment"
-            description="Creates an ERPNext company (chart of accounts copied from the default company)"
+            title={t("experiences.newEstablishment", "New Establishment")}
+            description={t("experiences.newEstablishmentDesc", "Creates an ERPNext company (chart of accounts copied from the default company)")}
             icon={Building2}
             backPath="/cheese/establishments"
             onSubmit={handleSubmit}
             isSubmitting={createMutation.isPending}
-            submitLabel="Create establishment"
+            submitLabel={t("experiences.createEstablishment", "Create establishment")}
         >
             <div className="space-y-5 max-w-lg">
                 <div className="space-y-2">
                     <Label>
-                        Company name <span className="text-red-500">*</span>
+                        {t("experiences.providerCompany", "Company name")} <span className="text-red-500">*</span>
                     </Label>
                     <Input
                         value={form.company_name}
                         onChange={(e) => setForm((f) => ({ ...f, company_name: e.target.value }))}
-                        placeholder="e.g. My Venue Ltd"
+                        placeholder={t("experiences.companyPlaceholder", "e.g. My Venue Ltd")}
                     />
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
-                        <Label>Abbreviation</Label>
+                        <Label>{t("experiences.abbreviation", "Abbreviation")}</Label>
                         <Input
                             value={form.abbr}
                             onChange={(e) => setForm((f) => ({ ...f, abbr: e.target.value }))}
-                            placeholder="Auto if empty"
+                            placeholder={t("experiences.autoIfEmpty", "Auto if empty")}
                         />
                     </div>
                     <div className="space-y-2">
-                        <Label>Default currency</Label>
+                        <Label>{t("experiences.defaultCurrency", "Default currency")}</Label>
                         <Input
                             value={form.default_currency}
                             onChange={(e) => setForm((f) => ({ ...f, default_currency: e.target.value }))}
@@ -95,15 +99,15 @@ export default function EstablishmentCreate() {
                     </div>
                 </div>
                 <div className="space-y-2">
-                    <Label>Country</Label>
+                    <Label>{t("experiences.country", "Country")}</Label>
                     <Input
                         value={form.country}
                         onChange={(e) => setForm((f) => ({ ...f, country: e.target.value }))}
-                        placeholder="Leave blank to use template company country"
+                        placeholder={t("experiences.countryPlaceholder", "Leave blank to use template company country")}
                     />
                 </div>
                 <div className="space-y-2">
-                    <Label>Email</Label>
+                    <Label>{t("common.email", "Email")}</Label>
                     <Input
                         type="email"
                         value={form.email}
@@ -111,14 +115,26 @@ export default function EstablishmentCreate() {
                     />
                 </div>
                 <div className="space-y-2">
-                    <Label>Phone</Label>
+                    <Label>{t("common.phone", "Phone")}</Label>
                     <Input
                         value={form.phone_no}
                         onChange={(e) => setForm((f) => ({ ...f, phone_no: e.target.value }))}
                     />
                 </div>
+                <div className="flex items-center gap-2 pt-2">
+                    <input
+                        type="checkbox"
+                        id="is_hotel"
+                        className="w-4 h-4 rounded border-gray-300 text-cheese-600 focus:ring-cheese-600"
+                        checked={form.cheese_is_hotel}
+                        onChange={(e) => setForm(f => ({ ...f, cheese_is_hotel: e.target.checked }))}
+                    />
+                    <Label htmlFor="is_hotel" className="font-medium cursor-pointer">
+                        {t("experiences.isHotel", "This establishment is a Hotel")}
+                    </Label>
+                </div>
                 <div className="space-y-2">
-                    <Label>Website</Label>
+                    <Label>{t("experiences.website", "Website")}</Label>
                     <Input
                         value={form.website}
                         onChange={(e) => setForm((f) => ({ ...f, website: e.target.value }))}

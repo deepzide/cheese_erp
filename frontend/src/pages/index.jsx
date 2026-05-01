@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AnimatePresence } from 'framer-motion';
 import AuthGuard from '@/components/auth/AuthGuard';
+import HotelReservationDetail from './HotelReservationDetail';
 import Login from './Login';
 import Layout from './Layout';
 import Dashboard from './Dashboard';
@@ -52,6 +53,8 @@ import Hotels from './Hotels';
 import HotelReservations from './HotelReservations';
 import HotelAvailability from './HotelAvailability';
 import UsersPage from './Users';
+import HotelCreate from './HotelCreate';
+import HotelRoomCreate from './HotelRoomCreate';
 
 export default function Pages() {
     return (
@@ -111,7 +114,10 @@ export default function Pages() {
                                         <Route path="/conversations" element={<Conversations />} />
                                         <Route path="/conversations/:id" element={<ConversationDetail />} />
                                         <Route path="/hotels" element={<Hotels />} />
+                                        <Route path="/hotels/new" element={<HotelCreate />} />
+                                        <Route path="/hotels/rooms/new" element={<HotelRoomCreate />} />
                                         <Route path="/hotel-reservations" element={<HotelReservations />} />
+                                        <Route path="/hotels/reservations/:id" element={<HotelReservationDetail />} />
                                         <Route path="/hotel-availability" element={<HotelAvailability />} />
                                         <Route path="/users" element={<UsersPage />} />
                                         <Route path="/" element={<Navigate to="/cheese/dashboard" replace />} />

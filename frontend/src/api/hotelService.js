@@ -34,4 +34,8 @@ export const hotelService = {
         Object.entries(params).forEach(([k, v]) => { if (v != null) searchParams.append(k, v); });
         return apiRequest(`${BASE}.get_hotel_reservations?${searchParams}`);
     },
+
+    getHotelReservationDetails: async (ticketId) => {
+        return apiRequest(`${BASE}.get_hotel_reservation_details?ticket_id=${ticketId}`);
+    },
 };

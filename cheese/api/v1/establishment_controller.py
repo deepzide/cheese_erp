@@ -447,6 +447,7 @@ def create_establishment(
 				"email": email,
 				"phone_no": phone_no,
 				"website": website,
+				"cheese_is_hotel": 1 if kwargs.get("cheese_is_hotel") else 0,
 			}
 		)
 		doc.insert()

@@ -20,7 +20,8 @@
         "account",
         "description",
         "iban",
-        "currency"
+        "currency",
+        "title"
     ],
     "fields": [
         {
@@ -105,6 +106,13 @@
             "label": "Currency",
             "options": "Currency",
             "reqd": 1
+        },
+        {
+            "fieldname": "title",
+            "fieldtype": "Data",
+            "label": "Account Title",
+            "read_only": 1,
+            "hidden": 1
         }
     ],
     "index_web_pages_for_search": 1,
@@ -154,5 +162,6 @@
     "sort_field": "modified",
     "sort_order": "DESC",
     "states": [],
+    "title_field": "title",
     "track_changes": 1
 }

@@ -52,7 +52,8 @@ class CheeseExperience(Document):
 		if self.experience_type == "HOTEL":
 			if not self.price_per_night:
 				frappe.throw(_("Price per Night is required for Hotel experiences"))
-			if not self.max_occupancy_per_unit or self.max_occupancy_per_unit < 1:
+			from frappe.utils import cint
+			if not self.max_occupancy_per_unit or cint(self.max_occupancy_per_unit) < 1:
 				frappe.throw(_("Max Occupancy per Unit must be at least 1 for Hotel experiences"))
 		else:
 			# Validate pricing for activities

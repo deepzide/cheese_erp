@@ -127,6 +127,10 @@ def _select_open_deposit(entity_type, entity_id, payment_type=None):
 
 
 def _build_deposit_payload(deposit):
+	bank_account_title = None
+	if getattr(deposit, "bank_account", None) and frappe.db.exists("Cheese Bank Account", deposit.bank_account):
+		bank_account_title = frappe.db.get_value("Cheese Bank Account", deposit.bank_account, "title")
+
 	payload = {
 		"deposit_id": deposit.name,
 		"entity_type": deposit.entity_type,
@@ -139,6 +143,7 @@ def _build_deposit_payload(deposit):
 		"paid_at": str(deposit.paid_at) if deposit.paid_at else None,
 		"verification_method": deposit.verification_method,
 		"bank_account": getattr(deposit, "bank_account", None),
+		"bank_account_title": bank_account_title,
 		"notes": getattr(deposit, "notes", None),
 	}
 
@@ -1084,17 +1089,22 @@ def create_remaining_balance_deposit(ticket_id=None, route_booking_id=None):
 			ticket = frappe.get_doc(entity_type, entity_id)
 			total_price = _get_entity_total_price(entity_type, ticket)
 
-		# Get the advance deposit — must exist and be PAID
-		advance_deposit = frappe.db.get_value(
-			"Cheese Deposit",
-			{"entity_type": entity_type, "entity_id": entity_id, "status": "PAID"},
-			["name", "amount_required", "amount_paid"],
-			as_dict=True,
-		)
-		if not advance_deposit:
-			return validation_error(
-				"No PAID advance deposit found. The advance must be paid before creating a remaining-balance deposit."
+		# Only require an advance PAID deposit if the ticket actually has an advance deposit configured and deposit is required
+		is_deposit_required = bool(ticket.deposit_required) if entity_type == "Cheese Ticket" else bool(getattr(frappe.get_doc(entity_type, entity_id), "deposit_required", 0))
+		advance_required = float(ticket.deposit_amount or 0) if is_deposit_required and entity_type == "Cheese Ticket" else (float(getattr(frappe.get_doc(entity_type, entity_id), "deposit_amount", 0) or 0) if is_deposit_required else 0)
+
+		if advance_required > 0:
+			# Get the advance deposit — must exist and be PAID
+			advance_deposit = frappe.db.get_value(
+				"Cheese Deposit",
+				{"entity_type": entity_type, "entity_id": entity_id, "status": "PAID"},
+				["name", "amount_required", "amount_paid"],
+				as_dict=True,
 			)
+			if not advance_deposit:
+				return validation_error(
+					"No PAID advance deposit found. The advance must be paid before creating a remaining-balance deposit."
+				)
 
 		advance_paid = _get_amount_received_for_entity(entity_type, entity_id)
 		remaining = total_price - advance_paid
@@ -1103,23 +1113,8 @@ def create_remaining_balance_deposit(ticket_id=None, route_booking_id=None):
 				f"No remaining balance. Total price: {total_price}, already paid: {advance_paid}"
 			)
 
-		# Make sure there isn't already an active remaining-balance deposit
-		existing_pending = frappe.db.get_value(
-			"Cheese Deposit",
-			{
-				"entity_type": entity_type,
-				"entity_id": entity_id,
-				"status": ["in", ["PENDING", "OVERDUE"]],
-			},
-			"name",
-		)
-		if existing_pending:
-			return validation_error(
-				f"A pending deposit ({existing_pending}) already exists for this entity. "
-				"Pay or cancel it before creating another."
-			)
-
 		new_deposit = _create_balance_deposit(entity_type, frappe.get_doc(entity_type, entity_id))
+
 		frappe.db.commit()
 
 		bank_accounts = []

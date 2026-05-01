@@ -57,6 +57,9 @@ export default function Hotels() {
                         <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
                         <Input placeholder="Search hotels…" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-9 w-56 h-9" />
                     </div>
+                    <Button variant="outline" className="h-9" onClick={() => navigate("/cheese/hotels/rooms/new")}>
+                        <Plus className="w-4 h-4 mr-1" /> New Room
+                    </Button>
                     <Button variant="ghost" size="icon" onClick={() => refetch()} className="h-9 w-9">
                         <RefreshCw className="w-4 h-4" />
                     </Button>

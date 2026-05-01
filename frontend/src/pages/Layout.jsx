@@ -242,12 +242,13 @@ export default function Layout({ children }) {
                         {/* Language Toggle */}
                         <Button
                             variant="ghost"
-                            size="icon"
+                            size="sm"
                             onClick={toggleLanguage}
-                            className="text-muted-foreground hover:text-foreground"
+                            className="text-muted-foreground hover:text-foreground gap-1.5 font-semibold text-xs px-2"
                             title={i18n.language === "es" ? "Switch to English" : "Cambiar a Español"}
                         >
-                            <Globe className="w-5 h-5" />
+                            <Globe className="w-4 h-4" />
+                            <span>{i18n.language === "es" ? "ES" : "EN"}</span>
                         </Button>
 
                         {/* Theme Toggle */}

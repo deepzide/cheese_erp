@@ -1,1798 +1,2262 @@
 {
-	"info": {
-		"name": "Cheese Bot API",
-		"description": "Complete Bot API endpoints for Cheese booking system. Includes all mandatory endpoints from the comprehensive ERP Bot API specification: Contact, Conversation, Leads, Catalog, Availability, Pricing, Reservations, Route Bookings, Mixed Bookings, Modifications, Cancellations, Payments, QR/Check-in, Itinerary, Surveys, and Complaints.",
-		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
-	},
-	"item": [
-		{
-			"name": "0. Authentication",
-			"item": [
-				{
-					"name": "Get Authentication Token",
-					"request": {
-						"method": "POST",
-						"header": [
-							{
-								"key": "Content-Type",
-								"value": "application/json"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n  \"grant_type\": \"password\",\n  \"username\": \"user@example.com\",\n  \"password\": \"your_password\"\n}"
-						},
-						"url": {
-							"raw": "{{base_url}}/api/method/cheese.api.v1.auth_controller.token",
-							"host": ["{{base_url}}"],
-							"path": ["api", "method", "cheese.api.v1.auth_controller.token"]
-						},
-						"description": "Authenticate and obtain API key/secret. If API key/secret don't exist, they will be created. On each login, a new API secret is generated and returned.\n\n**Response format:**\n```json\n{\n  \"success\": true,\n  \"message\": \"Authentication successful\",\n  \"data\": {\n    \"api_key\": \"generated_api_key\",\n    \"api_secret\": \"generated_api_secret\",\n    \"user\": \"username\",\n    \"full_name\": \"User Full Name\",\n    \"email\": \"user@example.com\",\n    \"permissions\": [\"Dashboard\", \"Tickets\", ...]\n  }\n}\n```"
-					},
-					"event": [
-						{
-							"listen": "test",
-							"script": {
-								"exec": [
-									"let res;",
-									"try {",
-									"  res = pm.response.json();",
-									"} catch (e) {",
-									"  pm.test(\"La respuesta es JSON válido\", function () {",
-									"    pm.expect.fail(\"Respuesta no es JSON\");",
-									"  });",
-									"}",
-									"",
-									"const data = res?.data || res?.message?.data;",
-									"",
-									"pm.test(\"Respuesta contiene api_key y api_secret\", function () {",
-									"  pm.expect(data?.api_key, \"api_key faltante\").to.be.a(\"string\").and.not.empty;",
-									"  pm.expect(data?.api_secret, \"api_secret faltante\").to.be.a(\"string\").and.not.empty;",
-									"});",
-									"",
-									"if (data?.api_key) {",
-									"  pm.collectionVariables.set(\"api_key\", data.api_key);",
-									"}",
-									"if (data?.api_secret) {",
-									"  pm.collectionVariables.set(\"api_secret\", data.api_secret);",
-									"}",
-									"",
-									"const k = pm.collectionVariables.get(\"api_key\");",
-									"const s = pm.collectionVariables.get(\"api_secret\");",
-									"",
-									"const apiKey = k || data?.api_key;",
-									"const apiSecret = s || data?.api_secret;",
-									"",
-									"if (apiKey && apiSecret) {",
-									"  pm.collectionVariables.set(\"token\", `${apiKey}:${apiSecret}`);",
-									"  console.log(\"Variables de colección actualizadas: api_key, api_secret y token\");",
-									"} else {",
-									"  console.warn(\"No se pudo componer 'token' por falta de api_key o api_secret\");",
-									"}"
-								],
-								"type": "text/javascript"
-							}
-						}
-					],
-					"response": []
-				},
-				{
-					"name": "Logout",
-					"request": {
-						"method": "POST",
-						"header": [
-							{
-								"key": "Content-Type",
-								"value": "application/json"
-							},
-							{
-								"key": "Authorization",
-								"value": "token {{token}}"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{}"
-						},
-						"url": {
-							"raw": "{{base_url}}/api/method/cheese.api.v1.auth_controller.logout",
-							"host": ["{{base_url}}"],
-							"path": ["api", "method", "cheese.api.v1.auth_controller.logout"]
-						},
-						"description": "Logout and regenerate API secret (effectively invalidates current session)."
-					},
-					"response": []
-				}
-			]
-		},
-		{
-			"name": "1. Contact",
-			"item": [
-				{
-					"name": "Resolve or Create Contact",
-					"request": {
-						"method": "POST",
-						"header": [
-							{
-								"key": "Content-Type",
-								"value": "application/json"
-							},
-							{
-								"key": "Authorization",
-								"value": "token {{token}}"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n  \"phone\": \"+1234567890\",\n  \"email\": \"customer@example.com\",\n  \"name\": \"John Doe\"\n}"
-						},
-						"url": {
-							"raw": "{{base_url}}/api/method/cheese.api.v1.contact_controller.resolve_or_create_contact",
-							"host": ["{{base_url}}"],
-							"path": ["api", "method", "cheese.api.v1.contact_controller.resolve_or_create_contact"]
-						},
-						"description": "ERP: Creates or resolves a unique contact (deduplication by phone/email), defines contact_id."
-					},
-					"response": []
-				},
-				{
-					"name": "Update Contact",
-					"request": {
-						"method": "POST",
-						"header": [
-							{
-								"key": "Content-Type",
-								"value": "application/json"
-							},
-							{
-								"key": "Authorization",
-								"value": "token {{token}}"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n  \"contact_id\": \"CONTACT-001\",\n  \"name\": \"John Doe Updated\",\n  \"email\": \"newemail@example.com\",\n  \"phone\": \"+9876543210\",\n  \"idempotency_key\": \"optional-key-123\"\n}"
-						},
-						"url": {
-							"raw": "{{base_url}}/api/method/cheese.api.v1.contact_controller.update_contact",
-							"host": ["{{base_url}}"],
-							"path": ["api", "method", "cheese.api.v1.contact_controller.update_contact"]
-						},
-						"description": "ERP: Validates allowed fields, updates Contact, audits changes. Returns changed_fields and audit_event_id."
-					},
-					"response": []
-				},
-				{
-					"name": "Find or Create Contact",
-					"request": {
-						"method": "POST",
-						"header": [
-							{
-								"key": "Content-Type",
-								"value": "application/json"
-							},
-							{
-								"key": "Authorization",
-								"value": "token {{token}}"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n  \"phone\": \"+1234567890\",\n  \"email\": \"customer@example.com\",\n  \"name\": \"John Doe\"\n}"
-						},
-						"url": {
-							"raw": "{{base_url}}/api/method/cheese.api.v1.contact_controller.find_or_create_contact",
-							"host": ["{{base_url}}"],
-							"path": ["api", "method", "cheese.api.v1.contact_controller.find_or_create_contact"]
-						},
-						"description": "Legacy endpoint - use resolve_or_create_contact instead."
-					},
-					"response": []
-				}
-			]
-		},
-		{
-			"name": "2. Conversation",
-			"item": [
-				{
-					"name": "Open or Resume Conversation",
-					"request": {
-						"method": "POST",
-						"header": [
-							{
-								"key": "Content-Type",
-								"value": "application/json"
-							},
-							{
-								"key": "Authorization",
-								"value": "token {{token}}"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n  \"contact_id\": \"CONTACT-001\",\n  \"channel\": \"WhatsApp\",\n  \"status\": \"ACTIVE\"\n}"
-						},
-						"url": {
-							"raw": "{{base_url}}/api/method/cheese.api.v1.conversation_controller.open_or_resume_conversation",
-							"host": ["{{base_url}}"],
-							"path": ["api", "method", "cheese.api.v1.conversation_controller.open_or_resume_conversation"]
-						},
-						"description": "ERP: Creates or resumes a persistent conversation, returns conversation_id."
-					},
-					"response": []
-				},
-				{
-					"name": "Append Conversation Event",
-					"request": {
-						"method": "POST",
-						"header": [
-							{
-								"key": "Content-Type",
-								"value": "application/json"
-							},
-							{
-								"key": "Authorization",
-								"value": "token {{token}}"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n  \"conversation_id\": \"CONV-001\",\n  \"event_type\": \"intent\",\n  \"event_data\": {\"intent\": \"book_experience\", \"confidence\": 0.95},\n  \"metadata\": {\"source\": \"bot\"}\n}"
-						},
-						"url": {
-							"raw": "{{base_url}}/api/method/cheese.api.v1.conversation_controller.append_conversation_event",
-							"host": ["{{base_url}}"],
-							"path": ["api", "method", "cheese.api.v1.conversation_controller.append_conversation_event"]
-						},
-						"description": "ERP: Persists events. Bot: Sends relevant events (intent, tool-calls, errors)."
-					},
-					"response": []
-				},
-				{
-					"name": "Upload Message Transcript",
-					"request": {
-						"method": "POST",
-						"header": [
-							{
-								"key": "Content-Type",
-								"value": "application/json"
-							},
-							{
-								"key": "Authorization",
-								"value": "token {{token}}"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n  \"phone_number\": \"+1234567890\",\n  \"messages\": [\n    {\"role\": \"user\", \"content\": \"hello\"},\n    {\"role\": \"assistant\", \"content\": \"Nice to meet you\"}\n  ],\n  \"conversation_id\": \"CONV-001\"\n}"
-						},
-						"url": {
-							"raw": "{{base_url}}/api/method/cheese.api.v1.message_controller.upload_message_transcript",
-							"host": ["{{base_url}}"],
-							"path": ["api", "method", "cheese.api.v1.message_controller.upload_message_transcript"]
-						},
-						"description": "Upload message transcript - stores individual messages from a conversation.\n\n**Parameters:**\n- `phone_number`: Phone number of the user (required)\n- `messages`: Array of message objects with `role` (user/assistant) and `content` (required)\n- `conversation_id`: Optional conversation ID to link messages to\n\n**Example response:**\n```json\n{\n  \"success\": true,\n  \"message\": \"Message transcript uploaded successfully\",\n  \"data\": {\n    \"contact_id\": \"CONTACT-001\",\n    \"conversation_id\": \"CONV-001\",\n    \"message_count\": 2,\n    \"message_ids\": [\"MSG-001\", \"MSG-002\"]\n  }\n}\n```"
-					},
-					"response": []
-				}
-			]
-		},
-		{
-			"name": "3. Leads",
-			"item": [
-				{
-					"name": "Upsert Lead",
-					"request": {
-						"method": "POST",
-						"header": [
-							{
-								"key": "Content-Type",
-								"value": "application/json"
-							},
-							{
-								"key": "Authorization",
-								"value": "token {{token}}"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n  \"contact_id\": \"CONTACT-001\",\n  \"conversation_id\": \"CONV-001\",\n  \"interest_type\": \"Experience\",\n  \"status\": \"OPEN\"\n}"
-						},
-						"url": {
-							"raw": "{{base_url}}/api/method/cheese.api.v1.lead_controller.upsert_lead",
-							"host": ["{{base_url}}"],
-							"path": ["api", "method", "cheese.api.v1.lead_controller.upsert_lead"]
-						},
-						"description": "ERP: Creates/consolidates lead per contact; status \"not converted/converted\". Bot: Detects intent and records it."
-					},
-					"response": []
-				}
-			]
-		},
-		{
-			"name": "4. Catalog - Experiences",
-			"item": [
-				{
-					"name": "List Experiences",
-					"request": {
-						"method": "POST",
-						"header": [
-							{
-								"key": "Content-Type",
-								"value": "application/json"
-							},
-							{
-								"key": "Authorization",
-								"value": "token {{token}}"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n  \"page\": 1,\n  \"page_size\": 20,\n  \"status\": \"ONLINE\",\n  \"company\": \"COMPANY-001\",\n  \"establishment_id\": \"COMPANY-001\",\n  \"package_mode\": \"Both\",\n  \"search\": \"adventure\",\n  \"date\": \"2024-12-31\"\n}"
-						},
-						"url": {
-							"raw": "{{base_url}}/api/method/cheese.api.v1.experience_controller.list_experiences",
-							"host": ["{{base_url}}"],
-							"path": ["api", "method", "cheese.api.v1.experience_controller.list_experiences"]
-						},
-						"description": "ERP: Canonical, filterable catalog. Bot: Presents options."
-					},
-					"response": []
-				},
-				{
-					"name": "Get Experience Detail",
-					"request": {
-						"method": "POST",
-						"header": [
-							{
-								"key": "Content-Type",
-								"value": "application/json"
-							},
-							{
-								"key": "Authorization",
-								"value": "token {{token}}"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n  \"experience_id\": \"EXP-001\",\n  \"include_next_availability\": true\n}"
-						},
-						"url": {
-							"raw": "{{base_url}}/api/method/cheese.api.v1.experience_controller.get_experience_detail",
-							"host": ["{{base_url}}"],
-							"path": ["api", "method", "cheese.api.v1.experience_controller.get_experience_detail"]
-						},
-						"description": "ERP: Full details + policies. Bot: Summarizes/explains."
-					},
-					"response": []
-				}
-			]
-		},
-		{
-			"name": "5. Catalog - Routes",
-			"item": [
-				{
-					"name": "List Routes",
-					"request": {
-						"method": "POST",
-						"header": [
-							{
-								"key": "Content-Type",
-								"value": "application/json"
-							},
-							{
-								"key": "Authorization",
-								"value": "token {{token}}"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n  \"page\": 1,\n  \"page_size\": 20,\n  \"status\": \"ONLINE\",\n  \"search\": \"adventure\",\n  \"experiences\": [\"EXP-001\", \"EXP-002\"]\n}"
-						},
-						"url": {
-							"raw": "{{base_url}}/api/method/cheese.api.v1.route_controller.list_routes",
-							"host": ["{{base_url}}"],
-							"path": ["api", "method", "cheese.api.v1.route_controller.list_routes"]
-						},
-						"description": "ERP: Available routes + composition. Bot: Guides selection."
-					},
-					"response": []
-				},
-				{
-					"name": "Get Route Detail",
-					"request": {
-						"method": "POST",
-						"header": [
-							{
-								"key": "Content-Type",
-								"value": "application/json"
-							},
-							{
-								"key": "Authorization",
-								"value": "token {{token}}"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n  \"route_id\": \"ROUTE-001\"\n}"
-						},
-						"url": {
-							"raw": "{{base_url}}/api/method/cheese.api.v1.route_controller.get_route_detail",
-							"host": ["{{base_url}}"],
-							"path": ["api", "method", "cheese.api.v1.route_controller.get_route_detail"]
-						},
-						"description": "ERP: Composition, rules, conditions. Bot: Explains structure/value."
-					},
-					"response": []
-				}
-			]
-		},
-		{
-			"name": "6. Availability",
-			"item": [
-				{
-					"name": "Get Availability by Experience",
-					"request": {
-						"method": "POST",
-						"header": [
-							{
-								"key": "Content-Type",
-								"value": "application/json"
-							},
-							{
-								"key": "Authorization",
-								"value": "token {{token}}"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n  \"experience_id\": \"EXP-001\",\n  \"date\": \"2024-12-31\",\n  \"date_from\": \"2024-12-31\",\n  \"date_to\": \"2024-12-31\"\n}"
-						},
-						"url": {
-							"raw": "{{base_url}}/api/method/cheese.api.v1.availability_controller.get_availability",
-							"host": ["{{base_url}}"],
-							"path": ["api", "method", "cheese.api.v1.availability_controller.get_availability"]
-						},
-						"description": "ERP: Calculates real slots. Bot: Queries and offers options.\n\n**Per-day capacity:** Responses include one entry per calendar day in `date_from`/`date_to` for each slot (`selected_date` / `calendar_date`, and `date` = that day). `available_capacity` is for that day only."
-					},
-					"response": []
-				},
-				{
-					"name": "Get Available Slots",
-					"request": {
-						"method": "POST",
-						"header": [
-							{
-								"key": "Content-Type",
-								"value": "application/json"
-							},
-							{
-								"key": "Authorization",
-								"value": "token {{token}}"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n  \"experience_id\": \"EXP-001\",\n  \"date\": \"2024-12-31\",\n  \"date_from\": \"2024-12-31\",\n  \"date_to\": \"2024-12-31\"\n}"
-						},
-						"url": {
-							"raw": "{{base_url}}/api/method/cheese.api.v1.availability_controller.get_available_slots",
-							"host": ["{{base_url}}"],
-							"path": ["api", "method", "cheese.api.v1.availability_controller.get_available_slots"]
-						},
-						"description": "Alias of get_availability. Same per-day slot rows as get_availability."
-					},
-					"response": []
-				},
-				{
-					"name": "Get Route Availability",
-					"request": {
-						"method": "POST",
-						"header": [
-							{
-								"key": "Content-Type",
-								"value": "application/json"
-							},
-							{
-								"key": "Authorization",
-								"value": "token {{token}}"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n  \"route_id\": \"ROUTE-001\",\n  \"date_from\": \"2026-04-20\",\n  \"date_to\": \"2026-04-27\",\n  \"party_size\": 2\n}"
-						},
-						"url": {
-							"raw": "{{base_url}}/api/method/cheese.api.v1.availability_controller.get_route_availability",
-							"host": ["{{base_url}}"],
-							"path": ["api", "method", "cheese.api.v1.availability_controller.get_route_availability"]
-						},
-						"description": "Route-level availability for a date range. Pass `date` as shorthand for a single day (`date_from`/`date_to`). Each `available_slots` entry includes `selected_date` / `calendar_date` for that occurrence; capacity is per calendar day.\n\n**Testing route time selection:** Use this together with `route_booking_controller.get_available_slots_for_route` (per-experience slot rows for a chosen day or range)."
-					},
-					"response": []
-				}
-			]
-		},
-		{
-			"name": "7. Pricing and Policies",
-			"item": [
-				{
-					"name": "Get Pricing Preview",
-					"request": {
-						"method": "POST",
-						"header": [
-							{
-								"key": "Content-Type",
-								"value": "application/json"
-							},
-							{
-								"key": "Authorization",
-								"value": "token {{token}}"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n  \"items\": [\n    {\"type\": \"experience\", \"experience_id\": \"EXP-001\", \"slot_id\": \"SLOT-001\"},\n    {\"type\": \"route\", \"route_id\": \"ROUTE-001\"}\n  ],\n  \"party_size\": 2\n}"
-						},
-						"url": {
-							"raw": "{{base_url}}/api/method/cheese.api.v1.pricing_controller.get_pricing_preview",
-							"host": ["{{base_url}}"],
-							"path": ["api", "method", "cheese.api.v1.pricing_controller.get_pricing_preview"]
-						},
-						"description": "ERP: Calculates final price + deposit + breakdown. Bot: Communicates."
-					},
-					"response": []
-				},
-				{
-					"name": "Get Modification Policy",
-					"request": {
-						"method": "POST",
-						"header": [
-							{
-								"key": "Content-Type",
-								"value": "application/json"
-							},
-							{
-								"key": "Authorization",
-								"value": "token {{token}}"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n  \"reservation_id\": \"TICKET-001\"\n}"
-						},
-						"url": {
-							"raw": "{{base_url}}/api/method/cheese.api.v1.pricing_controller.get_modification_policy",
-							"host": ["{{base_url}}"],
-							"path": ["api", "method", "cheese.api.v1.pricing_controller.get_modification_policy"]
-						},
-						"description": "ERP: Defines what can be modified and cost. Bot: Checks and informs before executing."
-					},
-					"response": []
-				},
-				{
-					"name": "Get Cancellation Impact",
-					"request": {
-						"method": "POST",
-						"header": [
-							{
-								"key": "Content-Type",
-								"value": "application/json"
-							},
-							{
-								"key": "Authorization",
-								"value": "token {{token}}"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n  \"reservation_id\": \"TICKET-001\"\n}"
-						},
-						"url": {
-							"raw": "{{base_url}}/api/method/cheese.api.v1.pricing_controller.get_cancellation_impact",
-							"host": ["{{base_url}}"],
-							"path": ["api", "method", "cheese.api.v1.pricing_controller.get_cancellation_impact"]
-						},
-						"description": "ERP: Calculates penalties and consequences. Bot: Shows before canceling."
-					},
-					"response": []
-				}
-			]
-		},
-		{
-			"name": "8. Individual Reservations",
-			"item": [
-				{
-					"name": "Create Pending Reservation",
-					"request": {
-						"method": "POST",
-						"header": [
-							{
-								"key": "Content-Type",
-								"value": "application/json"
-							},
-							{
-								"key": "Authorization",
-								"value": "token {{token}}"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n  \"contact_id\": \"CONTACT-001\",\n  \"experience_id\": \"EXP-HOTEL-001\",\n  \"slot_id\": \"SLOT-001\",\n  \"party_size\": 4,\n  \"check_in_date\": \"2026-05-05\",\n  \"check_out_date\": \"2026-05-08\",\n  \"rooms_requested\": 1\n}"
-						},
-						"url": {
-							"raw": "{{base_url}}/api/method/cheese.api.v1.ticket_controller.create_pending_reservation",
-							"host": ["{{base_url}}"],
-							"path": ["api", "method", "cheese.api.v1.ticket_controller.create_pending_reservation"]
-						},
-						"description": "ERP: Validates, locks slot, creates Reservation = PENDING, sets expiration. Bot: Guides data and executes.\n\nFor HOTEL experiences, include `check_in_date`, `check_out_date`, and `rooms_requested` (>= 1). `party_size` remains total guests."
-					},
-					"response": []
-				},
-				{
-					"name": "Get Reservation Status",
-					"request": {
-						"method": "POST",
-						"header": [
-							{
-								"key": "Content-Type",
-								"value": "application/json"
-							},
-							{
-								"key": "Authorization",
-								"value": "token {{token}}"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n  \"reservation_id\": \"TICKET-001\"\n}"
-						},
-						"url": {
-							"raw": "{{base_url}}/api/method/cheese.api.v1.ticket_controller.get_reservation_status",
-							"host": ["{{base_url}}"],
-							"path": ["api", "method", "cheese.api.v1.ticket_controller.get_reservation_status"]
-						},
-						"description": "ERP: Returns canonical status and next steps. Bot: Communicates current state."
-					},
-					"response": []
-				},
-				{
-					"name": "Get Reservations by Phone",
-					"request": {
-						"method": "POST",
-						"header": [
-							{
-								"key": "Content-Type",
-								"value": "application/json"
-							},
-							{
-								"key": "Authorization",
-								"value": "token {{token}}"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n  \"phone\": \"+1234567890\",\n  \"page\": 1,\n  \"page_size\": 20,\n  \"status\": \"PENDING\"\n}"
-						},
-						"url": {
-							"raw": "{{base_url}}/api/method/cheese.api.v1.ticket_controller.get_reservations_by_phone",
-							"host": ["{{base_url}}"],
-							"path": ["api", "method", "cheese.api.v1.ticket_controller.get_reservations_by_phone"]
-						},
-						"description": "ERP: Finds contact by phone and returns their reservations. Bot: Reports current ticket statuses."
-					},
-					"response": []
-				},
-				{
-					"name": "Modify Reservation Preview",
-					"request": {
-						"method": "POST",
-						"header": [
-							{
-								"key": "Content-Type",
-								"value": "application/json"
-							},
-							{
-								"key": "Authorization",
-								"value": "token {{token}}"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n  \"reservation_id\": \"TICKET-001\",\n  \"new_slot\": \"SLOT-002\",\n  \"party_size\": 3\n}"
-						},
-						"url": {
-							"raw": "{{base_url}}/api/method/cheese.api.v1.ticket_controller.modify_reservation_preview",
-							"host": ["{{base_url}}"],
-							"path": ["api", "method", "cheese.api.v1.ticket_controller.modify_reservation_preview"]
-						},
-						"description": "Preview changes before applying modification."
-					},
-					"response": []
-				},
-				{
-					"name": "Confirm Modification",
-					"request": {
-						"method": "POST",
-						"header": [
-							{
-								"key": "Content-Type",
-								"value": "application/json"
-							},
-							{
-								"key": "Authorization",
-								"value": "token {{token}}"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n  \"reservation_id\": \"TICKET-001\",\n  \"new_slot\": \"SLOT-002\",\n  \"party_size\": 3\n}"
-						},
-						"url": {
-							"raw": "{{base_url}}/api/method/cheese.api.v1.ticket_controller.confirm_modification",
-							"host": ["{{base_url}}"],
-							"path": ["api", "method", "cheese.api.v1.ticket_controller.confirm_modification"]
-						},
-						"description": "ERP: Validates, calculates impact, applies changes. Bot: Shows impact and confirms."
-					},
-					"response": []
-				},
-				{
-					"name": "Cancel Reservation",
-					"request": {
-						"method": "POST",
-						"header": [
-							{
-								"key": "Content-Type",
-								"value": "application/json"
-							},
-							{
-								"key": "Authorization",
-								"value": "token {{token}}"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n  \"reservation_id\": \"TICKET-001\"\n}"
-						},
-						"url": {
-							"raw": "{{base_url}}/api/method/cheese.api.v1.ticket_controller.cancel_reservation",
-							"host": ["{{base_url}}"],
-							"path": ["api", "method", "cheese.api.v1.ticket_controller.cancel_reservation"]
-						},
-						"description": "Cancel an individual reservation."
-					},
-					"response": []
-				},
-				{
-					"name": "Create Pending Ticket",
-					"request": {
-						"method": "POST",
-						"header": [
-							{
-								"key": "Content-Type",
-								"value": "application/json"
-							},
-							{
-								"key": "Authorization",
-								"value": "token {{token}}"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n  \"contact_id\": \"CONTACT-001\",\n  \"experience_id\": \"EXP-HOTEL-001\",\n  \"slot_id\": \"SLOT-001\",\n  \"party_size\": 4,\n  \"check_in_date\": \"2026-05-05\",\n  \"check_out_date\": \"2026-05-08\",\n  \"rooms_requested\": 1\n}"
-						},
-						"url": {
-							"raw": "{{base_url}}/api/method/cheese.api.v1.ticket_controller.create_pending_ticket",
-							"host": ["{{base_url}}"],
-							"path": ["api", "method", "cheese.api.v1.ticket_controller.create_pending_ticket"]
-						},
-						"description": "Legacy endpoint - use create_pending_reservation instead.\n\nFor HOTEL experiences, include `check_in_date`, `check_out_date`, and `rooms_requested` (>= 1)."
-					},
-					"response": []
-				},
-				{
-					"name": "Get Ticket Summary",
-					"request": {
-						"method": "POST",
-						"header": [
-							{
-								"key": "Content-Type",
-								"value": "application/json"
-							},
-							{
-								"key": "Authorization",
-								"value": "token {{token}}"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n  \"ticket_id\": \"TICKET-001\"\n}"
-						},
-						"url": {
-							"raw": "{{base_url}}/api/method/cheese.api.v1.ticket_controller.get_ticket_summary",
-							"host": ["{{base_url}}"],
-							"path": ["api", "method", "cheese.api.v1.ticket_controller.get_ticket_summary"]
-						},
-						"description": "Legacy endpoint - use get_reservation_status instead."
-					},
-					"response": []
-				}
-			]
-		},
-		{
-			"name": "9. Route Reservations",
-			"item": [
-				{
-					"name": "Create Route Reservation",
-					"request": {
-						"method": "POST",
-						"header": [
-							{
-								"key": "Content-Type",
-								"value": "application/json"
-							},
-							{
-								"key": "Authorization",
-								"value": "token {{token}}"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n  \"contact_id\": \"CONTACT-001\",\n  \"route_id\": \"ROUTE-001\",\n  \"party_size\": 2,\n  \"date_from\": \"2024-12-31\",\n  \"date_to\": \"2024-12-31\",\n  \"time_from\": \"10:00\",\n  \"time_to\": \"11:00\",\n  \"conversation_id\": \"CONV-001\"\n}"
-						},
-						"url": {
-							"raw": "{{base_url}}/api/method/cheese.api.v1.route_booking_controller.create_route_reservation",
-							"host": ["{{base_url}}"],
-							"path": ["api", "method", "cheese.api.v1.route_booking_controller.create_route_reservation"]
-						},
-						"description": "ERP: Creates RouteBooking = PENDING + internal reservations, locks capacity. Bot: Guides and executes.\n\n**Booking date / time / slots:** Omit `experiences_with_slots` and pass `date_from` and optionally `date_to` (YYYY-MM-DD) to auto-select OPEN slots in that range; single-day bookings can set both to the same date. You can also pass `time_from` and `time_to` (HH:MM or HH:MM:SS) to constrain auto-selection to that exact time window. Alternatively pass `experiences_with_slots` with explicit `experience_id` / `slot_id` pairs. The `date` field is accepted as a synonym for `date_from` when `date_from` is not set."
-					},
-					"response": []
-				},
-				{
-					"name": "Get Available Slots for Route",
-					"request": {
-						"method": "POST",
-						"header": [
-							{
-								"key": "Content-Type",
-								"value": "application/json"
-							},
-							{
-								"key": "Authorization",
-								"value": "token {{token}}"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n  \"route_id\": \"ROUTE-001\",\n  \"selected_date\": \"2026-04-20\",\n  \"party_size\": 2\n}"
-						},
-						"url": {
-							"raw": "{{base_url}}/api/method/cheese.api.v1.route_booking_controller.get_available_slots_for_route",
-							"host": ["{{base_url}}"],
-							"path": ["api", "method", "cheese.api.v1.route_booking_controller.get_available_slots_for_route"]
-						},
-						"description": "Lists candidate slots per experience on the route for the chosen date (or `date_from`/`date_to` range). Each row includes `selected_date` / `calendar_date` and per-day `available_capacity`. Use before `create_route_reservation` when building explicit `experiences_with_slots`."
-					},
-					"response": []
-				},
-				{
-					"name": "Get Route Status",
-					"request": {
-						"method": "POST",
-						"header": [
-							{
-								"key": "Content-Type",
-								"value": "application/json"
-							},
-							{
-								"key": "Authorization",
-								"value": "token {{token}}"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n  \"route_booking_id\": \"RB-TICKET-001\"\n}"
-						},
-						"url": {
-							"raw": "{{base_url}}/api/method/cheese.api.v1.route_booking_controller.get_route_status",
-							"host": ["{{base_url}}"],
-							"path": ["api", "method", "cheese.api.v1.route_booking_controller.get_route_status"]
-						},
-						"description": "ERP: Returns PENDING / PARTIALLY_CONFIRMED / CONFIRMED. Bot: Communicates what's confirmed vs pending."
-					},
-					"response": []
-				},
-				{
-					"name": "Get Route Summary",
-					"request": {
-						"method": "POST",
-						"header": [
-							{
-								"key": "Content-Type",
-								"value": "application/json"
-							},
-							{
-								"key": "Authorization",
-								"value": "token {{token}}"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n  \"route_booking_id\": \"RB-TICKET-001\"\n}"
-						},
-						"url": {
-							"raw": "{{base_url}}/api/method/cheese.api.v1.route_booking_controller.get_route_summary",
-							"host": ["{{base_url}}"],
-							"path": ["api", "method", "cheese.api.v1.route_booking_controller.get_route_summary"]
-						},
-						"description": "ERP: Returns user-friendly summary. Bot: Delivers to customer."
-					},
-					"response": []
-				},
-				{
-					"name": "Modify Route Booking Preview",
-					"request": {
-						"method": "POST",
-						"header": [
-							{
-								"key": "Content-Type",
-								"value": "application/json"
-							},
-							{
-								"key": "Authorization",
-								"value": "token {{token}}"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n  \"route_booking_id\": \"RB-TICKET-001\",\n  \"changes\": [\n    {\"ticket_id\": \"TICKET-001\", \"new_slot\": \"SLOT-002\", \"party_size\": 3}\n  ]\n}"
-						},
-						"url": {
-							"raw": "{{base_url}}/api/method/cheese.api.v1.route_booking_controller.modify_route_booking_preview",
-							"host": ["{{base_url}}"],
-							"path": ["api", "method", "cheese.api.v1.route_booking_controller.modify_route_booking_preview"]
-						},
-						"description": "Preview changes to route booking before applying."
-					},
-					"response": []
-				},
-				{
-					"name": "Confirm Route Modification",
-					"request": {
-						"method": "POST",
-						"header": [
-							{
-								"key": "Content-Type",
-								"value": "application/json"
-							},
-							{
-								"key": "Authorization",
-								"value": "token {{token}}"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n  \"route_booking_id\": \"RB-TICKET-001\",\n  \"changes\": [\n    {\"ticket_id\": \"TICKET-001\", \"new_slot\": \"SLOT-002\", \"party_size\": 3}\n  ]\n}"
-						},
-						"url": {
-							"raw": "{{base_url}}/api/method/cheese.api.v1.route_booking_controller.confirm_route_modification",
-							"host": ["{{base_url}}"],
-							"path": ["api", "method", "cheese.api.v1.route_booking_controller.confirm_route_modification"]
-						},
-						"description": "ERP: Validates, calculates impact, applies changes. Bot: Shows impact and confirms."
-					},
-					"response": []
-				},
-				{
-					"name": "Add Activities to Route Preview",
-					"request": {
-						"method": "POST",
-						"header": [
-							{
-								"key": "Content-Type",
-								"value": "application/json"
-							},
-							{
-								"key": "Authorization",
-								"value": "token {{token}}"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n  \"route_booking_id\": \"RB-TICKET-001\",\n  \"activities\": [\n    {\"experience_id\": \"EXP-003\", \"slot_id\": \"SLOT-003\"}\n  ]\n}"
-						},
-						"url": {
-							"raw": "{{base_url}}/api/method/cheese.api.v1.route_booking_controller.add_activities_to_route_preview",
-							"host": ["{{base_url}}"],
-							"path": ["api", "method", "cheese.api.v1.route_booking_controller.add_activities_to_route_preview"]
-						},
-						"description": "Preview add-ons to route booking."
-					},
-					"response": []
-				},
-				{
-					"name": "Confirm Add Activities to Route",
-					"request": {
-						"method": "POST",
-						"header": [
-							{
-								"key": "Content-Type",
-								"value": "application/json"
-							},
-							{
-								"key": "Authorization",
-								"value": "token {{token}}"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n  \"route_booking_id\": \"RB-TICKET-001\",\n  \"activities\": [\n    {\"experience_id\": \"EXP-003\", \"slot_id\": \"SLOT-003\"}\n  ]\n}"
-						},
-						"url": {
-							"raw": "{{base_url}}/api/method/cheese.api.v1.route_booking_controller.confirm_add_activities_to_route",
-							"host": ["{{base_url}}"],
-							"path": ["api", "method", "cheese.api.v1.route_booking_controller.confirm_add_activities_to_route"]
-						},
-						"description": "Apply add-ons to route booking."
-					},
-					"response": []
-				},
-				{
-					"name": "Cancel Route Booking",
-					"request": {
-						"method": "POST",
-						"header": [
-							{
-								"key": "Content-Type",
-								"value": "application/json"
-							},
-							{
-								"key": "Authorization",
-								"value": "token {{token}}"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n  \"route_booking_id\": \"RB-TICKET-001\",\n  \"reason\": \"Customer request\"\n}"
-						},
-						"url": {
-							"raw": "{{base_url}}/api/method/cheese.api.v1.route_booking_controller.cancel_route_booking",
-							"host": ["{{base_url}}"],
-							"path": ["api", "method", "cheese.api.v1.route_booking_controller.cancel_route_booking"]
-						},
-						"description": "Cancel a route booking."
-					},
-					"response": []
-				}
-			]
-		},
-		{
-			"name": "10. Mixed Booking",
-			"item": [
-				{
-					"name": "Create Pending Booking",
-					"request": {
-						"method": "POST",
-						"header": [
-							{
-								"key": "Content-Type",
-								"value": "application/json"
-							},
-							{
-								"key": "Authorization",
-								"value": "token {{token}}"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n  \"contact_id\": \"CONTACT-001\",\n  \"items\": [\n    {\"type\": \"route\", \"route_id\": \"ROUTE-001\", \"date\": \"2024-12-31\", \"party_size\": 2},\n    {\"type\": \"experience\", \"experience_id\": \"EXP-001\", \"slot_id\": \"SLOT-001\", \"party_size\": 2}\n  ],\n  \"conversation_id\": \"CONV-001\"\n}"
-						},
-						"url": {
-							"raw": "{{base_url}}/api/method/cheese.api.v1.booking_controller.create_pending_booking",
-							"host": ["{{base_url}}"],
-							"path": ["api", "method", "cheese.api.v1.booking_controller.create_pending_booking"]
-						},
-						"description": "ERP: Creates aggregator entity with optional route_booking + individual_reservations[], consolidated pricing, global status. Bot: Guides and executes."
-					},
-					"response": []
-				},
-				{
-					"name": "Get Booking Status",
-					"request": {
-						"method": "POST",
-						"header": [
-							{
-								"key": "Content-Type",
-								"value": "application/json"
-							},
-							{
-								"key": "Authorization",
-								"value": "token {{token}}"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n  \"booking_id\": \"BK-CONTACT-001-20241231120000\"\n}"
-						},
-						"url": {
-							"raw": "{{base_url}}/api/method/cheese.api.v1.booking_controller.get_booking_status",
-							"host": ["{{base_url}}"],
-							"path": ["api", "method", "cheese.api.v1.booking_controller.get_booking_status"]
-						},
-						"description": "ERP: Returns overall state and components. Bot: Communicates consolidated status."
-					},
-					"response": []
-				},
-				{
-					"name": "Modify Booking Preview",
-					"request": {
-						"method": "POST",
-						"header": [
-							{
-								"key": "Content-Type",
-								"value": "application/json"
-							},
-							{
-								"key": "Authorization",
-								"value": "token {{token}}"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n  \"booking_id\": \"BK-CONTACT-001-20241231120000\",\n  \"changes\": [\n    {\"type\": \"route\", \"route_booking_id\": \"RB-TICKET-001\", \"changes\": [{\"ticket_id\": \"TICKET-001\", \"new_slot\": \"SLOT-002\"}]},\n    {\"type\": \"ticket\", \"ticket_id\": \"TICKET-002\", \"party_size\": 3}\n  ]\n}"
-						},
-						"url": {
-							"raw": "{{base_url}}/api/method/cheese.api.v1.booking_controller.modify_booking_preview",
-							"host": ["{{base_url}}"],
-							"path": ["api", "method", "cheese.api.v1.booking_controller.modify_booking_preview"]
-						},
-						"description": "Preview changes to mixed booking."
-					},
-					"response": []
-				},
-				{
-					"name": "Confirm Booking Modification",
-					"request": {
-						"method": "POST",
-						"header": [
-							{
-								"key": "Content-Type",
-								"value": "application/json"
-							},
-							{
-								"key": "Authorization",
-								"value": "token {{token}}"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n  \"booking_id\": \"BK-CONTACT-001-20241231120000\",\n  \"changes\": [\n    {\"type\": \"route\", \"route_booking_id\": \"RB-TICKET-001\", \"changes\": [{\"ticket_id\": \"TICKET-001\", \"new_slot\": \"SLOT-002\"}]},\n    {\"type\": \"ticket\", \"ticket_id\": \"TICKET-002\", \"party_size\": 3}\n  ]\n}"
-						},
-						"url": {
-							"raw": "{{base_url}}/api/method/cheese.api.v1.booking_controller.confirm_booking_modification",
-							"host": ["{{base_url}}"],
-							"path": ["api", "method", "cheese.api.v1.booking_controller.confirm_booking_modification"]
-						},
-						"description": "Apply changes to mixed booking."
-					},
-					"response": []
-				},
-				{
-					"name": "Cancel Booking",
-					"request": {
-						"method": "POST",
-						"header": [
-							{
-								"key": "Content-Type",
-								"value": "application/json"
-							},
-							{
-								"key": "Authorization",
-								"value": "token {{token}}"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n  \"booking_id\": \"BK-CONTACT-001-20241231120000\",\n  \"reason\": \"Customer request\"\n}"
-						},
-						"url": {
-							"raw": "{{base_url}}/api/method/cheese.api.v1.booking_controller.cancel_booking",
-							"host": ["{{base_url}}"],
-							"path": ["api", "method", "cheese.api.v1.booking_controller.cancel_booking"]
-						},
-						"description": "Cancel entire mixed booking."
-					},
-					"response": []
-				}
-			]
-		},
-		{
-			"name": "11. Payment",
-			"item": [
-				{
-					"name": "Get Payment Link or Instructions",
-					"request": {
-						"method": "POST",
-						"header": [
-							{
-								"key": "Content-Type",
-								"value": "application/json"
-							},
-							{
-								"key": "Authorization",
-								"value": "token {{token}}"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n  \"ticket_id\": \"TICKET-001\",\n  \"payment_type\": \"Deposit\"\n}"
-						},
-						"url": {
-							"raw": "{{base_url}}/api/method/cheese.api.v1.deposit_controller.get_payment_link_or_instructions",
-							"host": ["{{base_url}}"],
-							"path": ["api", "method", "cheese.api.v1.deposit_controller.get_payment_link_or_instructions"]
-						},
-						"description": "Get payment link if available, otherwise returns instructions.\n\n**payment_type:** Omit for default behavior, or set `\"Deposit\"` (advance) / `\"Balance\"` (remaining after advance paid)."
-					},
-					"response": []
-				},
-				{
-					"name": "Get Deposit Instructions",
-					"request": {
-						"method": "POST",
-						"header": [
-							{
-								"key": "Content-Type",
-								"value": "application/json"
-							},
-							{
-								"key": "Authorization",
-								"value": "token {{token}}"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n  \"ticket_id\": \"TICKET-001\",\n  \"payment_type\": \"Deposit\"\n}"
-						},
-						"url": {
-							"raw": "{{base_url}}/api/method/cheese.api.v1.deposit_controller.get_deposit_instructions",
-							"host": ["{{base_url}}"],
-							"path": ["api", "method", "cheese.api.v1.deposit_controller.get_deposit_instructions"]
-						},
-						"description": "Bank instructions for the ticket deposit or balance.\n\n**payment_type:** `\"Deposit\"` | `\"Balance\"` — same semantics as `record_deposit_payment`."
-					},
-					"response": []
-				},
-				{
-					"name": "Register Deposit Payment",
-					"request": {
-						"method": "POST",
-						"header": [
-							{
-								"key": "Authorization",
-								"value": "token {{api_key}}:{{api_secret}}"
-							}
-						],
-						"body": {
-							"mode": "formdata",
-							"formdata": [
-								{
-									"key": "ticket_id",
-									"value": "TICKET-001",
-									"type": "text"
-								},
-								{
-									"key": "amount",
-									"value": "50.00",
-									"type": "text"
-								},
-								{
-									"key": "verification_method",
-									"value": "Manual",
-									"type": "text"
-								},
-								{
-									"key": "ocr_payload",
-									"value": "{\"account\":\"1234567890\",\"amount\":50.00,\"date\":\"2026-04-01\",\"reference\":\"DEP-001\"}",
-									"type": "text",
-									"disabled": true
-								},
-								{
-									"key": "attach_receipt",
-									"value": "true",
-									"type": "text"
-								},
-								{
-									"key": "payment_type",
-									"value": "Deposit",
-									"type": "text",
-									"description": "Deposit (advance) or Balance (remaining)"
-								},
-								{
-									"key": "receipt",
-									"type": "file",
-									"src": ""
-								}
-							]
-						},
-						"url": {
-							"raw": "{{base_url}}/api/method/cheese.api.v1.deposit_controller.record_deposit_payment",
-							"host": ["{{base_url}}"],
-							"path": ["api", "method", "cheese.api.v1.deposit_controller.record_deposit_payment"]
-						},
-						"description": "Record a deposit payment with optional receipt upload (PDF/PNG/JPG/JPEG/WEBP, max 10MB). Use form-data field name 'receipt' (also accepts 'payment_receipt' or 'file').\n\n**payment_type:** `Deposit` | `Balance` — must match the deposit you are paying down."
-					},
-					"response": []
-				},
-				{
-					"name": "Get Deposit Status",
-					"request": {
-						"method": "POST",
-						"header": [
-							{
-								"key": "Content-Type",
-								"value": "application/json"
-							},
-							{
-								"key": "Authorization",
-								"value": "token {{token}}"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n  \"deposit_id\": \"DEPOSIT-001\"\n}"
-						},
-						"url": {
-							"raw": "{{base_url}}/api/method/cheese.api.v1.deposit_controller.get_deposit_status",
-							"host": ["{{base_url}}"],
-							"path": ["api", "method", "cheese.api.v1.deposit_controller.get_deposit_status"]
-						},
-						"description": "Get deposit status and details including amount required, amount paid, and remaining balance."
-					},
-					"response": []
-				},
-				{
-					"name": "Get Payment Status for Booking",
-					"request": {
-						"method": "POST",
-						"header": [
-							{
-								"key": "Content-Type",
-								"value": "application/json"
-							},
-							{
-								"key": "Authorization",
-								"value": "token {{token}}"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n  \"booking_id\": \"BK-CONTACT-001-20241231120000\"\n}"
-						},
-						"url": {
-							"raw": "{{base_url}}/api/method/cheese.api.v1.booking_controller.get_payment_status_for_booking",
-							"host": ["{{base_url}}"],
-							"path": ["api", "method", "cheese.api.v1.booking_controller.get_payment_status_for_booking"]
-						},
-						"description": "Get consolidated payment status for a mixed booking."
-					},
-					"response": []
-				},
-				{
-					"name": "Register Payment for Booking",
-					"request": {
-						"method": "POST",
-						"header": [
-							{
-								"key": "Content-Type",
-								"value": "application/json"
-							},
-							{
-								"key": "Authorization",
-								"value": "token {{token}}"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n  \"booking_id\": \"BK-CONTACT-001-20241231120000\",\n  \"amount\": 100.00,\n  \"verification_method\": \"Manual\",\n  \"ocr_payload\": null\n}"
-						},
-						"url": {
-							"raw": "{{base_url}}/api/method/cheese.api.v1.booking_controller.register_payment_for_booking",
-							"host": ["{{base_url}}"],
-							"path": ["api", "method", "cheese.api.v1.booking_controller.register_payment_for_booking"]
-						},
-						"description": "Register payment for entire mixed booking."
-					},
-					"response": []
-				}
-			]
-		},
-		{
-			"name": "12. QR and Check-in",
-			"item": [
-				{
-					"name": "Get QR for Reservation",
-					"request": {
-						"method": "POST",
-						"header": [
-							{
-								"key": "Content-Type",
-								"value": "application/json"
-							},
-							{
-								"key": "Authorization",
-								"value": "token {{api_key}}:{{api_secret}}"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n  \"reservation_id\": \"TICKET-001\"\n}"
-						},
-						"url": {
-							"raw": "{{base_url}}/api/method/cheese.api.v1.qr_controller.get_qr_for_reservation",
-							"host": ["{{base_url}}"],
-							"path": ["api", "method", "cheese.api.v1.qr_controller.get_qr_for_reservation"]
-						},
-						"description": "Get QR token for a reservation."
-					},
-					"response": []
-				},
-				{
-					"name": "Get Check-in Status",
-					"request": {
-						"method": "POST",
-						"header": [
-							{
-								"key": "Content-Type",
-								"value": "application/json"
-							},
-							{
-								"key": "Authorization",
-								"value": "token {{token}}"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n  \"reservation_id\": \"TICKET-001\"\n}"
-						},
-						"url": {
-							"raw": "{{base_url}}/api/method/cheese.api.v1.qr_controller.get_checkin_status",
-							"host": ["{{base_url}}"],
-							"path": ["api", "method", "cheese.api.v1.qr_controller.get_checkin_status"]
-						},
-						"description": "Get check-in status for a reservation."
-					},
-					"response": []
-				},
-				{
-					"name": "Get QR Token",
-					"request": {
-						"method": "POST",
-						"header": [
-							{
-								"key": "Content-Type",
-								"value": "application/json"
-							},
-							{
-								"key": "Authorization",
-								"value": "token {{token}}"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n  \"ticket_id\": \"TICKET-001\"\n}"
-						},
-						"url": {
-							"raw": "{{base_url}}/api/method/cheese.api.v1.qr_controller.get_qr",
-							"host": ["{{base_url}}"],
-							"path": ["api", "method", "cheese.api.v1.qr_controller.get_qr"]
-						},
-						"description": "Legacy endpoint - use get_qr_for_reservation instead."
-					},
-					"response": []
-				},
-				{
-					"name": "Validate QR Token",
-					"request": {
-						"method": "POST",
-						"header": [
-							{
-								"key": "Content-Type",
-								"value": "application/json"
-							},
-							{
-								"key": "Authorization",
-								"value": "token {{token}}"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n  \"token\": \"abc123xyz789token\"\n}"
-						},
-						"url": {
-							"raw": "{{base_url}}/api/method/cheese.api.v1.qr_controller.validate_qr",
-							"host": ["{{base_url}}"],
-							"path": ["api", "method", "cheese.api.v1.qr_controller.validate_qr"]
-						},
-						"description": "Validate QR token and check in ticket. Creates attendance record."
-					},
-					"response": []
-				}
-			]
-		},
-		{
-			"name": "13. Itinerary",
-			"item": [
-				{
-					"name": "Get Customer Itinerary",
-					"request": {
-						"method": "POST",
-						"header": [
-							{
-								"key": "Content-Type",
-								"value": "application/json"
-							},
-							{
-								"key": "Authorization",
-								"value": "token {{token}}"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n  \"contact_id\": \"CONTACT-001\"\n}"
-						},
-						"url": {
-							"raw": "{{base_url}}/api/method/cheese.api.v1.itinerary_controller.get_customer_itinerary",
-							"host": ["{{base_url}}"],
-							"path": ["api", "method", "cheese.api.v1.itinerary_controller.get_customer_itinerary"]
-						},
-						"description": "Get all reservations/bookings for a contact with details."
-					},
-					"response": []
-				}
-			]
-		},
-		{
-			"name": "14. Survey and Complaints",
-			"item": [
-				{
-					"name": "Create Survey Request",
-					"request": {
-						"method": "POST",
-						"header": [
-							{
-								"key": "Content-Type",
-								"value": "application/json"
-							},
-							{
-								"key": "Authorization",
-								"value": "token {{token}}"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n  \"ticket_id\": \"TICKET-001\"\n}"
-						},
-						"url": {
-							"raw": "{{base_url}}/api/method/cheese.api.v1.survey_controller.create_survey_request",
-							"host": ["{{base_url}}"],
-							"path": ["api", "method", "cheese.api.v1.survey_controller.create_survey_request"]
-						},
-						"description": "Create survey request for a completed ticket."
-					},
-					"response": []
-				},
-				{
-					"name": "Submit Survey Response",
-					"request": {
-						"method": "POST",
-						"header": [
-							{
-								"key": "Content-Type",
-								"value": "application/json"
-							},
-							{
-								"key": "Authorization",
-								"value": "token {{token}}"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n  \"ticket_id\": \"TICKET-001\",\n  \"rating\": 5,\n  \"comment\": \"Great experience!\"\n}"
-						},
-						"url": {
-							"raw": "{{base_url}}/api/method/cheese.api.v1.survey_controller.submit_survey_response",
-							"host": ["{{base_url}}"],
-							"path": ["api", "method", "cheese.api.v1.survey_controller.submit_survey_response"]
-						},
-						"description": "Submit survey response with rating (1-5) and optional comment."
-					},
-					"response": []
-				},
-				{
-					"name": "Create Complaint",
-					"request": {
-						"method": "POST",
-						"header": [
-							{
-								"key": "Content-Type",
-								"value": "application/json"
-							},
-							{
-								"key": "Authorization",
-								"value": "token {{token}}"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n  \"contact_id\": \"CONTACT-001\",\n  \"description\": \"Issue with booking experience\",\n  \"ticket_id\": \"TICKET-001\",\n  \"complaint_type\": \"Service\",\n  \"incident_type\": \"LOCAL\"\n}"
-						},
-						"url": {
-							"raw": "{{base_url}}/api/method/cheese.api.v1.complaint_controller.create_complaint",
-							"host": ["{{base_url}}"],
-							"path": ["api", "method", "cheese.api.v1.complaint_controller.create_complaint"]
-						},
-						"description": "Create a complaint/support case.\n\n**Parameters:**\n- `contact_id`: Contact ID (required)\n- `description`: Complaint description (required)\n- `ticket_id`: Related ticket ID (optional)\n- `route_booking_id`: Related route booking ID (optional)\n- `complaint_type`: Complaint type (optional)\n- `incident_type`: Incident type - LOCAL or GENERAL (required)\n\n**Routing Logic:**\n- **LOCAL**: If there's an active booking today/upcoming, sends WhatsApp notification to establishment (without exposing personal data)\n- **GENERAL**: Routes to admin user for manual handling\n\n**Example response:**\n```json\n{\n  \"success\": true,\n  \"message\": \"Complaint created successfully\",\n  \"data\": {\n    \"complaint_id\": \"CASE-CONTACT-001-20241231\",\n    \"support_case_id\": \"CASE-CONTACT-001-20241231\",\n    \"contact_id\": \"CONTACT-001\",\n    \"ticket_id\": \"TICKET-001\",\n    \"status\": \"OPEN\",\n    \"created_at\": \"2024-12-31T12:00:00\"\n  }\n}\n```"
-					},
-					"response": []
-				},
-				{
-					"name": "Send Survey",
-					"request": {
-						"method": "POST",
-						"header": [
-							{
-								"key": "Content-Type",
-								"value": "application/json"
-							},
-							{
-								"key": "Authorization",
-								"value": "token {{token}}"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n  \"ticket_id\": \"TICKET-001\"\n}"
-						},
-						"url": {
-							"raw": "{{base_url}}/api/method/cheese.api.v1.survey_controller.send_survey",
-							"host": ["{{base_url}}"],
-							"path": ["api", "method", "cheese.api.v1.survey_controller.send_survey"]
-						},
-						"description": "Legacy endpoint - use create_survey_request instead."
-					},
-					"response": []
-				}
-			]
-		},
-		{
-			"name": "Establishment",
-			"item": [
-				{
-					"name": "List Establishments",
-					"request": {
-						"method": "POST",
-						"header": [
-							{
-								"key": "Content-Type",
-								"value": "application/json"
-							},
-							{
-								"key": "Authorization",
-								"value": "token {{token}}"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\"page\": 1, \"page_size\": 20}"
-						},
-						"url": {
-							"raw": "{{base_url}}/api/method/cheese.api.v1.establishment_controller.list_establishments",
-							"host": ["{{base_url}}"],
-							"path": ["api", "method", "cheese.api.v1.establishment_controller.list_establishments"]
-						},
-						"description": "List establishments with pagination and filters.\n\n**Response includes:**\n- `administrator_contact`: Contact information for the establishment administrator (e.g., email, phone) to be provided when users ask the bot for human assistance about an experience.\n\n**Example response:**\n```json\n{\n  \"success\": true,\n  \"message\": \"Establishments retrieved successfully\",\n  \"data\": [\n    {\n      \"company_id\": \"COMPANY-001\",\n      \"company_name\": \"Example Establishment\",\n      \"email\": \"info@example.com\",\n      \"phone\": \"+1234567890\",\n      \"administrator_contact\": \"admin@example.com, +1234567890\",\n      \"experiences_count\": 5,\n      ...\n    }\n  ],\n  \"meta\": { ... }\n}\n```"
-					}
-				},
-				{
-					"name": "Get Establishment Details",
-					"request": {
-						"method": "POST",
-						"header": [
-							{
-								"key": "Content-Type",
-								"value": "application/json"
-							},
-							{
-								"key": "Authorization",
-								"value": "token {{token}}"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\"company_id\": \"COMPANY-001\"}"
-						},
-						"url": {
-							"raw": "{{base_url}}/api/method/cheese.api.v1.establishment_controller.get_establishment_details",
-							"host": ["{{base_url}}"],
-							"path": ["api", "method", "cheese.api.v1.establishment_controller.get_establishment_details"]
-						},
-						"description": "Get full establishment profile with experiences, attachments, and status.\n\n**Response includes:**\n- `administrator_contact`: Contact information for the establishment administrator (e.g., email, phone) to be provided when users ask the bot for human assistance about an experience.\n\n**Example response:**\n```json\n{\n  \"success\": true,\n  \"message\": \"Establishment details retrieved successfully\",\n  \"data\": {\n    \"company_id\": \"COMPANY-001\",\n    \"company_name\": \"Example Establishment\",\n    \"administrator_contact\": \"admin@example.com, +1234567890\",\n    \"experiences\": [...],\n    \"contacts\": [...],\n    ...\n  }\n}\n```\n\n**Note:** The bot can use this endpoint to retrieve `administrator_contact` when users ask for human assistance about an experience."
-					}
-				},
-				{
-					"name": "Update Establishment",
-					"request": {
-						"method": "POST",
-						"header": [
-							{
-								"key": "Content-Type",
-								"value": "application/json"
-							},
-							{
-								"key": "Authorization",
-								"value": "token {{token}}"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n  \"company_id\": \"COMPANY-001\",\n  \"company_name\": \"Updated Name\",\n  \"email\": \"newemail@example.com\",\n  \"phone_no\": \"+1234567890\",\n  \"website\": \"https://example.com\",\n  \"company_description\": \"Updated description\",\n  \"administrator_contact\": \"admin@example.com, +1234567890\"\n}"
-						},
-						"url": {
-							"raw": "{{base_url}}/api/method/cheese.api.v1.establishment_controller.update_establishment",
-							"host": ["{{base_url}}"],
-							"path": ["api", "method", "cheese.api.v1.establishment_controller.update_establishment"]
-						},
-						"description": "Update establishment fields with audit trail.\n\n**Allowed fields:**\n- `company_name`\n- `email`\n- `phone_no`\n- `website`\n- `company_description`\n- `company_logo`\n- `administrator_contact`: Contact information for the establishment administrator (e.g., email, phone) to be provided when users ask the bot for human assistance.\n\n**Example response:**\n```json\n{\n  \"success\": true,\n  \"message\": \"Establishment updated successfully\",\n  \"data\": {\n    \"company_id\": \"COMPANY-001\",\n    \"company_name\": \"Updated Name\",\n    \"changes\": [\"company_name\", \"administrator_contact\"]\n  }\n}\n```"
-					},
-					"response": []
-				}
-			]
-		},
-		{
-			"name": "Route Management",
-			"item": [
-				{
-					"name": "Create Route",
-					"request": {
-						"method": "POST",
-						"header": [
-							{
-								"key": "Content-Type",
-								"value": "application/json"
-							},
-							{
-								"key": "Authorization",
-								"value": "token {{token}}"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\"name\": \"Route Name\", \"status\": \"OFFLINE\", \"experiences\": []}"
-						},
-						"url": {
-							"raw": "{{base_url}}/api/method/cheese.api.v1.route_controller.create_route",
-							"host": ["{{base_url}}"],
-							"path": ["api", "method", "cheese.api.v1.route_controller.create_route"]
-						},
-						"description": "Create a new route"
-					}
-				}
-			]
-		}
-	],
-	"variable": [
-		{
-			"key": "base_url",
-			"value": "https://erp-cheese.deepzide.com",
-			"type": "string"
-		},
-		{
-			"key": "token",
-			"value": "00f61785b147fd2:9385843e4ea3858",
-			"type": "string"
-		}
-	]
+    "info": {
+        "name": "Cheese Bot API",
+        "description": "Complete Bot API endpoints for Cheese booking system. Includes all mandatory endpoints from the comprehensive ERP Bot API specification: Contact, Conversation, Leads, Catalog, Availability, Pricing, Reservations, Route Bookings, Mixed Bookings, Modifications, Cancellations, Payments, QR/Check-in, Itinerary, Surveys, and Complaints.",
+        "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+    },
+    "item": [
+        {
+            "name": "0. Authentication",
+            "item": [
+                {
+                    "name": "Get Authentication Token",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"grant_type\": \"password\",\n  \"username\": \"user@example.com\",\n  \"password\": \"your_password\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/method/cheese.api.v1.auth_controller.token",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "method",
+                                "cheese.api.v1.auth_controller.token"
+                            ]
+                        },
+                        "description": "Authenticate and obtain API key/secret. If API key/secret don't exist, they will be created. On each login, a new API secret is generated and returned.\n\n**Response format:**\n```json\n{\n  \"success\": true,\n  \"message\": \"Authentication successful\",\n  \"data\": {\n    \"api_key\": \"generated_api_key\",\n    \"api_secret\": \"generated_api_secret\",\n    \"user\": \"username\",\n    \"full_name\": \"User Full Name\",\n    \"email\": \"user@example.com\",\n    \"permissions\": [\"Dashboard\", \"Tickets\", ...]\n  }\n}\n```"
+                    },
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "let res;",
+                                    "try {",
+                                    "  res = pm.response.json();",
+                                    "} catch (e) {",
+                                    "  pm.test(\"La respuesta es JSON v\u00e1lido\", function () {",
+                                    "    pm.expect.fail(\"Respuesta no es JSON\");",
+                                    "  });",
+                                    "}",
+                                    "",
+                                    "const data = res?.data || res?.message?.data;",
+                                    "",
+                                    "pm.test(\"Respuesta contiene api_key y api_secret\", function () {",
+                                    "  pm.expect(data?.api_key, \"api_key faltante\").to.be.a(\"string\").and.not.empty;",
+                                    "  pm.expect(data?.api_secret, \"api_secret faltante\").to.be.a(\"string\").and.not.empty;",
+                                    "});",
+                                    "",
+                                    "if (data?.api_key) {",
+                                    "  pm.collectionVariables.set(\"api_key\", data.api_key);",
+                                    "}",
+                                    "if (data?.api_secret) {",
+                                    "  pm.collectionVariables.set(\"api_secret\", data.api_secret);",
+                                    "}",
+                                    "",
+                                    "const k = pm.collectionVariables.get(\"api_key\");",
+                                    "const s = pm.collectionVariables.get(\"api_secret\");",
+                                    "",
+                                    "const apiKey = k || data?.api_key;",
+                                    "const apiSecret = s || data?.api_secret;",
+                                    "",
+                                    "if (apiKey && apiSecret) {",
+                                    "  pm.collectionVariables.set(\"token\", `${apiKey}:${apiSecret}`);",
+                                    "  console.log(\"Variables de colecci\u00f3n actualizadas: api_key, api_secret y token\");",
+                                    "} else {",
+                                    "  console.warn(\"No se pudo componer 'token' por falta de api_key o api_secret\");",
+                                    "}"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "response": []
+                },
+                {
+                    "name": "Logout",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "token {{token}}"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/method/cheese.api.v1.auth_controller.logout",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "method",
+                                "cheese.api.v1.auth_controller.logout"
+                            ]
+                        },
+                        "description": "Logout and regenerate API secret (effectively invalidates current session)."
+                    },
+                    "response": []
+                }
+            ]
+        },
+        {
+            "name": "1. Contact",
+            "item": [
+                {
+                    "name": "Resolve or Create Contact",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "token {{token}}"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"phone\": \"+1234567890\",\n  \"email\": \"customer@example.com\",\n  \"name\": \"John Doe\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/method/cheese.api.v1.contact_controller.resolve_or_create_contact",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "method",
+                                "cheese.api.v1.contact_controller.resolve_or_create_contact"
+                            ]
+                        },
+                        "description": "ERP: Creates or resolves a unique contact (deduplication by phone/email), defines contact_id."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Update Contact",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "token {{token}}"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"contact_id\": \"CONTACT-001\",\n  \"name\": \"John Doe Updated\",\n  \"email\": \"newemail@example.com\",\n  \"phone\": \"+9876543210\",\n  \"idempotency_key\": \"optional-key-123\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/method/cheese.api.v1.contact_controller.update_contact",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "method",
+                                "cheese.api.v1.contact_controller.update_contact"
+                            ]
+                        },
+                        "description": "ERP: Validates allowed fields, updates Contact, audits changes. Returns changed_fields and audit_event_id."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Find or Create Contact",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "token {{token}}"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"phone\": \"+1234567890\",\n  \"email\": \"customer@example.com\",\n  \"name\": \"John Doe\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/method/cheese.api.v1.contact_controller.find_or_create_contact",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "method",
+                                "cheese.api.v1.contact_controller.find_or_create_contact"
+                            ]
+                        },
+                        "description": "Legacy endpoint - use resolve_or_create_contact instead."
+                    },
+                    "response": []
+                }
+            ]
+        },
+        {
+            "name": "2. Conversation",
+            "item": [
+                {
+                    "name": "Open or Resume Conversation",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "token {{token}}"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"contact_id\": \"CONTACT-001\",\n  \"channel\": \"WhatsApp\",\n  \"status\": \"ACTIVE\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/method/cheese.api.v1.conversation_controller.open_or_resume_conversation",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "method",
+                                "cheese.api.v1.conversation_controller.open_or_resume_conversation"
+                            ]
+                        },
+                        "description": "ERP: Creates or resumes a persistent conversation, returns conversation_id."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Append Conversation Event",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "token {{token}}"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"conversation_id\": \"CONV-001\",\n  \"event_type\": \"intent\",\n  \"event_data\": {\"intent\": \"book_experience\", \"confidence\": 0.95},\n  \"metadata\": {\"source\": \"bot\"}\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/method/cheese.api.v1.conversation_controller.append_conversation_event",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "method",
+                                "cheese.api.v1.conversation_controller.append_conversation_event"
+                            ]
+                        },
+                        "description": "ERP: Persists events. Bot: Sends relevant events (intent, tool-calls, errors)."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Upload Message Transcript",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "token {{token}}"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"phone_number\": \"+1234567890\",\n  \"messages\": [\n    {\"role\": \"user\", \"content\": \"hello\"},\n    {\"role\": \"assistant\", \"content\": \"Nice to meet you\"}\n  ],\n  \"conversation_id\": \"CONV-001\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/method/cheese.api.v1.message_controller.upload_message_transcript",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "method",
+                                "cheese.api.v1.message_controller.upload_message_transcript"
+                            ]
+                        },
+                        "description": "Upload message transcript - stores individual messages from a conversation.\n\n**Parameters:**\n- `phone_number`: Phone number of the user (required)\n- `messages`: Array of message objects with `role` (user/assistant) and `content` (required)\n- `conversation_id`: Optional conversation ID to link messages to\n\n**Example response:**\n```json\n{\n  \"success\": true,\n  \"message\": \"Message transcript uploaded successfully\",\n  \"data\": {\n    \"contact_id\": \"CONTACT-001\",\n    \"conversation_id\": \"CONV-001\",\n    \"message_count\": 2,\n    \"message_ids\": [\"MSG-001\", \"MSG-002\"]\n  }\n}\n```"
+                    },
+                    "response": []
+                }
+            ]
+        },
+        {
+            "name": "3. Leads",
+            "item": [
+                {
+                    "name": "Upsert Lead",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "token {{token}}"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"contact_id\": \"CONTACT-001\",\n  \"conversation_id\": \"CONV-001\",\n  \"interest_type\": \"Experience\",\n  \"status\": \"OPEN\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/method/cheese.api.v1.lead_controller.upsert_lead",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "method",
+                                "cheese.api.v1.lead_controller.upsert_lead"
+                            ]
+                        },
+                        "description": "ERP: Creates/consolidates lead per contact; status \"not converted/converted\". Bot: Detects intent and records it."
+                    },
+                    "response": []
+                }
+            ]
+        },
+        {
+            "name": "4. Catalog - Experiences",
+            "item": [
+                {
+                    "name": "List Experiences",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "token {{token}}"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"page\": 1,\n  \"page_size\": 20,\n  \"status\": \"ONLINE\",\n  \"company\": \"COMPANY-001\",\n  \"establishment_id\": \"COMPANY-001\",\n  \"package_mode\": \"Both\",\n  \"search\": \"adventure\",\n  \"date\": \"2024-12-31\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/method/cheese.api.v1.experience_controller.list_experiences",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "method",
+                                "cheese.api.v1.experience_controller.list_experiences"
+                            ]
+                        },
+                        "description": "ERP: Canonical, filterable catalog. Bot: Presents options."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Get Experience Detail",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "token {{token}}"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"experience_id\": \"EXP-001\",\n  \"include_next_availability\": true\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/method/cheese.api.v1.experience_controller.get_experience_detail",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "method",
+                                "cheese.api.v1.experience_controller.get_experience_detail"
+                            ]
+                        },
+                        "description": "ERP: Full details + policies. Bot: Summarizes/explains."
+                    },
+                    "response": []
+                }
+            ]
+        },
+        {
+            "name": "5. Catalog - Routes",
+            "item": [
+                {
+                    "name": "List Routes",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "token {{token}}"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"page\": 1,\n  \"page_size\": 20,\n  \"status\": \"ONLINE\",\n  \"search\": \"adventure\",\n  \"experiences\": [\"EXP-001\", \"EXP-002\"]\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/method/cheese.api.v1.route_controller.list_routes",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "method",
+                                "cheese.api.v1.route_controller.list_routes"
+                            ]
+                        },
+                        "description": "ERP: Available routes + composition. Bot: Guides selection."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Get Route Detail",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "token {{token}}"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"route_id\": \"ROUTE-001\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/method/cheese.api.v1.route_controller.get_route_detail",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "method",
+                                "cheese.api.v1.route_controller.get_route_detail"
+                            ]
+                        },
+                        "description": "ERP: Composition, rules, conditions. Bot: Explains structure/value."
+                    },
+                    "response": []
+                }
+            ]
+        },
+        {
+            "name": "6. Availability",
+            "item": [
+                {
+                    "name": "Get Availability by Experience",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "token {{token}}"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"experience_id\": \"EXP-001\",\n  \"date\": \"2024-12-31\",\n  \"date_from\": \"2024-12-31\",\n  \"date_to\": \"2024-12-31\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/method/cheese.api.v1.availability_controller.get_availability",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "method",
+                                "cheese.api.v1.availability_controller.get_availability"
+                            ]
+                        },
+                        "description": "ERP: Calculates real slots. Bot: Queries and offers options.\n\n**Per-day capacity:** Responses include one entry per calendar day in `date_from`/`date_to` for each slot (`selected_date` / `calendar_date`, and `date` = that day). `available_capacity` is for that day only."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Get Available Slots",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "token {{token}}"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"experience_id\": \"EXP-001\",\n  \"date\": \"2024-12-31\",\n  \"date_from\": \"2024-12-31\",\n  \"date_to\": \"2024-12-31\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/method/cheese.api.v1.availability_controller.get_available_slots",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "method",
+                                "cheese.api.v1.availability_controller.get_available_slots"
+                            ]
+                        },
+                        "description": "Alias of get_availability. Same per-day slot rows as get_availability."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Get Route Availability",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "token {{token}}"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"route_id\": \"ROUTE-001\",\n  \"date_from\": \"2026-04-20\",\n  \"date_to\": \"2026-04-27\",\n  \"party_size\": 2\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/method/cheese.api.v1.availability_controller.get_route_availability",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "method",
+                                "cheese.api.v1.availability_controller.get_route_availability"
+                            ]
+                        },
+                        "description": "Route-level availability for a date range. Pass `date` as shorthand for a single day (`date_from`/`date_to`). Each `available_slots` entry includes `selected_date` / `calendar_date` for that occurrence; capacity is per calendar day.\n\n**Testing route time selection:** Use this together with `route_booking_controller.get_available_slots_for_route` (per-experience slot rows for a chosen day or range)."
+                    },
+                    "response": []
+                }
+            ]
+        },
+        {
+            "name": "7. Pricing and Policies",
+            "item": [
+                {
+                    "name": "Get Pricing Preview",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "token {{token}}"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"items\": [\n    {\"type\": \"experience\", \"experience_id\": \"EXP-001\", \"slot_id\": \"SLOT-001\"},\n    {\"type\": \"route\", \"route_id\": \"ROUTE-001\"}\n  ],\n  \"party_size\": 2\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/method/cheese.api.v1.pricing_controller.get_pricing_preview",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "method",
+                                "cheese.api.v1.pricing_controller.get_pricing_preview"
+                            ]
+                        },
+                        "description": "ERP: Calculates final price + deposit + breakdown. Bot: Communicates."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Get Modification Policy",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "token {{token}}"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"reservation_id\": \"TICKET-001\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/method/cheese.api.v1.pricing_controller.get_modification_policy",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "method",
+                                "cheese.api.v1.pricing_controller.get_modification_policy"
+                            ]
+                        },
+                        "description": "ERP: Defines what can be modified and cost. Bot: Checks and informs before executing."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Get Cancellation Impact",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "token {{token}}"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"reservation_id\": \"TICKET-001\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/method/cheese.api.v1.pricing_controller.get_cancellation_impact",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "method",
+                                "cheese.api.v1.pricing_controller.get_cancellation_impact"
+                            ]
+                        },
+                        "description": "ERP: Calculates penalties and consequences. Bot: Shows before canceling."
+                    },
+                    "response": []
+                }
+            ]
+        },
+        {
+            "name": "8. Individual Reservations",
+            "item": [
+                {
+                    "name": "Create Pending Reservation",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "token {{token}}"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"contact_id\": \"CONTACT-001\",\n  \"experience_id\": \"EXP-HOTEL-001\",\n  \"slot_id\": \"SLOT-001\",\n  \"party_size\": 4,\n  \"check_in_date\": \"2026-05-05\",\n  \"check_out_date\": \"2026-05-08\",\n  \"rooms_requested\": 1\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/method/cheese.api.v1.ticket_controller.create_pending_reservation",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "method",
+                                "cheese.api.v1.ticket_controller.create_pending_reservation"
+                            ]
+                        },
+                        "description": "ERP: Validates, locks slot, creates Reservation = PENDING, sets expiration. Bot: Guides data and executes.\n\nFor HOTEL experiences, include `check_in_date`, `check_out_date`, and `rooms_requested` (>= 1). `party_size` remains total guests."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Get Reservation Status",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "token {{token}}"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"reservation_id\": \"TICKET-001\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/method/cheese.api.v1.ticket_controller.get_reservation_status",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "method",
+                                "cheese.api.v1.ticket_controller.get_reservation_status"
+                            ]
+                        },
+                        "description": "ERP: Returns canonical status and next steps. Bot: Communicates current state."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Get Reservations by Phone",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "token {{token}}"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"phone\": \"+1234567890\",\n  \"page\": 1,\n  \"page_size\": 20,\n  \"status\": \"PENDING\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/method/cheese.api.v1.ticket_controller.get_reservations_by_phone",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "method",
+                                "cheese.api.v1.ticket_controller.get_reservations_by_phone"
+                            ]
+                        },
+                        "description": "ERP: Finds contact by phone and returns their reservations. Bot: Reports current ticket statuses."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Modify Reservation Preview",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "token {{token}}"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"reservation_id\": \"TICKET-001\",\n  \"new_slot\": \"SLOT-002\",\n  \"party_size\": 3\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/method/cheese.api.v1.ticket_controller.modify_reservation_preview",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "method",
+                                "cheese.api.v1.ticket_controller.modify_reservation_preview"
+                            ]
+                        },
+                        "description": "Preview changes before applying modification."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Confirm Modification",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "token {{token}}"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"reservation_id\": \"TICKET-001\",\n  \"new_slot\": \"SLOT-002\",\n  \"party_size\": 3\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/method/cheese.api.v1.ticket_controller.confirm_modification",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "method",
+                                "cheese.api.v1.ticket_controller.confirm_modification"
+                            ]
+                        },
+                        "description": "ERP: Validates, calculates impact, applies changes. Bot: Shows impact and confirms."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Cancel Reservation",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "token {{token}}"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"reservation_id\": \"TICKET-001\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/method/cheese.api.v1.ticket_controller.cancel_reservation",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "method",
+                                "cheese.api.v1.ticket_controller.cancel_reservation"
+                            ]
+                        },
+                        "description": "Cancel an individual reservation."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Create Pending Ticket",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "token {{token}}"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"contact_id\": \"CONTACT-001\",\n  \"experience_id\": \"EXP-HOTEL-001\",\n  \"slot_id\": \"SLOT-001\",\n  \"party_size\": 4,\n  \"check_in_date\": \"2026-05-05\",\n  \"check_out_date\": \"2026-05-08\",\n  \"rooms_requested\": 1\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/method/cheese.api.v1.ticket_controller.create_pending_ticket",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "method",
+                                "cheese.api.v1.ticket_controller.create_pending_ticket"
+                            ]
+                        },
+                        "description": "Legacy endpoint - use create_pending_reservation instead.\n\nFor HOTEL experiences, include `check_in_date`, `check_out_date`, and `rooms_requested` (>= 1)."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Get Ticket Summary",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "token {{token}}"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"ticket_id\": \"TICKET-001\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/method/cheese.api.v1.ticket_controller.get_ticket_summary",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "method",
+                                "cheese.api.v1.ticket_controller.get_ticket_summary"
+                            ]
+                        },
+                        "description": "Legacy endpoint - use get_reservation_status instead."
+                    },
+                    "response": []
+                }
+            ]
+        },
+        {
+            "name": "9. Route Reservations",
+            "item": [
+                {
+                    "name": "Create Route Reservation",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "token {{token}}"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"contact_id\": \"CONTACT-001\",\n  \"route_id\": \"ROUTE-001\",\n  \"party_size\": 2,\n  \"date_from\": \"2024-12-31\",\n  \"date_to\": \"2024-12-31\",\n  \"time_from\": \"10:00\",\n  \"time_to\": \"11:00\",\n  \"conversation_id\": \"CONV-001\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/method/cheese.api.v1.route_booking_controller.create_route_reservation",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "method",
+                                "cheese.api.v1.route_booking_controller.create_route_reservation"
+                            ]
+                        },
+                        "description": "ERP: Creates RouteBooking = PENDING + internal reservations, locks capacity. Bot: Guides and executes.\n\n**Booking date / time / slots:** Omit `experiences_with_slots` and pass `date_from` and optionally `date_to` (YYYY-MM-DD) to auto-select OPEN slots in that range; single-day bookings can set both to the same date. You can also pass `time_from` and `time_to` (HH:MM or HH:MM:SS) to constrain auto-selection to that exact time window. Alternatively pass `experiences_with_slots` with explicit `experience_id` / `slot_id` pairs. The `date` field is accepted as a synonym for `date_from` when `date_from` is not set."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Get Available Slots for Route",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "token {{token}}"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"route_id\": \"ROUTE-001\",\n  \"selected_date\": \"2026-04-20\",\n  \"party_size\": 2\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/method/cheese.api.v1.route_booking_controller.get_available_slots_for_route",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "method",
+                                "cheese.api.v1.route_booking_controller.get_available_slots_for_route"
+                            ]
+                        },
+                        "description": "Lists candidate slots per experience on the route for the chosen date (or `date_from`/`date_to` range). Each row includes `selected_date` / `calendar_date` and per-day `available_capacity`. Use before `create_route_reservation` when building explicit `experiences_with_slots`."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Get Route Status",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "token {{token}}"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"route_booking_id\": \"RB-TICKET-001\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/method/cheese.api.v1.route_booking_controller.get_route_status",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "method",
+                                "cheese.api.v1.route_booking_controller.get_route_status"
+                            ]
+                        },
+                        "description": "ERP: Returns PENDING / PARTIALLY_CONFIRMED / CONFIRMED. Bot: Communicates what's confirmed vs pending."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Get Route Summary",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "token {{token}}"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"route_booking_id\": \"RB-TICKET-001\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/method/cheese.api.v1.route_booking_controller.get_route_summary",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "method",
+                                "cheese.api.v1.route_booking_controller.get_route_summary"
+                            ]
+                        },
+                        "description": "ERP: Returns user-friendly summary. Bot: Delivers to customer."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Modify Route Booking Preview",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "token {{token}}"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"route_booking_id\": \"RB-TICKET-001\",\n  \"changes\": [\n    {\"ticket_id\": \"TICKET-001\", \"new_slot\": \"SLOT-002\", \"party_size\": 3}\n  ]\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/method/cheese.api.v1.route_booking_controller.modify_route_booking_preview",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "method",
+                                "cheese.api.v1.route_booking_controller.modify_route_booking_preview"
+                            ]
+                        },
+                        "description": "Preview changes to route booking before applying."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Confirm Route Modification",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "token {{token}}"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"route_booking_id\": \"RB-TICKET-001\",\n  \"changes\": [\n    {\"ticket_id\": \"TICKET-001\", \"new_slot\": \"SLOT-002\", \"party_size\": 3}\n  ]\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/method/cheese.api.v1.route_booking_controller.confirm_route_modification",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "method",
+                                "cheese.api.v1.route_booking_controller.confirm_route_modification"
+                            ]
+                        },
+                        "description": "ERP: Validates, calculates impact, applies changes. Bot: Shows impact and confirms."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Add Activities to Route Preview",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "token {{token}}"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"route_booking_id\": \"RB-TICKET-001\",\n  \"activities\": [\n    {\"experience_id\": \"EXP-003\", \"slot_id\": \"SLOT-003\"}\n  ]\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/method/cheese.api.v1.route_booking_controller.add_activities_to_route_preview",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "method",
+                                "cheese.api.v1.route_booking_controller.add_activities_to_route_preview"
+                            ]
+                        },
+                        "description": "Preview add-ons to route booking."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Confirm Add Activities to Route",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "token {{token}}"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"route_booking_id\": \"RB-TICKET-001\",\n  \"activities\": [\n    {\"experience_id\": \"EXP-003\", \"slot_id\": \"SLOT-003\"}\n  ]\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/method/cheese.api.v1.route_booking_controller.confirm_add_activities_to_route",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "method",
+                                "cheese.api.v1.route_booking_controller.confirm_add_activities_to_route"
+                            ]
+                        },
+                        "description": "Apply add-ons to route booking."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Cancel Route Booking",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "token {{token}}"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"route_booking_id\": \"RB-TICKET-001\",\n  \"reason\": \"Customer request\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/method/cheese.api.v1.route_booking_controller.cancel_route_booking",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "method",
+                                "cheese.api.v1.route_booking_controller.cancel_route_booking"
+                            ]
+                        },
+                        "description": "Cancel a route booking."
+                    },
+                    "response": []
+                }
+            ]
+        },
+        {
+            "name": "10. Mixed Booking",
+            "item": [
+                {
+                    "name": "Create Pending Booking",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "token {{token}}"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"contact_id\": \"CONTACT-001\",\n  \"items\": [\n    {\"type\": \"route\", \"route_id\": \"ROUTE-001\", \"date\": \"2024-12-31\", \"party_size\": 2},\n    {\"type\": \"experience\", \"experience_id\": \"EXP-001\", \"slot_id\": \"SLOT-001\", \"party_size\": 2}\n  ],\n  \"conversation_id\": \"CONV-001\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/method/cheese.api.v1.booking_controller.create_pending_booking",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "method",
+                                "cheese.api.v1.booking_controller.create_pending_booking"
+                            ]
+                        },
+                        "description": "ERP: Creates aggregator entity with optional route_booking + individual_reservations[], consolidated pricing, global status. Bot: Guides and executes."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Get Booking Status",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "token {{token}}"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"booking_id\": \"BK-CONTACT-001-20241231120000\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/method/cheese.api.v1.booking_controller.get_booking_status",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "method",
+                                "cheese.api.v1.booking_controller.get_booking_status"
+                            ]
+                        },
+                        "description": "ERP: Returns overall state and components. Bot: Communicates consolidated status."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Modify Booking Preview",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "token {{token}}"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"booking_id\": \"BK-CONTACT-001-20241231120000\",\n  \"changes\": [\n    {\"type\": \"route\", \"route_booking_id\": \"RB-TICKET-001\", \"changes\": [{\"ticket_id\": \"TICKET-001\", \"new_slot\": \"SLOT-002\"}]},\n    {\"type\": \"ticket\", \"ticket_id\": \"TICKET-002\", \"party_size\": 3}\n  ]\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/method/cheese.api.v1.booking_controller.modify_booking_preview",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "method",
+                                "cheese.api.v1.booking_controller.modify_booking_preview"
+                            ]
+                        },
+                        "description": "Preview changes to mixed booking."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Confirm Booking Modification",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "token {{token}}"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"booking_id\": \"BK-CONTACT-001-20241231120000\",\n  \"changes\": [\n    {\"type\": \"route\", \"route_booking_id\": \"RB-TICKET-001\", \"changes\": [{\"ticket_id\": \"TICKET-001\", \"new_slot\": \"SLOT-002\"}]},\n    {\"type\": \"ticket\", \"ticket_id\": \"TICKET-002\", \"party_size\": 3}\n  ]\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/method/cheese.api.v1.booking_controller.confirm_booking_modification",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "method",
+                                "cheese.api.v1.booking_controller.confirm_booking_modification"
+                            ]
+                        },
+                        "description": "Apply changes to mixed booking."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Cancel Booking",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "token {{token}}"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"booking_id\": \"BK-CONTACT-001-20241231120000\",\n  \"reason\": \"Customer request\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/method/cheese.api.v1.booking_controller.cancel_booking",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "method",
+                                "cheese.api.v1.booking_controller.cancel_booking"
+                            ]
+                        },
+                        "description": "Cancel entire mixed booking."
+                    },
+                    "response": []
+                }
+            ]
+        },
+        {
+            "name": "11. Payment",
+            "item": [
+                {
+                    "name": "Get Payment Link or Instructions",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "token {{token}}"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"ticket_id\": \"TICKET-001\",\n  \"payment_type\": \"Deposit\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/method/cheese.api.v1.deposit_controller.get_payment_link_or_instructions",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "method",
+                                "cheese.api.v1.deposit_controller.get_payment_link_or_instructions"
+                            ]
+                        },
+                        "description": "Get payment link if available, otherwise returns instructions.\n\n**payment_type:** Omit for default behavior, or set `\"Deposit\"` (advance) / `\"Balance\"` (remaining after advance paid)."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Get Deposit Instructions",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "token {{token}}"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"ticket_id\": \"TICKET-001\",\n  \"payment_type\": \"Deposit\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/method/cheese.api.v1.deposit_controller.get_deposit_instructions",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "method",
+                                "cheese.api.v1.deposit_controller.get_deposit_instructions"
+                            ]
+                        },
+                        "description": "Bank instructions for the ticket deposit or balance.\n\n**payment_type:** `\"Deposit\"` | `\"Balance\"` \u2014 same semantics as `record_deposit_payment`."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Register Deposit Payment",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "token {{api_key}}:{{api_secret}}"
+                            }
+                        ],
+                        "body": {
+                            "mode": "formdata",
+                            "formdata": [
+                                {
+                                    "key": "ticket_id",
+                                    "value": "TICKET-001",
+                                    "type": "text"
+                                },
+                                {
+                                    "key": "amount",
+                                    "value": "50.00",
+                                    "type": "text"
+                                },
+                                {
+                                    "key": "verification_method",
+                                    "value": "Manual",
+                                    "type": "text"
+                                },
+                                {
+                                    "key": "ocr_payload",
+                                    "value": "{\"account\":\"1234567890\",\"amount\":50.00,\"date\":\"2026-04-01\",\"reference\":\"DEP-001\"}",
+                                    "type": "text",
+                                    "disabled": true
+                                },
+                                {
+                                    "key": "attach_receipt",
+                                    "value": "true",
+                                    "type": "text"
+                                },
+                                {
+                                    "key": "payment_type",
+                                    "value": "Deposit",
+                                    "type": "text",
+                                    "description": "Deposit (advance) or Balance (remaining)"
+                                },
+                                {
+                                    "key": "receipt",
+                                    "type": "file",
+                                    "src": ""
+                                }
+                            ]
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/method/cheese.api.v1.deposit_controller.record_deposit_payment",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "method",
+                                "cheese.api.v1.deposit_controller.record_deposit_payment"
+                            ]
+                        },
+                        "description": "Record a deposit payment with optional receipt upload (PDF/PNG/JPG/JPEG/WEBP, max 10MB). Use form-data field name 'receipt' (also accepts 'payment_receipt' or 'file').\n\n**payment_type:** `Deposit` | `Balance` \u2014 must match the deposit you are paying down."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Get Deposit Status",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "token {{token}}"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"deposit_id\": \"DEPOSIT-001\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/method/cheese.api.v1.deposit_controller.get_deposit_status",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "method",
+                                "cheese.api.v1.deposit_controller.get_deposit_status"
+                            ]
+                        },
+                        "description": "Get deposit status and details including amount required, amount paid, and remaining balance."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Get Payment Status for Booking",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "token {{token}}"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"booking_id\": \"BK-CONTACT-001-20241231120000\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/method/cheese.api.v1.booking_controller.get_payment_status_for_booking",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "method",
+                                "cheese.api.v1.booking_controller.get_payment_status_for_booking"
+                            ]
+                        },
+                        "description": "Get consolidated payment status for a mixed booking."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Register Payment for Booking",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "token {{token}}"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"booking_id\": \"BK-CONTACT-001-20241231120000\",\n  \"amount\": 100.00,\n  \"verification_method\": \"Manual\",\n  \"ocr_payload\": null\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/method/cheese.api.v1.booking_controller.register_payment_for_booking",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "method",
+                                "cheese.api.v1.booking_controller.register_payment_for_booking"
+                            ]
+                        },
+                        "description": "Register payment for entire mixed booking."
+                    },
+                    "response": []
+                }
+            ]
+        },
+        {
+            "name": "12. QR and Check-in",
+            "item": [
+                {
+                    "name": "Get QR for Reservation",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "token {{api_key}}:{{api_secret}}"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"reservation_id\": \"TICKET-001\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/method/cheese.api.v1.qr_controller.get_qr_for_reservation",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "method",
+                                "cheese.api.v1.qr_controller.get_qr_for_reservation"
+                            ]
+                        },
+                        "description": "Get QR token for a reservation."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Get Check-in Status",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "token {{token}}"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"reservation_id\": \"TICKET-001\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/method/cheese.api.v1.qr_controller.get_checkin_status",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "method",
+                                "cheese.api.v1.qr_controller.get_checkin_status"
+                            ]
+                        },
+                        "description": "Get check-in status for a reservation."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Get QR Token",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "token {{token}}"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"ticket_id\": \"TICKET-001\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/method/cheese.api.v1.qr_controller.get_qr",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "method",
+                                "cheese.api.v1.qr_controller.get_qr"
+                            ]
+                        },
+                        "description": "Legacy endpoint - use get_qr_for_reservation instead."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Validate QR Token",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "token {{token}}"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"token\": \"abc123xyz789token\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/method/cheese.api.v1.qr_controller.validate_qr",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "method",
+                                "cheese.api.v1.qr_controller.validate_qr"
+                            ]
+                        },
+                        "description": "Validate QR token and check in ticket. Creates attendance record."
+                    },
+                    "response": []
+                }
+            ]
+        },
+        {
+            "name": "13. Itinerary",
+            "item": [
+                {
+                    "name": "Get Customer Itinerary",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "token {{token}}"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"contact_id\": \"CONTACT-001\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/method/cheese.api.v1.itinerary_controller.get_customer_itinerary",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "method",
+                                "cheese.api.v1.itinerary_controller.get_customer_itinerary"
+                            ]
+                        },
+                        "description": "Get all reservations/bookings for a contact with details."
+                    },
+                    "response": []
+                }
+            ]
+        },
+        {
+            "name": "14. Survey and Complaints",
+            "item": [
+                {
+                    "name": "Create Survey Request",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "token {{token}}"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"ticket_id\": \"TICKET-001\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/method/cheese.api.v1.survey_controller.create_survey_request",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "method",
+                                "cheese.api.v1.survey_controller.create_survey_request"
+                            ]
+                        },
+                        "description": "Create survey request for a completed ticket."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Submit Survey Response",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "token {{token}}"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"ticket_id\": \"TICKET-001\",\n  \"rating\": 5,\n  \"comment\": \"Great experience!\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/method/cheese.api.v1.survey_controller.submit_survey_response",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "method",
+                                "cheese.api.v1.survey_controller.submit_survey_response"
+                            ]
+                        },
+                        "description": "Submit survey response with rating (1-5) and optional comment."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Create Complaint",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "token {{token}}"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"contact_id\": \"CONTACT-001\",\n  \"description\": \"Issue with booking experience\",\n  \"ticket_id\": \"TICKET-001\",\n  \"complaint_type\": \"Service\",\n  \"incident_type\": \"LOCAL\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/method/cheese.api.v1.complaint_controller.create_complaint",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "method",
+                                "cheese.api.v1.complaint_controller.create_complaint"
+                            ]
+                        },
+                        "description": "Create a complaint/support case.\n\n**Parameters:**\n- `contact_id`: Contact ID (required)\n- `description`: Complaint description (required)\n- `ticket_id`: Related ticket ID (optional)\n- `route_booking_id`: Related route booking ID (optional)\n- `complaint_type`: Complaint type (optional)\n- `incident_type`: Incident type - LOCAL or GENERAL (required)\n\n**Routing Logic:**\n- **LOCAL**: If there's an active booking today/upcoming, sends WhatsApp notification to establishment (without exposing personal data)\n- **GENERAL**: Routes to admin user for manual handling\n\n**Example response:**\n```json\n{\n  \"success\": true,\n  \"message\": \"Complaint created successfully\",\n  \"data\": {\n    \"complaint_id\": \"CASE-CONTACT-001-20241231\",\n    \"support_case_id\": \"CASE-CONTACT-001-20241231\",\n    \"contact_id\": \"CONTACT-001\",\n    \"ticket_id\": \"TICKET-001\",\n    \"status\": \"OPEN\",\n    \"created_at\": \"2024-12-31T12:00:00\"\n  }\n}\n```"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Send Survey",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "token {{token}}"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"ticket_id\": \"TICKET-001\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/method/cheese.api.v1.survey_controller.send_survey",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "method",
+                                "cheese.api.v1.survey_controller.send_survey"
+                            ]
+                        },
+                        "description": "Legacy endpoint - use create_survey_request instead."
+                    },
+                    "response": []
+                }
+            ]
+        },
+        {
+            "name": "Establishment",
+            "item": [
+                {
+                    "name": "List Establishments",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "token {{token}}"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\"page\": 1, \"page_size\": 20}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/method/cheese.api.v1.establishment_controller.list_establishments",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "method",
+                                "cheese.api.v1.establishment_controller.list_establishments"
+                            ]
+                        },
+                        "description": "List establishments with pagination and filters.\n\n**Response includes:**\n- `administrator_contact`: Contact information for the establishment administrator (e.g., email, phone) to be provided when users ask the bot for human assistance about an experience.\n\n**Example response:**\n```json\n{\n  \"success\": true,\n  \"message\": \"Establishments retrieved successfully\",\n  \"data\": [\n    {\n      \"company_id\": \"COMPANY-001\",\n      \"company_name\": \"Example Establishment\",\n      \"email\": \"info@example.com\",\n      \"phone\": \"+1234567890\",\n      \"administrator_contact\": \"admin@example.com, +1234567890\",\n      \"experiences_count\": 5,\n      ...\n    }\n  ],\n  \"meta\": { ... }\n}\n```"
+                    }
+                },
+                {
+                    "name": "Get Establishment Details",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "token {{token}}"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\"company_id\": \"COMPANY-001\"}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/method/cheese.api.v1.establishment_controller.get_establishment_details",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "method",
+                                "cheese.api.v1.establishment_controller.get_establishment_details"
+                            ]
+                        },
+                        "description": "Get full establishment profile with experiences, attachments, and status.\n\n**Response includes:**\n- `administrator_contact`: Contact information for the establishment administrator (e.g., email, phone) to be provided when users ask the bot for human assistance about an experience.\n\n**Example response:**\n```json\n{\n  \"success\": true,\n  \"message\": \"Establishment details retrieved successfully\",\n  \"data\": {\n    \"company_id\": \"COMPANY-001\",\n    \"company_name\": \"Example Establishment\",\n    \"administrator_contact\": \"admin@example.com, +1234567890\",\n    \"experiences\": [...],\n    \"contacts\": [...],\n    ...\n  }\n}\n```\n\n**Note:** The bot can use this endpoint to retrieve `administrator_contact` when users ask for human assistance about an experience."
+                    }
+                },
+                {
+                    "name": "Update Establishment",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "token {{token}}"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"company_id\": \"COMPANY-001\",\n  \"company_name\": \"Updated Name\",\n  \"email\": \"newemail@example.com\",\n  \"phone_no\": \"+1234567890\",\n  \"website\": \"https://example.com\",\n  \"company_description\": \"Updated description\",\n  \"administrator_contact\": \"admin@example.com, +1234567890\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/method/cheese.api.v1.establishment_controller.update_establishment",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "method",
+                                "cheese.api.v1.establishment_controller.update_establishment"
+                            ]
+                        },
+                        "description": "Update establishment fields with audit trail.\n\n**Allowed fields:**\n- `company_name`\n- `email`\n- `phone_no`\n- `website`\n- `company_description`\n- `company_logo`\n- `administrator_contact`: Contact information for the establishment administrator (e.g., email, phone) to be provided when users ask the bot for human assistance.\n\n**Example response:**\n```json\n{\n  \"success\": true,\n  \"message\": \"Establishment updated successfully\",\n  \"data\": {\n    \"company_id\": \"COMPANY-001\",\n    \"company_name\": \"Updated Name\",\n    \"changes\": [\"company_name\", \"administrator_contact\"]\n  }\n}\n```"
+                    },
+                    "response": []
+                }
+            ]
+        },
+        {
+            "name": "Route Management",
+            "item": [
+                {
+                    "name": "Create Route",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "token {{token}}"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\"name\": \"Route Name\", \"status\": \"OFFLINE\", \"experiences\": []}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/method/cheese.api.v1.route_controller.create_route",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "method",
+                                "cheese.api.v1.route_controller.create_route"
+                            ]
+                        },
+                        "description": "Create a new route"
+                    }
+                }
+            ]
+        },
+        {
+            "name": "16. Hotel Bot Endpoints",
+            "item": [
+                {
+                    "name": "Get Hotel Catalog",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "token {{token}}"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/method/cheese.api.v1.hotel_controller.bot_get_hotel_catalog",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "method",
+                                "cheese.api.v1.hotel_controller.bot_get_hotel_catalog"
+                            ]
+                        },
+                        "description": "Get a catalog of all hotels and their available rooms."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Check Hotel Availability",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "token {{token}}"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"room_id\": \"EXP-HOTEL-001\",\n  \"date_from\": \"2026-05-05\",\n  \"date_to\": \"2026-05-08\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/method/cheese.api.v1.hotel_controller.bot_check_hotel_availability",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "method",
+                                "cheese.api.v1.hotel_controller.bot_check_hotel_availability"
+                            ]
+                        },
+                        "description": "Check availability for a specific room on a date or date range."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Book Hotel Room",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "token {{token}}"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"contact_phone\": \"+1234567890\",\n  \"room_id\": \"EXP-HOTEL-001\",\n  \"date_from\": \"2026-05-05\",\n  \"date_to\": \"2026-05-08\",\n  \"rooms_requested\": 1\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/method/cheese.api.v1.hotel_controller.bot_book_hotel_room",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "method",
+                                "cheese.api.v1.hotel_controller.bot_book_hotel_room"
+                            ]
+                        },
+                        "description": "Book a hotel room. Automatically finds or creates contact and creates a pending ticket."
+                    },
+                    "response": []
+                }
+            ]
+        }
+    ],
+    "variable": [
+        {
+            "key": "base_url",
+            "value": "https://erp-cheese.deepzide.com",
+            "type": "string"
+        },
+        {
+            "key": "token",
+            "value": "00f61785b147fd2:9385843e4ea3858",
+            "type": "string"
+        }
+    ]
 }

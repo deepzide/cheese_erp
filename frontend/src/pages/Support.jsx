@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { motion } from "framer-motion";
 import { useNavigate, useSearchParams } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -33,6 +34,7 @@ export default function Support() {
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
     const queryClient = useQueryClient();
+    const { t } = useTranslation();
     const [searchTerm, setSearchTerm] = useState("");
     const [filterStatus, setFilterStatus] = useState("all");
     const [routeId, setRouteId] = useState("");
@@ -65,14 +67,14 @@ export default function Support() {
             queryClient.invalidateQueries({ queryKey: ['support-cases'] });
             setCreateOpen(false);
             setForm({ contact_id: "", ticket_id: "", description: "" });
-            toast.success("Support case created");
+            toast.success(t("support.createSuccess", "Support case created"));
         },
-        onError: (err) => toast.error(err?.message || "Failed to create"),
+        onError: (err) => toast.error(err?.message || t("support.createError", "Failed to create")),
     });
 
     const statusMutation = useMutation({
         mutationFn: ({ id, status, notes }) => supportService.updateSupportCaseStatus(id, status, notes),
-        onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['support-cases'] }); toast.success("Status updated"); },
+        onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['support-cases'] }); toast.success(t("support.statusUpdated", "Status updated")); },
     });
 
     const filtered = cases.filter(c => {
@@ -87,9 +89,9 @@ export default function Support() {
         return (
             <div className="p-6 flex flex-col items-center justify-center min-h-[400px] text-center">
                 <AlertCircle className="w-12 h-12 text-red-400 mb-4" />
-                <h2 className="text-lg font-semibold mb-2">Failed to load support cases</h2>
+                <h2 className="text-lg font-semibold mb-2">{t("support.failedToLoad", "Failed to load support cases")}</h2>
                 <p className="text-sm text-muted-foreground mb-4">{error?.message}</p>
-                <Button onClick={() => refetch()} variant="outline"><RefreshCw className="w-4 h-4 mr-2" /> Retry</Button>
+                <Button onClick={() => refetch()} variant="outline"><RefreshCw className="w-4 h-4 mr-2" /> {t("common.retry", "Retry")}</Button>
             </div>
         );
     }
@@ -98,25 +100,25 @@ export default function Support() {
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="p-6 space-y-6">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
-                    <h1 className="text-2xl font-bold text-foreground flex items-center gap-2"><Shield className="w-6 h-6 text-cheese-600" /> Support Cases</h1>
-                    <p className="text-sm text-muted-foreground mt-1">{isLoading ? '...' : `${filtered.length} cases`}</p>
+                    <h1 className="text-2xl font-bold text-foreground flex items-center gap-2"><Shield className="w-6 h-6 text-cheese-600" /> {t("support.supportCases", "Support Cases")}</h1>
+                    <p className="text-sm text-muted-foreground mt-1">{isLoading ? '...' : `${filtered.length} ${t("support.casesCount", "cases")}`}</p>
                 </div>
                 <div className="flex gap-2 flex-wrap">
-                    <div className="relative"><Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" /><Input placeholder="Search..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-9 w-56 h-9" /></div>
+                    <div className="relative"><Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" /><Input placeholder={t("common.search", "Search...")} value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-9 w-56 h-9" /></div>
                     <Select value={filterStatus} onValueChange={setFilterStatus}>
                         <SelectTrigger className="w-40 h-9"><Filter className="w-3 h-3 mr-1" /><SelectValue /></SelectTrigger>
                         <SelectContent>
-                            <SelectItem value="all">All Status</SelectItem>
-                            {Object.entries(STATUS_CONFIG).map(([k, v]) => <SelectItem key={k} value={k}>{v.label}</SelectItem>)}
+                            <SelectItem value="all">{t("common.allStatus", "All Status")}</SelectItem>
+                            {Object.entries(STATUS_CONFIG).map(([k, v]) => <SelectItem key={k} value={k}>{t(`status.${k}`, v.label)}</SelectItem>)}
                         </SelectContent>
                     </Select>
                     <div className="w-48">
-                        <FrappeSearchSelect doctype="Cheese Route" label="name" value={routeId} onChange={setRouteId} placeholder="Route..." />
+                        <FrappeSearchSelect doctype="Cheese Route" label="name" value={routeId} onChange={setRouteId} placeholder={t("nav.routes", "Route...")} />
                     </div>
                     <div className="w-48">
-                        <FrappeSearchSelect doctype="Company" label="name" value={companyId} onChange={setCompanyId} placeholder="Establishment..." />
+                        <FrappeSearchSelect doctype="Company" label="name" value={companyId} onChange={setCompanyId} placeholder={t("experiences.establishment", "Establishment...")} />
                     </div>
-                    <Button className="cheese-gradient text-black font-semibold border-0 h-9" onClick={() => navigate("/cheese/support/new")}><Plus className="w-4 h-4 mr-1" /> New Case</Button>
+                    <Button className="cheese-gradient text-black font-semibold border-0 h-9" onClick={() => navigate("/cheese/support/new")}><Plus className="w-4 h-4 mr-1" /> {t("support.newCase", "New Case")}</Button>
                     <Button variant="ghost" size="icon" onClick={() => refetch()} className="h-9 w-9"><RefreshCw className="w-4 h-4" /></Button>
                 </div>
             </div>
@@ -138,27 +140,27 @@ export default function Support() {
                                     <div className="flex-1 min-w-0">
                                         <div className="flex items-center gap-2">
                                             <h3 className="font-semibold text-sm text-foreground">{c.name}</h3>
-                                            {c.priority && <Badge className={PRIORITY_BADGE[c.priority] || PRIORITY_BADGE.Low}>{c.priority}</Badge>}
+                                            {c.priority && <Badge className={PRIORITY_BADGE[c.priority] || PRIORITY_BADGE.Low}>{t(`support.${c.priority.toLowerCase()}`, c.priority)}</Badge>}
                                         </div>
                                         <p className="text-xs text-muted-foreground">
                                             <User className="w-3 h-3 inline mr-1" />{c.contact || '—'}
                                             {c.ticket && <> • <Ticket className="w-3 h-3 inline mx-1" />{c.ticket}</>}
-                                            {c.route && <> • Route: {c.route}</>}
-                                            {c.company && <> • Est: {c.company}</>}
-                                            {c.assigned_to && <> • Assigned: {c.assigned_to}</>}
+                                            {c.route && <> • {t("nav.routes", "Route")}: {c.route}</>}
+                                            {c.company && <> • {t("experiences.establishment", "Est")}: {c.company}</>}
+                                            {c.assigned_to && <> • {t("support.assigned", "Assigned")}: {c.assigned_to}</>}
                                         </p>
                                     </div>
-                                    <Badge className={config.badge}>{config.label}</Badge>
+                                    <Badge className={config.badge}>{t(`status.${c.status}`, config.label)}</Badge>
                                     <span className="text-xs text-muted-foreground hidden sm:block">{c.modified || c.creation || '—'}</span>
                                     <DropdownMenu>
                                         <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8 opacity-0 group-hover:opacity-100"><MoreHorizontal className="w-4 h-4" /></Button></DropdownMenuTrigger>
                                         <DropdownMenuContent align="end">
-                                            {c.status === "OPEN" && <DropdownMenuItem onClick={() => statusMutation.mutate({ id: c.name, status: "IN_PROGRESS" })}>Start Progress</DropdownMenuItem>}
-                                            {c.status === "IN_PROGRESS" && <DropdownMenuItem onClick={() => statusMutation.mutate({ id: c.name, status: "RESOLVED" })}><CheckCircle className="w-3 h-3 mr-2" /> Resolve</DropdownMenuItem>}
-                                            {c.status === "RESOLVED" && <DropdownMenuItem onClick={() => statusMutation.mutate({ id: c.name, status: "CLOSED" })}>Close</DropdownMenuItem>}
+                                            {c.status === "OPEN" && <DropdownMenuItem onClick={() => statusMutation.mutate({ id: c.name, status: "IN_PROGRESS" })}>{t("support.startProgress", "Start Progress")}</DropdownMenuItem>}
+                                            {c.status === "IN_PROGRESS" && <DropdownMenuItem onClick={() => statusMutation.mutate({ id: c.name, status: "RESOLVED" })}><CheckCircle className="w-3 h-3 mr-2" /> {t("support.resolve", "Resolve")}</DropdownMenuItem>}
+                                            {c.status === "RESOLVED" && <DropdownMenuItem onClick={() => statusMutation.mutate({ id: c.name, status: "CLOSED" })}>{t("support.close", "Close")}</DropdownMenuItem>}
                                             <DropdownMenuSeparator />
-                                            {c.contact && <DropdownMenuItem onClick={() => navigate(`/cheese/contacts/${encodeURIComponent(c.contact)}`)}>View Contact</DropdownMenuItem>}
-                                            {c.ticket && <DropdownMenuItem onClick={() => navigate(`/cheese/tickets/${encodeURIComponent(c.ticket)}`)}>View Ticket</DropdownMenuItem>}
+                                            {c.contact && <DropdownMenuItem onClick={() => navigate(`/cheese/contacts/${encodeURIComponent(c.contact)}`)}>{t("support.viewContact", "View Contact")}</DropdownMenuItem>}
+                                            {c.ticket && <DropdownMenuItem onClick={() => navigate(`/cheese/tickets/${encodeURIComponent(c.ticket)}`)}>{t("support.viewTicket", "View Ticket")}</DropdownMenuItem>}
                                         </DropdownMenuContent>
                                     </DropdownMenu>
                                 </CardContent>
@@ -169,21 +171,21 @@ export default function Support() {
             </div>
 
             {!isLoading && filtered.length === 0 && (
-                <div className="text-center py-16"><Shield className="w-16 h-16 text-muted-foreground/20 mx-auto mb-4" /><p className="text-muted-foreground">No support cases found</p></div>
+                <div className="text-center py-16"><Shield className="w-16 h-16 text-muted-foreground/20 mx-auto mb-4" /><p className="text-muted-foreground">{t("support.noCasesFound", "No support cases found")}</p></div>
             )}
 
             <Dialog open={createOpen} onOpenChange={setCreateOpen}>
                 <DialogContent className="max-w-md">
-                    <DialogHeader><DialogTitle className="flex items-center gap-2"><Plus className="w-5 h-5 text-cheese-600" /> New Support Case</DialogTitle><DialogDescription>Create a complaint or support request</DialogDescription></DialogHeader>
+                    <DialogHeader><DialogTitle className="flex items-center gap-2"><Plus className="w-5 h-5 text-cheese-600" /> {t("support.newCase", "New Support Case")}</DialogTitle><DialogDescription>{t("support.newSupportCaseDesc", "Create a complaint or support request")}</DialogDescription></DialogHeader>
                     <div className="space-y-4">
-                        <div className="space-y-2"><Label>Contact ID *</Label><Input placeholder="e.g. CT-001" value={form.contact_id} onChange={(e) => setForm(f => ({ ...f, contact_id: e.target.value }))} /></div>
-                        <div className="space-y-2"><Label>Related Ticket</Label><Input placeholder="e.g. TK-001 (optional)" value={form.ticket_id} onChange={(e) => setForm(f => ({ ...f, ticket_id: e.target.value }))} /></div>
-                        <div className="space-y-2"><Label>Description *</Label><Textarea placeholder="Describe the issue..." rows={4} value={form.description} onChange={(e) => setForm(f => ({ ...f, description: e.target.value }))} /></div>
+                        <div className="space-y-2"><Label>{t("support.contactId", "Contact ID")} *</Label><Input placeholder="e.g. CT-001" value={form.contact_id} onChange={(e) => setForm(f => ({ ...f, contact_id: e.target.value }))} /></div>
+                        <div className="space-y-2"><Label>{t("support.relatedTicket", "Related Ticket")}</Label><Input placeholder={t("support.relatedTicketPlaceholder", "e.g. TK-001 (optional)")} value={form.ticket_id} onChange={(e) => setForm(f => ({ ...f, ticket_id: e.target.value }))} /></div>
+                        <div className="space-y-2"><Label>{t("support.description", "Description")} *</Label><Textarea placeholder={t("support.describeIssue", "Describe the issue...")} rows={4} value={form.description} onChange={(e) => setForm(f => ({ ...f, description: e.target.value }))} /></div>
                     </div>
                     <DialogFooter>
-                        <Button variant="outline" onClick={() => setCreateOpen(false)}>Cancel</Button>
+                        <Button variant="outline" onClick={() => setCreateOpen(false)}>{t("common.cancel", "Cancel")}</Button>
                         <Button className="cheese-gradient text-black font-semibold border-0" onClick={() => createMutation.mutate(form)} disabled={createMutation.isPending}>
-                            {createMutation.isPending ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Plus className="w-4 h-4 mr-1" />} Create
+                            {createMutation.isPending ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Plus className="w-4 h-4 mr-1" />} {t("common.create", "Create")}
                         </Button>
                     </DialogFooter>
                 </DialogContent>

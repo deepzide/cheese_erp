@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -28,6 +29,7 @@ const LEGACY_CHANNEL_TO_LABEL = {
 export default function ContactCreate() {
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
+    const { t } = useTranslation();
     const preferredLanguageFromQuery = searchParams.get("preferred_language") || "";
     const preferredChannelFromQuery = searchParams.get("preferred_channel") || "";
     const [form, setForm] = useState({
@@ -40,55 +42,55 @@ export default function ContactCreate() {
     const createMutation = useFrappeCreate("Cheese Contact");
 
     const handleSubmit = () => {
-        if (!form.full_name || !form.phone) { toast.error("Name and phone are required"); return; }
+        if (!form.full_name || !form.phone) { toast.error(t("contacts.namePhoneRequired", "Name and phone are required")); return; }
         createMutation.mutate(form, {
-            onSuccess: () => { toast.success("Contact created"); navigate("/cheese/contacts"); },
-            onError: (err) => toast.error(err?.message || "Failed to create contact"),
+            onSuccess: () => { toast.success(t("contacts.createSuccess", "Contact created")); navigate("/cheese/contacts"); },
+            onError: (err) => toast.error(err?.message || t("contacts.createError", "Failed to create contact")),
         });
     };
 
     return (
         <CreatePageLayout
-            title="New Contact"
-            description="Add a new contact to your database"
+            title={t("contacts.newContact", "New Contact")}
+            description={t("contacts.newContactDesc", "Add a new contact to your database")}
             icon={Users}
             backPath="/cheese/contacts"
             onSubmit={handleSubmit}
             isSubmitting={createMutation.isPending}
-            submitLabel="Create Contact"
+            submitLabel={t("contacts.createContact", "Create Contact")}
         >
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                 <div className="space-y-2 sm:col-span-2">
-                    <Label>Full Name <span className="text-red-500">*</span></Label>
+                    <Label>{t("common.fullName", "Full Name")} <span className="text-red-500">*</span></Label>
                     <Input placeholder="John Doe" value={form.full_name} onChange={(e) => setForm(f => ({ ...f, full_name: e.target.value }))} />
                 </div>
                 <div className="space-y-2">
-                    <Label>Phone <span className="text-red-500">*</span></Label>
+                    <Label>{t("common.phone", "Phone")} <span className="text-red-500">*</span></Label>
                     <Input placeholder="+1 555-1234" value={form.phone} onChange={(e) => setForm(f => ({ ...f, phone: e.target.value }))} />
                 </div>
                 <div className="space-y-2">
-                    <Label>Email</Label>
+                    <Label>{t("common.email", "Email")}</Label>
                     <Input type="email" placeholder="email@example.com" value={form.email} onChange={(e) => setForm(f => ({ ...f, email: e.target.value }))} />
                 </div>
                 <div className="space-y-2">
-                    <Label>Preferred Language</Label>
+                    <Label>{t("contacts.preferredLanguage", "Preferred Language")}</Label>
                     <Select value={form.preferred_language} onValueChange={(v) => setForm(f => ({ ...f, preferred_language: v }))}>
-                        <SelectTrigger><SelectValue placeholder="Select language" /></SelectTrigger>
+                        <SelectTrigger><SelectValue placeholder={t("contacts.selectLanguage", "Select language")} /></SelectTrigger>
                         <SelectContent>
-                            <SelectItem value="English">English</SelectItem>
-                            <SelectItem value="Spanish">Spanish</SelectItem>
-                            <SelectItem value="French">French</SelectItem>
-                            <SelectItem value="German">German</SelectItem>
-                            <SelectItem value="Italian">Italian</SelectItem>
-                            <SelectItem value="Portuguese">Portuguese</SelectItem>
-                            <SelectItem value="Other">Other</SelectItem>
+                            <SelectItem value="English">{t("language.english", "English")}</SelectItem>
+                            <SelectItem value="Spanish">{t("language.spanish", "Spanish")}</SelectItem>
+                            <SelectItem value="French">{t("language.french", "French")}</SelectItem>
+                            <SelectItem value="German">{t("language.german", "German")}</SelectItem>
+                            <SelectItem value="Italian">{t("language.italian", "Italian")}</SelectItem>
+                            <SelectItem value="Portuguese">{t("language.portuguese", "Portuguese")}</SelectItem>
+                            <SelectItem value="Other">{t("language.other", "Other")}</SelectItem>
                         </SelectContent>
                     </Select>
                 </div>
                 <div className="space-y-2">
-                    <Label>Preferred Channel</Label>
+                    <Label>{t("contacts.preferredChannel", "Preferred Channel")}</Label>
                     <Select value={form.preferred_channel} onValueChange={(v) => setForm(f => ({ ...f, preferred_channel: v }))}>
-                        <SelectTrigger><SelectValue placeholder="Select channel" /></SelectTrigger>
+                        <SelectTrigger><SelectValue placeholder={t("contacts.selectChannel", "Select channel")} /></SelectTrigger>
                         <SelectContent>
                             <SelectItem value="WhatsApp">WhatsApp</SelectItem>
                             <SelectItem value="Email">Email</SelectItem>

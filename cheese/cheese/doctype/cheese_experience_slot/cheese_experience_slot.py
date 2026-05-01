@@ -105,6 +105,10 @@ class CheeseExperienceSlot(Document):
 
 	def calculate_reserved_capacity(self):
 		"""Store peak reserved load: per calendar day for multi-day slots, else that single day."""
+		if self.is_new():
+			self.reserved_capacity = 0
+			return
+
 		from cheese.cheese.utils.capacity import peak_reserved_capacity_for_slot_document
 
 		self.reserved_capacity = peak_reserved_capacity_for_slot_document(self)
