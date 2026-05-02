@@ -183,7 +183,7 @@ def get_hotel_availability(experience_id, date_from=None, date_to=None, guests=N
         # Build nightly availability
         nights = []
         current_date = start_date
-        while current_date <= end_date:
+        while current_date < end_date:
             # Find the slot that covers this night
             matching_slot = None
             for slot in slots:
@@ -510,17 +510,23 @@ def bot_get_hotel_catalog():
         return error("Failed to get hotel catalog", "SERVER_ERROR", {"error": str(e)}, 500)
 
 @frappe.whitelist(allow_guest=True)
-def bot_check_hotel_availability(room_id, date_from, date_to=None):
+def bot_check_hotel_availability(room_id, date_from, date_to=None, guests=None, rooms_requested=1):
     """
     Bot Endpoint: Check availability for a specific room on a date or date range.
     """
     try:
         if not date_to:
-            date_to = date_from
+            date_to = add_days(getdate(date_from), 1)
             
         # We can reuse the existing get_hotel_availability logic internally, 
         # but format it for the bot
-        res = get_hotel_availability(room_id, date_from, date_to)
+        res = get_hotel_availability(
+            room_id,
+            date_from,
+            date_to,
+            guests=guests,
+            rooms_requested=rooms_requested,
+        )
         
         # Check if error
         if res.get("status") == "error":
@@ -553,6 +559,10 @@ def bot_check_hotel_availability(room_id, date_from, date_to=None):
             "nights_count": len(nights),
             "is_available": all_available,
             "rooms_available": min_available,
+            "room_size": data.get("room_size"),
+            "max_guests_available": min_available * (data.get("room_size") or 0),
+            "requested_rooms": cint(rooms_requested) or 1,
+            "requested_guests": cint(guests) if guests is not None else None,
             "total_price": total_price,
             "price_per_night": data.get("price_per_night")
         })
@@ -561,14 +571,14 @@ def bot_check_hotel_availability(room_id, date_from, date_to=None):
         return error("Failed to check availability", "SERVER_ERROR", {"error": str(e)}, 500)
 
 @frappe.whitelist(allow_guest=True)
-def bot_book_hotel_room(contact_phone, room_id, date_from, date_to, rooms_requested=1):
+def bot_book_hotel_room(contact_phone, room_id, date_from, date_to, rooms_requested=1, guests=1):
     """
     Bot Endpoint: Book a hotel room.
     Automatically finds or creates contact and creates a pending ticket.
     """
     try:
-        from cheese.cheese.api.v1.contact_controller import find_or_create_contact
-        from cheese.cheese.api.v1.ticket_controller import create_pending_reservation
+        from cheese.api.v1.contact_controller import find_or_create_contact
+        from cheese.api.v1.ticket_controller import create_pending_reservation
         
         contact_res = find_or_create_contact(contact_phone, contact_phone)
         if contact_res.get("status") == "error":
@@ -577,12 +587,18 @@ def bot_book_hotel_room(contact_phone, room_id, date_from, date_to, rooms_reques
         contact_id = contact_res.get("data", {}).get("contact_id")
         
         # We need the slot ID for the first night to satisfy ticket creation
-        availability = get_hotel_availability(room_id, date_from, date_from)
+        availability = get_hotel_availability(
+            room_id,
+            date_from,
+            date_to,
+            guests=guests,
+            rooms_requested=rooms_requested,
+        )
         if availability.get("status") == "error":
             return availability
             
         nights = availability.get("data", {}).get("nights", [])
-        if not nights or nights[0]["available"] < cint(rooms_requested):
+        if not nights or any(night["available"] < cint(rooms_requested) for night in nights):
             return validation_error(f"Not enough rooms available for requested dates.")
             
         slot_id = nights[0]["slot_id"]
@@ -593,7 +609,7 @@ def bot_book_hotel_room(contact_phone, room_id, date_from, date_to, rooms_reques
             contact_id=contact_id,
             experience_id=room_id,
             slot_id=slot_id,
-            party_size=1, # Default required by base ticket
+            party_size=cint(guests) or 1,
             check_in_date=date_from,
             check_out_date=date_to,
             rooms_requested=rooms_requested

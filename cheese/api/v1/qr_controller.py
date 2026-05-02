@@ -44,7 +44,7 @@ def _generate_unique_qr_token(length=32, max_attempts=5):
 
 
 @frappe.whitelist()
-def get_qr_for_reservation(reservation_id=None, ticket_id=None):
+def get_qr_for_reservation(reservation_id=None, ticket_id=None, allow_pending=0, send_notification=0):
 	"""
 	Get QR for reservation - alias for get_qr
 	
@@ -62,7 +62,7 @@ def get_qr_for_reservation(reservation_id=None, ticket_id=None):
 				"reservation_id is required for this endpoint. Use validate_qr with token for check-in."
 			)
 		return validation_error("reservation_id is required")
-	return get_qr(reservation_id)
+	return get_qr(reservation_id, allow_pending=allow_pending, send_notification=send_notification)
 
 
 @frappe.whitelist()

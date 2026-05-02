@@ -661,7 +661,7 @@
                         ],
                         "body": {
                             "mode": "raw",
-                            "raw": "{\n  \"reservation_id\": \"TICKET-001\"\n}"
+                            "raw": "{\n  \"reservation_id\": \"TICKET-001\",\n  \"send_notification\": 1\n}"
                         },
                         "url": {
                             "raw": "{{base_url}}/api/method/cheese.api.v1.pricing_controller.get_modification_policy",
@@ -943,7 +943,7 @@
                                 "cheese.api.v1.ticket_controller.create_pending_ticket"
                             ]
                         },
-                        "description": "Legacy endpoint - use create_pending_reservation instead.\n\nFor HOTEL experiences, include `check_in_date`, `check_out_date`, and `rooms_requested` (>= 1)."
+                        "description": "Legacy endpoint - use create_pending_reservation instead.\n\nFor HOTEL experiences, include `check_in_date`, `check_out_date`, and `rooms_requested` (>= 1). `party_size` is the number of guests; the API validates it against `room_size * rooms_requested`."
                     },
                     "response": []
                 },
@@ -1014,7 +1014,7 @@
                                 "cheese.api.v1.route_booking_controller.create_route_reservation"
                             ]
                         },
-                        "description": "ERP: Creates RouteBooking = PENDING + internal reservations, locks capacity. Bot: Guides and executes.\n\n**Booking date / time / slots:** Omit `experiences_with_slots` and pass `date_from` and optionally `date_to` (YYYY-MM-DD) to auto-select OPEN slots in that range; single-day bookings can set both to the same date. You can also pass `time_from` and `time_to` (HH:MM or HH:MM:SS) to constrain auto-selection to that exact time window. Alternatively pass `experiences_with_slots` with explicit `experience_id` / `slot_id` pairs. The `date` field is accepted as a synonym for `date_from` when `date_from` is not set."
+                        "description": "ERP: Creates RouteBooking = PENDING + internal reservations, locks capacity. Bot: Guides and executes.\n\n**Booking date / time / slots:** Omit `experiences_with_slots` and pass `date_from` and optionally `date_to` (YYYY-MM-DD) to auto-select OPEN slots in that range; single-day bookings can set both to the same date. You can also pass `time_from` and `time_to` (HH:MM or HH:MM:SS) to constrain auto-selection to that exact time window. Alternatively pass `experiences_with_slots` with explicit `experience_id` / `slot_id` / `selected_date` rows copied from `get_available_slots_for_route`. Slot IDs are validated against their experience so the bot cannot accidentally book two route stops onto the same experience slot. The `date` field is accepted as a synonym for `date_from` when `date_from` is not set."
                     },
                     "response": []
                 },
@@ -1047,7 +1047,7 @@
                                 "cheese.api.v1.route_booking_controller.get_available_slots_for_route"
                             ]
                         },
-                        "description": "Lists candidate slots per experience on the route for the chosen date (or `date_from`/`date_to` range). Each row includes `selected_date` / `calendar_date` and per-day `available_capacity`. Use before `create_route_reservation` when building explicit `experiences_with_slots`."
+                        "description": "Lists candidate slots per experience on the route for the chosen date (or `date_from`/`date_to` range). Each row includes `selected_date` / `calendar_date` and per-day `available_capacity`. Use before `create_route_reservation` when building explicit `experiences_with_slots`; copy `calendar_date` into each row as `selected_date`."
                     },
                     "response": []
                 },
@@ -1524,6 +1524,39 @@
                     "response": []
                 },
                 {
+                    "name": "Create Remaining Balance Deposit",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "token {{api_key}}:{{api_secret}}"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"ticket_id\": \"TICKET-001\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/method/cheese.api.v1.deposit_controller.create_remaining_balance_deposit",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "method",
+                                "cheese.api.v1.deposit_controller.create_remaining_balance_deposit"
+                            ]
+                        },
+                        "description": "Create or return the open remaining-balance deposit after the advance is paid. Use before paying the balance, or call `record_deposit_payment` with `payment_type=Balance` to auto-create when valid."
+                    },
+                    "response": []
+                },
+                {
                     "name": "Register Deposit Payment",
                     "request": {
                         "method": "POST",
@@ -1550,6 +1583,12 @@
                                     "key": "verification_method",
                                     "value": "Manual",
                                     "type": "text"
+                                },
+                                {
+                                    "key": "bank_account",
+                                    "value": "BANK-ACCOUNT-001",
+                                    "type": "text",
+                                    "description": "Required for Manual unless the ticket has exactly one active company bank account"
                                 },
                                 {
                                     "key": "ocr_payload",
@@ -1586,7 +1625,7 @@
                                 "cheese.api.v1.deposit_controller.record_deposit_payment"
                             ]
                         },
-                        "description": "Record a deposit payment with optional receipt upload (PDF/PNG/JPG/JPEG/WEBP, max 10MB). Use form-data field name 'receipt' (also accepts 'payment_receipt' or 'file').\n\n**payment_type:** `Deposit` | `Balance` \u2014 must match the deposit you are paying down."
+                        "description": "Record a deposit payment with optional receipt upload (PDF/PNG/JPG/JPEG/WEBP, max 10MB). Use form-data field name 'receipt' (also accepts 'payment_receipt' or 'file').\n\n**payment_type:** `Deposit` | `Balance` \u2014 must match the deposit you are paying down. For manual payments send `bank_account`; if omitted, the API only defaults it when the ticket has exactly one active company bank account."
                     },
                     "response": []
                 },
@@ -1723,7 +1762,40 @@
                                 "cheese.api.v1.qr_controller.get_qr_for_reservation"
                             ]
                         },
-                        "description": "Get QR token for a reservation."
+                        "description": "Get QR token for a reservation. Set `send_notification: 1` when the bot should ask ERP to send/re-send the QR notification, including when an ACTIVE token already exists."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Resend QR",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "token {{api_key}}:{{api_secret}}"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"ticket_id\": \"TICKET-001\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/method/cheese.api.v1.qr_controller.resend_qr",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "method",
+                                "cheese.api.v1.qr_controller.resend_qr"
+                            ]
+                        },
+                        "description": "Send or re-send the QR notification for a CONFIRMED/CHECKED_IN ticket. This works even if an ACTIVE QR token already exists."
                     },
                     "response": []
                 },
@@ -2194,7 +2266,7 @@
                         ],
                         "body": {
                             "mode": "raw",
-                            "raw": "{\n  \"room_id\": \"EXP-HOTEL-001\",\n  \"date_from\": \"2026-05-05\",\n  \"date_to\": \"2026-05-08\"\n}"
+                            "raw": "{\n  \"room_id\": \"EXP-HOTEL-001\",\n  \"date_from\": \"2026-05-05\",\n  \"date_to\": \"2026-05-08\",\n  \"guests\": 2,\n  \"rooms_requested\": 1\n}"
                         },
                         "url": {
                             "raw": "{{base_url}}/api/method/cheese.api.v1.hotel_controller.bot_check_hotel_availability",
@@ -2207,7 +2279,7 @@
                                 "cheese.api.v1.hotel_controller.bot_check_hotel_availability"
                             ]
                         },
-                        "description": "Check availability for a specific room on a date or date range."
+                        "description": "Check availability for a specific room over a hotel stay. `date_from` is check-in and `date_to` is check-out; nights are checked up to but excluding `date_to`. `room_size` determines max guests per room."
                     },
                     "response": []
                 },
@@ -2227,7 +2299,7 @@
                         ],
                         "body": {
                             "mode": "raw",
-                            "raw": "{\n  \"contact_phone\": \"+1234567890\",\n  \"room_id\": \"EXP-HOTEL-001\",\n  \"date_from\": \"2026-05-05\",\n  \"date_to\": \"2026-05-08\",\n  \"rooms_requested\": 1\n}"
+                            "raw": "{\n  \"contact_phone\": \"+1234567890\",\n  \"room_id\": \"EXP-HOTEL-001\",\n  \"date_from\": \"2026-05-05\",\n  \"date_to\": \"2026-05-08\",\n  \"rooms_requested\": 1,\n  \"guests\": 2\n}"
                         },
                         "url": {
                             "raw": "{{base_url}}/api/method/cheese.api.v1.hotel_controller.bot_book_hotel_room",
@@ -2240,7 +2312,7 @@
                                 "cheese.api.v1.hotel_controller.bot_book_hotel_room"
                             ]
                         },
-                        "description": "Book a hotel room. Automatically finds or creates contact and creates a pending ticket."
+                        "description": "Book a hotel room. Automatically finds or creates contact and creates a pending ticket. `guests` is validated against `room_size * rooms_requested`."
                     },
                     "response": []
                 }
