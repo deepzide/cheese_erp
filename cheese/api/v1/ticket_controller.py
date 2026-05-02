@@ -204,6 +204,14 @@ def create_pending_ticket(contact_id, experience_id, slot_id, party_size=1, sele
 				return validation_error("check_in_date and check_out_date are required for hotel reservations")
 			if not rooms_requested or rooms_requested < 1:
 				return validation_error("rooms_requested must be at least 1 for hotel reservations")
+			room_size = cint(getattr(experience, "room_size", 0) or getattr(experience, "max_occupancy_per_unit", 0) or 0)
+			if room_size < 1:
+				return validation_error("room_size must be configured for hotel room reservations")
+			max_guests = room_size * rooms_requested
+			if party_size > max_guests:
+				return validation_error(
+					f"Cannot book {party_size} guests. This room allows {room_size} guests per room ({max_guests} total for {rooms_requested} rooms)."
+				)
 			try:
 				check_in_obj = parse_date(check_in_date)
 				check_out_obj = parse_date(check_out_date)
@@ -214,7 +222,7 @@ def create_pending_ticket(contact_id, experience_id, slot_id, party_size=1, sele
 		else:
 			if not party_size or party_size < 1:
 				return validation_error("party_size must be at least 1")
-			available = get_available_capacity(slot_id, selected_date)
+			available = get_available_capacity(slot_id, selected_date_obj)
 			if party_size > available:
 				return validation_error(f"Cannot book {party_size} tickets. Only {available} slots available.")
 
@@ -635,6 +643,8 @@ def get_ticket_summary(ticket_id):
 
 		# Use selected_date if available, otherwise fall back to slot.date_from
 		display_date = str(ticket.selected_date) if ticket.selected_date else str(slot.date_from)
+		display_time_from = str(slot.time_from) if slot.time_from else None
+		display_time_to = str(slot.time_to) if slot.time_to else None
 
 		return success(
 			"Ticket details retrieved successfully",
@@ -655,7 +665,11 @@ def get_ticket_summary(ticket_id):
 				"slot": {
 					"slot_id": slot.name,
 					"date": display_date,
-					"time": str(slot.time_from),
+					"time": display_time_from,
+					"time_from": display_time_from,
+					"time_to": display_time_to,
+					"scheduled_start": f"{display_date} {display_time_from}" if display_time_from else display_date,
+					"scheduled_end": f"{display_date} {display_time_to}" if display_time_to else None,
 					"max_capacity": slot.max_capacity
 				},
 				"party_size": ticket.party_size,

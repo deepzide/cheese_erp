@@ -160,6 +160,18 @@ class CheeseTicket(Document):
 
 		if experience_doc.experience_type == "HOTEL":
 			from frappe.utils import add_days
+			from frappe.utils import cint
+			room_size = cint(getattr(experience_doc, "room_size", 0) or getattr(experience_doc, "max_occupancy_per_unit", 0) or 0)
+			if room_size < 1:
+				frappe.throw(_("Room Size must be configured for hotel room reservations"))
+			max_guests = room_size * (self.rooms_requested or 1)
+			if (self.party_size or 1) > max_guests:
+				frappe.throw(
+					_("Guest count ({0}) exceeds room capacity ({1}) for {2} room(s)").format(
+						self.party_size, max_guests, self.rooms_requested or 1
+					),
+					frappe.ValidationError,
+				)
 			current_date = getdate(self.check_in_date)
 			end_date = getdate(self.check_out_date)
 			

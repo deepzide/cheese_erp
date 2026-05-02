@@ -3,13 +3,13 @@
 
 import frappe
 from frappe import _
-from frappe.utils import getdate
+from frappe.utils import getdate, cint
 from cheese.cheese.utils.capacity import get_available_capacity, slot_calendar_days_in_range
 from cheese.api.common.responses import success, error, not_found, validation_error
 
 
 @frappe.whitelist()
-def get_available_slots(experience_id=None, date=None, date_from=None, date_to=None):
+def get_available_slots(experience_id=None, date=None, date_from=None, date_to=None, guests=None, rooms_requested=1):
 	"""
 	Get available slots for an experience or all experiences within a date range
 	
@@ -62,11 +62,14 @@ def get_available_slots(experience_id=None, date=None, date_from=None, date_to=N
 		slot_filters["date_to"] = [">=", date_from_obj]
 
 		# If experience_id provided, validate and filter
+		experience = None
 		if experience_id:
 			if not frappe.db.exists("Cheese Experience", experience_id):
 				return not_found("Experience", experience_id)
 			slot_filters["experience"] = experience_id
 			experience = frappe.get_doc("Cheese Experience", experience_id)
+		rooms_requested = cint(rooms_requested) or 1
+		guests = cint(guests) if guests is not None else None
 		
 		# Get slots
 		slots = frappe.get_all(
@@ -79,10 +82,16 @@ def get_available_slots(experience_id=None, date=None, date_from=None, date_to=N
 		# One row per (slot × calendar day) in the overlap with the query range — capacity is per day.
 		slots_with_availability = []
 		for slot in slots:
+			slot_experience = experience or frappe.get_doc("Cheese Experience", slot.experience)
+			is_hotel = slot_experience.experience_type == "HOTEL"
+			room_size = cint(getattr(slot_experience, "room_size", 0) or getattr(slot_experience, "max_occupancy_per_unit", 0) or 0)
 			days = slot_calendar_days_in_range(slot.date_from, slot.date_to, date_from_obj, date_to_obj)
 			for cal_day in days:
 				available = get_available_capacity(slot.name, selected_date=cal_day)
-				live_status = "OPEN" if available > 0 else "CLOSED"
+				fits_guests = True
+				if is_hotel:
+					fits_guests = room_size > 0 and (guests or 1) <= room_size * rooms_requested
+				live_status = "OPEN" if available >= rooms_requested and fits_guests else "CLOSED"
 				slot_data = {
 					"slot_id": slot.name,
 					"selected_date": str(cal_day),
@@ -93,8 +102,15 @@ def get_available_slots(experience_id=None, date=None, date_from=None, date_to=N
 					"time_to": str(slot.time_to) if slot.time_to is not None else None,
 					"max_capacity": slot.max_capacity,
 					"available_capacity": available,
+					"available_rooms": available if is_hotel else None,
+					"room_size": room_size if is_hotel else None,
+					"max_guests_available": available * room_size if is_hotel else None,
+					"requested_rooms": rooms_requested if is_hotel else None,
+					"requested_guests": guests if is_hotel else None,
+					"experience_type": slot_experience.experience_type,
+					"is_room": bool(getattr(slot_experience, "is_room", 0)),
 					"slot_status": live_status,
-					"is_available": available > 0,
+					"is_available": available >= rooms_requested and fits_guests,
 				}
 				# Backward compatibility: `date` is the occurrence day for this row
 				slot_data["date"] = str(cal_day)
@@ -165,7 +181,7 @@ def get_available_slots(experience_id=None, date=None, date_from=None, date_to=N
 
 
 @frappe.whitelist()
-def get_hotel_availability(experience_id, check_in_date, check_out_date):
+def get_hotel_availability(experience_id, check_in_date, check_out_date, guests=None, rooms_requested=1):
 	"""
 	Get bottleneck availability for a hotel experience over a date range.
 	
@@ -201,6 +217,15 @@ def get_hotel_availability(experience_id, check_in_date, check_out_date):
 		experience = frappe.get_doc("Cheese Experience", experience_id)
 		if experience.experience_type != "HOTEL":
 			return validation_error("Experience is not a hotel")
+		rooms_requested = cint(rooms_requested) or 1
+		guests = cint(guests) if guests is not None else None
+		room_size = cint(getattr(experience, "room_size", 0) or getattr(experience, "max_occupancy_per_unit", 0) or 0)
+		if room_size < 1:
+			return validation_error("room_size must be configured for hotel availability")
+		if guests and guests > room_size * rooms_requested:
+			return validation_error(
+				f"Cannot book {guests} guests. This room allows {room_size} guests per room ({room_size * rooms_requested} total for {rooms_requested} rooms)."
+			)
 			
 		# Check availability for each night from check_in to check_out - 1
 		current_date = check_in_obj
@@ -219,22 +244,28 @@ def get_hotel_availability(experience_id, check_in_date, check_out_date):
 			fields=["name", "date_from", "date_to", "max_capacity"]
 		)
 		
-		# Map slot date to slot id
-		slot_map = {getdate(s.date_from): s.name for s in slots if getdate(s.date_from) == getdate(s.date_to)}
-		
 		while current_date < check_out_obj:
-			slot_id = slot_map.get(current_date)
+			slot = next(
+				(s for s in slots if getdate(s.date_from) <= current_date <= getdate(s.date_to)),
+				None,
+			)
 			
-			if not slot_id:
+			if not slot:
 				# No slot defined for this night
 				available = 0
+				slot_id = None
 			else:
+				slot_id = slot.name
 				available = get_available_capacity(slot_id, selected_date=current_date)
 				
 			daily_availability.append({
 				"date": str(current_date),
 				"available_capacity": available,
-				"slot_id": slot_id
+				"available_rooms": available,
+				"room_size": room_size,
+				"max_guests_available": available * room_size,
+				"slot_id": slot_id,
+				"is_available": available >= rooms_requested,
 			})
 			
 			if available < bottleneck_capacity:
@@ -252,7 +283,12 @@ def get_hotel_availability(experience_id, check_in_date, check_out_date):
 				"check_in_date": check_in_date,
 				"check_out_date": check_out_date,
 				"bottleneck_capacity": bottleneck_capacity,
-				"is_available": bottleneck_capacity > 0,
+				"bottleneck_rooms": bottleneck_capacity,
+				"room_size": room_size,
+				"requested_rooms": rooms_requested,
+				"requested_guests": guests,
+				"max_guests_available": bottleneck_capacity * room_size,
+				"is_available": bottleneck_capacity >= rooms_requested,
 				"daily_availability": daily_availability
 			}
 		)
@@ -264,7 +300,7 @@ def get_hotel_availability(experience_id, check_in_date, check_out_date):
 
 
 @frappe.whitelist()
-def get_availability(experience_id=None, date=None, date_from=None, date_to=None):
+def get_availability(experience_id=None, date=None, date_from=None, date_to=None, guests=None, rooms_requested=1):
 	"""
 	Get availability by experience - alias for get_available_slots
 	
@@ -277,7 +313,14 @@ def get_availability(experience_id=None, date=None, date_from=None, date_to=None
 	Returns:
 		Success response with list of available slots
 	"""
-	return get_available_slots(experience_id=experience_id, date=date, date_from=date_from, date_to=date_to)
+	return get_available_slots(
+		experience_id=experience_id,
+		date=date,
+		date_from=date_from,
+		date_to=date_to,
+		guests=guests,
+		rooms_requested=rooms_requested,
+	)
 
 
 @frappe.whitelist()
@@ -333,6 +376,11 @@ def get_route_availability(route_id, date=None, date_from=None, date_to=None, pa
 			date_to = date
 		
 		# If date range is provided, check actual availability
+		try:
+			party_size = cint(party_size) or 1
+		except Exception:
+			return validation_error("party_size must be a number")
+
 		if date_from and date_to:
 			date_from_obj = getdate(date_from)
 			date_to_obj = getdate(date_to)

@@ -524,7 +524,7 @@
                         ],
                         "body": {
                             "mode": "raw",
-                            "raw": "{\n  \"experience_id\": \"EXP-001\",\n  \"date\": \"2024-12-31\",\n  \"date_from\": \"2024-12-31\",\n  \"date_to\": \"2024-12-31\"\n}"
+                            "raw": "{\n  \"experience_id\": \"EXP-001\",\n  \"date\": \"2024-12-31\",\n  \"date_from\": \"2024-12-31\",\n  \"date_to\": \"2024-12-31\",\n  \"guests\": 2,\n  \"rooms_requested\": 1\n}"
                         },
                         "url": {
                             "raw": "{{base_url}}/api/method/cheese.api.v1.availability_controller.get_availability",
@@ -537,7 +537,7 @@
                                 "cheese.api.v1.availability_controller.get_availability"
                             ]
                         },
-                        "description": "ERP: Calculates real slots. Bot: Queries and offers options.\n\n**Per-day capacity:** Responses include one entry per calendar day in `date_from`/`date_to` for each slot (`selected_date` / `calendar_date`, and `date` = that day). `available_capacity` is for that day only."
+                        "description": "ERP: Calculates real slots. Bot: Queries and offers options.\n\n**Per-day capacity:** Responses include one entry per calendar day in `date_from`/`date_to` for each slot (`selected_date` / `calendar_date`, and `date` = that day). `available_capacity` is for that day only.\n\n**Hotel rooms:** For HOTEL experiences, pass optional `guests` and `rooms_requested`. Responses include `available_rooms`, `room_size`, and `max_guests_available`; `room_size` is the max guests per room."
                     },
                     "response": []
                 },
@@ -557,7 +557,7 @@
                         ],
                         "body": {
                             "mode": "raw",
-                            "raw": "{\n  \"experience_id\": \"EXP-001\",\n  \"date\": \"2024-12-31\",\n  \"date_from\": \"2024-12-31\",\n  \"date_to\": \"2024-12-31\"\n}"
+                            "raw": "{\n  \"experience_id\": \"EXP-001\",\n  \"date\": \"2024-12-31\",\n  \"date_from\": \"2024-12-31\",\n  \"date_to\": \"2024-12-31\",\n  \"guests\": 2,\n  \"rooms_requested\": 1\n}"
                         },
                         "url": {
                             "raw": "{{base_url}}/api/method/cheese.api.v1.availability_controller.get_available_slots",
@@ -570,7 +570,7 @@
                                 "cheese.api.v1.availability_controller.get_available_slots"
                             ]
                         },
-                        "description": "Alias of get_availability. Same per-day slot rows as get_availability."
+                        "description": "Alias of get_availability. Same per-day slot rows as get_availability. HOTEL experiences include room capacity fields (`available_rooms`, `room_size`, `max_guests_available`)."
                     },
                     "response": []
                 },

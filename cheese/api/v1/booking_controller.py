@@ -59,7 +59,10 @@ def create_pending_booking(contact_id, items, preferred_dates=None, conversation
 		available_experience_slots = {}
 		for item in items:
 			if item.get("type") == "experience" and item.get("experience_id") and item.get("slot_id"):
-				available_experience_slots[item.get("experience_id")] = item.get("slot_id")
+				available_experience_slots[item.get("experience_id")] = {
+					"slot_id": item.get("slot_id"),
+					"selected_date": item.get("selected_date") or item.get("calendar_date") or item.get("date"),
+				}
 
 		# Process items
 		for item in items:
@@ -95,10 +98,12 @@ def create_pending_booking(contact_id, items, preferred_dates=None, conversation
 					constructed_slots = []
 					for exp_row in route_doc.experiences:
 						if exp_row.experience in available_experience_slots:
+							slot_choice = available_experience_slots[exp_row.experience]
 							# Format must match what create_route_reservation expects
 							constructed_slots.append({
 								"experience_id": exp_row.experience,
-								"slot_id": available_experience_slots[exp_row.experience]
+								"slot_id": slot_choice.get("slot_id"),
+								"selected_date": slot_choice.get("selected_date"),
 							})
 					
 					if constructed_slots:
@@ -543,7 +548,7 @@ def get_payment_status_for_booking(booking_id):
 		individual_reservations = status_data.get("individual_reservations", [])
 		
 		# Get deposit status for all components
-		from cheese.api.v1.deposit_controller import get_deposit_status
+		from cheese.api.v1.deposit_controller import _amount_remaining_for_deposit, _get_deposit_phase
 		
 		total_required = 0
 		total_paid = 0
@@ -551,18 +556,23 @@ def get_payment_status_for_booking(booking_id):
 		
 		# Check deposits for individual reservations
 		for ticket_id in individual_reservations:
-			deposit_name = frappe.db.get_value(
+			deposits = frappe.get_all(
 				"Cheese Deposit",
-				{"entity_type": "Cheese Ticket", "entity_id": ticket_id},
-				"name"
+				filters={
+					"entity_type": "Cheese Ticket",
+					"entity_id": ticket_id,
+					"status": ["not in", ["CANCELLED", "REFUNDED"]],
+				},
+				fields=["name", "entity_type", "entity_id", "amount_required", "amount_paid", "status", "due_at", "paid_at", "verification_method"],
+				order_by="creation asc",
 			)
-			if deposit_name:
-				deposit_result = get_deposit_status(deposit_name)
-				if deposit_result.get("success"):
-					deposit_data = deposit_result.get("data", {})
-					total_required += deposit_data.get("amount_required", 0)
-					total_paid += deposit_data.get("amount_paid", 0)
-					deposit_statuses.append(deposit_data)
+			for deposit_data in deposits:
+				total_required += deposit_data.get("amount_required", 0)
+				total_paid += deposit_data.get("amount_paid", 0)
+				deposit_data["deposit_id"] = deposit_data.name
+				deposit_data["payment_type"] = _get_deposit_phase(deposit_data.name, deposits)
+				deposit_data["amount_remaining"] = _amount_remaining_for_deposit(deposit_data)
+				deposit_statuses.append(deposit_data)
 		
 		# Check deposits for route bookings (would need route booking deposit logic)
 		
@@ -572,7 +582,7 @@ def get_payment_status_for_booking(booking_id):
 				"booking_id": booking_id,
 				"total_deposit_required": total_required,
 				"total_deposit_paid": total_paid,
-				"total_deposit_remaining": total_required - total_paid,
+				"total_deposit_remaining": max(0, total_required - total_paid),
 				"payment_status": "PAID" if total_paid >= total_required and total_required > 0 else "PENDING",
 				"deposit_statuses": deposit_statuses
 			}

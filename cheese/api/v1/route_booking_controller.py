@@ -15,6 +15,21 @@ from cheese.api.v1.ticket_controller import create_pending_ticket
 import json
 
 
+def _normalize_time_filter(time_value):
+	"""Normalize client and DB time values to HH:MM:SS for comparisons."""
+	if not time_value:
+		return None
+	time_part = str(time_value).strip().split(".")[0]
+	parts = time_part.split(":")
+	try:
+		hour = int(parts[0]) if len(parts) > 0 and parts[0] != "" else 0
+		minute = int(parts[1]) if len(parts) > 1 and parts[1] != "" else 0
+		second = int(parts[2]) if len(parts) > 2 and parts[2] != "" else 0
+		return f"{hour:02d}:{minute:02d}:{second:02d}"
+	except Exception:
+		return time_part
+
+
 @frappe.whitelist()
 def create_route_reservation(
 	contact_id=None,
@@ -82,29 +97,24 @@ def create_route_reservation(
 
 		# Auto-select slots if date_from is provided and explicit slots are missing
 		selected_date_for_tickets = None
+		start_date = None
+		end_date = None
 		normalized_time_from = None
 		normalized_time_to = None
 		if time_from:
-			time_from = str(time_from).strip()
-			normalized_time_from = time_from if len(time_from.split(":")) == 3 else f"{time_from}:00"
+			normalized_time_from = _normalize_time_filter(time_from)
 		if time_to:
-			time_to = str(time_to).strip()
-			normalized_time_to = time_to if len(time_to.split(":")) == 3 else f"{time_to}:00"
-		if not experiences_with_slots and date_from:
+			normalized_time_to = _normalize_time_filter(time_to)
+		if date_from:
 			try:
 				start_date = getdate(date_from)
 				end_date = getdate(date_to) if date_to else start_date
-				
 				if end_date < start_date:
 					return validation_error("date_to must be greater than or equal to date_from")
-				
-				# Store the selected date to use when creating tickets
-				# For single-day routes, use start_date for all tickets
-				# For multi-day routes, we use start_date for all tickets (can be enhanced later)
 				selected_date_for_tickets = start_date
 			except Exception as e:
 				return validation_error(f"Invalid date format: {str(e)}")
-
+		if not experiences_with_slots and date_from:
 			experiences_with_slots = []
 			for exp_row in route.experiences:
 				# Find available slots for this experience in the date range
@@ -120,25 +130,31 @@ def create_route_reservation(
 				slots = frappe.get_all(
 					"Cheese Experience Slot",
 					filters=slot_filters,
-					fields=["name", "time_from", "time_to", "date_from", "max_capacity"],
+					fields=["name", "time_from", "time_to", "date_from", "date_to", "max_capacity"],
 					order_by="date_from asc, time_from asc"
 				)
 				
 				selected_slot = None
+				selected_slot_date = None
 				for slot in slots:
-					if normalized_time_from and str(slot.time_from) != normalized_time_from:
+					if normalized_time_from and _normalize_time_filter(slot.time_from) != normalized_time_from:
 						continue
-					if normalized_time_to and str(slot.time_to) != normalized_time_to:
+					if normalized_time_to and _normalize_time_filter(slot.time_to) != normalized_time_to:
 						continue
-					available = get_available_capacity(slot.name, selected_date=start_date)
-					if available >= party_size:
-						selected_slot = slot.name
+					for cal_day in slot_calendar_days_in_range(slot.date_from, slot.date_to, start_date, end_date):
+						available = get_available_capacity(slot.name, selected_date=cal_day)
+						if available >= party_size:
+							selected_slot = slot.name
+							selected_slot_date = cal_day
+							break
+					if selected_slot:
 						break
 				
 				if selected_slot:
 					experiences_with_slots.append({
 						"experience_id": exp_row.experience,
-						"slot_id": selected_slot
+						"slot_id": selected_slot,
+						"selected_date": str(selected_slot_date),
 					})
 				else:
 					date_range_str = f"{start_date}" if start_date == end_date else f"{start_date} to {end_date}"
@@ -168,16 +184,33 @@ def create_route_reservation(
 		
 		# Validate all experiences and slots
 		slot_map = {}
+		selected_date_map = {}
 		for item in experiences_with_slots:
 			exp_id = item.get("experience_id")
 			slot_id = item.get("slot_id")
+			item_selected_date = (
+				item.get("selected_date")
+				or item.get("calendar_date")
+				or item.get("date")
+				or (str(selected_date_for_tickets) if selected_date_for_tickets else None)
+			)
 			if not exp_id or not slot_id:
 				return validation_error("Each item must have 'experience_id' and 'slot_id'")
 			if not frappe.db.exists("Cheese Experience", exp_id):
 				return not_found("Experience", exp_id)
 			if not frappe.db.exists("Cheese Experience Slot", slot_id):
 				return not_found("Slot", slot_id)
+			slot_experience = frappe.db.get_value("Cheese Experience Slot", slot_id, "experience")
+			if slot_experience != exp_id:
+				return validation_error(
+					f"Slot {slot_id} belongs to experience {slot_experience}, not {exp_id}"
+				)
 			slot_map[exp_id] = slot_id
+			if item_selected_date:
+				try:
+					selected_date_map[exp_id] = str(getdate(item_selected_date))
+				except Exception:
+					return validation_error("selected_date must be a valid date")
 		
 		# Verify all route experiences have slots
 		route_experiences = route.experiences
@@ -210,6 +243,7 @@ def create_route_reservation(
 		for exp_row in route.experiences:
 			experience_id = exp_row.experience
 			slot_id = slot_map.get(experience_id)
+			ticket_selected_date = selected_date_map.get(experience_id)
 			
 			if not slot_id:
 				# Rollback route booking
@@ -221,16 +255,18 @@ def create_route_reservation(
 			# Pass selected_date if it was provided during auto-selection
 			
 			# For HOTEL experiences, pass check_in/check_out dates
-			check_in = str(start_date) if date_from else None
-			check_out = str(end_date) if date_to else None
-			rooms = party_size
+			experience_doc = frappe.get_doc("Cheese Experience", experience_id)
+			is_hotel = experience_doc.experience_type == "HOTEL"
+			check_in = str(start_date) if is_hotel and start_date else None
+			check_out = str(end_date) if is_hotel and end_date else None
+			rooms = party_size if is_hotel else None
 			
 			ticket_result = create_pending_ticket(
 				contact_id, 
 				experience_id, 
 				slot_id, 
 				party_size,
-				selected_date=str(selected_date_for_tickets) if selected_date_for_tickets else None,
+				selected_date=ticket_selected_date,
 				route_id=route_id,
 				check_in_date=check_in,
 				check_out_date=check_out,
@@ -318,15 +354,20 @@ def create_route_reservation(
 		for ticket_id in tickets:
 			ticket_doc = frappe.get_doc("Cheese Ticket", ticket_id)
 			slot_doc = frappe.get_doc("Cheese Experience Slot", ticket_doc.slot)
+			schedule_date = str(ticket_doc.selected_date) if ticket_doc.selected_date else str(slot_doc.date_from)
+			time_from_value = str(slot_doc.time_from) if slot_doc.time_from else None
+			time_to_value = str(slot_doc.time_to) if slot_doc.time_to else None
 			booked_schedule.append({
 				"ticket_id": ticket_doc.name,
 				"experience_id": ticket_doc.experience,
 				"slot_id": ticket_doc.slot,
-				"selected_date": str(ticket_doc.selected_date) if ticket_doc.selected_date else str(slot_doc.date_from),
-				"time_from": str(slot_doc.time_from) if slot_doc.time_from else None,
-				"time_to": str(slot_doc.time_to) if slot_doc.time_to else None,
+				"selected_date": schedule_date,
+				"time_from": time_from_value,
+				"time_to": time_to_value,
+				"scheduled_start": f"{schedule_date} {time_from_value}" if time_from_value else schedule_date,
+				"scheduled_end": f"{schedule_date} {time_to_value}" if time_to_value else None,
 				# Backward-compatible field for clients that still consume a single time value.
-				"time": str(slot_doc.time_from) if slot_doc.time_from else None,
+				"time": time_from_value,
 			})
 
 		return created(
@@ -484,6 +525,7 @@ def get_route_summary(route_booking_id):
 				# Use selected_date if available, otherwise fall back to slot.date_from
 				display_date = str(ticket.selected_date) if ticket.selected_date else str(slot.date_from)
 				display_time = str(slot.time_from) if slot.time_from else None
+				display_time_to = str(slot.time_to) if slot.time_to else None
 
 				# Financial data
 				unit_cost = experience.route_price or experience.individual_price or 0
@@ -493,16 +535,31 @@ def get_route_summary(route_booking_id):
 				# Fetch deposit records for this ticket
 				deposits = frappe.get_all(
 					"Cheese Deposit",
-					filters={"entity_type": "Cheese Ticket", "entity_id": ticket.name},
+					filters={
+						"entity_type": "Cheese Ticket",
+						"entity_id": ticket.name,
+						"status": ["not in", ["CANCELLED", "REFUNDED"]],
+					},
 					fields=["name", "status", "amount_required", "amount_paid"],
 					order_by="creation asc",
 				)
 				deposit_paid = sum(d.amount_paid or 0 for d in deposits)
-				deposit_status = deposits[0].status if deposits else "NONE"
 				remaining_balance = total_per_ticket - deposit_paid
+				advance_paid = min(deposit_paid, deposit_amount)
+				if deposit_amount <= 0:
+					deposit_status = "NONE"
+				elif advance_paid >= deposit_amount:
+					deposit_status = "PAID"
+				elif any(d.status in ("PENDING", "OVERDUE") for d in deposits):
+					deposit_status = "PENDING"
+				elif deposits:
+					deposit_status = deposits[-1].status
+				else:
+					deposit_status = "NONE"
+				balance_status = "PAID" if remaining_balance <= 0 else "PENDING"
 
 				total_advance_required += deposit_amount
-				total_advance_paid += min(deposit_paid, deposit_amount)
+				total_advance_paid += advance_paid
 				total_all_paid += deposit_paid
 				grand_total += total_per_ticket
 
@@ -512,6 +569,10 @@ def get_route_summary(route_booking_id):
 					"experience_name": experience.name,
 					"date": display_date,
 					"time": display_time,
+					"time_from": display_time,
+					"time_to": display_time_to,
+					"scheduled_start": f"{display_date} {display_time}" if display_time else display_date,
+					"scheduled_end": f"{display_date} {display_time_to}" if display_time_to else None,
 					"status": ticket.status,
 					"party_size": ticket.party_size,
 					# Financial fields
@@ -521,6 +582,7 @@ def get_route_summary(route_booking_id):
 					"deposit_status": deposit_status,
 					"deposit_paid": deposit_paid,
 					"remaining_balance": max(remaining_balance, 0),
+					"balance_status": balance_status,
 				})
 		
 		# Sort by date/time
@@ -531,10 +593,10 @@ def get_route_summary(route_booking_id):
 			"grand_total": grand_total,
 			"total_advance_required": total_advance_required,
 			"total_advance_paid": total_advance_paid,
-			"advance_pending": total_advance_required - total_advance_paid,
+			"advance_pending": max(0, total_advance_required - total_advance_paid),
 			"total_paid": total_all_paid,
-			"total_pending": grand_total - total_all_paid,
-			"remaining_balance": grand_total - total_all_paid,
+			"total_pending": max(0, grand_total - total_all_paid),
+			"remaining_balance": max(0, grand_total - total_all_paid),
 		}
 		
 		return success(
@@ -737,6 +799,7 @@ def add_activities_to_route_preview(route_booking_id, activities):
 			
 			experience = frappe.get_doc("Cheese Experience", experience_id)
 			slot = frappe.get_doc("Cheese Experience Slot", slot_id)
+			selected_date = activity.get("selected_date") or activity.get("calendar_date") or activity.get("date")
 			
 			# Calculate price
 			from cheese.cheese.utils.pricing import calculate_ticket_price, calculate_deposit_amount
@@ -747,8 +810,13 @@ def add_activities_to_route_preview(route_booking_id, activities):
 				"experience_id": experience_id,
 				"experience_name": experience.name,
 				"slot_id": slot_id,
-				"date": str(slot.date),
-				"time": str(slot.time),
+				"selected_date": str(selected_date) if selected_date else str(slot.date_from),
+				"date": str(selected_date) if selected_date else str(slot.date_from),
+				"date_from": str(slot.date_from),
+				"date_to": str(slot.date_to),
+				"time_from": str(slot.time_from) if slot.time_from else None,
+				"time_to": str(slot.time_to) if slot.time_to else None,
+				"time": str(slot.time_from) if slot.time_from else None,
 				"price": price_data.get("total_price", 0),
 				"deposit": deposit,
 				"party_size": party_size
@@ -829,8 +897,15 @@ def confirm_add_activities_to_route(route_booking_id, activities):
 		for activity in activities:
 			experience_id = activity.get("experience_id")
 			slot_id = activity.get("slot_id")
+			selected_date = activity.get("selected_date") or activity.get("calendar_date") or activity.get("date")
 			
-			ticket_result = create_pending_ticket(contact_id, experience_id, slot_id, party_size)
+			ticket_result = create_pending_ticket(
+				contact_id,
+				experience_id,
+				slot_id,
+				party_size,
+				selected_date=selected_date,
+			)
 			if not ticket_result.get("success"):
 				# Rollback
 				for ticket_id in new_tickets:

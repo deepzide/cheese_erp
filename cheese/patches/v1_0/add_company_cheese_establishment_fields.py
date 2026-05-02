@@ -5,10 +5,17 @@ from frappe.custom.doctype.custom_field.custom_field import create_custom_fields
 def execute():
 	fields = [
 		{
+			"fieldname": "cheese_is_hotel",
+			"fieldtype": "Check",
+			"label": "Is Hotel",
+			"insert_after": "administrator_contact",
+			"description": "Mark this establishment as a hotel to enable hotel-specific features",
+		},
+		{
 			"fieldname": "cheese_payment_methods",
 			"fieldtype": "Small Text",
 			"label": "Métodos de pago",
-			"insert_after": "cheese_archived",
+			"insert_after": "cheese_is_hotel",
 			"description": "Accepted payment methods (comma-separated: cash, card, transfer, etc.)",
 		},
 		{

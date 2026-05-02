@@ -7,6 +7,7 @@ from frappe.utils import add_to_date, now_datetime, cint
 from cheese.api.common.responses import success, created, error, not_found, validation_error, paginated_response
 from cheese.api.v1.bank_account_controller import get_active_bank_account_doc
 from cheese.api.v1.user_controller import _get_current_user_company
+from cheese.api.v1.deposit_controller import _amount_remaining_for_deposit, _select_open_deposit
 import json
 
 
@@ -707,11 +708,17 @@ def get_route_deposit_instructions(route_booking_id):
 			)
 		
 		# Get or create deposit
-		deposit_name = frappe.db.get_value(
-			"Cheese Deposit",
-			{"entity_type": "Cheese Route Booking", "entity_id": route_booking_id},
-			"name"
-		)
+		deposit_name = _select_open_deposit("Cheese Route Booking", route_booking_id)
+		if not deposit_name:
+			existing_deposits = frappe.get_all(
+				"Cheese Deposit",
+				filters={"entity_type": "Cheese Route Booking", "entity_id": route_booking_id},
+				fields=["name"],
+				order_by="creation asc",
+				limit=1,
+			)
+			if existing_deposits:
+				deposit_name = existing_deposits[0].name
 		
 		if not deposit_name:
 			# Create deposit
@@ -757,7 +764,7 @@ def get_route_deposit_instructions(route_booking_id):
 				"route_booking_id": route_booking_id,
 				"amount_required": deposit.amount_required,
 				"amount_paid": deposit.amount_paid or 0,
-				"amount_remaining": deposit.amount_required - (deposit.amount_paid or 0),
+				"amount_remaining": _amount_remaining_for_deposit(deposit),
 				"due_at": str(deposit.due_at) if deposit.due_at else None,
 				"status": deposit.status,
 				"bank_account": {
@@ -799,11 +806,7 @@ def record_route_deposit_payment(route_booking_id, amount, verification_method="
 			return not_found("Route Booking", route_booking_id)
 		
 		# Get deposit
-		deposit_name = frappe.db.get_value(
-			"Cheese Deposit",
-			{"entity_type": "Cheese Route Booking", "entity_id": route_booking_id},
-			"name"
-		)
+		deposit_name = _select_open_deposit("Cheese Route Booking", route_booking_id)
 		
 		if not deposit_name:
 			return not_found("Deposit", f"for route booking {route_booking_id}")
@@ -823,7 +826,7 @@ def record_route_deposit_payment(route_booking_id, amount, verification_method="
 				"amount_paid": amount,
 				"total_amount_paid": deposit.amount_paid or 0,
 				"amount_required": deposit.amount_required,
-				"amount_remaining": deposit.amount_required - (deposit.amount_paid or 0),
+				"amount_remaining": _amount_remaining_for_deposit(deposit),
 				"old_status": old_status,
 				"new_status": deposit.status,
 				"verification_method": verification_method,

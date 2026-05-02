@@ -21,7 +21,7 @@ export default function HotelRoomCreate() {
         experience_type: "HOTEL",
         status: "ONLINE",
         is_room: 1,
-        room_size: "Standard",
+        room_size: "2",
         price_per_night: "",
         max_occupancy_per_unit: "2",
         min_nights_stay: "1",
@@ -54,7 +54,8 @@ export default function HotelRoomCreate() {
             deposit_required: form.deposit_required ? 1 : 0,
             deposit_value: form.deposit_value ? Number(form.deposit_value) : 0,
             price_per_night: form.price_per_night ? Number(form.price_per_night) : 0,
-            max_occupancy_per_unit: parseInt(form.max_occupancy_per_unit) || 1,
+            room_size: parseInt(form.room_size) || 1,
+            max_occupancy_per_unit: parseInt(form.room_size) || parseInt(form.max_occupancy_per_unit) || 1,
             min_nights_stay: parseInt(form.min_nights_stay) || 1,
         };
 
@@ -125,9 +126,14 @@ export default function HotelRoomCreate() {
                         <div className="space-y-2">
                             <Label>{t("hotelReservations.roomSize", "Room Size")}</Label>
                             <Input
-                                placeholder={t("hotelReservations.roomSizePlaceholder", "e.g. 30 sq.m.")}
+                                type="number"
+                                min="1"
+                                placeholder={t("hotelReservations.roomSizePlaceholder", "Max guests, e.g. 2")}
                                 value={form.room_size}
-                                onChange={(e) => handleChange("room_size", e.target.value)}
+                                onChange={(e) => {
+                                    handleChange("room_size", e.target.value);
+                                    handleChange("max_occupancy_per_unit", e.target.value);
+                                }}
                             />
                         </div>
                         <div className="space-y-2">

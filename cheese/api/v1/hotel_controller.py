@@ -124,7 +124,7 @@ def get_hotel_experiences(hotel_id, page=1, page_size=20):
 
 
 @frappe.whitelist()
-def get_hotel_availability(experience_id, date_from=None, date_to=None):
+def get_hotel_availability(experience_id, date_from=None, date_to=None, guests=None, rooms_requested=1):
     """
     Get nightly availability for a hotel experience.
 
@@ -149,6 +149,15 @@ def get_hotel_availability(experience_id, date_from=None, date_to=None):
         experience = frappe.get_doc("Cheese Experience", experience_id)
         if experience.experience_type != "HOTEL":
             return validation_error("Experience is not a HOTEL type")
+        rooms_requested = cint(rooms_requested) or 1
+        guests = cint(guests) if guests is not None else None
+        room_size = cint(getattr(experience, "room_size", 0) or getattr(experience, "max_occupancy_per_unit", 0) or 0)
+        if room_size < 1:
+            return validation_error("room_size must be configured for hotel availability")
+        if guests and guests > room_size * rooms_requested:
+            return validation_error(
+                f"Cannot book {guests} guests. This room allows {room_size} guests per room ({room_size * rooms_requested} total for {rooms_requested} rooms)."
+            )
 
         today = getdate(now_datetime())
         start_date = getdate(date_from) if date_from else today
@@ -189,6 +198,9 @@ def get_hotel_availability(experience_id, date_from=None, date_to=None):
                     "slot_id": matching_slot.name,
                     "max_capacity": matching_slot.max_capacity,
                     "available": available,
+                    "available_rooms": available,
+                    "room_size": room_size,
+                    "max_guests_available": available * room_size,
                     "status": matching_slot.slot_status,
                     "price_per_night": flt(experience.price_per_night),
                 })
@@ -212,6 +224,9 @@ def get_hotel_availability(experience_id, date_from=None, date_to=None):
                 "date_from": str(start_date),
                 "date_to": str(end_date),
                 "price_per_night": flt(experience.price_per_night),
+                "room_size": room_size,
+                "requested_rooms": rooms_requested,
+                "requested_guests": guests,
                 "min_nights_stay": experience.min_nights_stay or 1,
                 "nights": nights,
             },

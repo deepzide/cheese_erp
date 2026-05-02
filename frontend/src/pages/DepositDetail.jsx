@@ -18,6 +18,7 @@ import { depositService } from "@/api/depositService";
 const STATUS_CONFIG = {
     PENDING: { labelKey: "status.PENDING", defaultLabel: "Pending", class: "bg-yellow-500/15 text-yellow-700 border-yellow-300 dark:text-yellow-400 dark:border-yellow-700" },
     PAID: { labelKey: "status.PAID", defaultLabel: "Paid", class: "bg-emerald-500/15 text-emerald-700 border-emerald-300 dark:text-emerald-400 dark:border-emerald-700" },
+    REVIEW: { labelKey: "status.REVIEW", defaultLabel: "Review", class: "bg-orange-500/15 text-orange-700 border-orange-300 dark:text-orange-400 dark:border-orange-700" },
     ADJUSTED: { labelKey: "status.ADJUSTED", defaultLabel: "Adjusted", class: "bg-blue-500/15 text-blue-700 border-blue-300 dark:text-blue-400 dark:border-blue-700" },
     OVERDUE: { labelKey: "status.OVERDUE", defaultLabel: "Overdue", class: "bg-red-500/15 text-red-700 border-red-300 dark:text-red-400 dark:border-red-700" },
     REFUNDED: { labelKey: "status.REFUNDED", defaultLabel: "Refunded", class: "bg-purple-500/15 text-purple-700 border-purple-300 dark:text-purple-400 dark:border-purple-700" },
@@ -40,6 +41,7 @@ export default function DepositDetail() {
     const updateMutation = useFrappeUpdate("Cheese Deposit");
     const [editMode, setEditMode] = useState(false);
     const [form, setForm] = useState({});
+    const [quickAction, setQuickAction] = useState(null);
 
     // Fetch attached files (receipts)
     const { data: attachments = [], isLoading: attachmentsLoading } = useFrappeList("File", {
@@ -86,6 +88,7 @@ export default function DepositDetail() {
     };
 
     const quickStatusChange = (newStatus) => {
+        setQuickAction(newStatus);
         updateMutation.mutate({ name: id, data: { status: newStatus } }, {
             onSuccess: () => {
                 setForm((prev) => ({ ...prev, status: newStatus }));
@@ -93,7 +96,43 @@ export default function DepositDetail() {
                 refetch();
             },
             onError: (err) => toast.error(err?.message || t("common.failed", "Failed")),
+            onSettled: () => setQuickAction(null),
         });
+    };
+
+    const markAsPaid = async () => {
+        setQuickAction("PAID");
+        try {
+            await depositService.verifyDeposit(id);
+            toast.success(t("deposits.markedAsPaid", "Deposit marked as paid"));
+            await refetch();
+        } catch (err) {
+            toast.error(err?.message || t("common.failed", "Failed"));
+        } finally {
+            setQuickAction(null);
+        }
+    };
+
+    const createRemainingBalance = async () => {
+        setQuickAction("BALANCE");
+        try {
+            const result = await depositService.createRemainingBalanceDeposit({
+                ticketId: deposit.entity_type === "Cheese Ticket" ? deposit.entity_id : undefined,
+                routeBookingId: deposit.entity_type === "Cheese Route Booking" ? deposit.entity_id : undefined,
+            });
+            const payload = result?.data?.message || result?.data || result;
+            const balanceDeposit = payload?.data || payload;
+            if (balanceDeposit?.deposit_id) {
+                toast.success(t("deposits.balanceReady", "Remaining balance deposit is ready"));
+                navigate(`/cheese/deposits/${balanceDeposit.deposit_id}`);
+            } else {
+                toast.error(payload?.message || t("deposits.couldNotCreateBalance", "Could not create remaining balance deposit"));
+            }
+        } catch (err) {
+            toast.error(err?.message || t("common.failed", "Failed"));
+        } finally {
+            setQuickAction(null);
+        }
     };
 
     const status = deposit?.status || "PENDING";
@@ -249,40 +288,23 @@ export default function DepositDetail() {
                         <CardContent className="space-y-2 p-4 pt-0">
                             <div className="flex flex-col gap-2">
                                 {status === "PENDING" && (
-                                    <Button variant="outline" size="sm" onClick={() => quickStatusChange("PAID")} className="justify-start text-emerald-700">
-                                        <CheckCircle className="w-4 h-4 mr-2" /> {t("deposits.markAsPaid", "Mark as Paid")}
+                                    <Button variant="outline" size="sm" onClick={markAsPaid} disabled={!!quickAction} className="justify-start text-emerald-700">
+                                        <CheckCircle className="w-4 h-4 mr-2" /> {quickAction === "PAID" ? t("common.saving", "Saving...") : t("deposits.markAsPaid", "Mark as Paid")}
                                     </Button>
                                 )}
                                 {status === "PENDING" && (
-                                    <Button variant="outline" size="sm" onClick={() => quickStatusChange("CANCELLED")} className="justify-start text-red-700">
-                                        <XCircle className="w-4 h-4 mr-2" /> {t("deposits.cancelDeposit", "Cancel Deposit")}
+                                    <Button variant="outline" size="sm" onClick={() => quickStatusChange("CANCELLED")} disabled={!!quickAction} className="justify-start text-red-700">
+                                        <XCircle className="w-4 h-4 mr-2" /> {quickAction === "CANCELLED" ? t("common.saving", "Saving...") : t("deposits.cancelDeposit", "Cancel Deposit")}
                                     </Button>
                                 )}
                                 {status === "PAID" && (
-                                    <Button variant="outline" size="sm" onClick={() => quickStatusChange("REFUNDED")} className="justify-start text-purple-700">
-                                        <AlertTriangle className="w-4 h-4 mr-2" /> {t("deposits.refund", "Refund")}
+                                    <Button variant="outline" size="sm" onClick={() => quickStatusChange("REFUNDED")} disabled={!!quickAction} className="justify-start text-purple-700">
+                                        <AlertTriangle className="w-4 h-4 mr-2" /> {quickAction === "REFUNDED" ? t("common.saving", "Saving...") : t("deposits.refund", "Refund")}
                                     </Button>
                                 )}
                                 {status === "PAID" && deposit?.entity_type === "Cheese Ticket" && deposit?.entity_id && (
-                                    <Button variant="outline" size="sm" className="justify-start text-cheese-700" onClick={async () => {
-                                        try {
-                                            const res = await fetch("/api/method/cheese.api.v1.deposit_controller.create_remaining_balance_deposit", {
-                                                method: "POST",
-                                                headers: { "Content-Type": "application/json", "X-Frappe-CSRF-Token": window.csrf_token },
-                                                body: JSON.stringify({ ticket_id: deposit.entity_id }),
-                                            });
-                                            const data = await res.json();
-                                            if (data?.data?.data?.deposit_id) {
-                                                navigate(`/cheese/deposits/${data.data.data.deposit_id}`);
-                                            } else {
-                                                const msg = data?.data?.message || data?.message || t("deposits.couldNotCreateBalance", "Could not create remaining balance deposit");
-                                                alert(msg);
-                                            }
-                                        } catch (err) {
-                                            alert(err?.message || t("common.failed", "Failed"));
-                                        }
-                                    }}>
-                                        <DollarSign className="w-4 h-4 mr-2" /> {t("hotelReservations.payRemainingBalance", "Pay Remaining Balance")}
+                                    <Button variant="outline" size="sm" className="justify-start text-cheese-700" onClick={createRemainingBalance} disabled={!!quickAction}>
+                                        <DollarSign className="w-4 h-4 mr-2" /> {quickAction === "BALANCE" ? t("common.loading", "Loading...") : t("hotelReservations.payRemainingBalance", "Pay Remaining Balance")}
                                     </Button>
                                 )}
                                 {deposit?.entity_id && (

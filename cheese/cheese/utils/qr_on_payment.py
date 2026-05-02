@@ -51,6 +51,14 @@ def on_deposit_paid(doc, method=None):
 		"name",
 	)
 	if existing:
+		try:
+			from cheese.api.v1.qr_controller import _send_qr_notification
+			_send_qr_notification(ticket_id)
+		except Exception as e:
+			frappe.log_error(
+				f"QR notification failed for existing token on ticket {ticket_id}: {e}",
+				"QR Auto-Notification",
+			)
 		return
 
 	try:
