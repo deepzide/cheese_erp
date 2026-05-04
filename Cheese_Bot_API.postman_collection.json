@@ -603,7 +603,40 @@
                                 "cheese.api.v1.availability_controller.get_route_availability"
                             ]
                         },
-                        "description": "Route-level availability for a date range. Pass `date` as shorthand for a single day (`date_from`/`date_to`). Each `available_slots` entry includes `selected_date` / `calendar_date` for that occurrence; capacity is per calendar day.\n\n**Testing route time selection:** Use this together with `route_booking_controller.get_available_slots_for_route` (per-experience slot rows for a chosen day or range)."
+                        "description": "Route-level availability for a date range. Pass `date` as shorthand for a single day (`date_from`/`date_to`). Each `available_slots` entry includes `selected_date` / `calendar_date` for that occurrence; capacity is per calendar day. `party_size` is coerced to a number by the API.\n\n**Testing route time selection:** Use this together with `route_booking_controller.get_available_slots_for_route` (per-experience slot rows for a chosen day or range)."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Get Hotel Availability by Experience",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "token {{token}}"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"experience_id\": \"EXP-HOTEL-001\",\n  \"check_in_date\": \"2026-05-05\",\n  \"check_out_date\": \"2026-05-08\",\n  \"guests\": 2,\n  \"rooms_requested\": 1\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/method/cheese.api.v1.availability_controller.get_hotel_availability",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "method",
+                                "cheese.api.v1.availability_controller.get_hotel_availability"
+                            ]
+                        },
+                        "description": "Hotel-specific availability for one HOTEL experience. `check_in_date` is inclusive and `check_out_date` is exclusive. The response includes nightly availability, `bottleneck_rooms`, `room_size`, `requested_rooms`, `requested_guests`, and `max_guests_available`."
                     },
                     "response": []
                 }
@@ -661,7 +694,7 @@
                         ],
                         "body": {
                             "mode": "raw",
-                            "raw": "{\n  \"reservation_id\": \"TICKET-001\",\n  \"send_notification\": 1\n}"
+                            "raw": "{\n  \"reservation_id\": \"TICKET-001\"\n}"
                         },
                         "url": {
                             "raw": "{{base_url}}/api/method/cheese.api.v1.pricing_controller.get_modification_policy",
@@ -976,7 +1009,7 @@
                                 "cheese.api.v1.ticket_controller.get_ticket_summary"
                             ]
                         },
-                        "description": "Legacy endpoint - use get_reservation_status instead."
+                        "description": "Legacy endpoint - use get_reservation_status instead. Schedule fields include `slot.date`, `slot.time`, `slot.time_from`, `slot.time_to`, `slot.scheduled_start`, and `slot.scheduled_end` so the bot can display the exact ERP schedule."
                     },
                     "response": []
                 }
@@ -1001,7 +1034,7 @@
                         ],
                         "body": {
                             "mode": "raw",
-                            "raw": "{\n  \"contact_id\": \"CONTACT-001\",\n  \"route_id\": \"ROUTE-001\",\n  \"party_size\": 2,\n  \"date_from\": \"2024-12-31\",\n  \"date_to\": \"2024-12-31\",\n  \"time_from\": \"10:00\",\n  \"time_to\": \"11:00\",\n  \"conversation_id\": \"CONV-001\"\n}"
+                            "raw": "{\n  \"contact_id\": \"CONTACT-001\",\n  \"route_id\": \"ROUTE-001\",\n  \"party_size\": 2,\n  \"date_from\": \"2024-12-31\",\n  \"date_to\": \"2024-12-31\",\n  \"time_from\": \"10:00\",\n  \"time_to\": \"11:00\",\n  \"experiences_with_slots\": [\n    {\n      \"experience_id\": \"EXP-001\",\n      \"slot_id\": \"SLOT-001\",\n      \"selected_date\": \"2024-12-31\"\n    },\n    {\n      \"experience_id\": \"EXP-002\",\n      \"slot_id\": \"SLOT-002\",\n      \"selected_date\": \"2024-12-31\"\n    }\n  ],\n  \"conversation_id\": \"CONV-001\"\n}"
                         },
                         "url": {
                             "raw": "{{base_url}}/api/method/cheese.api.v1.route_booking_controller.create_route_reservation",
@@ -1080,7 +1113,7 @@
                                 "cheese.api.v1.route_booking_controller.get_route_status"
                             ]
                         },
-                        "description": "ERP: Returns PENDING / PARTIALLY_CONFIRMED / CONFIRMED. Bot: Communicates what's confirmed vs pending."
+                        "description": "ERP: Returns PENDING / PARTIALLY_CONFIRMED / CONFIRMED. Bot: Communicates what's confirmed vs pending. Ticket rows include the selected calendar date used by capacity checks."
                     },
                     "response": []
                 },
@@ -1113,7 +1146,7 @@
                                 "cheese.api.v1.route_booking_controller.get_route_summary"
                             ]
                         },
-                        "description": "ERP: Returns user-friendly summary. Bot: Delivers to customer."
+                        "description": "ERP: Returns user-friendly summary. Bot: Delivers to customer. Itinerary rows include `date`, `time`, `time_from`, `time_to`, `scheduled_start`, and `scheduled_end` so the bot can show the same schedule ERP uses for policies and status changes."
                     },
                     "response": []
                 },
@@ -1691,7 +1724,7 @@
                                 "cheese.api.v1.booking_controller.get_payment_status_for_booking"
                             ]
                         },
-                        "description": "Get consolidated payment status for a mixed booking."
+                        "description": "Get consolidated payment status for a mixed booking. Aggregates all deposit/balance rows and ignores cancelled/refunded deposits so paid advances and paid balances are not reported as pending."
                     },
                     "response": []
                 },
@@ -1724,7 +1757,7 @@
                                 "cheese.api.v1.booking_controller.register_payment_for_booking"
                             ]
                         },
-                        "description": "Register payment for entire mixed booking."
+                        "description": "Register payment for entire mixed booking. For Manual payments that need a specific bank account, prefer `deposit_controller.record_deposit_payment` per ticket/deposit with `bank_account`; this aggregate endpoint distributes the amount across reservations."
                     },
                     "response": []
                 }
@@ -1749,7 +1782,7 @@
                         ],
                         "body": {
                             "mode": "raw",
-                            "raw": "{\n  \"reservation_id\": \"TICKET-001\"\n}"
+                            "raw": "{\n  \"reservation_id\": \"TICKET-001\",\n  \"send_notification\": 1\n}"
                         },
                         "url": {
                             "raw": "{{base_url}}/api/method/cheese.api.v1.qr_controller.get_qr_for_reservation",
@@ -1828,7 +1861,7 @@
                                 "cheese.api.v1.qr_controller.get_checkin_status"
                             ]
                         },
-                        "description": "Get check-in status for a reservation."
+                        "description": "Get check-in status for a reservation. Use this after QR generation/resend to confirm whether the customer has already checked in."
                     },
                     "response": []
                 },
@@ -1848,7 +1881,7 @@
                         ],
                         "body": {
                             "mode": "raw",
-                            "raw": "{\n  \"ticket_id\": \"TICKET-001\"\n}"
+                            "raw": "{\n  \"ticket_id\": \"TICKET-001\",\n  \"send_notification\": 1\n}"
                         },
                         "url": {
                             "raw": "{{base_url}}/api/method/cheese.api.v1.qr_controller.get_qr",
@@ -1861,7 +1894,7 @@
                                 "cheese.api.v1.qr_controller.get_qr"
                             ]
                         },
-                        "description": "Legacy endpoint - use get_qr_for_reservation instead."
+                        "description": "Legacy endpoint - use get_qr_for_reservation instead. Supports `send_notification: 1` to notify/re-notify the customer when an ACTIVE QR token already exists."
                     },
                     "response": []
                 },
@@ -1932,7 +1965,7 @@
                                 "cheese.api.v1.itinerary_controller.get_customer_itinerary"
                             ]
                         },
-                        "description": "Get all reservations/bookings for a contact with details."
+                        "description": "Get all reservations/bookings for a contact with details. Schedule fields include `date`, `time`, `time_from`, `time_to`, `scheduled_start`, and `scheduled_end`; payment fields aggregate all active deposit/balance rows and ignore cancelled/refunded deposits."
                     },
                     "response": []
                 }
@@ -2107,7 +2140,7 @@
                                 "cheese.api.v1.establishment_controller.list_establishments"
                             ]
                         },
-                        "description": "List establishments with pagination and filters.\n\n**Response includes:**\n- `administrator_contact`: Contact information for the establishment administrator (e.g., email, phone) to be provided when users ask the bot for human assistance about an experience.\n\n**Example response:**\n```json\n{\n  \"success\": true,\n  \"message\": \"Establishments retrieved successfully\",\n  \"data\": [\n    {\n      \"company_id\": \"COMPANY-001\",\n      \"company_name\": \"Example Establishment\",\n      \"email\": \"info@example.com\",\n      \"phone\": \"+1234567890\",\n      \"administrator_contact\": \"admin@example.com, +1234567890\",\n      \"experiences_count\": 5,\n      ...\n    }\n  ],\n  \"meta\": { ... }\n}\n```"
+                        "description": "List establishments with pagination and filters.\n\n**Response includes:**\n- `administrator_contact`: Contact information for the establishment administrator (e.g., email, phone) to be provided when users ask the bot for human assistance about an experience.\n- `is_hotel` and `cheese_is_hotel`: hotel flag for bot hotel flows.\n\n**Example response:**\n```json\n{\n  \"success\": true,\n  \"message\": \"Establishments retrieved successfully\",\n  \"data\": [\n    {\n      \"company_id\": \"COMPANY-001\",\n      \"company_name\": \"Example Establishment\",\n      \"email\": \"info@example.com\",\n      \"phone\": \"+1234567890\",\n      \"administrator_contact\": \"admin@example.com, +1234567890\",\n      \"is_hotel\": true,\n      \"cheese_is_hotel\": 1,\n      \"experiences_count\": 5,\n      ...\n    }\n  ],\n  \"meta\": { ... }\n}\n```"
                     }
                 },
                 {
@@ -2139,8 +2172,41 @@
                                 "cheese.api.v1.establishment_controller.get_establishment_details"
                             ]
                         },
-                        "description": "Get full establishment profile with experiences, attachments, and status.\n\n**Response includes:**\n- `administrator_contact`: Contact information for the establishment administrator (e.g., email, phone) to be provided when users ask the bot for human assistance about an experience.\n\n**Example response:**\n```json\n{\n  \"success\": true,\n  \"message\": \"Establishment details retrieved successfully\",\n  \"data\": {\n    \"company_id\": \"COMPANY-001\",\n    \"company_name\": \"Example Establishment\",\n    \"administrator_contact\": \"admin@example.com, +1234567890\",\n    \"experiences\": [...],\n    \"contacts\": [...],\n    ...\n  }\n}\n```\n\n**Note:** The bot can use this endpoint to retrieve `administrator_contact` when users ask for human assistance about an experience."
+                        "description": "Get full establishment profile with experiences, attachments, and status.\n\n**Response includes:**\n- `administrator_contact`: Contact information for the establishment administrator (e.g., email, phone) to be provided when users ask the bot for human assistance about an experience.\n- `is_hotel` and `cheese_is_hotel`: hotel flag for hotel catalog/room flows.\n\n**Example response:**\n```json\n{\n  \"success\": true,\n  \"message\": \"Establishment details retrieved successfully\",\n  \"data\": {\n    \"company_id\": \"COMPANY-001\",\n    \"company_name\": \"Example Establishment\",\n    \"administrator_contact\": \"admin@example.com, +1234567890\",\n    \"is_hotel\": true,\n    \"cheese_is_hotel\": 1,\n    \"experiences\": [...],\n    \"contacts\": [...],\n    ...\n  }\n}\n```\n\n**Note:** The bot can use this endpoint to retrieve `administrator_contact` when users ask for human assistance about an experience."
                     }
+                },
+                {
+                    "name": "Create Establishment",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "token {{token}}"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"company_name\": \"New Hotel Establishment\",\n  \"abbr\": \"NHE\",\n  \"default_currency\": \"USD\",\n  \"country\": \"United States\",\n  \"email\": \"hotel@example.com\",\n  \"phone_no\": \"+1234567890\",\n  \"website\": \"https://hotel.example.com\",\n  \"is_hotel\": 1\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/method/cheese.api.v1.establishment_controller.create_establishment",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "method",
+                                "cheese.api.v1.establishment_controller.create_establishment"
+                            ]
+                        },
+                        "description": "Create an establishment/company. Use `is_hotel: 1` or `cheese_is_hotel: 1` to enable hotel bot flows for this establishment."
+                    },
+                    "response": []
                 },
                 {
                     "name": "Update Establishment",
@@ -2158,7 +2224,7 @@
                         ],
                         "body": {
                             "mode": "raw",
-                            "raw": "{\n  \"company_id\": \"COMPANY-001\",\n  \"company_name\": \"Updated Name\",\n  \"email\": \"newemail@example.com\",\n  \"phone_no\": \"+1234567890\",\n  \"website\": \"https://example.com\",\n  \"company_description\": \"Updated description\",\n  \"administrator_contact\": \"admin@example.com, +1234567890\"\n}"
+                            "raw": "{\n  \"company_id\": \"COMPANY-001\",\n  \"company_name\": \"Updated Name\",\n  \"email\": \"newemail@example.com\",\n  \"phone_no\": \"+1234567890\",\n  \"website\": \"https://example.com\",\n  \"company_description\": \"Updated description\",\n  \"administrator_contact\": \"admin@example.com, +1234567890\",\n  \"is_hotel\": 1\n}"
                         },
                         "url": {
                             "raw": "{{base_url}}/api/method/cheese.api.v1.establishment_controller.update_establishment",
@@ -2171,7 +2237,7 @@
                                 "cheese.api.v1.establishment_controller.update_establishment"
                             ]
                         },
-                        "description": "Update establishment fields with audit trail.\n\n**Allowed fields:**\n- `company_name`\n- `email`\n- `phone_no`\n- `website`\n- `company_description`\n- `company_logo`\n- `administrator_contact`: Contact information for the establishment administrator (e.g., email, phone) to be provided when users ask the bot for human assistance.\n\n**Example response:**\n```json\n{\n  \"success\": true,\n  \"message\": \"Establishment updated successfully\",\n  \"data\": {\n    \"company_id\": \"COMPANY-001\",\n    \"company_name\": \"Updated Name\",\n    \"changes\": [\"company_name\", \"administrator_contact\"]\n  }\n}\n```"
+                        "description": "Update establishment fields with audit trail.\n\n**Allowed fields:**\n- `company_name`\n- `email`\n- `phone_no`\n- `website`\n- `company_description`\n- `company_logo`\n- `administrator_contact`: Contact information for the establishment administrator (e.g., email, phone) to be provided when users ask the bot for human assistance.\n- `is_hotel` or `cheese_is_hotel`: mark the establishment as a hotel for hotel bot endpoints.\n\n**Example response:**\n```json\n{\n  \"success\": true,\n  \"message\": \"Establishment updated successfully\",\n  \"data\": {\n    \"company_id\": \"COMPANY-001\",\n    \"company_name\": \"Updated Name\",\n    \"changes\": [\"company_name\", \"administrator_contact\", \"cheese_is_hotel\"]\n  }\n}\n```"
                     },
                     "response": []
                 }
@@ -2246,7 +2312,40 @@
                                 "cheese.api.v1.hotel_controller.bot_get_hotel_catalog"
                             ]
                         },
-                        "description": "Get a catalog of all hotels and their available rooms."
+                        "description": "Get a catalog of all hotels and their available rooms. Hotel establishments are Company records with `is_hotel` / `cheese_is_hotel` enabled. Room rows expose `room_size` as the max guests per room and `max_occupancy_per_unit` for compatibility."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Get Hotel Availability",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "token {{token}}"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"experience_id\": \"EXP-HOTEL-001\",\n  \"date_from\": \"2026-05-05\",\n  \"date_to\": \"2026-05-08\",\n  \"guests\": 2,\n  \"rooms_requested\": 1\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/method/cheese.api.v1.hotel_controller.get_hotel_availability",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "method",
+                                "cheese.api.v1.hotel_controller.get_hotel_availability"
+                            ]
+                        },
+                        "description": "ERP hotel availability by room/experience. `date_from` is check-in and `date_to` is check-out; nights are checked up to but excluding `date_to`. Includes `available_rooms`, `room_size`, `requested_rooms`, `requested_guests`, and `max_guests_available`."
                     },
                     "response": []
                 },

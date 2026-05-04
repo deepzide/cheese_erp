@@ -25,7 +25,7 @@ export default function ConversationDetail() {
         filters: { conversation: id },
         fields: ["name", "role", "content", "timestamp", "message_order"],
         pageSize: 500,
-        orderBy: "message_order asc",
+        orderBy: "timestamp asc, message_order asc",
         enabled: !!id,
     });
 

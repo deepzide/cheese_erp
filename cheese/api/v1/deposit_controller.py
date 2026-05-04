@@ -1088,6 +1088,14 @@ def list_deposits(
 					"Cheese Contact", deposit["contact"], "full_name"
 				)
 
+			# Resolve bank account human-readable title
+			if deposit.get("bank_account"):
+				deposit["bank_account_title"] = frappe.db.get_value(
+					"Cheese Bank Account", deposit["bank_account"], "title"
+				) or deposit["bank_account"]
+			else:
+				deposit["bank_account_title"] = None
+
 			if route_id and deposit.get("route") != route_id:
 				continue
 			if company_id and deposit.get("company") != company_id:

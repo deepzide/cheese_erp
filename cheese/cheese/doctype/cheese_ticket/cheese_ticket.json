@@ -29,6 +29,7 @@
         "price_snapshot",
         "pricing_section",
         "total_price",
+        "currency",
         "deposit_section",
         "deposit_required",
         "deposit_amount"
@@ -164,6 +165,13 @@
             "fieldname": "total_price",
             "fieldtype": "Currency",
             "label": "Total Price"
+        },
+        {
+            "fieldname": "currency",
+            "fieldtype": "Select",
+            "label": "Currency",
+            "options": "UYU\nUSD",
+            "default": "UYU"
         },
         {
             "fieldname": "deposit_section",

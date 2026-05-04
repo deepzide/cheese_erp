@@ -287,22 +287,22 @@ export default function DepositDetail() {
                         </CardHeader>
                         <CardContent className="space-y-2 p-4 pt-0">
                             <div className="flex flex-col gap-2">
-                                {status === "PENDING" && (
+                                {(status === "PENDING" || status === "OVERDUE") && (
                                     <Button variant="outline" size="sm" onClick={markAsPaid} disabled={!!quickAction} className="justify-start text-emerald-700">
                                         <CheckCircle className="w-4 h-4 mr-2" /> {quickAction === "PAID" ? t("common.saving", "Saving...") : t("deposits.markAsPaid", "Mark as Paid")}
                                     </Button>
                                 )}
-                                {status === "PENDING" && (
+                                {(status === "PENDING" || status === "OVERDUE" || status === "REVIEW") && (
                                     <Button variant="outline" size="sm" onClick={() => quickStatusChange("CANCELLED")} disabled={!!quickAction} className="justify-start text-red-700">
                                         <XCircle className="w-4 h-4 mr-2" /> {quickAction === "CANCELLED" ? t("common.saving", "Saving...") : t("deposits.cancelDeposit", "Cancel Deposit")}
                                     </Button>
                                 )}
-                                {status === "PAID" && (
+                                {(status === "PAID" || status === "REVIEW") && (
                                     <Button variant="outline" size="sm" onClick={() => quickStatusChange("REFUNDED")} disabled={!!quickAction} className="justify-start text-purple-700">
                                         <AlertTriangle className="w-4 h-4 mr-2" /> {quickAction === "REFUNDED" ? t("common.saving", "Saving...") : t("deposits.refund", "Refund")}
                                     </Button>
                                 )}
-                                {status === "PAID" && deposit?.entity_type === "Cheese Ticket" && deposit?.entity_id && (
+                                {(status === "PAID" || status === "REVIEW") && deposit?.entity_type === "Cheese Ticket" && deposit?.entity_id && (
                                     <Button variant="outline" size="sm" className="justify-start text-cheese-700" onClick={createRemainingBalance} disabled={!!quickAction}>
                                         <DollarSign className="w-4 h-4 mr-2" /> {quickAction === "BALANCE" ? t("common.loading", "Loading...") : t("hotelReservations.payRemainingBalance", "Pay Remaining Balance")}
                                     </Button>

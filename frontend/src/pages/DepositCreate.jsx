@@ -248,7 +248,7 @@ export default function DepositCreate() {
                         <p className="text-xs text-muted-foreground">{t("deposits.bankAccount", "Bank Account")}</p>
                         <FrappeSearchSelect
                             doctype="Cheese Bank Account"
-                            label="bank"
+                            label="title"
                             value={form.bank_account || ""}
                             onChange={(v) => setForm((prev) => ({ ...prev, bank_account: v }))}
                             filters={
@@ -256,11 +256,11 @@ export default function DepositCreate() {
                                     ? { entity_type: "Cheese Route", entity_id: booking.route }
                                     : form.entity_type === "Cheese Ticket" && ticket?.company
                                         ? { entity_type: "Company", entity_id: ticket.company }
-                                        : form.entity_type === "Cheese Ticket" && bankAccounts.length > 0
+                                        : bankAccounts.length > 0
                                             ? { name: ["in", bankAccounts.map((a) => a.bank_account_id).filter(Boolean)] }
                                             : {}
                             }
-                            placeholder={form.entity_type === "Cheese Ticket" ? t("deposits.selectEstablishmentBankAccount", "Select establishment bank account...") : t("deposits.selectBankAccount", "Select bank account...")}
+                            placeholder={t("deposits.selectBankAccount", "Select bank account...")}
                             disabled={form.entity_type === "Cheese Route Booking" && !booking?.route}
                         />
                     </div>

@@ -3,7 +3,7 @@
 
 import frappe
 from frappe import _
-from frappe.utils import now_datetime, get_datetime, cint, getdate
+from frappe.utils import now_datetime, get_datetime, cint, getdate, add_to_date
 from cheese.cheese.utils.pricing import calculate_ticket_price, calculate_deposit_amount
 from cheese.cheese.utils.validation import validate_booking_policy
 from cheese.cheese.utils.capacity import update_slot_capacity, get_available_capacity
@@ -258,7 +258,8 @@ def create_pending_ticket(contact_id, experience_id, slot_id, party_size=1, sele
 			"deposit_amount": deposit_amount,
 			"check_in_date": check_in_date,
 			"check_out_date": check_out_date,
-			"rooms_requested": rooms_requested
+			"rooms_requested": rooms_requested,
+			"currency": frappe.db.get_value("Company", experience.company, "default_currency") or "UYU"
 		}
 		
 		# Store selected_date if provided
@@ -714,6 +715,28 @@ def confirm_ticket(ticket_id):
 		if ticket.expires_at and ticket.expires_at < now_datetime():
 			return validation_error("Cannot confirm expired ticket")
 		
+		# If deposit is required but no deposit exists, auto-create a PENDING deposit
+		# This supports autobooking: ticket is confirmed and deposit collected later
+		deposit_id = None
+		if ticket.deposit_required and ticket.deposit_amount > 0:
+			existing_deposit = frappe.db.exists(
+				"Cheese Deposit",
+				{"entity_type": "Cheese Ticket", "entity_id": ticket_id}
+			)
+			if not existing_deposit:
+				deposit = frappe.get_doc({
+					"doctype": "Cheese Deposit",
+					"entity_type": "Cheese Ticket",
+					"entity_id": ticket_id,
+					"amount_required": ticket.deposit_amount,
+					"amount_paid": 0,
+					"status": "PENDING",
+					"currency": ticket.currency or "UYU",
+					"due_at": add_to_date(now_datetime(), hours=24),
+				})
+				deposit.insert(ignore_permissions=True)
+				deposit_id = deposit.name
+		
 		old_status = ticket.status
 		ticket.status = "CONFIRMED"
 		ticket.save()
@@ -723,14 +746,15 @@ def confirm_ticket(ticket_id):
 		
 		frappe.db.commit()
 		
-		return success(
-			"Ticket confirmed successfully",
-			{
-				"ticket_id": ticket.name,
-				"old_status": old_status,
-				"new_status": ticket.status
-			}
-		)
+		response_data = {
+			"ticket_id": ticket.name,
+			"old_status": old_status,
+			"new_status": ticket.status
+		}
+		if deposit_id:
+			response_data["auto_created_deposit"] = deposit_id
+		
+		return success("Ticket confirmed successfully", response_data)
 	except frappe.ValidationError as e:
 		return validation_error(str(e))
 	except Exception as e:
