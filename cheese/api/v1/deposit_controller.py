@@ -141,7 +141,9 @@ def _reconcile_balance_deposit(entity_type: str, entity_id: str) -> None:
 	if entity_type != "Cheese Ticket":
 		return
 	all_deps = _get_deposits_for_entity(entity_type, entity_id)
-	balance_required, effective_balance_paid, _ = _compute_effective_balance(entity_type, entity_id, all_deps)
+	balance_required, effective_balance_paid, _last_dep_name = _compute_effective_balance(
+		entity_type, entity_id, all_deps
+	)
 	if balance_required <= 0:
 		return
 	if effective_balance_paid < balance_required - 0.01:
@@ -357,7 +359,7 @@ def get_payment_link_or_instructions(ticket_id=None, deposit_id=None, payment_ty
 		# which accounts for overpayments on the Deposit phase (excess from the seña).
 		if effective_payment_type == "Balance" and ticket_id and frappe.db.exists("Cheese Ticket", ticket_id):
 			all_deps_for_balance = _get_deposits_for_entity("Cheese Ticket", ticket_id)
-			balance_required, effective_balance_paid, _ = _compute_effective_balance(
+			balance_required, effective_balance_paid, _last_dep_name = _compute_effective_balance(
 				"Cheese Ticket", ticket_id, all_deps_for_balance
 			)
 			amount_required = balance_required
