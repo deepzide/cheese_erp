@@ -4,7 +4,8 @@
 import frappe
 from frappe import _
 from frappe.utils import add_to_date, flt, now_datetime
-from cheese.api.common.responses import success, created, error, not_found, validation_error
+
+from cheese.api.common.responses import created, error, not_found, success, validation_error
 from cheese.api.v1.bank_account_controller import get_active_company_bank_accounts_list
 from cheese.api.v1.user_controller import _get_current_user_company
 
@@ -27,9 +28,7 @@ def _instructions_for_deposit(amount_required, bank_accounts):
 		)
 	accounts_txt = "; ".join(parts)
 	first_cur = bank_accounts[0].get("currency") or ""
-	return _("Please transfer {0} {1}. Pay to one of: {2}").format(
-		amount_required, first_cur, accounts_txt
-	)
+	return _("Please transfer {0} {1}. Pay to one of: {2}").format(amount_required, first_cur, accounts_txt)
 
 
 def _bank_accounts_for_ticket(ticket):
@@ -157,10 +156,10 @@ def _select_open_deposit(entity_type, entity_id, payment_type=None):
 	"""Pick the best active deposit for the requested payment phase."""
 	all_deposits = _get_deposits_for_entity(entity_type, entity_id)
 	open_deposits = [d for d in all_deposits if d.status in OPEN_DEPOSIT_STATUSES]
-	
+
 	if not open_deposits:
 		return None
-		
+
 	first_deposit_name = all_deposits[0].name if all_deposits else None
 
 	if payment_type == "Balance":
@@ -168,7 +167,7 @@ def _select_open_deposit(entity_type, entity_id, payment_type=None):
 			return open_deposits[-1].name
 		if open_deposits[-1].name == first_deposit_name:
 			return None
-			
+
 	if payment_type == "Deposit":
 		return first_deposit_name if all_deposits[0].status in OPEN_DEPOSIT_STATUSES else None
 
@@ -177,7 +176,9 @@ def _select_open_deposit(entity_type, entity_id, payment_type=None):
 
 def _build_deposit_payload(deposit):
 	bank_account_title = None
-	if getattr(deposit, "bank_account", None) and frappe.db.exists("Cheese Bank Account", deposit.bank_account):
+	if getattr(deposit, "bank_account", None) and frappe.db.exists(
+		"Cheese Bank Account", deposit.bank_account
+	):
 		bank_account_title = frappe.db.get_value("Cheese Bank Account", deposit.bank_account, "title")
 
 	payload = {
@@ -229,20 +230,20 @@ def get_payment_link_or_instructions(ticket_id=None, deposit_id=None, payment_ty
 	"""
 	Get payment link or instructions - enhanced version of get_deposit_instructions
 	Returns payment link if available, otherwise returns instructions
-	
+
 	Args:
 		ticket_id: Ticket ID (optional if deposit_id provided)
 		deposit_id: Deposit ID (optional if ticket_id provided)
-		
+
 	Returns:
 		Success response with payment link or instructions
 	"""
 	try:
 		if not ticket_id and not deposit_id:
 			return validation_error("Either ticket_id or deposit_id must be provided")
-		
+
 		deposit_doc = None
-		
+
 		if deposit_id:
 			if not frappe.db.exists("Cheese Deposit", deposit_id):
 				return not_found("Deposit", deposit_id)
@@ -252,10 +253,8 @@ def get_payment_link_or_instructions(ticket_id=None, deposit_id=None, payment_ty
 			if not frappe.db.exists("Cheese Ticket", ticket_id):
 				return not_found("Ticket", ticket_id)
 
-			deposit_name = _select_open_deposit(
-				"Cheese Ticket", ticket_id, payment_type=payment_type
-			)
-			
+			deposit_name = _select_open_deposit("Cheese Ticket", ticket_id, payment_type=payment_type)
+
 			if deposit_name:
 				deposit_doc = frappe.get_doc("Cheese Deposit", deposit_name)
 			else:
@@ -263,11 +262,11 @@ def get_payment_link_or_instructions(ticket_id=None, deposit_id=None, payment_ty
 				instructions_result = get_deposit_instructions(ticket_id, payment_type=payment_type)
 				if not instructions_result.get("success"):
 					return instructions_result
-				
+
 				deposit_id_from_result = instructions_result.get("data", {}).get("deposit_id")
 				if deposit_id_from_result:
 					deposit_doc = frappe.get_doc("Cheese Deposit", deposit_id_from_result)
-		
+
 		if not deposit_doc:
 			return not_found("Deposit", deposit_id or f"for ticket {ticket_id}")
 
@@ -306,10 +305,10 @@ def get_payment_link_or_instructions(ticket_id=None, deposit_id=None, payment_ty
 				"payment_link": payment_link,
 				"bank_account": bank_account,
 				"instructions": instructions,
-			}
+			},
 		)
 	except Exception as e:
-		frappe.log_error(f"Error in get_payment_link_or_instructions: {str(e)}")
+		frappe.log_error(f"Error in get_payment_link_or_instructions: {e!s}")
 		return error("Failed to get payment link or instructions", "SERVER_ERROR", {"error": str(e)}, 500)
 
 
@@ -317,11 +316,11 @@ def get_payment_link_or_instructions(ticket_id=None, deposit_id=None, payment_ty
 def get_deposit_instructions(ticket_id, payment_type=None):
 	"""
 	Get deposit payment instructions for a ticket
-	
+
 	Args:
 		ticket_id: ID of the ticket
 		payment_type: Optional "Deposit" or "Balance"
-		
+
 	Returns:
 		Success response with deposit instructions
 	"""
@@ -342,57 +341,93 @@ def get_deposit_instructions(ticket_id, payment_type=None):
 					"deposit_required": False,
 					"ticket_id": ticket_id,
 					"bank_account": bank_account,
-				}
+				},
 			)
 
-		# Get or create deposit based on payment_type.
-		filters = {"entity_type": "Cheese Ticket", "entity_id": ticket_id}
-		deposit = _select_open_deposit("Cheese Ticket", ticket_id, payment_type=payment_type)
+		# Fetch existing deposits to determine state before selecting or creating
+		existing_deps = frappe.get_all(
+			"Cheese Deposit",
+			filters={"entity_type": "Cheese Ticket", "entity_id": ticket_id},
+			fields=["name", "status", "amount_required", "amount_paid"],
+			order_by="creation asc",
+		)
+		first_dep = existing_deps[0] if existing_deps else None
 
-		if not deposit:
-			# Create deposit based on payment_type
-			if payment_type == "Balance":
-				advance_required = flt(ticket.deposit_amount or 0) if ticket.deposit_required else 0
-				if advance_required > 0 and _get_amount_received_for_entity("Cheese Ticket", ticket_id) + 0.01 < advance_required:
-					return validation_error(
-						"No paid advance deposit found. The advance must be paid before creating a remaining-balance deposit."
+		# When payment_type == "Deposit", if the seña is already paid do not create a new one
+		if payment_type == "Deposit" and first_dep and first_dep.status in RECEIVED_DEPOSIT_STATUSES:
+			deposit_doc = frappe.get_doc("Cheese Deposit", first_dep.name)
+			deposit = first_dep.name
+		else:
+			deposit = _select_open_deposit("Cheese Ticket", ticket_id, payment_type=payment_type)
+
+			if not deposit:
+				# Create deposit based on payment_type
+				if payment_type == "Balance":
+					advance_required = flt(ticket.deposit_amount or 0) if ticket.deposit_required else 0
+					if (
+						advance_required > 0
+						and _get_amount_received_for_entity("Cheese Ticket", ticket_id) + 0.01
+						< advance_required
+					):
+						return validation_error(
+							"No paid advance deposit found. The advance must be paid before creating a remaining-balance deposit."
+						)
+					deposit_doc = _create_balance_deposit("Cheese Ticket", ticket)
+				else:
+					experience = frappe.get_doc("Cheese Experience", ticket.experience)
+					due_at = add_to_date(
+						now_datetime(), hours=experience.deposit_ttl_hours or 24, as_string=False
 					)
-				deposit_doc = _create_balance_deposit("Cheese Ticket", ticket)
-			else:
-				experience = frappe.get_doc("Cheese Experience", ticket.experience)
-				due_at = add_to_date(now_datetime(), hours=experience.deposit_ttl_hours or 24, as_string=False)
-				
-				deposit_doc = frappe.get_doc({
-					"doctype": "Cheese Deposit",
-					"entity_type": "Cheese Ticket",
-					"entity_id": ticket_id,
-					"amount_required": ticket.deposit_amount,
-					"status": "PENDING",
-					"due_at": due_at
-				})
-				deposit_doc.insert()
-			deposit = deposit_doc.name
-			frappe.db.commit()
-		else:
-			deposit_doc = frappe.get_doc("Cheese Deposit", deposit)
 
-		all_deps = frappe.get_all("Cheese Deposit", filters={"entity_type": "Cheese Ticket", "entity_id": ticket_id}, fields=["name", "status", "amount_required", "amount_paid"], order_by="creation asc")
-		if payment_type:
-			inferred_payment_type = payment_type
+					deposit_doc = frappe.get_doc(
+						{
+							"doctype": "Cheese Deposit",
+							"entity_type": "Cheese Ticket",
+							"entity_id": ticket_id,
+							"amount_required": ticket.deposit_amount,
+							"status": "PENDING",
+							"due_at": due_at,
+						}
+					)
+					deposit_doc.insert()
+				deposit = deposit_doc.name
+				frappe.db.commit()
+			else:
+				deposit_doc = frappe.get_doc("Cheese Deposit", deposit)
+
+		# Re-fetch after potential creation of a new deposit
+		all_deps = frappe.get_all(
+			"Cheese Deposit",
+			filters={"entity_type": "Cheese Ticket", "entity_id": ticket_id},
+			fields=["name", "status", "amount_required", "amount_paid"],
+			order_by="creation asc",
+		)
+
+		inferred_payment_type = payment_type or (
+			"Balance" if all_deps and all_deps[0].name != deposit_doc.name else "Deposit"
+		)
+
+		# Filter all_deposits to only include entries matching the requested payment_type
+		if payment_type == "Deposit":
+			filtered_deps = [d for d in all_deps if _get_deposit_phase(d.name, all_deps) == "Deposit"]
+		elif payment_type == "Balance":
+			filtered_deps = [d for d in all_deps if _get_deposit_phase(d.name, all_deps) == "Balance"]
 		else:
-			inferred_payment_type = "Balance" if all_deps and all_deps[0].name != deposit_doc.name else "Deposit"
+			filtered_deps = all_deps
 
 		# Build deposits summary
 		deposits_summary = []
-		for d in all_deps:
-			deposits_summary.append({
-				"deposit_id": d.name,
-				"status": d.status,
-				"payment_type": _get_deposit_phase(d.name, all_deps),
-				"amount_required": d.amount_required,
-				"amount_paid": d.amount_paid or 0,
-				"amount_remaining": _amount_remaining_for_deposit(d),
-			})
+		for d in filtered_deps:
+			deposits_summary.append(
+				{
+					"deposit_id": d.name,
+					"status": d.status,
+					"payment_type": _get_deposit_phase(d.name, all_deps),
+					"amount_required": d.amount_required,
+					"amount_paid": d.amount_paid or 0,
+					"amount_remaining": _amount_remaining_for_deposit(d),
+				}
+			)
 
 		# Get total received and total price for context
 		total_received = _get_amount_received_for_entity("Cheese Ticket", ticket_id)
@@ -404,10 +439,19 @@ def get_deposit_instructions(ticket_id, payment_type=None):
 			contact_name = frappe.db.get_value("Cheese Contact", ticket.contact, "full_name")
 			contact_info = {"contact_id": ticket.contact, "contact_name": contact_name}
 
+		# deposit_required is False when the seña deposit is already completed
+		deposit_is_complete = deposit_doc.status in RECEIVED_DEPOSIT_STATUSES
+
+		instructions = (
+			_("Your deposit payment has been completed")
+			if deposit_is_complete
+			else _instructions_for_deposit(deposit_doc.amount_required, bank_account)
+		)
+
 		return success(
 			"Deposit instructions retrieved successfully",
 			{
-				"deposit_required": True,
+				"deposit_required": not deposit_is_complete,
 				"deposit_id": deposit,
 				"ticket_id": ticket_id,
 				"payment_type": inferred_payment_type,
@@ -422,11 +466,11 @@ def get_deposit_instructions(ticket_id, payment_type=None):
 				"total_received": total_received,
 				"total_remaining": max(0, total_price - total_received),
 				"all_deposits": deposits_summary,
-				"instructions": _instructions_for_deposit(deposit_doc.amount_required, bank_account),
-			}
+				"instructions": instructions,
+			},
 		)
 	except Exception as e:
-		frappe.log_error(f"Error in get_deposit_instructions: {str(e)}")
+		frappe.log_error(f"Error in get_deposit_instructions: {e!s}")
 		return error("Failed to get deposit instructions", "SERVER_ERROR", {"error": str(e)}, 500)
 
 
@@ -468,8 +512,13 @@ def _attach_receipt_to_deposit(deposit_name, file_storage):
 
 @frappe.whitelist()
 def record_deposit_payment(
-	ticket_id=None, amount=None, verification_method="Manual", ocr_payload=None,
-	attach_receipt=True, deposit_id=None, payment_type=None
+	ticket_id=None,
+	amount=None,
+	verification_method="Manual",
+	ocr_payload=None,
+	attach_receipt=True,
+	deposit_id=None,
+	payment_type=None,
 ):
 	"""
 	Record a deposit payment
@@ -521,7 +570,7 @@ def record_deposit_payment(
 			# Get or auto-create deposit for this ticket
 			ticket_doc = frappe.get_doc(entity_type, ticket_id)
 			deposit_name = None
-			
+
 			deposit_name = _select_open_deposit(entity_type, ticket_id, payment_type=payment_type)
 
 			if not deposit_name:
@@ -531,8 +580,16 @@ def record_deposit_payment(
 				needs_balance = total_received > 0 and total_received < total_due
 
 				if needs_balance or payment_type == "Balance":
-					advance_required = flt(getattr(ticket_doc, "deposit_amount", 0) or 0) if getattr(ticket_doc, "deposit_required", 0) else 0
-					if payment_type == "Balance" and advance_required > 0 and total_received + 0.01 < advance_required:
+					advance_required = (
+						flt(getattr(ticket_doc, "deposit_amount", 0) or 0)
+						if getattr(ticket_doc, "deposit_required", 0)
+						else 0
+					)
+					if (
+						payment_type == "Balance"
+						and advance_required > 0
+						and total_received + 0.01 < advance_required
+					):
 						return validation_error(
 							"No paid advance deposit found. The advance must be paid before creating a remaining-balance deposit."
 						)
@@ -545,22 +602,24 @@ def record_deposit_payment(
 					ticket_doc = frappe.get_doc(entity_type, ticket_id)
 					if not ticket_doc.deposit_required:
 						return validation_error("This booking does not require a deposit")
-					
+
 					ttl = 24
 					if entity_type == "Cheese Ticket" and ticket_doc.get("experience"):
 						exp = frappe.get_doc("Cheese Experience", ticket_doc.experience)
 						ttl = exp.deposit_ttl_hours or 24
-						
+
 					due_at = add_to_date(now_datetime(), hours=ttl, as_string=False)
-					
-					new_deposit = frappe.get_doc({
-						"doctype": "Cheese Deposit",
-						"entity_type": entity_type,
-						"entity_id": ticket_id,
-						"amount_required": ticket_doc.deposit_amount,
-						"status": "PENDING",
-						"due_at": due_at,
-					})
+
+					new_deposit = frappe.get_doc(
+						{
+							"doctype": "Cheese Deposit",
+							"entity_type": entity_type,
+							"entity_id": ticket_id,
+							"amount_required": ticket_doc.deposit_amount,
+							"status": "PENDING",
+							"due_at": due_at,
+						}
+					)
 					new_deposit.insert()
 					frappe.db.commit()
 					deposit_name = new_deposit.name
@@ -635,11 +694,16 @@ def record_deposit_payment(
 		if is_overpayment:
 			try:
 				from cheese.cheese.utils.events import log_event
+
 				log_event(
 					entity_type="Cheese Deposit",
 					entity_id=deposit.name,
 					event_type="OVERPAYMENT_DETECTED",
-					payload={"overpayment_amount": overpayment_amount, "total_received": total_received, "ticket_total": entity_total}
+					payload={
+						"overpayment_amount": overpayment_amount,
+						"total_received": total_received,
+						"ticket_total": entity_total,
+					},
 				)
 			except Exception:
 				pass
@@ -648,7 +712,7 @@ def record_deposit_payment(
 	except frappe.ValidationError as e:
 		return validation_error(str(e))
 	except Exception as e:
-		frappe.log_error(f"Error in record_deposit_payment: {str(e)}")
+		frappe.log_error(f"Error in record_deposit_payment: {e!s}")
 		return error("Failed to record deposit payment", "SERVER_ERROR", {"error": str(e)}, 500)
 
 
@@ -700,7 +764,7 @@ def verify_deposit(deposit_id):
 	except frappe.ValidationError as e:
 		return validation_error(str(e))
 	except Exception as e:
-		frappe.log_error(f"Error in verify_deposit: {str(e)}")
+		frappe.log_error(f"Error in verify_deposit: {e!s}")
 		return error("Failed to verify deposit", "SERVER_ERROR", {"error": str(e)}, 500)
 
 
@@ -708,22 +772,22 @@ def verify_deposit(deposit_id):
 def get_deposit_status(deposit_id):
 	"""
 	Get deposit status and details (US-13)
-	
+
 	Args:
 		deposit_id: Deposit ID
-		
+
 	Returns:
 		Success response with deposit details
 	"""
 	try:
 		if not deposit_id:
 			return validation_error("deposit_id is required")
-		
+
 		if not frappe.db.exists("Cheese Deposit", deposit_id):
 			return not_found("Deposit", deposit_id)
-		
+
 		deposit = frappe.get_doc("Cheese Deposit", deposit_id)
-		
+
 		return success(
 			"Deposit status retrieved successfully",
 			{
@@ -738,11 +802,15 @@ def get_deposit_status(deposit_id):
 				"due_at": str(deposit.due_at) if deposit.due_at else None,
 				"paid_at": str(deposit.paid_at) if deposit.paid_at else None,
 				"verification_method": deposit.verification_method,
-				"is_overdue": deposit.due_at and deposit.due_at < now_datetime() and deposit.status == "PENDING" if deposit.due_at else False
-			}
+				"is_overdue": deposit.due_at
+				and deposit.due_at < now_datetime()
+				and deposit.status == "PENDING"
+				if deposit.due_at
+				else False,
+			},
 		)
 	except Exception as e:
-		frappe.log_error(f"Error in get_deposit_status: {str(e)}")
+		frappe.log_error(f"Error in get_deposit_status: {e!s}")
 		return error("Failed to get deposit status", "SERVER_ERROR", {"error": str(e)}, 500)
 
 
@@ -757,7 +825,7 @@ def get_deposit(deposit_id):
 		deposit = frappe.get_doc("Cheese Deposit", deposit_id)
 		return success("Deposit retrieved successfully", _build_deposit_payload(deposit))
 	except Exception as e:
-		frappe.log_error(f"Error in get_deposit: {str(e)}")
+		frappe.log_error(f"Error in get_deposit: {e!s}")
 		return error("Failed to get deposit", "SERVER_ERROR", {"error": str(e)}, 500)
 
 
@@ -765,38 +833,38 @@ def get_deposit(deposit_id):
 def mark_deposit_overdue(deposit_id):
 	"""
 	Mark deposit as overdue (US-13)
-	
+
 	Args:
 		deposit_id: Deposit ID
-		
+
 	Returns:
 		Success response
 	"""
 	try:
 		if not deposit_id:
 			return validation_error("deposit_id is required")
-		
+
 		if not frappe.db.exists("Cheese Deposit", deposit_id):
 			return not_found("Deposit", deposit_id)
-		
+
 		deposit = frappe.get_doc("Cheese Deposit", deposit_id)
-		
+
 		if deposit.status != "PENDING":
 			return validation_error(
 				f"Only PENDING deposits can be marked as overdue. Current status: {deposit.status}",
-				{"current_status": deposit.status}
+				{"current_status": deposit.status},
 			)
-		
+
 		if not deposit.due_at:
 			return validation_error("Deposit has no due_at date")
-		
+
 		if deposit.due_at > now_datetime():
 			return validation_error("Deposit is not yet overdue")
-		
+
 		old_status = deposit.status
 		deposit.status = "OVERDUE"
 		deposit.save()
-		
+
 		# Cancel associated ticket/route booking for non-payment
 		if deposit.entity_type == "Cheese Ticket" and deposit.entity_id:
 			if frappe.db.exists("Cheese Ticket", deposit.entity_id):
@@ -804,25 +872,22 @@ def mark_deposit_overdue(deposit_id):
 				if ticket.status in ["PENDING", "CONFIRMED"]:
 					ticket.status = "CANCELLED"
 					ticket.save()
-					
+
 					# Release capacity
 					from cheese.cheese.utils.capacity import update_slot_capacity
+
 					update_slot_capacity(ticket.slot)
-		
+
 		frappe.db.commit()
-		
+
 		return success(
 			"Deposit marked as overdue",
-			{
-				"deposit_id": deposit.name,
-				"old_status": old_status,
-				"new_status": deposit.status
-			}
+			{"deposit_id": deposit.name, "old_status": old_status, "new_status": deposit.status},
 		)
 	except frappe.ValidationError as e:
 		return validation_error(str(e))
 	except Exception as e:
-		frappe.log_error(f"Error in mark_deposit_overdue: {str(e)}")
+		frappe.log_error(f"Error in mark_deposit_overdue: {e!s}")
 		return error("Failed to mark deposit overdue", "SERVER_ERROR", {"error": str(e)}, 500)
 
 
@@ -830,12 +895,12 @@ def mark_deposit_overdue(deposit_id):
 def adjust_deposit(deposit_id, adjustment_reason, refund_amount=None):
 	"""
 	Adjust or refund deposit (US-13)
-	
+
 	Args:
 		deposit_id: Deposit ID
 		adjustment_reason: Reason for adjustment
 		refund_amount: Refund amount (if partial refund)
-		
+
 	Returns:
 		Success response
 	"""
@@ -844,27 +909,26 @@ def adjust_deposit(deposit_id, adjustment_reason, refund_amount=None):
 			return validation_error("deposit_id is required")
 		if not adjustment_reason:
 			return validation_error("adjustment_reason is required")
-		
+
 		if not frappe.db.exists("Cheese Deposit", deposit_id):
 			return not_found("Deposit", deposit_id)
-		
+
 		deposit = frappe.get_doc("Cheese Deposit", deposit_id)
-		
+
 		if deposit.status not in ["PAID", "OVERDUE"]:
 			return validation_error(
-				f"Cannot adjust deposit with status: {deposit.status}",
-				{"current_status": deposit.status}
+				f"Cannot adjust deposit with status: {deposit.status}", {"current_status": deposit.status}
 			)
-		
+
 		old_status = deposit.status
-		
+
 		if refund_amount is not None:
 			# Partial refund
 			if refund_amount < 0:
 				return validation_error("refund_amount must be >= 0")
 			if refund_amount > (deposit.amount_paid or 0):
 				return validation_error("refund_amount cannot exceed amount_paid")
-			
+
 			deposit.amount_paid = (deposit.amount_paid or 0) - refund_amount
 			if deposit.amount_paid == 0:
 				deposit.status = "REFUNDED"
@@ -874,10 +938,10 @@ def adjust_deposit(deposit_id, adjustment_reason, refund_amount=None):
 			# Full refund
 			deposit.status = "REFUNDED"
 			deposit.amount_paid = 0
-		
+
 		deposit.save()
 		frappe.db.commit()
-		
+
 		return success(
 			"Deposit adjusted successfully",
 			{
@@ -886,38 +950,41 @@ def adjust_deposit(deposit_id, adjustment_reason, refund_amount=None):
 				"new_status": deposit.status,
 				"adjustment_reason": adjustment_reason,
 				"refund_amount": refund_amount,
-				"remaining_amount": deposit.amount_paid
-			}
+				"remaining_amount": deposit.amount_paid,
+			},
 		)
 	except frappe.ValidationError as e:
 		return validation_error(str(e))
 	except Exception as e:
-		frappe.log_error(f"Error in adjust_deposit: {str(e)}")
+		frappe.log_error(f"Error in adjust_deposit: {e!s}")
 		return error("Failed to adjust deposit", "SERVER_ERROR", {"error": str(e)}, 500)
 
 
 @frappe.whitelist()
-def list_deposits(page=1, page_size=20, status=None, entity_type=None, entity_id=None, route_id=None, company_id=None):
+def list_deposits(
+	page=1, page_size=20, status=None, entity_type=None, entity_id=None, route_id=None, company_id=None
+):
 	"""
 	List deposits with filters (US-13)
-	
+
 	Args:
 		page: Page number
 		page_size: Items per page
 		status: Filter by status
 		entity_type: Filter by entity type
 		entity_id: Filter by entity ID
-		
+
 	Returns:
 		Paginated response with deposits list
 	"""
 	try:
 		from frappe.utils import cint
+
 		from cheese.api.common.responses import paginated_response
-		
+
 		page = cint(page) or 1
 		page_size = cint(page_size) or 20
-		
+
 		user_company = _get_current_user_company()
 		if user_company:
 			company_id = user_company
@@ -933,8 +1000,19 @@ def list_deposits(page=1, page_size=20, status=None, entity_type=None, entity_id
 		deposits = frappe.get_all(
 			"Cheese Deposit",
 			filters=filters,
-			fields=["name", "entity_type", "entity_id", "amount_required", "amount_paid", "status", "due_at", "paid_at", "modified", "bank_account"],
-			order_by="modified desc"
+			fields=[
+				"name",
+				"entity_type",
+				"entity_id",
+				"amount_required",
+				"amount_paid",
+				"status",
+				"due_at",
+				"paid_at",
+				"modified",
+				"bank_account",
+			],
+			order_by="modified desc",
 		)
 
 		# Enrich with contact and relation info for UI filtering and display.
@@ -987,7 +1065,9 @@ def list_deposits(page=1, page_size=20, status=None, entity_type=None, entity_id
 					)
 
 			if deposit.get("contact"):
-				deposit["contact_name"] = frappe.db.get_value("Cheese Contact", deposit["contact"], "full_name")
+				deposit["contact_name"] = frappe.db.get_value(
+					"Cheese Contact", deposit["contact"], "full_name"
+				)
 
 			if route_id and deposit.get("route") != route_id:
 				continue
@@ -999,16 +1079,12 @@ def list_deposits(page=1, page_size=20, status=None, entity_type=None, entity_id
 		start = (page - 1) * page_size
 		end = start + page_size
 		deposits_page = enriched[start:end]
-		
+
 		return paginated_response(
-			deposits_page,
-			"Deposits retrieved successfully",
-			page=page,
-			page_size=page_size,
-			total=total
+			deposits_page, "Deposits retrieved successfully", page=page, page_size=page_size, total=total
 		)
 	except Exception as e:
-		frappe.log_error(f"Error in list_deposits: {str(e)}")
+		frappe.log_error(f"Error in list_deposits: {e!s}")
 		return error("Failed to list deposits", "SERVER_ERROR", {"error": str(e)}, 500)
 
 
@@ -1016,20 +1092,20 @@ def list_deposits(page=1, page_size=20, status=None, entity_type=None, entity_id
 def validate_ocr_payload(ocr_payload, expected_amount=None):
 	"""
 	Validate OCR payload structure before recording payment (US-03)
-	
+
 	Args:
 		ocr_payload: OCR payload JSON (string or dict)
 		expected_amount: Expected payment amount (optional, for validation)
-		
+
 	Returns:
 		Success response with validation result
 	"""
 	try:
 		import json
-		
+
 		if not ocr_payload:
 			return validation_error("ocr_payload is required")
-		
+
 		# Parse OCR payload if string
 		if isinstance(ocr_payload, str):
 			try:
@@ -1042,11 +1118,11 @@ def validate_ocr_payload(ocr_payload, expected_amount=None):
 		# Required fields
 		required_fields = ["account", "amount", "date"]
 		missing_fields = [f for f in required_fields if f not in ocr_data]
-		
+
 		if missing_fields:
 			return validation_error(
 				f"OCR payload missing required fields: {', '.join(missing_fields)}",
-				{"missing_fields": missing_fields}
+				{"missing_fields": missing_fields},
 			)
 
 		# Validate amount if provided
@@ -1055,18 +1131,20 @@ def validate_ocr_payload(ocr_payload, expected_amount=None):
 			if abs(ocr_amount - float(expected_amount)) > 0.01:
 				return validation_error(
 					f"OCR amount ({ocr_amount}) does not match expected amount ({expected_amount})",
-					{"ocr_amount": ocr_amount, "expected_amount": expected_amount}
+					{"ocr_amount": ocr_amount, "expected_amount": expected_amount},
 				)
 
 		# Validate date format
 		try:
 			from frappe.utils import getdate
+
 			ocr_date = getdate(ocr_data["date"])
 			from frappe.utils import now_datetime
+
 			if ocr_date > getdate(now_datetime()):
 				return validation_error("OCR date cannot be in the future")
 		except Exception as e:
-			return validation_error(f"Invalid date format in OCR payload: {str(e)}")
+			return validation_error(f"Invalid date format in OCR payload: {e!s}")
 
 		return success(
 			"OCR payload is valid",
@@ -1076,11 +1154,11 @@ def validate_ocr_payload(ocr_payload, expected_amount=None):
 				"account": ocr_data.get("account"),
 				"amount": ocr_data.get("amount"),
 				"date": ocr_data.get("date"),
-				"reference": ocr_data.get("reference")
-			}
+				"reference": ocr_data.get("reference"),
+			},
 		)
 	except Exception as e:
-		frappe.log_error(f"Error in validate_ocr_payload: {str(e)}")
+		frappe.log_error(f"Error in validate_ocr_payload: {e!s}")
 		return error("Failed to validate OCR payload", "SERVER_ERROR", {"error": str(e)}, 500)
 
 
@@ -1088,41 +1166,41 @@ def validate_ocr_payload(ocr_payload, expected_amount=None):
 def reconcile_deposit(deposit_id, bank_account_number=None):
 	"""
 	Reconcile deposit payment against expected bank account (US-03)
-	
+
 	Args:
 		deposit_id: Deposit ID
 		bank_account_number: Expected bank account number (optional)
-		
+
 	Returns:
 		Success response with reconciliation result
 	"""
 	try:
 		if not deposit_id:
 			return validation_error("deposit_id is required")
-		
+
 		if not frappe.db.exists("Cheese Deposit", deposit_id):
 			return not_found("Deposit", deposit_id)
-		
+
 		deposit = frappe.get_doc("Cheese Deposit", deposit_id)
-		
+
 		# Use reconcile_ocr_payment method
 		reconciliation_result = deposit.reconcile_ocr_payment(bank_account_number)
-		
+
 		frappe.db.commit()
-		
+
 		return success(
 			"Deposit reconciled successfully",
 			{
 				"deposit_id": deposit.name,
 				"reconciled": reconciliation_result.get("reconciled", False),
 				"ocr_data": reconciliation_result.get("ocr_data"),
-				"message": reconciliation_result.get("message")
-			}
+				"message": reconciliation_result.get("message"),
+			},
 		)
 	except frappe.ValidationError as e:
 		return validation_error(str(e))
 	except Exception as e:
-		frappe.log_error(f"Error in reconcile_deposit: {str(e)}")
+		frappe.log_error(f"Error in reconcile_deposit: {e!s}")
 		return error("Failed to reconcile deposit", "SERVER_ERROR", {"error": str(e)}, 500)
 
 
@@ -1226,7 +1304,7 @@ def create_remaining_balance_deposit(ticket_id=None, route_booking_id=None):
 	except frappe.ValidationError as e:
 		return validation_error(str(e))
 	except Exception as e:
-		frappe.log_error(f"Error in create_remaining_balance_deposit: {str(e)}")
+		frappe.log_error(f"Error in create_remaining_balance_deposit: {e!s}")
 		return error(
 			"Failed to create remaining balance deposit",
 			"SERVER_ERROR",
