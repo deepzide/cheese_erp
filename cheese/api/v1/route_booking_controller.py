@@ -66,14 +66,17 @@ def _slots_compatible(t1_from, t1_to, t2_from, t2_to) -> bool:
 
 def _has_valid_combination(exp_slot_lists: list) -> bool:
 	"""Return True if any non-overlapping combination can be formed from the given per-experience slot lists."""
+
 	def backtrack(idx: int, selected: list) -> bool:
 		if idx == len(exp_slot_lists):
 			return True
 		for slot_entry in exp_slot_lists[idx]:
 			if all(
 				_slots_compatible(
-					ex["time_from"], ex["time_to"],
-					slot_entry["time_from"], slot_entry["time_to"],
+					ex["time_from"],
+					ex["time_to"],
+					slot_entry["time_from"],
+					slot_entry["time_to"],
 				)
 				for ex in selected
 			):
@@ -86,7 +89,9 @@ def _has_valid_combination(exp_slot_lists: list) -> bool:
 	return backtrack(0, [])
 
 
-def _find_valid_combinations_for_date(experience_rows, target_date, party_size: int = 1, max_results: int = 20) -> list:
+def _find_valid_combinations_for_date(
+	experience_rows, target_date, party_size: int = 1, max_results: int = 20
+) -> list:
 	"""Find valid slot combinations for a list of experiences on a specific date.
 
 	Returns combinations where all slots share target_date, have sufficient
@@ -97,11 +102,7 @@ def _find_valid_combinations_for_date(experience_rows, target_date, party_size: 
 
 	for exp_row in experience_rows:
 		experience_id = exp_row.experience if hasattr(exp_row, "experience") else exp_row.get("experience")
-		sequence = (
-			exp_row.sequence
-			if hasattr(exp_row, "sequence")
-			else exp_row.get("sequence", 0)
-		)
+		sequence = exp_row.sequence if hasattr(exp_row, "sequence") else exp_row.get("sequence", 0)
 
 		slots = frappe.get_all(
 			"Cheese Experience Slot",
@@ -119,15 +120,17 @@ def _find_valid_combinations_for_date(experience_rows, target_date, party_size: 
 		for slot in slots:
 			cap = get_available_capacity(slot.name, selected_date=date_obj)
 			if cap >= party_size:
-				available.append({
-					"experience_id": experience_id,
-					"slot_id": slot.name,
-					"selected_date": str(date_obj),
-					"time_from": str(slot.time_from) if slot.time_from else None,
-					"time_to": str(slot.time_to) if slot.time_to else None,
-					"available_capacity": cap,
-					"sequence": sequence,
-				})
+				available.append(
+					{
+						"experience_id": experience_id,
+						"slot_id": slot.name,
+						"selected_date": str(date_obj),
+						"time_from": str(slot.time_from) if slot.time_from else None,
+						"time_to": str(slot.time_to) if slot.time_to else None,
+						"available_capacity": cap,
+						"sequence": sequence,
+					}
+				)
 		exp_slot_lists.append(available)
 
 	if any(len(s) == 0 for s in exp_slot_lists):
@@ -144,8 +147,10 @@ def _find_valid_combinations_for_date(experience_rows, target_date, party_size: 
 		for slot_entry in exp_slot_lists[idx]:
 			if all(
 				_slots_compatible(
-					ex["time_from"], ex["time_to"],
-					slot_entry["time_from"], slot_entry["time_to"],
+					ex["time_from"],
+					ex["time_to"],
+					slot_entry["time_from"],
+					slot_entry["time_to"],
 				)
 				for ex in selected
 			):
@@ -339,12 +344,14 @@ def get_route_combinations(route_id, date=None, date_from=None, date_to=None, pa
 		while current_date <= end_date and len(all_combinations) < 50:
 			day_combos = _find_valid_combinations_for_date(route.experiences, current_date, party_size)
 			for combo in day_combos:
-				all_combinations.append({
-					"combination_id": _encode_combination_id(combo),
-					"date": str(current_date),
-					"party_size": party_size,
-					"slots": combo,
-				})
+				all_combinations.append(
+					{
+						"combination_id": _encode_combination_id(combo),
+						"date": str(current_date),
+						"party_size": party_size,
+						"slots": combo,
+					}
+				)
 			current_date += timedelta(days=1)
 
 		return success(
@@ -470,22 +477,34 @@ def create_route_reservation(
 			current_date = start_date
 			found_combination = None
 			while current_date <= end_date:
-				candidates = _find_valid_combinations_for_date(
-					route.experiences, current_date, party_size
-				)
+				candidates = _find_valid_combinations_for_date(route.experiences, current_date, party_size)
 				if normalized_time_from or normalized_time_to:
-					# Time filter applies to the first slot in the combination (by sequence order)
-					candidates = [
-						c for c in candidates
-						if (
-							not normalized_time_from
-							or (c and _normalize_time_filter(c[0]["time_from"]) == normalized_time_from)
-						)
-						and (
-							not normalized_time_to
-							or (c and _normalize_time_filter(c[-1]["time_to"]) == normalized_time_to)
-						)
-					]
+					# Filter by time window: earliest slot must start >= time_from
+					# and latest slot must end <= time_to (range, not exact match)
+					window_from = _time_to_seconds(normalized_time_from)
+					window_to = _time_to_seconds(normalized_time_to)
+					filtered_candidates = []
+					for combo in candidates:
+						if not combo:
+							continue
+						seconds_starts = [
+							_time_to_seconds(s["time_from"])
+							for s in combo
+							if _time_to_seconds(s["time_from"]) is not None
+						]
+						seconds_ends = [
+							_time_to_seconds(s["time_to"])
+							for s in combo
+							if _time_to_seconds(s["time_to"]) is not None
+						]
+						min_start = min(seconds_starts) if seconds_starts else None
+						max_end = max(seconds_ends) if seconds_ends else None
+						if normalized_time_from and (min_start is None or min_start < window_from):
+							continue
+						if normalized_time_to and (max_end is None or max_end > window_to):
+							continue
+						filtered_candidates.append(combo)
+					candidates = filtered_candidates
 				if candidates:
 					found_combination = candidates[0]
 					break
@@ -573,45 +592,69 @@ def create_route_reservation(
 
 			# Selected date cannot be in the past
 			from frappe.utils import today
+
 			today_date = getdate(today())
 			for exp_id, sel_date in selected_date_map.items():
 				if getdate(sel_date) < today_date:
-					return validation_error(
-						f"Slot date {sel_date} for experience {exp_id} is in the past"
-					)
+					return validation_error(f"Slot date {sel_date} for experience {exp_id} is in the past")
 
 		# All experiences must be ONLINE
 		for exp_id in slot_map:
 			exp_status = frappe.db.get_value("Cheese Experience", exp_id, "status")
 			if exp_status != "ONLINE":
-				return validation_error(
-					f"Experience {exp_id} is not ONLINE (status: {exp_status})"
-				)
+				return validation_error(f"Experience {exp_id} is not ONLINE (status: {exp_status})")
 
-		# Slots must not overlap in time
+		# Slots must not overlap in time + build slot_time_data for time window validation
+		slot_time_data: dict = {}
+		for sl_id in slot_map.values():
+			t_from, t_to = frappe.db.get_value("Cheese Experience Slot", sl_id, ["time_from", "time_to"])
+			slot_time_data[sl_id] = {
+				"time_from": str(t_from) if t_from else None,
+				"time_to": str(t_to) if t_to else None,
+			}
+
 		if len(slot_map) > 1:
-			slot_time_data: dict = {}
-			for sl_id in slot_map.values():
-				t_from, t_to = frappe.db.get_value(
-					"Cheese Experience Slot", sl_id, ["time_from", "time_to"]
-				)
-				slot_time_data[sl_id] = {
-					"time_from": str(t_from) if t_from else None,
-					"time_to": str(t_to) if t_to else None,
-				}
 			slot_ids = list(slot_time_data.keys())
 			for i in range(len(slot_ids)):
 				for j in range(i + 1, len(slot_ids)):
 					s1 = slot_time_data[slot_ids[i]]
 					s2 = slot_time_data[slot_ids[j]]
 					if not _slots_compatible(
-						s1["time_from"], s1["time_to"],
-						s2["time_from"], s2["time_to"],
+						s1["time_from"],
+						s1["time_to"],
+						s2["time_from"],
+						s2["time_to"],
 					):
 						return validation_error(
 							f"Slots overlap: {slot_ids[i]} ({s1['time_from']}-{s1['time_to']}) "
 							f"and {slot_ids[j]} ({s2['time_from']}-{s2['time_to']})"
 						)
+
+		# Validate explicit slots fall within requested time window (if time_from/time_to provided)
+		if (normalized_time_from or normalized_time_to) and slot_time_data:
+			all_times = list(slot_time_data.values())
+			seconds_starts = [
+				_time_to_seconds(s["time_from"])
+				for s in all_times
+				if _time_to_seconds(s["time_from"]) is not None
+			]
+			seconds_ends = [
+				_time_to_seconds(s["time_to"])
+				for s in all_times
+				if _time_to_seconds(s["time_to"]) is not None
+			]
+			min_start = min(seconds_starts) if seconds_starts else None
+			max_end = max(seconds_ends) if seconds_ends else None
+			window_from = _time_to_seconds(normalized_time_from)
+			window_to = _time_to_seconds(normalized_time_to)
+			if normalized_time_from and min_start is not None and min_start < window_from:
+				return validation_error(
+					f"The earliest slot starts before the requested time_from ({normalized_time_from})"
+				)
+			if normalized_time_to and max_end is not None and max_end > window_to:
+				return validation_error(
+					f"The latest slot ends after the requested time_to ({normalized_time_to})"
+				)
 
 		# Verify all route experiences have slots
 		route_experiences = route.experiences
@@ -620,21 +663,24 @@ def create_route_reservation(
 
 		# Calculate total price (deposit is calculated from included experiences/tickets below)
 		from cheese.cheese.utils.pricing import calculate_route_price
+
 		total_price = calculate_route_price(route_id, party_size)
 		deposit_amount = 0
 		deposit_required = False
 
 		# Create RouteBooking doctype
-		route_booking = frappe.get_doc({
-			"doctype": "Cheese Route Booking",
-			"contact": contact_id,
-			"route": route_id,
-			"status": "PENDING",
-			"total_price": total_price,
-			"deposit_required": deposit_required,
-			"deposit_amount": deposit_amount,
-			"conversation": conversation_id
-		})
+		route_booking = frappe.get_doc(
+			{
+				"doctype": "Cheese Route Booking",
+				"contact": contact_id,
+				"route": route_id,
+				"status": "PENDING",
+				"total_price": total_price,
+				"deposit_required": deposit_required,
+				"deposit_amount": deposit_amount,
+				"conversation": conversation_id,
+			}
+		)
 		route_booking.insert()
 
 		# Create tickets for each experience in the route
@@ -650,7 +696,9 @@ def create_route_reservation(
 				# Rollback route booking
 				route_booking.delete()
 				frappe.db.rollback()
-				return validation_error(f"No slot provided for experience {experience_id} at sequence {exp_row.sequence}")
+				return validation_error(
+					f"No slot provided for experience {experience_id} at sequence {exp_row.sequence}"
+				)
 
 			# Create pending ticket
 			# Pass selected_date if it was provided during auto-selection
@@ -671,7 +719,7 @@ def create_route_reservation(
 				route_id=route_id,
 				check_in_date=check_in,
 				check_out_date=check_out,
-				rooms_requested=rooms
+				rooms_requested=rooms,
 			)
 
 			if not ticket_result.get("success"):
@@ -699,13 +747,16 @@ def create_route_reservation(
 			ticket_doc.save()
 
 			# Add ticket to route booking child table
-			route_booking.append("tickets", {
-				"ticket": ticket_id,
-				"experience": experience_id,
-				"slot": slot_id,
-				"party_size": party_size,
-				"status": ticket_doc.status
-			})
+			route_booking.append(
+				"tickets",
+				{
+					"ticket": ticket_id,
+					"experience": experience_id,
+					"slot": slot_id,
+					"party_size": party_size,
+					"status": ticket_doc.status,
+				},
+			)
 
 			tickets.append(ticket_id)
 
@@ -739,14 +790,16 @@ def create_route_reservation(
 		# Create deposit if required
 		if deposit_required and deposit_amount > 0:
 			due_at = deposit_due_at
-			deposit = frappe.get_doc({
-				"doctype": "Cheese Deposit",
-				"entity_type": "Cheese Route Booking",
-				"entity_id": route_booking.name,
-				"amount_required": deposit_amount,
-				"status": "PENDING",
-				"due_at": due_at
-			})
+			deposit = frappe.get_doc(
+				{
+					"doctype": "Cheese Deposit",
+					"entity_type": "Cheese Route Booking",
+					"entity_id": route_booking.name,
+					"amount_required": deposit_amount,
+					"status": "PENDING",
+					"due_at": due_at,
+				}
+			)
 			deposit.insert()
 
 		frappe.db.commit()
@@ -755,21 +808,27 @@ def create_route_reservation(
 		for ticket_id in tickets:
 			ticket_doc = frappe.get_doc("Cheese Ticket", ticket_id)
 			slot_doc = frappe.get_doc("Cheese Experience Slot", ticket_doc.slot)
-			schedule_date = str(ticket_doc.selected_date) if ticket_doc.selected_date else str(slot_doc.date_from)
+			schedule_date = (
+				str(ticket_doc.selected_date) if ticket_doc.selected_date else str(slot_doc.date_from)
+			)
 			time_from_value = str(slot_doc.time_from) if slot_doc.time_from else None
 			time_to_value = str(slot_doc.time_to) if slot_doc.time_to else None
-			booked_schedule.append({
-				"ticket_id": ticket_doc.name,
-				"experience_id": ticket_doc.experience,
-				"slot_id": ticket_doc.slot,
-				"selected_date": schedule_date,
-				"time_from": time_from_value,
-				"time_to": time_to_value,
-				"scheduled_start": f"{schedule_date} {time_from_value}" if time_from_value else schedule_date,
-				"scheduled_end": f"{schedule_date} {time_to_value}" if time_to_value else None,
-				# Backward-compatible field for clients that still consume a single time value.
-				"time": time_from_value,
-			})
+			booked_schedule.append(
+				{
+					"ticket_id": ticket_doc.name,
+					"experience_id": ticket_doc.experience,
+					"slot_id": ticket_doc.slot,
+					"selected_date": schedule_date,
+					"time_from": time_from_value,
+					"time_to": time_to_value,
+					"scheduled_start": f"{schedule_date} {time_from_value}"
+					if time_from_value
+					else schedule_date,
+					"scheduled_end": f"{schedule_date} {time_to_value}" if time_to_value else None,
+					# Backward-compatible field for clients that still consume a single time value.
+					"time": time_from_value,
+				}
+			)
 
 		return created(
 			"Route reservation created successfully",
@@ -787,8 +846,8 @@ def create_route_reservation(
 				"booked_schedule": booked_schedule,
 				"requested_time_from": normalized_time_from,
 				"requested_time_to": normalized_time_to,
-				"conversation_id": conversation_id
-			}
+				"conversation_id": conversation_id,
+			},
 		)
 	except frappe.ValidationError as e:
 		return validation_error(str(e))
@@ -801,10 +860,10 @@ def create_route_reservation(
 def get_route_status(route_booking_id):
 	"""
 	Get route status - returns PENDING / PARTIALLY_CONFIRMED / CONFIRMED
-	
+
 	Args:
 		route_booking_id: Route booking ID
-		
+
 	Returns:
 		Success response with route status
 	"""
@@ -819,9 +878,7 @@ def get_route_status(route_booking_id):
 				ticket_id = route_booking_id.replace("RB-", "")
 				# Try to find route booking by ticket
 				route_booking_name = frappe.db.get_value(
-					"Cheese Route Booking Ticket",
-					{"ticket": ticket_id},
-					"parent"
+					"Cheese Route Booking Ticket", {"ticket": ticket_id}, "parent"
 				)
 				if route_booking_name:
 					route_booking_id = route_booking_name
@@ -847,14 +904,16 @@ def get_route_status(route_booking_id):
 				# Use selected_date if available, otherwise fall back to slot.date_from
 				display_date = str(ticket.selected_date) if ticket.selected_date else str(slot.date_from)
 
-				tickets.append({
-					"ticket_id": ticket.name,
-					"status": ticket.status,
-					"experience": ticket.experience,
-					"slot": ticket.slot,
-					"party_size": ticket.party_size,
-					"slot_date": display_date
-				})
+				tickets.append(
+					{
+						"ticket_id": ticket.name,
+						"status": ticket.status,
+						"experience": ticket.experience,
+						"slot": ticket.slot,
+						"party_size": ticket.party_size,
+						"slot_date": display_date,
+					}
+				)
 
 		return success(
 			"Route status retrieved successfully",
@@ -868,8 +927,8 @@ def get_route_status(route_booking_id):
 				"pending_count": len([t for t in tickets if t["status"] == "PENDING"]),
 				"total_price": route_booking.total_price,
 				"deposit_required": route_booking.deposit_required,
-				"deposit_amount": route_booking.deposit_amount
-			}
+				"deposit_amount": route_booking.deposit_amount,
+			},
 		)
 	except Exception as e:
 		frappe.log_error(f"Error in get_route_status: {e!s}")
@@ -880,10 +939,10 @@ def get_route_status(route_booking_id):
 def get_route_summary(route_booking_id):
 	"""
 	Get route summary / itinerary - user-friendly summary
-	
+
 	Args:
 		route_booking_id: Route booking ID
-		
+
 	Returns:
 		Success response with route summary
 	"""
@@ -896,9 +955,7 @@ def get_route_summary(route_booking_id):
 			if route_booking_id.startswith("RB-"):
 				ticket_id = route_booking_id.replace("RB-", "")
 				route_booking_name = frappe.db.get_value(
-					"Cheese Route Booking Ticket",
-					{"ticket": ticket_id},
-					"parent"
+					"Cheese Route Booking Ticket", {"ticket": ticket_id}, "parent"
 				)
 				if route_booking_name:
 					route_booking_id = route_booking_name
@@ -964,27 +1021,29 @@ def get_route_summary(route_booking_id):
 				total_all_paid += deposit_paid
 				grand_total += total_per_ticket
 
-				itinerary.append({
-					"ticket_id": ticket.name,
-					"experience_id": experience.name,
-					"experience_name": experience.name,
-					"date": display_date,
-					"time": display_time,
-					"time_from": display_time,
-					"time_to": display_time_to,
-					"scheduled_start": f"{display_date} {display_time}" if display_time else display_date,
-					"scheduled_end": f"{display_date} {display_time_to}" if display_time_to else None,
-					"status": ticket.status,
-					"party_size": ticket.party_size,
-					# Financial fields
-					"unit_cost": unit_cost,
-					"total_per_ticket": total_per_ticket,
-					"deposit_amount": deposit_amount,
-					"deposit_status": deposit_status,
-					"deposit_paid": deposit_paid,
-					"remaining_balance": max(remaining_balance, 0),
-					"balance_status": balance_status,
-				})
+				itinerary.append(
+					{
+						"ticket_id": ticket.name,
+						"experience_id": experience.name,
+						"experience_name": experience.name,
+						"date": display_date,
+						"time": display_time,
+						"time_from": display_time,
+						"time_to": display_time_to,
+						"scheduled_start": f"{display_date} {display_time}" if display_time else display_date,
+						"scheduled_end": f"{display_date} {display_time_to}" if display_time_to else None,
+						"status": ticket.status,
+						"party_size": ticket.party_size,
+						# Financial fields
+						"unit_cost": unit_cost,
+						"total_per_ticket": total_per_ticket,
+						"deposit_amount": deposit_amount,
+						"deposit_status": deposit_status,
+						"deposit_paid": deposit_paid,
+						"remaining_balance": max(remaining_balance, 0),
+						"balance_status": balance_status,
+					}
+				)
 
 		# Sort by date/time
 		itinerary.sort(key=lambda x: (x["date"], x["time"]))
@@ -1014,7 +1073,7 @@ def get_route_summary(route_booking_id):
 				"itinerary": itinerary,
 				"total_experiences": len(itinerary),
 				"payment_summary": payment_summary,
-			}
+			},
 		)
 	except Exception as e:
 		frappe.log_error(f"Error in get_route_summary: {e!s}")
@@ -1025,11 +1084,11 @@ def get_route_summary(route_booking_id):
 def modify_route_booking_preview(route_booking_id, changes):
 	"""
 	Modify route booking preview - preview changes
-	
+
 	Args:
 		route_booking_id: Route booking ID
 		changes: JSON object with changes {"ticket_id": "TICKET-001", "new_slot": "SLOT-002", "party_size": 3}
-		
+
 	Returns:
 		Success response with preview of changes
 	"""
@@ -1066,7 +1125,7 @@ def modify_route_booking_preview(route_booking_id, changes):
 			preview = {
 				"ticket_id": ticket_id,
 				"current_slot": ticket.slot,
-				"current_party_size": ticket.party_size
+				"current_party_size": ticket.party_size,
 			}
 
 			if "new_slot" in change:
@@ -1084,8 +1143,8 @@ def modify_route_booking_preview(route_booking_id, changes):
 			{
 				"route_booking_id": route_booking_id,
 				"changes": preview_changes,
-				"note": "Call confirm_route_modification to apply changes"
-			}
+				"note": "Call confirm_route_modification to apply changes",
+			},
 		)
 	except Exception as e:
 		frappe.log_error(f"Error in modify_route_booking_preview: {e!s}")
@@ -1096,11 +1155,11 @@ def modify_route_booking_preview(route_booking_id, changes):
 def confirm_route_modification(route_booking_id, changes):
 	"""
 	Confirm route modification - apply changes
-	
+
 	Args:
 		route_booking_id: Route booking ID
 		changes: JSON object with changes (same format as preview)
-		
+
 	Returns:
 		Success response with updated route booking
 	"""
@@ -1142,8 +1201,8 @@ def confirm_route_modification(route_booking_id, changes):
 			{
 				"route_booking_id": route_booking_id,
 				"modified_tickets": modified_tickets,
-				"updated_status": status_result.get("data", {}) if status_result.get("success") else None
-			}
+				"updated_status": status_result.get("data", {}) if status_result.get("success") else None,
+			},
 		)
 	except Exception as e:
 		frappe.log_error(f"Error in confirm_route_modification: {e!s}")
@@ -1154,11 +1213,11 @@ def confirm_route_modification(route_booking_id, changes):
 def add_activities_to_route_preview(route_booking_id, activities):
 	"""
 	Add activities to route preview - preview add-ons
-	
+
 	Args:
 		route_booking_id: Route booking ID
 		activities: JSON array of activities to add [{"experience_id": "EXP-001", "slot_id": "SLOT-001"}]
-		
+
 	Returns:
 		Success response with preview
 	"""
@@ -1181,7 +1240,9 @@ def add_activities_to_route_preview(route_booking_id, activities):
 			return status_result
 
 		status_data = status_result.get("data", {})
-		party_size = status_data.get("tickets", [{}])[0].get("party_size", 1) if status_data.get("tickets") else 1
+		party_size = (
+			status_data.get("tickets", [{}])[0].get("party_size", 1) if status_data.get("tickets") else 1
+		)
 
 		# Preview new activities
 		preview_activities = []
@@ -1200,28 +1261,33 @@ def add_activities_to_route_preview(route_booking_id, activities):
 
 			experience = frappe.get_doc("Cheese Experience", experience_id)
 			slot = frappe.get_doc("Cheese Experience Slot", slot_id)
-			selected_date = activity.get("selected_date") or activity.get("calendar_date") or activity.get("date")
+			selected_date = (
+				activity.get("selected_date") or activity.get("calendar_date") or activity.get("date")
+			)
 
 			# Calculate price
 			from cheese.cheese.utils.pricing import calculate_deposit_amount, calculate_ticket_price
+
 			price_data = calculate_ticket_price(experience_id, party_size)
 			deposit = calculate_deposit_amount(experience_id, price_data.get("total_price", 0))
 
-			preview_activities.append({
-				"experience_id": experience_id,
-				"experience_name": experience.name,
-				"slot_id": slot_id,
-				"selected_date": str(selected_date) if selected_date else str(slot.date_from),
-				"date": str(selected_date) if selected_date else str(slot.date_from),
-				"date_from": str(slot.date_from),
-				"date_to": str(slot.date_to),
-				"time_from": str(slot.time_from) if slot.time_from else None,
-				"time_to": str(slot.time_to) if slot.time_to else None,
-				"time": str(slot.time_from) if slot.time_from else None,
-				"price": price_data.get("total_price", 0),
-				"deposit": deposit,
-				"party_size": party_size
-			})
+			preview_activities.append(
+				{
+					"experience_id": experience_id,
+					"experience_name": experience.name,
+					"slot_id": slot_id,
+					"selected_date": str(selected_date) if selected_date else str(slot.date_from),
+					"date": str(selected_date) if selected_date else str(slot.date_from),
+					"date_from": str(slot.date_from),
+					"date_to": str(slot.date_to),
+					"time_from": str(slot.time_from) if slot.time_from else None,
+					"time_to": str(slot.time_to) if slot.time_to else None,
+					"time": str(slot.time_from) if slot.time_from else None,
+					"price": price_data.get("total_price", 0),
+					"deposit": deposit,
+					"party_size": party_size,
+				}
+			)
 
 		# Calculate total additional cost
 		total_additional_price = sum(a["price"] for a in preview_activities)
@@ -1234,8 +1300,8 @@ def add_activities_to_route_preview(route_booking_id, activities):
 				"activities_to_add": preview_activities,
 				"total_additional_price": total_additional_price,
 				"total_additional_deposit": total_additional_deposit,
-				"note": "Call confirm_add_activities_to_route to apply"
-			}
+				"note": "Call confirm_add_activities_to_route to apply",
+			},
 		)
 	except Exception as e:
 		frappe.log_error(f"Error in add_activities_to_route_preview: {e!s}")
@@ -1246,11 +1312,11 @@ def add_activities_to_route_preview(route_booking_id, activities):
 def confirm_add_activities_to_route(route_booking_id, activities):
 	"""
 	Confirm add activities to route - apply add-ons
-	
+
 	Args:
 		route_booking_id: Route booking ID
 		activities: JSON array of activities to add
-		
+
 	Returns:
 		Success response with updated route booking
 	"""
@@ -1272,9 +1338,7 @@ def confirm_add_activities_to_route(route_booking_id, activities):
 			if route_booking_id.startswith("RB-"):
 				ticket_id = route_booking_id.replace("RB-", "")
 				route_booking_name = frappe.db.get_value(
-					"Cheese Route Booking Ticket",
-					{"ticket": ticket_id},
-					"parent"
+					"Cheese Route Booking Ticket", {"ticket": ticket_id}, "parent"
 				)
 				if route_booking_name:
 					route_booking_id = route_booking_name
@@ -1298,7 +1362,9 @@ def confirm_add_activities_to_route(route_booking_id, activities):
 		for activity in activities:
 			experience_id = activity.get("experience_id")
 			slot_id = activity.get("slot_id")
-			selected_date = activity.get("selected_date") or activity.get("calendar_date") or activity.get("date")
+			selected_date = (
+				activity.get("selected_date") or activity.get("calendar_date") or activity.get("date")
+			)
 
 			ticket_result = create_pending_ticket(
 				contact_id,
@@ -1327,13 +1393,16 @@ def confirm_add_activities_to_route(route_booking_id, activities):
 			ticket_doc.save()
 
 			# Add to route booking
-			route_booking.append("tickets", {
-				"ticket": ticket_id,
-				"experience": experience_id,
-				"slot": slot_id,
-				"party_size": party_size,
-				"status": ticket_doc.status
-			})
+			route_booking.append(
+				"tickets",
+				{
+					"ticket": ticket_id,
+					"experience": experience_id,
+					"slot": slot_id,
+					"party_size": party_size,
+					"status": ticket_doc.status,
+				},
+			)
 
 			new_tickets.append(ticket_id)
 
@@ -1349,8 +1418,8 @@ def confirm_add_activities_to_route(route_booking_id, activities):
 				"route_booking_id": route_booking.name,
 				"new_tickets": new_tickets,
 				"status": route_booking.status,
-				"tickets_count": len(route_booking.tickets)
-			}
+				"tickets_count": len(route_booking.tickets),
+			},
 		)
 	except Exception as e:
 		frappe.log_error(f"Error in confirm_add_activities_to_route: {e!s}")
@@ -1361,11 +1430,11 @@ def confirm_add_activities_to_route(route_booking_id, activities):
 def cancel_route_booking(route_booking_id, reason=None):
 	"""
 	Cancel route booking
-	
+
 	Args:
 		route_booking_id: Route booking ID
 		reason: Cancellation reason (optional)
-		
+
 	Returns:
 		Success response
 	"""
@@ -1378,9 +1447,7 @@ def cancel_route_booking(route_booking_id, reason=None):
 			if route_booking_id.startswith("RB-"):
 				ticket_id = route_booking_id.replace("RB-", "")
 				route_booking_name = frappe.db.get_value(
-					"Cheese Route Booking Ticket",
-					{"ticket": ticket_id},
-					"parent"
+					"Cheese Route Booking Ticket", {"ticket": ticket_id}, "parent"
 				)
 				if route_booking_name:
 					route_booking_id = route_booking_name
@@ -1394,7 +1461,7 @@ def cancel_route_booking(route_booking_id, reason=None):
 		if route_booking.status == "CANCELLED":
 			return success(
 				"Route booking is already cancelled",
-				{"route_booking_id": route_booking_id, "status": route_booking.status}
+				{"route_booking_id": route_booking_id, "status": route_booking.status},
 			)
 
 		# Cancel all tickets
@@ -1423,8 +1490,8 @@ def cancel_route_booking(route_booking_id, reason=None):
 				"route_booking_id": route_booking.name,
 				"cancelled_tickets": cancelled_tickets,
 				"status": route_booking.status,
-				"reason": reason
-			}
+				"reason": reason,
+			},
 		)
 	except Exception as e:
 		frappe.log_error(f"Error in cancel_route_booking: {e!s}")
@@ -1501,32 +1568,34 @@ def get_available_slots_for_route(route_id, selected_date=None, date_from=None, 
 
 			available_slots = []
 			for slot in slots:
-				days = slot_calendar_days_in_range(
-					slot.date_from, slot.date_to, start_date, end_date
-				)
+				days = slot_calendar_days_in_range(slot.date_from, slot.date_to, start_date, end_date)
 				for cal_day in days:
 					available = get_available_capacity(slot.name, cal_day)
 					if available < party_size:
 						continue
-					available_slots.append({
-						"slot_id": slot.name,
-						"selected_date": str(cal_day),
-						"calendar_date": str(cal_day),
-						"date_from": str(slot.date_from),
-						"date_to": str(slot.date_to),
-						"time_from": str(slot.time_from) if slot.time_from else None,
-						"time_to": str(slot.time_to) if slot.time_to else None,
-						"max_capacity": slot.max_capacity,
-						"available_capacity": available,
-					})
+					available_slots.append(
+						{
+							"slot_id": slot.name,
+							"selected_date": str(cal_day),
+							"calendar_date": str(cal_day),
+							"date_from": str(slot.date_from),
+							"date_to": str(slot.date_to),
+							"time_from": str(slot.time_from) if slot.time_from else None,
+							"time_to": str(slot.time_to) if slot.time_to else None,
+							"max_capacity": slot.max_capacity,
+							"available_capacity": available,
+						}
+					)
 
-			experiences_result.append({
-				"experience_id": experience_id,
-				"experience_name": experience.name,
-				"sequence": exp_row.sequence if hasattr(exp_row, "sequence") else exp_row.idx,
-				"available_slots": available_slots,
-				"available_count": len(available_slots),
-			})
+			experiences_result.append(
+				{
+					"experience_id": experience_id,
+					"experience_name": experience.name,
+					"sequence": exp_row.sequence if hasattr(exp_row, "sequence") else exp_row.idx,
+					"available_slots": available_slots,
+					"available_count": len(available_slots),
+				}
+			)
 
 		return success(
 			"Available slots retrieved successfully",
@@ -1543,4 +1612,3 @@ def get_available_slots_for_route(route_id, selected_date=None, date_from=None, 
 	except Exception as e:
 		frappe.log_error(f"Error in get_available_slots_for_route: {e!s}")
 		return error("Failed to get available slots", "SERVER_ERROR", {"error": str(e)}, 500)
-
