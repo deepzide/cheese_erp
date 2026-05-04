@@ -5,6 +5,7 @@ import frappe
 from frappe import _
 from frappe.utils import now_datetime
 from cheese.api.common.responses import success, created, error, not_found, validation_error
+from cheese.api.v1.user_controller import _get_current_user_company
 
 
 @frappe.whitelist()
@@ -153,6 +154,11 @@ def list_support_cases(status=None, contact_id=None, assigned_to=None, route_id=
 		Success response with support cases
 	"""
 	try:
+		# Apply company scoping for establishment admins
+		user_company = _get_current_user_company()
+		if user_company:
+			company_id = user_company
+
 		filters = {}
 		if status:
 			filters["status"] = status

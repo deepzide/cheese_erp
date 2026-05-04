@@ -15,8 +15,15 @@ def auto_complete_checked_in_tickets():
 
 	now = now_datetime()
 
+	# Add a 15-minute grace period after slot end time before auto-completing,
+	# so tickets aren't marked COMPLETED while guests are still in the experience.
+	grace_minutes = 15
+
 	# Use the ticket's selected_date if set, otherwise fall back to slot.date_to, then slot.date_from
 	effective_date = fn.Coalesce(ticket.selected_date, slot.date_to, slot.date_from)
+
+	# Build the effective end datetime and add grace period
+	effective_end = fn.Concat(effective_date, " ", fn.Coalesce(slot.time_to, "23:59:59"))
 
 	rows = (
 		frappe.qb.from_(ticket)
@@ -24,7 +31,7 @@ def auto_complete_checked_in_tickets():
 		.select(ticket.name, ticket.slot)
 		.where(ticket.status == "CHECKED_IN")
 		.where(
-			fn.Concat(effective_date, " ", fn.Coalesce(slot.time_to, "23:59:59")) < now
+			fn.TimestampDiff("MINUTE", effective_end, now) >= grace_minutes
 		)
 	).run(as_dict=True)
 

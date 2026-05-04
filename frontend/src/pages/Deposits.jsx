@@ -137,7 +137,7 @@ export default function Deposits() {
                                             <h3 className="font-semibold text-sm text-foreground">{deposit.name}</h3>
                                             <Badge variant="outline" className="text-[10px]">{deposit.entity_type || '—'}</Badge>
                                         </div>
-                                        <p className="text-xs text-muted-foreground">{t("common.entity", "Entity")}: {deposit.entity_id || '—'} • {t("common.customer", "Customer")}: {deposit.contact_name || deposit.contact || '—'} • {t("bankAccounts.bank", "Bank")}: {deposit.bank_account || '—'} • {t("common.due", "Due")}: {deposit.due_at || '—'}</p>
+                                        <p className="text-xs text-muted-foreground">{t("common.entity", "Entity")}: {deposit.entity_id || '—'} • {t("common.customer", "Customer")}: {deposit.contact_name || deposit.contact || '—'} • {t("bankAccounts.bank", "Bank")}: {deposit.bank_account_title || deposit.bank_account_name || deposit.bank_account || '—'} • {t("common.due", "Due")}: {deposit.due_at || '—'}</p>
                                     </div>
                                     <div className="text-right">
                                         <p className="font-bold text-lg text-foreground flex items-center justify-end"><DollarSign className="w-4 h-4" />{Number(deposit.amount_required || 0).toLocaleString()}</p>
