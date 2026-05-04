@@ -1,14 +1,24 @@
 # Copyright (c) 2024
 # License: MIT
 
+import json
+
 import frappe
 from frappe import _
-from frappe.utils import add_to_date, now_datetime, cint
-from cheese.api.common.responses import success, created, error, not_found, validation_error, paginated_response
+from frappe.utils import add_to_date, cint, now_datetime
+
+from cheese.api.common.responses import (
+	created,
+	error,
+	not_found,
+	paginated_response,
+	success,
+	validation_error,
+)
 from cheese.api.v1.bank_account_controller import get_active_bank_account_doc
-from cheese.api.v1.user_controller import _get_current_user_company
 from cheese.api.v1.deposit_controller import _amount_remaining_for_deposit, _select_open_deposit
-import json
+from cheese.api.v1.route_booking_controller import _check_experiences_combinable
+from cheese.api.v1.user_controller import _get_current_user_company
 
 
 @frappe.whitelist()
@@ -39,11 +49,11 @@ def create_route(
 	try:
 		if not name:
 			return validation_error("name is required")
-		
+
 		# Validate status
 		if status not in ["ONLINE", "OFFLINE", "ARCHIVED"]:
 			return validation_error(f"Invalid status: {status}. Must be ONLINE, OFFLINE, or ARCHIVED")
-		
+
 		# Parse experiences if provided
 		experiences_list = []
 		if experiences:
@@ -53,8 +63,8 @@ def create_route(
 				else:
 					experiences_list = experiences
 			except Exception as e:
-				return validation_error(f"Invalid experiences format: {str(e)}")
-		
+				return validation_error(f"Invalid experiences format: {e!s}")
+
 		# Validate experiences exist and are eligible
 		# If simple list of strings, convert to proper format
 		normalized_experiences = []
@@ -68,13 +78,13 @@ def create_route(
 				normalized_experiences.append(exp)
 			else:
 				return validation_error(f"Invalid experience format at index {idx}")
-				
+
 		experiences_list = normalized_experiences
 
 		for exp in experiences_list:
 			if not frappe.db.exists("Cheese Experience", exp.get("experience")):
 				return not_found("Experience", exp.get("experience"))
-			
+
 			# Check if experience is eligible for routes
 			exp_doc = frappe.get_doc("Cheese Experience", exp.get("experience"))
 			if exp_doc.package_mode not in ["Route", "Both"]:
@@ -82,7 +92,7 @@ def create_route(
 					f"Experience {exp.get('experience')} is not eligible for routes. "
 					f"Package mode: {exp_doc.package_mode}"
 				)
-		
+
 		# Create route
 		route = frappe.get_doc({
 			"doctype": "Cheese Route",
@@ -96,17 +106,27 @@ def create_route(
 			"price_mode": price_mode,
 			"price": price
 		})
-		
+
 		# Add experiences
 		for exp in experiences_list:
 			route.append("experiences", {
 				"experience": exp.get("experience"),
 				"sequence": exp.get("sequence", 0)
 			})
-		
+
+		# Validate slot combinability when multiple experiences are present
+		if len(experiences_list) >= 2:
+			exp_ids = [exp.get("experience") for exp in experiences_list]
+			combinable = _check_experiences_combinable(exp_ids)
+			if combinable is False:
+				return validation_error(
+					"The experiences in this route have no valid slot combinations within the next 180 days. "
+					"All their existing slots overlap in time. Please review the slot schedules before creating this route."
+				)
+
 		route.insert()
 		frappe.db.commit()
-		
+
 		return created(
 			"Route created successfully",
 			{
@@ -119,7 +139,7 @@ def create_route(
 	except frappe.ValidationError as e:
 		return validation_error(str(e))
 	except Exception as e:
-		frappe.log_error(f"Error in create_route: {str(e)}")
+		frappe.log_error(f"Error in create_route: {e!s}")
 		return error("Failed to create route", "SERVER_ERROR", {"error": str(e)}, 500)
 
 
@@ -153,12 +173,12 @@ def update_route(
 	try:
 		if not route_id:
 			return validation_error("route_id is required")
-		
+
 		if not frappe.db.exists("Cheese Route", route_id):
 			return not_found("Route", route_id)
-		
+
 		route = frappe.get_doc("Cheese Route", route_id)
-		
+
 		# Update fields
 		if name is not None:
 			route.name = name
@@ -176,7 +196,7 @@ def update_route(
 			route.price_mode = price_mode
 		if price is not None:
 			route.price = price
-		
+
 		# Update experiences if provided
 		if experiences is not None:
 			route.experiences = []
@@ -185,21 +205,31 @@ def update_route(
 					experiences_list = json.loads(experiences)
 				else:
 					experiences_list = experiences
-				
+
 				for exp in experiences_list:
 					if not frappe.db.exists("Cheese Experience", exp.get("experience")):
 						return not_found("Experience", exp.get("experience"))
-					
+
 					route.append("experiences", {
 						"experience": exp.get("experience"),
 						"sequence": exp.get("sequence", 0)
 					})
 			except Exception as e:
-				return validation_error(f"Invalid experiences format: {str(e)}")
-		
+				return validation_error(f"Invalid experiences format: {e!s}")
+
+		# Validate slot combinability when multiple experiences are present
+		current_exp_ids = [row.experience for row in route.experiences]
+		if len(current_exp_ids) >= 2:
+			combinable = _check_experiences_combinable(current_exp_ids)
+			if combinable is False:
+				return validation_error(
+					"The experiences in this route have no valid slot combinations within the next 180 days. "
+					"All their existing slots overlap in time. Please review the slot schedules before saving this route."
+				)
+
 		route.save()
 		frappe.db.commit()
-		
+
 		return success(
 			"Route updated successfully",
 			{
@@ -211,7 +241,7 @@ def update_route(
 	except frappe.ValidationError as e:
 		return validation_error(str(e))
 	except Exception as e:
-		frappe.log_error(f"Error in update_route: {str(e)}")
+		frappe.log_error(f"Error in update_route: {e!s}")
 		return error("Failed to update route", "SERVER_ERROR", {"error": str(e)}, 500)
 
 
@@ -244,12 +274,12 @@ def get_route_details(route_id):
 	try:
 		if not route_id:
 			return validation_error("route_id is required")
-		
+
 		if not frappe.db.exists("Cheese Route", route_id):
 			return not_found("Route", route_id)
-		
+
 		route = frappe.get_doc("Cheese Route", route_id)
-		
+
 		# Get experiences with details
 		experiences = []
 		for exp_row in route.experiences:
@@ -262,7 +292,7 @@ def get_route_details(route_id):
 				"status": exp_doc.status,
 				"company": exp_doc.company
 			})
-		
+
 		return success(
 			"Route details retrieved successfully",
 			{
@@ -282,7 +312,7 @@ def get_route_details(route_id):
 			}
 		)
 	except Exception as e:
-		frappe.log_error(f"Error in get_route_details: {str(e)}")
+		frappe.log_error(f"Error in get_route_details: {e!s}")
 		return error("Failed to get route details", "SERVER_ERROR", {"error": str(e)}, 500)
 
 
@@ -304,17 +334,17 @@ def list_routes(page=1, page_size=20, status=None, search=None, experiences=None
 	try:
 		page = cint(page) or 1
 		page_size = cint(page_size) or 20
-		
+
 		filters = {}
 		if status:
 			filters["status"] = status
-			
+
 		user_company = _get_current_user_company()
 		if user_company:
 			company_exps = frappe.get_all("Cheese Experience", filters={"company": user_company}, pluck="name")
 			if not company_exps:
 				return paginated_response([], "No routes", page=page, page_size=page_size, total=0)
-			
+
 			user_route_rows = frappe.db.sql(
 				"SELECT DISTINCT parent FROM `tabCheese Route Experience` WHERE experience IN %(exps)s",
 				{"exps": tuple(company_exps)},
@@ -322,7 +352,7 @@ def list_routes(page=1, page_size=20, status=None, search=None, experiences=None
 			)
 			if not user_route_rows:
 				return paginated_response([], "No routes", page=page, page_size=page_size, total=0)
-			
+
 			filters["name"] = ["in", [r.parent for r in user_route_rows]]
 
 		if experiences:
@@ -335,7 +365,7 @@ def list_routes(page=1, page_size=20, status=None, search=None, experiences=None
 				else:
 					experience_ids = experiences
 			except Exception as e:
-				return validation_error(f"Invalid experiences format: {str(e)}")
+				return validation_error(f"Invalid experiences format: {e!s}")
 
 			if not isinstance(experience_ids, list) or not experience_ids:
 				return validation_error("experiences must be a non-empty list")
@@ -373,11 +403,11 @@ def list_routes(page=1, page_size=20, status=None, search=None, experiences=None
 				filters["name"] = ["in", final_routes]
 			else:
 				filters["name"] = ["in", [row.parent for row in route_rows]]
-		
+
 		or_filters = []
 		if search:
 			or_filters.append(["name", "like", f"%{search}%"])
-		
+
 		routes = frappe.get_all(
 			"Cheese Route",
 			filters=filters,
@@ -387,7 +417,7 @@ def list_routes(page=1, page_size=20, status=None, search=None, experiences=None
 			limit_page_length=page_size,
 			order_by="name asc"
 		)
-		
+
 		# Get experiences for each route
 		for route in routes:
 			experiences = frappe.get_all(
@@ -396,14 +426,14 @@ def list_routes(page=1, page_size=20, status=None, search=None, experiences=None
 				fields=["experience", "sequence"],
 				order_by="sequence asc"
 			)
-			
+
 			route["experiences"] = []
 			for exp in experiences:
 				# Get establishment and ID
 				exp_details = frappe.get_value(
-					"Cheese Experience", 
-					exp.experience, 
-					["name", "company"], 
+					"Cheese Experience",
+					exp.experience,
+					["name", "company"],
 					as_dict=True
 				)
 				if exp_details:
@@ -413,11 +443,11 @@ def list_routes(page=1, page_size=20, status=None, search=None, experiences=None
 						"establishment": exp_details.company,
 						"sequence": exp.sequence
 					})
-			
+
 			route["experiences_count"] = len(route["experiences"])
-		
+
 		total = frappe.db.count("Cheese Route", filters=filters)
-		
+
 		return paginated_response(
 			routes,
 			"Routes retrieved successfully",
@@ -426,7 +456,7 @@ def list_routes(page=1, page_size=20, status=None, search=None, experiences=None
 			total=total
 		)
 	except Exception as e:
-		frappe.log_error(f"Error in list_routes: {str(e)}")
+		frappe.log_error(f"Error in list_routes: {e!s}")
 		return error("Failed to list routes", "SERVER_ERROR", {"error": str(e)}, 500)
 
 
@@ -444,25 +474,25 @@ def publish_route(route_id):
 	try:
 		if not route_id:
 			return validation_error("route_id is required")
-		
+
 		if not frappe.db.exists("Cheese Route", route_id):
 			return not_found("Route", route_id)
-		
+
 		route = frappe.get_doc("Cheese Route", route_id)
-		
+
 		# Validate route has experiences
 		if not route.experiences or len(route.experiences) == 0:
 			return validation_error("Cannot publish route without experiences")
-		
+
 		route.status = "ONLINE"
 		route.save()
 		frappe.db.commit()
-		
+
 		return success("Route published successfully", {"route_id": route.name, "status": route.status})
 	except frappe.ValidationError as e:
 		return validation_error(str(e))
 	except Exception as e:
-		frappe.log_error(f"Error in publish_route: {str(e)}")
+		frappe.log_error(f"Error in publish_route: {e!s}")
 		return error("Failed to publish route", "SERVER_ERROR", {"error": str(e)}, 500)
 
 
@@ -480,18 +510,18 @@ def unpublish_route(route_id):
 	try:
 		if not route_id:
 			return validation_error("route_id is required")
-		
+
 		if not frappe.db.exists("Cheese Route", route_id):
 			return not_found("Route", route_id)
-		
+
 		route = frappe.get_doc("Cheese Route", route_id)
 		route.status = "OFFLINE"
 		route.save()
 		frappe.db.commit()
-		
+
 		return success("Route unpublished successfully", {"route_id": route.name, "status": route.status})
 	except Exception as e:
-		frappe.log_error(f"Error in unpublish_route: {str(e)}")
+		frappe.log_error(f"Error in unpublish_route: {e!s}")
 		return error("Failed to unpublish route", "SERVER_ERROR", {"error": str(e)}, 500)
 
 
@@ -509,18 +539,18 @@ def archive_route(route_id):
 	try:
 		if not route_id:
 			return validation_error("route_id is required")
-		
+
 		if not frappe.db.exists("Cheese Route", route_id):
 			return not_found("Route", route_id)
-		
+
 		route = frappe.get_doc("Cheese Route", route_id)
 		route.status = "ARCHIVED"
 		route.save()
 		frappe.db.commit()
-		
+
 		return success("Route archived successfully", {"route_id": route.name, "status": route.status})
 	except Exception as e:
-		frappe.log_error(f"Error in archive_route: {str(e)}")
+		frappe.log_error(f"Error in archive_route: {e!s}")
 		return error("Failed to archive route", "SERVER_ERROR", {"error": str(e)}, 500)
 
 
@@ -542,38 +572,38 @@ def configure_route_deposit(route_id, deposit_required=None, deposit_type=None, 
 	try:
 		if not route_id:
 			return validation_error("route_id is required")
-		
+
 		if not frappe.db.exists("Cheese Route", route_id):
 			return not_found("Route", route_id)
-		
+
 		route = frappe.get_doc("Cheese Route", route_id)
-		
+
 		if deposit_required is not None:
 			route.deposit_required = bool(deposit_required)
-		
+
 		if route.deposit_required:
 			if deposit_type is not None:
 				if deposit_type not in ["Amount", "%"]:
 					return validation_error("deposit_type must be 'Amount' or '%'")
 				route.deposit_type = deposit_type
-			
+
 			if deposit_value is not None:
 				if deposit_value <= 0:
 					return validation_error("deposit_value must be greater than 0")
 				route.deposit_value = deposit_value
-			
+
 			if deposit_ttl_hours is not None:
 				if deposit_ttl_hours <= 0:
 					return validation_error("deposit_ttl_hours must be greater than 0")
 				route.deposit_ttl_hours = deposit_ttl_hours
-			
+
 			# Validate all required fields are set
 			if not route.deposit_type or not route.deposit_value or not route.deposit_ttl_hours:
 				return validation_error("When deposit_required is true, deposit_type, deposit_value, and deposit_ttl_hours are required")
-		
+
 		route.save()
 		frappe.db.commit()
-		
+
 		return success(
 			"Route deposit configured successfully",
 			{
@@ -587,7 +617,7 @@ def configure_route_deposit(route_id, deposit_required=None, deposit_type=None, 
 	except frappe.ValidationError as e:
 		return validation_error(str(e))
 	except Exception as e:
-		frappe.log_error(f"Error in configure_route_deposit: {str(e)}")
+		frappe.log_error(f"Error in configure_route_deposit: {e!s}")
 		return error("Failed to configure route deposit", "SERVER_ERROR", {"error": str(e)}, 500)
 
 
@@ -606,29 +636,29 @@ def configure_route_bank_account(route_id, bank_account_data):
 	try:
 		if not route_id:
 			return validation_error("route_id is required")
-		
+
 		if not frappe.db.exists("Cheese Route", route_id):
 			return not_found("Route", route_id)
-		
+
 		# Parse bank account data
 		if isinstance(bank_account_data, str):
 			bank_data = json.loads(bank_account_data)
 		else:
 			bank_data = bank_account_data
-		
+
 		# Validate required fields
 		required_fields = ["holder", "bank", "account", "currency"]
 		for field in required_fields:
 			if field not in bank_data:
 				return validation_error(f"Missing required field: {field}")
-		
+
 		# Create or update bank account record using Cheese Bank Account doctype
 		bank_account_name = frappe.db.get_value(
 			"Cheese Bank Account",
 			{"route": route_id},
 			"name"
 		)
-		
+
 		if bank_account_name:
 			bank_account = frappe.get_doc("Cheese Bank Account", bank_account_name)
 		else:
@@ -637,21 +667,21 @@ def configure_route_bank_account(route_id, bank_account_data):
 				"route": route_id,
 				"status": "ACTIVE"
 			})
-		
+
 		bank_account.holder = bank_data.get("holder")
 		bank_account.bank = bank_data.get("bank")
 		bank_account.account = bank_data.get("account")
 		bank_account.iban = bank_data.get("iban")
 		bank_account.currency = bank_data.get("currency")
 		bank_account.status = "ACTIVE"
-		
+
 		if bank_account_name:
 			bank_account.save()
 		else:
 			bank_account.insert()
-		
+
 		frappe.db.commit()
-		
+
 		return success(
 			"Bank account configured successfully",
 			{
@@ -662,7 +692,7 @@ def configure_route_bank_account(route_id, bank_account_data):
 	except frappe.ValidationError as e:
 		return validation_error(str(e))
 	except Exception as e:
-		frappe.log_error(f"Error in configure_route_bank_account: {str(e)}")
+		frappe.log_error(f"Error in configure_route_bank_account: {e!s}")
 		return error("Failed to configure bank account", "SERVER_ERROR", {"error": str(e)}, 500)
 
 
@@ -680,13 +710,13 @@ def get_route_deposit_instructions(route_booking_id):
 	try:
 		if not route_booking_id:
 			return validation_error("route_booking_id is required")
-		
+
 		if not frappe.db.exists("Cheese Route Booking", route_booking_id):
 			return not_found("Route Booking", route_booking_id)
-		
+
 		route_booking = frappe.get_doc("Cheese Route Booking", route_booking_id)
 		route = frappe.get_doc("Cheese Route", route_booking.route)
-		
+
 		if not route_booking.deposit_required:
 			return success(
 				"No deposit required for this route booking",
@@ -695,7 +725,7 @@ def get_route_deposit_instructions(route_booking_id):
 					"route_booking_id": route_booking_id
 				}
 			)
-		
+
 		# Resolve bank account with route-level precedence.
 		bank_account = get_active_bank_account_doc("Cheese Route", route.name)
 
@@ -706,7 +736,7 @@ def get_route_deposit_instructions(route_booking_id):
 				{"route_id": route.name},
 				400
 			)
-		
+
 		# Get or create deposit
 		deposit_name = _select_open_deposit("Cheese Route Booking", route_booking_id)
 		if not deposit_name:
@@ -719,7 +749,7 @@ def get_route_deposit_instructions(route_booking_id):
 			)
 			if existing_deposits:
 				deposit_name = existing_deposits[0].name
-		
+
 		if not deposit_name:
 			# Create deposit
 			from frappe.utils import add_to_date, now_datetime
@@ -741,7 +771,7 @@ def get_route_deposit_instructions(route_booking_id):
 				if deposit_due_candidates
 				else add_to_date(reservation_now, hours=route.deposit_ttl_hours or 24, as_string=False)
 			)
-			
+
 			deposit = frappe.get_doc({
 				"doctype": "Cheese Deposit",
 				"entity_type": "Cheese Route Booking",
@@ -755,7 +785,7 @@ def get_route_deposit_instructions(route_booking_id):
 			frappe.db.commit()
 		else:
 			deposit = frappe.get_doc("Cheese Deposit", deposit_name)
-		
+
 		return success(
 			"Deposit instructions retrieved successfully",
 			{
@@ -778,7 +808,7 @@ def get_route_deposit_instructions(route_booking_id):
 			}
 		)
 	except Exception as e:
-		frappe.log_error(f"Error in get_route_deposit_instructions: {str(e)}")
+		frappe.log_error(f"Error in get_route_deposit_instructions: {e!s}")
 		return error("Failed to get deposit instructions", "SERVER_ERROR", {"error": str(e)}, 500)
 
 
@@ -801,23 +831,23 @@ def record_route_deposit_payment(route_booking_id, amount, verification_method="
 			return validation_error("route_booking_id is required")
 		if not amount or amount <= 0:
 			return validation_error("amount must be greater than 0")
-		
+
 		if not frappe.db.exists("Cheese Route Booking", route_booking_id):
 			return not_found("Route Booking", route_booking_id)
-		
+
 		# Get deposit
 		deposit_name = _select_open_deposit("Cheese Route Booking", route_booking_id)
-		
+
 		if not deposit_name:
 			return not_found("Deposit", f"for route booking {route_booking_id}")
-		
+
 		deposit = frappe.get_doc("Cheese Deposit", deposit_name)
 		old_status = deposit.status
 		old_amount_paid = deposit.amount_paid or 0
-		
+
 		deposit.record_payment(amount, verification_method, ocr_payload)
 		frappe.db.commit()
-		
+
 		return success(
 			"Route deposit payment recorded successfully",
 			{
@@ -836,7 +866,7 @@ def record_route_deposit_payment(route_booking_id, amount, verification_method="
 	except frappe.ValidationError as e:
 		return validation_error(str(e))
 	except Exception as e:
-		frappe.log_error(f"Error in record_route_deposit_payment: {str(e)}")
+		frappe.log_error(f"Error in record_route_deposit_payment: {e!s}")
 		return error("Failed to record route deposit payment", "SERVER_ERROR", {"error": str(e)}, 500)
 
 
@@ -854,14 +884,14 @@ def get_route_bank_account(route_id):
 	try:
 		if not route_id:
 			return validation_error("route_id is required")
-		
+
 		if not frappe.db.exists("Cheese Route", route_id):
 			return not_found("Route", route_id)
-		
+
 		bank_account = get_active_bank_account_doc("Cheese Route", route_id)
 		if not bank_account:
 			return not_found("Bank Account", f"for route {route_id}")
-		
+
 		return success(
 			"Bank account retrieved successfully",
 			{
@@ -876,7 +906,7 @@ def get_route_bank_account(route_id):
 			}
 		)
 	except Exception as e:
-		frappe.log_error(f"Error in get_route_bank_account: {str(e)}")
+		frappe.log_error(f"Error in get_route_bank_account: {e!s}")
 		return error("Failed to get route bank account", "SERVER_ERROR", {"error": str(e)}, 500)
 
 
@@ -918,7 +948,7 @@ def get_experiences_by_route(route_id):
 			}
 		)
 	except Exception as e:
-		frappe.log_error(f"Error in get_experiences_by_route: {str(e)}")
+		frappe.log_error(f"Error in get_experiences_by_route: {e!s}")
 		return error("Failed to get route experiences", "SERVER_ERROR", {"error": str(e)}, 500)
 
 
@@ -957,6 +987,6 @@ def delete_route(route_id):
 	except frappe.ValidationError as e:
 		return validation_error(str(e))
 	except Exception as e:
-		frappe.log_error(f"Error in delete_route: {str(e)}")
+		frappe.log_error(f"Error in delete_route: {e!s}")
 		return error("Failed to delete route", "SERVER_ERROR", {"error": str(e)}, 500)
 
