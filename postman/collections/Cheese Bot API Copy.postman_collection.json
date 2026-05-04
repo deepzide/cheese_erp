@@ -812,7 +812,46 @@
       "name": "9. Route Reservations",
       "item": [
         {
-          "name": "Create Route Reservation",
+          "name": "Get Route Combinations",
+          "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "token {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"route_id\": \"ROUTE-001\",\n  \"date\": \"2026-05-10\",\n  \"party_size\": 2\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/method/cheese.api.v1.route_booking_controller.get_route_combinations",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "method",
+                "cheese.api.v1.route_booking_controller.get_route_combinations"
+              ]
+            },
+            "description": "Returns valid pre-elaborated slot combinations for a route on a given date/range. Each combination includes a `combination_id` opaque token to use in Create Route Reservation.\n\n**Parámetros:**\n- `route_id` (required): ID de la ruta\n- `date`: Fecha única (YYYY-MM-DD). Equivale a date_from = date_to = date\n- `date_from` / `date_to`: Rango de fechas alternativo\n- `party_size` (default 1): Capacidad mínima requerida por slot\n\n**Restricciones validadas por combinación:**\n- Todos los slots comparten la misma fecha\n- Ningún par de slots se solapa en tiempo\n- Cada slot tiene capacidad >= party_size\n- Todas las experiencias de la ruta están ONLINE"
+          },
+          "response": []
+        },
+        {
+          "name": "Create Route Reservation (via combination_id)",
           "id": "06511260-b347-402f-b28f-3cc65a87d276",
           "request": {
             "method": "POST",
@@ -828,7 +867,12 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"contact_id\": \"CONTACT-001\",\n  \"route_id\": \"ROUTE-001\",\n  \"party_size\": 2,\n  \"preferred_dates\": [\n    {\"experience_id\": \"EXP-001\", \"slot_id\": \"SLOT-001\"},\n    {\"experience_id\": \"EXP-002\", \"slot_id\": \"SLOT-002\"}\n  ],\n  \"conversation_id\": \"CONV-001\"\n}"
+              "raw": "{\n  \"contact_id\": \"CONTACT-001\",\n  \"route_id\": \"ROUTE-001\",\n  \"party_size\": 2,\n  \"combination_id\": \"<combination_id from get_route_combinations>\",\n  \"conversation_id\": \"CONV-001\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             },
             "url": {
               "raw": "{{base_url}}/api/method/cheese.api.v1.route_booking_controller.create_route_reservation",
@@ -841,7 +885,7 @@
                 "cheese.api.v1.route_booking_controller.create_route_reservation"
               ]
             },
-            "description": "ERP: Creates RouteBooking = PENDING + internal reservations, locks capacity. Bot: Guides and executes."
+            "description": "Crea una reserva de ruta a partir de un `combination_id` obtenido de `get_route_combinations`. Este es el flujo recomendado.\n\n**Flujos disponibles:**\n\n**1. Via combination_id (recomendado):**\nUsa el token opaco devuelto por `get_route_combinations`. No se necesitan `date_from`, `date_to`, `time_from` ni `time_to`.\n```json\n{\n  \"contact_id\": \"CNT-001\",\n  \"route_id\": \"ROUTE-001\",\n  \"party_size\": 2,\n  \"combination_id\": \"eyJ...\"\n}\n```\n\n**2. Via auto-selección por fecha:**\nEl backend busca la primera combinación válida en el rango. Opcionalmente filtra por hora de inicio/fin.\n```json\n{\n  \"contact_id\": \"CNT-001\",\n  \"route_id\": \"ROUTE-001\",\n  \"party_size\": 2,\n  \"date_from\": \"2026-05-10\",\n  \"date_to\": \"2026-05-10\",\n  \"time_from\": \"10:00:00\"\n}\n```\n\n**3. Via slots explícitos (validado):**\nEl backend valida que los slots enviados cumplan todas las restricciones (misma fecha, no solapados, experiencias ONLINE, sin duplicados).\n```json\n{\n  \"contact_id\": \"CNT-001\",\n  \"route_id\": \"ROUTE-001\",\n  \"party_size\": 2,\n  \"experiences_with_slots\": [\n    {\"experience_id\": \"EXP-001\", \"slot_id\": \"SLOT-001\", \"selected_date\": \"2026-05-10\"},\n    {\"experience_id\": \"EXP-002\", \"slot_id\": \"SLOT-002\", \"selected_date\": \"2026-05-10\"}\n  ]\n}\n```\n\n**Validaciones aplicadas en todos los flujos:**\n- Fecha de los slots no puede estar en el pasado\n- Todos los slots deben ser de la misma fecha\n- Ningún par de slots puede solaparse en tiempo\n- Todas las experiencias deben estar ONLINE\n- Cada experiencia solo puede aportar un slot"
           },
           "response": []
         },

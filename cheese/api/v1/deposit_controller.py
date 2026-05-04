@@ -228,15 +228,15 @@ def _build_deposit_payload(deposit):
 @frappe.whitelist()
 def get_payment_link_or_instructions(ticket_id=None, deposit_id=None, payment_type=None):
 	"""
-	Get payment link or instructions - enhanced version of get_deposit_instructions
-	Returns payment link if available, otherwise returns instructions
+	Get payment instructions for a deposit or ticket.
 
 	Args:
 		ticket_id: Ticket ID (optional if deposit_id provided)
 		deposit_id: Deposit ID (optional if ticket_id provided)
+		payment_type: "Deposit" or "Balance" (optional)
 
 	Returns:
-		Success response with payment link or instructions
+		Success response with bank account info and instructions
 	"""
 	try:
 		if not ticket_id and not deposit_id:
@@ -258,14 +258,22 @@ def get_payment_link_or_instructions(ticket_id=None, deposit_id=None, payment_ty
 			if deposit_name:
 				deposit_doc = frappe.get_doc("Cheese Deposit", deposit_name)
 			else:
-				# Use get_deposit_instructions to create if needed
-				instructions_result = get_deposit_instructions(ticket_id, payment_type=payment_type)
-				if not instructions_result.get("success"):
-					return instructions_result
+				# Before creating, check for any existing balance deposit regardless of status
+				if payment_type == "Balance":
+					all_existing = _get_deposits_for_entity("Cheese Ticket", ticket_id)
+					balance_candidates = all_existing[1:] if len(all_existing) > 1 else []
+					if balance_candidates:
+						deposit_doc = frappe.get_doc("Cheese Deposit", balance_candidates[-1].name)
 
-				deposit_id_from_result = instructions_result.get("data", {}).get("deposit_id")
-				if deposit_id_from_result:
-					deposit_doc = frappe.get_doc("Cheese Deposit", deposit_id_from_result)
+				if not deposit_doc:
+					# Use get_deposit_instructions to create if needed
+					instructions_result = get_deposit_instructions(ticket_id, payment_type=payment_type)
+					if not instructions_result.get("success"):
+						return instructions_result
+
+					deposit_id_from_result = instructions_result.get("data", {}).get("deposit_id")
+					if deposit_id_from_result:
+						deposit_doc = frappe.get_doc("Cheese Deposit", deposit_id_from_result)
 
 		if not deposit_doc:
 			return not_found("Deposit", deposit_id or f"for ticket {ticket_id}")
@@ -275,34 +283,45 @@ def get_payment_link_or_instructions(ticket_id=None, deposit_id=None, payment_ty
 			ticket_doc = frappe.get_doc("Cheese Ticket", ticket_id)
 			bank_account = _bank_accounts_for_ticket(ticket_doc)
 
-		# Generate payment link (simplified - would integrate with payment gateway in production)
-		payment_link = None
-		if deposit_doc.status in OPEN_DEPOSIT_STATUSES:
-			# In production, this would generate a real payment link
-			payment_link = f"/api/method/cheese.api.v1.deposit_controller.record_deposit_payment?ticket_id={ticket_id}&amount={deposit_doc.amount_required}&payment_type={payment_type or _get_deposit_phase(deposit_doc.name)}"
+		effective_payment_type = payment_type or _get_deposit_phase(deposit_doc.name)
 
-		instructions = (
-			_instructions_for_deposit(deposit_doc.amount_required, bank_account)
-			if bank_account
-			else (
-				_("Use the payment link to complete payment")
-				if payment_link
-				else _("Please make payment to complete your booking")
+		# For Balance deposits compute correct amounts from ticket totals to avoid
+		# stale or incorrectly-stored amount_required on the deposit document.
+		if effective_payment_type == "Balance" and ticket_id and frappe.db.exists("Cheese Ticket", ticket_id):
+			ticket_vals = frappe.db.get_value(
+				"Cheese Ticket", ticket_id, ["total_price", "deposit_amount"], as_dict=True
 			)
-		)
+			all_deps_for_balance = _get_deposits_for_entity("Cheese Ticket", ticket_id)
+			balance_required = flt(ticket_vals.total_price or 0) - flt(ticket_vals.deposit_amount or 0)
+			balance_paid = sum(
+				flt(d.amount_paid or 0)
+				for d in all_deps_for_balance[1:]
+				if d.status in RECEIVED_DEPOSIT_STATUSES
+			)
+			amount_required = balance_required
+			amount_paid = balance_paid
+			amount_remaining = max(0, balance_required - balance_paid)
+		else:
+			amount_required = flt(deposit_doc.amount_required or 0)
+			amount_paid = flt(deposit_doc.amount_paid or 0)
+			amount_remaining = _amount_remaining_for_deposit(deposit_doc)
+
+		if amount_remaining > 0 and deposit_doc.status in OPEN_DEPOSIT_STATUSES:
+			instructions = _instructions_for_deposit(amount_required, bank_account)
+		else:
+			instructions = _("Payment for this deposit has been completed")
 
 		return success(
 			"Payment instructions retrieved successfully",
 			{
 				"deposit_id": deposit_doc.name,
 				"ticket_id": ticket_id,
-				"amount_required": deposit_doc.amount_required,
-				"amount_paid": deposit_doc.amount_paid or 0,
-				"amount_remaining": _amount_remaining_for_deposit(deposit_doc),
+				"amount_required": amount_required,
+				"amount_paid": amount_paid,
+				"amount_remaining": amount_remaining,
 				"due_at": str(deposit_doc.due_at) if deposit_doc.due_at else None,
 				"status": deposit_doc.status,
-				"payment_type": payment_type or _get_deposit_phase(deposit_doc.name),
-				"payment_link": payment_link,
+				"payment_type": effective_payment_type,
 				"bank_account": bank_account,
 				"instructions": instructions,
 			},
