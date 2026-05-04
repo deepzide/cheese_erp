@@ -96,6 +96,68 @@ def _get_amount_received_for_entity(entity_type, entity_id):
 	return sum(flt(row.amount_paid or 0) for row in rows)
 
 
+def _compute_effective_balance(entity_type: str, entity_id: str, all_deps: list) -> tuple:
+	"""Return (balance_required, effective_balance_paid, last_balance_deposit_name).
+
+	balance_required  = total_price - deposit_amount (from the ticket).
+	effective_balance_paid includes:
+	  - amount_paid on all Balance-phase deposits (regardless of status, as long
+	    as the deposit is not CANCELLED/REFUNDED).
+	  - excess from Deposit-phase deposit(s) (amount_paid - amount_required) when
+	    those deposits are in a received status.
+
+	This ensures overpayments on the seña are correctly counted toward the balance.
+	"""
+	if entity_type != "Cheese Ticket" or not frappe.db.exists("Cheese Ticket", entity_id):
+		return (0, 0, None)
+
+	ticket_vals = frappe.db.get_value(
+		"Cheese Ticket", entity_id, ["total_price", "deposit_amount"], as_dict=True
+	)
+	balance_required = flt(ticket_vals.total_price or 0) - flt(ticket_vals.deposit_amount or 0)
+
+	deposit_phase = all_deps[:1]
+	balance_phase = all_deps[1:]
+
+	deposit_excess = sum(
+		max(0, flt(d.amount_paid or 0) - flt(d.amount_required or 0))
+		for d in deposit_phase
+		if d.status in RECEIVED_DEPOSIT_STATUSES
+	)
+	balance_paid_direct = sum(
+		flt(d.amount_paid or 0) for d in balance_phase if d.status not in IGNORED_DEPOSIT_STATUSES
+	)
+	effective_balance_paid = deposit_excess + balance_paid_direct
+
+	last_balance_dep = balance_phase[-1].name if balance_phase else None
+	return (balance_required, effective_balance_paid, last_balance_dep)
+
+
+def _reconcile_balance_deposit(entity_type: str, entity_id: str) -> None:
+	"""Mark all open Balance deposits as PAID if the effective balance is fully covered.
+
+	Safe to call at any time; it is a no-op when the balance is not yet complete.
+	"""
+	if entity_type != "Cheese Ticket":
+		return
+	all_deps = _get_deposits_for_entity(entity_type, entity_id)
+	balance_required, effective_balance_paid, _ = _compute_effective_balance(entity_type, entity_id, all_deps)
+	if balance_required <= 0:
+		return
+	if effective_balance_paid < balance_required - 0.01:
+		return
+
+	paid_at = now_datetime()
+	for dep_row in all_deps[1:]:
+		if dep_row.status in OPEN_DEPOSIT_STATUSES:
+			frappe.db.set_value(
+				"Cheese Deposit",
+				dep_row.name,
+				{"status": "PAID", "paid_at": paid_at},
+			)
+	frappe.db.commit()
+
+
 def _get_received_deposits_for_entity(entity_type, entity_id):
 	return frappe.get_all(
 		"Cheese Deposit",
@@ -258,15 +320,21 @@ def get_payment_link_or_instructions(ticket_id=None, deposit_id=None, payment_ty
 			if deposit_name:
 				deposit_doc = frappe.get_doc("Cheese Deposit", deposit_name)
 			else:
-				# Before creating, check for any existing balance deposit regardless of status
+				# _select_open_deposit returned None: the relevant deposit is already in a
+				# terminal/received state or doesn't exist yet.  Resolve it before falling
+				# back to creating a new one via get_deposit_instructions.
+				all_existing = _get_deposits_for_entity("Cheese Ticket", ticket_id)
+
 				if payment_type == "Balance":
-					all_existing = _get_deposits_for_entity("Cheese Ticket", ticket_id)
 					balance_candidates = all_existing[1:] if len(all_existing) > 1 else []
 					if balance_candidates:
 						deposit_doc = frappe.get_doc("Cheese Deposit", balance_candidates[-1].name)
+				elif all_existing:
+					# Deposit phase (or unspecified): use the first deposit whatever its status
+					deposit_doc = frappe.get_doc("Cheese Deposit", all_existing[0].name)
 
 				if not deposit_doc:
-					# Use get_deposit_instructions to create if needed
+					# Still not resolved — need to create via get_deposit_instructions
 					instructions_result = get_deposit_instructions(ticket_id, payment_type=payment_type)
 					if not instructions_result.get("success"):
 						return instructions_result
@@ -285,22 +353,21 @@ def get_payment_link_or_instructions(ticket_id=None, deposit_id=None, payment_ty
 
 		effective_payment_type = payment_type or _get_deposit_phase(deposit_doc.name)
 
-		# For Balance deposits compute correct amounts from ticket totals to avoid
-		# stale or incorrectly-stored amount_required on the deposit document.
+		# For Balance deposits compute correct amounts using the effective balance helper,
+		# which accounts for overpayments on the Deposit phase (excess from the seña).
 		if effective_payment_type == "Balance" and ticket_id and frappe.db.exists("Cheese Ticket", ticket_id):
-			ticket_vals = frappe.db.get_value(
-				"Cheese Ticket", ticket_id, ["total_price", "deposit_amount"], as_dict=True
-			)
 			all_deps_for_balance = _get_deposits_for_entity("Cheese Ticket", ticket_id)
-			balance_required = flt(ticket_vals.total_price or 0) - flt(ticket_vals.deposit_amount or 0)
-			balance_paid = sum(
-				flt(d.amount_paid or 0)
-				for d in all_deps_for_balance[1:]
-				if d.status in RECEIVED_DEPOSIT_STATUSES
+			balance_required, effective_balance_paid, _ = _compute_effective_balance(
+				"Cheese Ticket", ticket_id, all_deps_for_balance
 			)
 			amount_required = balance_required
-			amount_paid = balance_paid
-			amount_remaining = max(0, balance_required - balance_paid)
+			amount_paid = effective_balance_paid
+			amount_remaining = max(0, balance_required - effective_balance_paid)
+
+			# Auto-reconcile: mark all open Balance deposits as PAID if the balance is fully covered
+			if amount_remaining <= 0:
+				_reconcile_balance_deposit("Cheese Ticket", ticket_id)
+				deposit_doc = frappe.get_doc("Cheese Deposit", deposit_doc.name)  # reload status
 		else:
 			amount_required = flt(deposit_doc.amount_required or 0)
 			amount_paid = flt(deposit_doc.amount_paid or 0)
@@ -672,6 +739,11 @@ def record_deposit_payment(
 				receipt_file_url = file_doc.file_url
 
 		frappe.db.commit()
+
+		# Reconcile balance deposit in case this payment covered the remaining balance
+		# (e.g. overpayment on the seña that exceeds the balance required).
+		if deposit.entity_type == "Cheese Ticket" and ticket_id:
+			_reconcile_balance_deposit(deposit.entity_type, deposit.entity_id)
 
 		# Build enriched response
 		total_received = _get_amount_received_for_entity(deposit.entity_type, deposit.entity_id)
@@ -1090,9 +1162,10 @@ def list_deposits(
 
 			# Resolve bank account human-readable title
 			if deposit.get("bank_account"):
-				deposit["bank_account_title"] = frappe.db.get_value(
-					"Cheese Bank Account", deposit["bank_account"], "title"
-				) or deposit["bank_account"]
+				deposit["bank_account_title"] = (
+					frappe.db.get_value("Cheese Bank Account", deposit["bank_account"], "title")
+					or deposit["bank_account"]
+				)
 			else:
 				deposit["bank_account_title"] = None
 
