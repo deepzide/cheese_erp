@@ -245,7 +245,7 @@ export default function Layout({ children }) {
                             size="sm"
                             onClick={toggleLanguage}
                             className="text-muted-foreground hover:text-foreground gap-1.5 font-semibold text-xs px-2"
-                            title={i18n.language === "es" ? "Switch to English" : "Cambiar a Español"}
+                            title={i18n.language === "es" ? t("layout.switchToEnglish", "Switch to English") : t("layout.switchToSpanish", "Switch to Spanish")}
                         >
                             <Globe className="w-4 h-4" />
                             <span>{i18n.language === "es" ? "ES" : "EN"}</span>
@@ -257,7 +257,7 @@ export default function Layout({ children }) {
                             size="icon"
                             onClick={toggleTheme}
                             className="text-muted-foreground hover:text-foreground"
-                            title={resolvedTheme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+                            title={resolvedTheme === "dark" ? t("layout.switchToLight", "Switch to light mode") : t("layout.switchToDark", "Switch to dark mode")}
                         >
                             {resolvedTheme === "dark" ? (
                                 <Sun className="w-5 h-5" />

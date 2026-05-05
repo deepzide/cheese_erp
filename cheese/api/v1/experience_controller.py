@@ -119,7 +119,7 @@ def list_experiences(page=1, page_size=20, status=None, company=None, establishm
 			filters=filters,
 			or_filters=or_filters if or_filters else None,
 			fields=["name", "name as id", "name as experience_name", "company", "company as establishment", "description", "status", "package_mode", 
-				"individual_price", "route_price", "deposit_required"],
+				"individual_price", "route_price", "deposit_required", "is_room", "room_size"],
 			limit_start=(page - 1) * page_size,
 			limit_page_length=page_size,
 			order_by="name asc"
@@ -273,6 +273,8 @@ def get_experience_detail(experience_id, include_next_availability=True):
 					"individual_price": experience.individual_price,
 					"route_price": experience.route_price
 				},
+				"is_room": experience.is_room,
+				"room_size": experience.room_size,
 				"deposit": {
 					"deposit_required": experience.deposit_required,
 					"deposit_type": experience.deposit_type,

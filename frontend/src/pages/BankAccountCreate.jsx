@@ -8,8 +8,10 @@ import { toast } from "sonner";
 import { useFrappeCreate } from "@/lib/useApiData";
 import CreatePageLayout from "@/components/CreatePageLayout";
 import FrappeSearchSelect from "@/components/FrappeSearchSelect";
+import { useTranslation } from "react-i18next";
 
 export default function BankAccountCreate() {
+    const { t } = useTranslation();
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
     const initialRoute = searchParams.get('route') || "";

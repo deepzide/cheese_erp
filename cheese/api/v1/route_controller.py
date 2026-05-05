@@ -21,6 +21,84 @@ from cheese.api.v1.route_booking_controller import _check_experiences_combinable
 from cheese.api.v1.user_controller import _get_current_user_company
 
 
+def _duration_to_seconds(duration_value):
+	if duration_value is None:
+		return 0
+	if isinstance(duration_value, (int, float)):
+		return int(duration_value)
+	value = str(duration_value).strip()
+	if not value:
+		return 0
+	if value.isdigit():
+		return int(value)
+	parts = value.split(":")
+	try:
+		if len(parts) == 3:
+			hours, minutes, seconds = [int(p) for p in parts]
+			return (hours * 3600) + (minutes * 60) + seconds
+		if len(parts) == 2:
+			hours, minutes = [int(p) for p in parts]
+			return (hours * 3600) + (minutes * 60)
+	except Exception:
+		return 0
+	return 0
+
+
+def _time_to_seconds(time_value):
+	if not time_value:
+		return None
+	value = str(time_value).strip()
+	parts = value.split(":")
+	try:
+		hours = int(parts[0])
+		minutes = int(parts[1]) if len(parts) > 1 else 0
+		seconds = int(parts[2]) if len(parts) > 2 else 0
+		return (hours * 3600) + (minutes * 60) + seconds
+	except Exception:
+		return None
+
+
+def _seconds_to_time_label(total_seconds):
+	if total_seconds is None:
+		return None
+	total = max(int(total_seconds), 0)
+	hours = (total // 3600) % 24
+	minutes = (total % 3600) // 60
+	seconds = total % 60
+	return f"{hours:02d}:{minutes:02d}:{seconds:02d}"
+
+
+def _validate_route_experiences_no_overlap(experiences_list):
+	scheduled = []
+	for exp in experiences_list:
+		exp_id = exp.get("experience")
+		start_time = exp.get("start_time")
+		if not exp_id or not start_time:
+			continue
+		start_seconds = _time_to_seconds(start_time)
+		if start_seconds is None:
+			return f"Invalid start_time format for experience {exp_id}"
+		exp_doc = frappe.get_doc("Cheese Experience", exp_id)
+		duration_seconds = _duration_to_seconds(exp_doc.event_duration)
+		end_seconds = start_seconds + max(duration_seconds, 0)
+		scheduled.append({
+			"experience": exp_id,
+			"start_seconds": start_seconds,
+			"end_seconds": end_seconds,
+		})
+
+	scheduled.sort(key=lambda row: row["start_seconds"])
+	for idx in range(1, len(scheduled)):
+		prev = scheduled[idx - 1]
+		current = scheduled[idx]
+		if prev["end_seconds"] > current["start_seconds"]:
+			return (
+				f"Experience {prev['experience']} ({_seconds_to_time_label(prev['start_seconds'])}-{_seconds_to_time_label(prev['end_seconds'])}) "
+				f"overlaps with {current['experience']} ({_seconds_to_time_label(current['start_seconds'])}-...)"
+			)
+	return None
+
+
 @frappe.whitelist()
 def create_route(
 	name,
@@ -111,7 +189,8 @@ def create_route(
 		for exp in experiences_list:
 			route.append("experiences", {
 				"experience": exp.get("experience"),
-				"sequence": exp.get("sequence", 0)
+				"sequence": exp.get("sequence", 0),
+				"start_time": exp.get("start_time"),
 			})
 
 		# Validate slot combinability when multiple experiences are present
@@ -123,6 +202,10 @@ def create_route(
 					"The experiences in this route have no valid slot combinations within the next 180 days. "
 					"All their existing slots overlap in time. Please review the slot schedules before creating this route."
 				)
+
+		overlap_error = _validate_route_experiences_no_overlap(experiences_list)
+		if overlap_error:
+			return validation_error(overlap_error)
 
 		route.insert()
 		frappe.db.commit()
@@ -212,7 +295,8 @@ def update_route(
 
 					route.append("experiences", {
 						"experience": exp.get("experience"),
-						"sequence": exp.get("sequence", 0)
+						"sequence": exp.get("sequence", 0),
+						"start_time": exp.get("start_time"),
 					})
 			except Exception as e:
 				return validation_error(f"Invalid experiences format: {e!s}")
@@ -226,6 +310,11 @@ def update_route(
 					"The experiences in this route have no valid slot combinations within the next 180 days. "
 					"All their existing slots overlap in time. Please review the slot schedules before saving this route."
 				)
+
+		current_experiences = [{"experience": row.experience, "start_time": row.start_time} for row in route.experiences]
+		overlap_error = _validate_route_experiences_no_overlap(current_experiences)
+		if overlap_error:
+			return validation_error(overlap_error)
 
 		route.save()
 		frappe.db.commit()
@@ -289,6 +378,11 @@ def get_route_details(route_id):
 				"experience_name": exp_doc.name,
 				"description": exp_doc.description,
 				"sequence": exp_row.sequence,
+				"start_time": exp_row.start_time,
+				"event_duration": exp_doc.event_duration,
+				"end_time": _seconds_to_time_label(
+					(_time_to_seconds(exp_row.start_time) or 0) + _duration_to_seconds(exp_doc.event_duration)
+				) if exp_row.start_time else None,
 				"status": exp_doc.status,
 				"company": exp_doc.company
 			})
@@ -423,7 +517,7 @@ def list_routes(page=1, page_size=20, status=None, search=None, experiences=None
 			experiences = frappe.get_all(
 				"Cheese Route Experience",
 				filters={"parent": route.name},
-				fields=["experience", "sequence"],
+				fields=["experience", "sequence", "start_time"],
 				order_by="sequence asc"
 			)
 
@@ -437,11 +531,19 @@ def list_routes(page=1, page_size=20, status=None, search=None, experiences=None
 					as_dict=True
 				)
 				if exp_details:
+					duration_value = frappe.db.get_value("Cheese Experience", exp.experience, "event_duration")
+					end_time = None
+					if exp.start_time:
+						end_time = _seconds_to_time_label(
+							(_time_to_seconds(exp.start_time) or 0) + _duration_to_seconds(duration_value)
+						)
 					route["experiences"].append({
 						"id": exp_details.name,
 						"experience": exp_details.name,
 						"establishment": exp_details.company,
-						"sequence": exp.sequence
+						"sequence": exp.sequence,
+						"start_time": exp.start_time,
+						"end_time": end_time,
 					})
 
 			route["experiences_count"] = len(route["experiences"])
@@ -932,18 +1034,33 @@ def get_experiences_by_route(route_id):
 		experiences = frappe.get_all(
 			"Cheese Route Experience",
 			filters={"parent": route_id},
-			fields=["experience", "sequence"],
+			fields=["experience", "sequence", "start_time"],
 			order_by="sequence asc"
 		)
 
 		experience_ids = [e.experience for e in experiences]
+		enhanced_experiences = []
+		for row in experiences:
+			duration_value = frappe.db.get_value("Cheese Experience", row.experience, "event_duration")
+			end_time = None
+			if row.start_time:
+				end_time = _seconds_to_time_label(
+					(_time_to_seconds(row.start_time) or 0) + _duration_to_seconds(duration_value)
+				)
+			enhanced_experiences.append({
+				"experience": row.experience,
+				"sequence": row.sequence,
+				"start_time": row.start_time,
+				"event_duration": duration_value,
+				"end_time": end_time,
+			})
 
 		return success(
 			"Route experiences retrieved successfully",
 			{
 				"route_id": route_id,
 				"experience_ids": experience_ids,
-				"experiences": experiences,
+				"experiences": enhanced_experiences,
 				"count": len(experience_ids)
 			}
 		)

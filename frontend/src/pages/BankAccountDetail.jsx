@@ -8,8 +8,10 @@ import { Label } from "@/components/ui/label";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Landmark, MapPin, Building2 } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 export default function BankAccountDetail() {
+    const { t } = useTranslation();
     const { id } = useParams();
     const navigate = useNavigate();
     const { data: account, isLoading } = useFrappeDoc("Cheese Bank Account", id);

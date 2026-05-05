@@ -8,9 +8,11 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { authService } from "@/api/authService";
 import { setBaseUrl, getBaseUrl } from "@/api/client";
 import { Loader2, Eye, EyeOff } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 export default function Login() {
     const navigate = useNavigate();
+    const { t } = useTranslation();
     const [username, setUsername] = useState("");
     const [password, setPassword] = useState("");
     const [serverUrl, setServerUrl] = useState("");
@@ -37,7 +39,7 @@ export default function Login() {
             await authService.login(username, password);
             navigate("/cheese/dashboard");
         } catch (err) {
-            setError(err?.message || "Login failed. Please try again.");
+            setError(err?.message || t("login.error", "Login failed. Please try again."));
         } finally {
             setLoading(false);
         }
@@ -74,7 +76,7 @@ export default function Login() {
                             </div>
                             <div>
                                 <h1 className="text-2xl font-bold text-white">Cheese</h1>
-                                <p className="text-sm text-white/40 mt-1">Control Center</p>
+                                <p className="text-sm text-white/40 mt-1">{t("login.controlCenter", "Control Center")}</p>
                             </div>
                         </motion.div>
                     </CardHeader>
@@ -92,20 +94,20 @@ export default function Login() {
                             )}
 
                             <div className="space-y-2">
-                                <Label className="text-white/70 text-sm">Username or Email</Label>
+                                <Label className="text-white/70 text-sm">{t("login.usernameOrEmail", "Username or Email")}</Label>
                                 <Input
                                     id="login-username"
                                     type="text"
                                     value={username}
                                     onChange={(e) => setUsername(e.target.value)}
-                                    placeholder="admin@example.com"
+                                    placeholder={t("login.usernamePlaceholder", "admin@example.com")}
                                     className="bg-white/5 border-white/10 text-white placeholder:text-white/20 focus:border-cheese-500 focus:ring-cheese-500/20 h-11"
                                     required
                                 />
                             </div>
 
                             <div className="space-y-2">
-                                <Label className="text-white/70 text-sm">Password</Label>
+                                <Label className="text-white/70 text-sm">{t("auth.password", "Password")}</Label>
                                 <div className="relative">
                                     <Input
                                         id="login-password"
@@ -131,7 +133,7 @@ export default function Login() {
                                 onClick={() => setShowServer(!showServer)}
                                 className="text-xs text-white/30 hover:text-cheese-400 transition-colors"
                             >
-                                {showServer ? "Hide" : "Show"} server settings
+                                {showServer ? t("login.hide", "Hide") : t("login.show", "Show")} {t("login.serverSettings", "server settings")}
                             </button>
 
                             {showServer && (
@@ -140,13 +142,13 @@ export default function Login() {
                                     animate={{ opacity: 1, height: "auto" }}
                                     className="space-y-2"
                                 >
-                                    <Label className="text-white/70 text-sm">Server URL</Label>
+                                    <Label className="text-white/70 text-sm">{t("login.serverUrl", "Server URL")}</Label>
                                     <Input
                                         id="login-server-url"
                                         type="url"
                                         value={serverUrl}
                                         onChange={(e) => setServerUrl(e.target.value)}
-                                        placeholder="https://your-site.frappe.cloud"
+                                        placeholder={t("login.serverUrlPlaceholder", "https://your-site.frappe.cloud")}
                                         className="bg-white/5 border-white/10 text-white placeholder:text-white/20 focus:border-cheese-500 focus:ring-cheese-500/20 h-11"
                                     />
                                 </motion.div>
@@ -160,14 +162,14 @@ export default function Login() {
                                 {loading ? (
                                     <Loader2 className="w-4 h-4 animate-spin mr-2" />
                                 ) : null}
-                                {loading ? "Signing in..." : "Sign in to Cheese"}
+                                {loading ? t("login.signingIn", "Signing in...") : t("auth.signIn", "Sign In")}
                             </Button>
                         </form>
                     </CardContent>
                 </Card>
 
                 <p className="text-center text-white/20 text-xs mt-6">
-                    Cheese Control Center • Flow-driven operations
+                    {t("login.footer", "Cheese Control Center • Flow-driven operations")}
                 </p>
             </motion.div>
         </div>

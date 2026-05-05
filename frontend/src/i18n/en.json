@@ -132,8 +132,17 @@
     "title": "Conversations",
     "noMessages": "No messages in this conversation",
     "viewTranscript": "View external transcript",
+    "transcript": "Transcript",
     "channel": "Channel",
-    "summary": "Summary"
+    "summary": "Summary",
+    "summaryTitle": "Conversation Summary",
+    "highlights": "Highlights",
+    "today": "Today",
+    "yesterday": "Yesterday",
+    "unknownDate": "Unknown date",
+    "sent": "Sent",
+    "loadingMore": "Loading more messages...",
+    "loadFailed": "Failed to load conversation messages"
   },
   "contact": {
     "title": "Contacts",
@@ -238,6 +247,25 @@
     "password": "Password",
     "signIn": "Sign In"
   },
+  "login": {
+    "error": "Login failed. Please try again.",
+    "controlCenter": "Control Center",
+    "usernameOrEmail": "Username or Email",
+    "usernamePlaceholder": "admin@example.com",
+    "hide": "Hide",
+    "show": "Show",
+    "serverSettings": "server settings",
+    "serverUrl": "Server URL",
+    "serverUrlPlaceholder": "https://your-site.frappe.cloud",
+    "signingIn": "Signing in...",
+    "footer": "Cheese Control Center • Flow-driven operations"
+  },
+  "layout": {
+    "switchToEnglish": "Switch to English",
+    "switchToSpanish": "Switch to Spanish",
+    "switchToLight": "Switch to light mode",
+    "switchToDark": "Switch to dark mode"
+  },
   "deposit": {
     "title": "Deposits",
     "pricing": "Pricing",
@@ -285,7 +313,18 @@
   },
   "bookingPolicy": {
     "items": "policies",
-    "new": "New Policy"
+    "new": "New Policy",
+    "experienceRequired": "Experience is required",
+    "created": "Booking policy created",
+    "newPolicy": "New Booking Policy",
+    "newPolicyDescription": "Set booking rules for an experience",
+    "createPolicy": "Create Policy",
+    "cancelBeforeHours": "Cancel Before (hours)",
+    "cancelBeforeHint": "Guests can cancel up to this many hours before",
+    "modifyBeforeHours": "Modify Before (hours)",
+    "modifyBeforeHint": "Guests can modify up to this many hours before",
+    "minLeadHours": "Min Booking Lead (hours)",
+    "minLeadHoursHint": "Minimum hours in advance to book"
   },
   "booking": {
     "title": "Bookings"
@@ -296,6 +335,8 @@
     "establishmentType": "Establishment Type",
     "operatingHours": "Operating Hours",
     "googleMapsLink": "Google Maps Link",
+    "googleMaps": "Google Maps",
+    "googleMapsPlaceholder": "https://maps.google.com/...",
     "newEstablishment": "New Establishment",
     "createEstablishment": "Create Establishment",
     "establishmentCreated": "Establishment created",
@@ -314,6 +355,15 @@
     "deleteConfirm": "Delete this establishment?",
     "deleteSuccess": "Establishment deleted",
     "deleteError": "Failed to delete establishment"
+  },
+  "establishments": {
+    "count": "{{count}} establishments",
+    "showArchived": "Show archived",
+    "addCompany": "Add company",
+    "createNewHint": "Create a new establishment",
+    "bankAccountsCount": "{{count}} bank account",
+    "experiencesCount": "{{count}} experiences",
+    "loadFailed": "Failed to load establishments"
   },
   "experiences": {
     "experience": "Experience",
@@ -363,7 +413,13 @@
     "createExperience": "Create Experience",
     "experienceCreated": "Experience created",
     "createError": "Failed to create experience",
-    "nameRequired": "Experience name is required"
+    "nameRequired": "Experience name is required",
+    "isRoom": "Is Room",
+    "activity": "Activity",
+    "roomSize": "Room Size (Max Guests)",
+    "roomSizeHelp": "Maximum number of people that can book this room type.",
+    "roomSizeBadge": "Room · max {{count}} guests",
+    "type": "Type"
   },
   "routes": {
     "route": "Route",
@@ -406,7 +462,11 @@
     "newRoute": "New Route",
     "createRoute": "Create Route",
     "routeCreated": "Route created",
-    "createError": "Failed to create route"
+    "createError": "Failed to create route",
+    "startTime": "Start",
+    "endTime": "End",
+    "overlap": "Experience {{name}} overlaps with previous experience",
+    "overlapHint": "Each experience must start after the previous one ends."
   },
   "hotelReservations": {
     "hotel": "Hotel",
@@ -464,6 +524,72 @@
     "loadFailed": "Failed to load reservations",
     "allStatuses": "All Statuses"
   },
+  "hotels": {
+    "title": "Hotels",
+    "establishmentsCount": "{{count}} hotel establishments",
+    "search": "Search hotels...",
+    "hotelBadge": "Hotel",
+    "roomTypesCount": "{{count}} room type",
+    "contactLabel": "Contact",
+    "noneFound": "No hotels found",
+    "markAsHotelHint": "Mark an establishment as \"Is Hotel\" to see it here.",
+    "loadFailed": "Failed to load hotels"
+  },
+  "hotelCreate": {
+    "nameAbbrRequired": "Hotel name and abbreviation are required",
+    "createSuccess": "Hotel created",
+    "createError": "Failed to create hotel",
+    "newHotel": "New Hotel",
+    "newHotelDescription": "Create a new hotel establishment",
+    "createHotel": "Create Hotel",
+    "hotelName": "Hotel Name",
+    "hotelNamePlaceholder": "e.g. Grand Plaza Hotel",
+    "abbreviation": "Abbreviation",
+    "abbreviationPlaceholder": "e.g. GPH",
+    "abbreviationHint": "A short identifier for the hotel (2-5 characters).",
+    "defaultCurrency": "Default Currency"
+  },
+  "hotelAvailability": {
+    "title": "Hotel Availability",
+    "subtitle": "Manage nightly room availability and quick bookings",
+    "slotsCreated": "Slots created successfully",
+    "createSlotsError": "Failed to create slots",
+    "reservationCreated": "Reservation created successfully",
+    "createReservationError": "Failed to create reservation",
+    "contactRequired": "Please select a contact",
+    "checkoutAfterCheckin": "Check-out date must be after check-in date",
+    "dateFullyBooked": "This date is fully booked.",
+    "loadFailed": "Failed to load availability",
+    "selectRoomType": "Select room type...",
+    "createSlots": "Create Slots",
+    "selectRoomTypeTitle": "Select a room type",
+    "selectRoomTypeHint": "Choose a hotel experience to view its nightly availability.",
+    "totalNights": "Total Nights",
+    "available": "Available",
+    "full": "Full",
+    "noSlot": "No Slot",
+    "nightlyGrid": "Nightly Availability Grid",
+    "gridHint": "Click a day to book or create a slot",
+    "open": "Open",
+    "fullClosed": "Full / Closed",
+    "blocked": "Blocked",
+    "createHotelSlots": "Create Hotel Slots",
+    "dateFrom": "Date From",
+    "dateTo": "Date To",
+    "roomsAvailablePerNight": "Rooms Available (per night)",
+    "quickReservation": "Quick Reservation",
+    "selectGuest": "Select guest...",
+    "bookRoom": "Book Room",
+    "days": {
+      "sun": "Sun",
+      "mon": "Mon",
+      "tue": "Tue",
+      "wed": "Wed",
+      "thu": "Thu",
+      "fri": "Fri",
+      "sat": "Sat"
+    }
+  },
   "bankAccounts": {
     "newBankAccount": "New Bank Account",
     "createBankAccount": "Create Bank Account",
@@ -482,7 +608,12 @@
     "deleteAccount": "Delete Account",
     "deleteConfirm": "Delete this bank account?",
     "deleteSuccess": "Bank account deleted",
-    "deleteError": "Failed to delete bank account"
+    "deleteError": "Failed to delete bank account",
+    "accountsCount": "{{count}} accounts",
+    "filteredByRoute": "Filtered by Route",
+    "companyId": "Company ID",
+    "routeId": "Route ID",
+    "accountAdded": "Account added"
   },
   "documents": {
     "newDocument": "New Document",
@@ -545,6 +676,43 @@
     "newUser": "New User",
     "role": "Role",
     "active": "Active",
-    "inactive": "Inactive"
+    "inactive": "Inactive",
+    "systemUsers": "System Users",
+    "searchUsers": "Search users...",
+    "addUser": "Add User",
+    "disabled": "Disabled",
+    "lastActive": "Last active",
+    "editUser": "Edit User",
+    "addNewUser": "Add New User",
+    "createUserDesc": "Create a new establishment user.",
+    "updateUserDesc": "Update user details and access.",
+    "emailLoginId": "Email (Login ID)",
+    "assignedCompany": "Assigned Company",
+    "selectCompany": "Select a company",
+    "passwordKeepBlank": "Leave blank to keep unchanged",
+    "activeAccount": "Active Account",
+    "allowLogin": "Allow user to log in",
+    "saveUser": "Save User",
+    "userCreated": "User created successfully",
+    "createFailed": "Failed to create user",
+    "userUpdated": "User updated successfully",
+    "updateFailed": "Failed to update user",
+    "emailNameCompanyRequired": "Email, name, and company are required",
+    "loadFailed": "Failed to load users",
+    "activeUsersCount": "{{count}} active users",
+    "noUsersFound": "No users found",
+    "emailPlaceholder": "user@company.com",
+    "fullNamePlaceholder": "John Doe"
+  },
+  "systemEvents": {
+    "title": "System Events",
+    "events": "events",
+    "auditLog": "Audit Log",
+    "search": "Search...",
+    "allTypes": "All Types",
+    "by": "By",
+    "system": "System",
+    "noEvents": "No events found",
+    "loadFailed": "Failed to load events"
   }
 }

@@ -11,6 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { MessageSquare, Search, Filter, Clock, AlertCircle, RefreshCw, User, Ticket, ExternalLink, MoreHorizontal, ShoppingCart } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { useFrappeList } from "@/lib/useApiData";
+import { useTranslation } from "react-i18next";
 
 const STATUS_CONFIG = {
     OPEN: { label: "Open", badge: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400" },
@@ -23,6 +24,7 @@ const CHANNEL_BADGE = {
 };
 
 export default function Conversations() {
+    const { t } = useTranslation();
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
     const contactParam = searchParams.get('contact') || "";
@@ -54,7 +56,7 @@ export default function Conversations() {
     if (error) {
         return (
             <div className="p-6 flex flex-col items-center justify-center min-h-[400px] text-center">
-                <AlertCircle className="w-12 h-12 text-red-400 mb-4" /><h2 className="text-lg font-semibold mb-2">Failed to load conversations</h2>
+                <AlertCircle className="w-12 h-12 text-red-400 mb-4" /><h2 className="text-lg font-semibold mb-2">Failed to load {t("conversations.conversations", "conversaciones")}</h2>
                 <Button onClick={() => refetch()} variant="outline"><RefreshCw className="w-4 h-4 mr-2" /> Retry</Button>
             </div>
         );
@@ -68,7 +70,7 @@ export default function Conversations() {
                     <p className="text-sm text-muted-foreground mt-1">{isLoading ? '...' : `${filtered.length} conversations`}</p>
                 </div>
                 <div className="flex gap-2">
-                    <div className="relative"><Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" /><Input placeholder="Search..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-9 w-56 h-9" /></div>
+                    <div className="relative"><Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" /><Input placeholder={t("common.search", "Buscar...")} value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-9 w-56 h-9" /></div>
                     <Select value={filterChannel} onValueChange={setFilterChannel}>
                         <SelectTrigger className="w-40 h-9"><Filter className="w-3 h-3 mr-1" /><SelectValue /></SelectTrigger>
                         <SelectContent>

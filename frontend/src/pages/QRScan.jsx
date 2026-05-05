@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { apiRequest } from "@/api/client";
+import { useTranslation } from "react-i18next";
 
 const STATUS_COLORS = {
     PENDING: "bg-yellow-500/15 text-yellow-700 dark:text-yellow-400 border-yellow-200",
@@ -22,6 +23,7 @@ const STATUS_COLORS = {
 };
 
 export default function QRScan() {
+    const { t } = useTranslation();
     const [scanning, setScanning] = useState(false);
     const [scanResult, setScanResult] = useState(null);
     const [error, setError] = useState(null);
@@ -160,7 +162,7 @@ export default function QRScan() {
                 <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl cheese-gradient shadow-lg shadow-yellow-500/20 mb-4">
                     <ScanLine className="w-8 h-8 text-black" />
                 </div>
-                <h1 className="text-2xl font-bold text-foreground">QR Check-In</h1>
+                <h1 className="text-2xl font-bold text-foreground">{t("qrScan.title", "Registro QR")}</h1>
                 <p className="text-sm text-muted-foreground mt-1">
                     Scan a guest's QR code to verify attendance
                 </p>
@@ -215,10 +217,10 @@ export default function QRScan() {
                         {/* Manual Token Entry */}
                         <Card className="mt-4 border border-border">
                             <CardContent className="p-4">
-                                <p className="text-xs text-muted-foreground mb-3 font-medium">Or enter token manually:</p>
+                                <p className="text-xs text-muted-foreground mb-3 font-medium">{t("qrScan.manualEntry", "O ingresar token manualmente:")}</p>
                                 <div className="flex gap-2">
                                     <Input
-                                        placeholder="Paste QR token..."
+                                        placeholder={t("qrScan.pasteToken", "Pegar token QR...")}
                                         value={manualToken}
                                         onChange={(e) => setManualToken(e.target.value)}
                                         onKeyDown={(e) => e.key === "Enter" && handleManualSubmit()}

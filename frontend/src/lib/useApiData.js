@@ -25,8 +25,8 @@ export function useApiQuery(queryKey, fetchFn, options = {}) {
  * Generic hook for Frappe resource list API: /api/resource/{DOCTYPE}
  * Supports filters, fields, pagination, ordering.
  */
-export function useFrappeList(doctype, { filters = {}, fields = ['*'], pageSize = 100, orderBy = 'modified desc', enabled = true } = {}) {
-    const queryKey = ['frappe-list', doctype, JSON.stringify(filters), fields.join(','), pageSize, orderBy];
+export function useFrappeList(doctype, { filters = {}, fields = ['*'], pageSize = 100, pageStart = 0, orderBy = 'modified desc', enabled = true } = {}) {
+    const queryKey = ['frappe-list', doctype, JSON.stringify(filters), fields.join(','), pageSize, pageStart, orderBy];
 
     return useQuery({
         queryKey,
@@ -34,6 +34,7 @@ export function useFrappeList(doctype, { filters = {}, fields = ['*'], pageSize 
             const params = new URLSearchParams();
             params.append('order_by', orderBy);
             params.append('limit_page_length', pageSize);
+            params.append('limit_start', pageStart);
 
             if (fields.length > 0 && fields[0] !== '*') {
                 params.append('fields', JSON.stringify(fields));

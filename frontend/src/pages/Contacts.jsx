@@ -13,8 +13,10 @@ import { Users, Search, Plus, Phone, Mail, MoreHorizontal, Eye, Trash2, Ticket, 
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
 import { useFrappeList, useFrappeCreate, useFrappeDelete } from "@/lib/useApiData";
+import { useTranslation } from "react-i18next";
 
 export default function Contacts() {
+    const { t } = useTranslation();
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
     const queryClient = useQueryClient();
@@ -58,7 +60,7 @@ export default function Contacts() {
         return (
             <div className="p-6 flex flex-col items-center justify-center min-h-[400px] text-center">
                 <AlertCircle className="w-12 h-12 text-red-400 mb-4" />
-                <h2 className="text-lg font-semibold mb-2">Failed to load contacts</h2>
+                <h2 className="text-lg font-semibold mb-2">Failed to load {t("contacts.contacts", "contactos")}</h2>
                 <p className="text-sm text-muted-foreground mb-4">{error?.message}</p>
                 <Button onClick={() => refetch()} variant="outline"><RefreshCw className="w-4 h-4 mr-2" /> Retry</Button>
             </div>

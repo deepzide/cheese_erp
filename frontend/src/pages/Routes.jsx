@@ -24,6 +24,37 @@ const STATUS_CONFIG = {
     ARCHIVED: { label: "Archived", badge: "bg-red-500/15 text-red-700 dark:text-red-400", icon: Archive },
 };
 
+const parseDurationToSeconds = (value) => {
+    if (value == null) return 0;
+    if (typeof value === "number") return Number.isFinite(value) ? value : 0;
+    const text = String(value).trim();
+    if (!text) return 0;
+    if (/^\d+$/.test(text)) return Number(text);
+    const parts = text.split(":").map((p) => Number(p));
+    if (parts.some((n) => Number.isNaN(n))) return 0;
+    if (parts.length === 3) return (parts[0] * 3600) + (parts[1] * 60) + parts[2];
+    if (parts.length === 2) return (parts[0] * 3600) + (parts[1] * 60);
+    return 0;
+};
+
+const parseTimeToSeconds = (timeValue) => {
+    if (!timeValue) return null;
+    const [h = "0", m = "0", s = "0"] = String(timeValue).split(":");
+    const hours = Number(h);
+    const minutes = Number(m);
+    const seconds = Number(s);
+    if ([hours, minutes, seconds].some((n) => Number.isNaN(n))) return null;
+    return (hours * 3600) + (minutes * 60) + seconds;
+};
+
+const secondsToTime = (totalSeconds) => {
+    if (totalSeconds == null) return null;
+    const safe = Math.max(Number(totalSeconds), 0);
+    const h = Math.floor(safe / 3600) % 24;
+    const m = Math.floor((safe % 3600) / 60);
+    return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+};
+
 export default function RoutesPage() {
     const navigate = useNavigate();
     const { t } = useTranslation();
@@ -34,6 +65,7 @@ export default function RoutesPage() {
     const [detailRoute, setDetailRoute] = useState(null);
     const [form, setForm] = useState({ name: "", description: "", price: "" });
     const [selectedExperienceIds, setSelectedExperienceIds] = useState([]);
+    const [startTimes, setStartTimes] = useState({});
     const [experienceToAdd, setExperienceToAdd] = useState("");
 
     const { data: routesRaw, isLoading, error, refetch } = useQuery({
@@ -89,6 +121,7 @@ export default function RoutesPage() {
             return;
         }
         setSelectedExperienceIds(prev => [...prev, experienceToAdd]);
+        setStartTimes((prev) => ({ ...prev, [experienceToAdd]: prev[experienceToAdd] || "" }));
         setExperienceToAdd("");
     };
 
@@ -103,7 +136,15 @@ export default function RoutesPage() {
     };
 
     const removeExperienceAt = (index) => {
-        setSelectedExperienceIds(prev => prev.filter((_, i) => i !== index));
+        setSelectedExperienceIds(prev => {
+            const removedId = prev[index];
+            setStartTimes((current) => {
+                const next = { ...current };
+                delete next[removedId];
+                return next;
+            });
+            return prev.filter((_, i) => i !== index);
+        });
     };
 
     const createMutation = useMutation({
@@ -113,6 +154,7 @@ export default function RoutesPage() {
             setCreateOpen(false);
             setForm({ name: "", description: "", price: "" });
             setSelectedExperienceIds([]);
+            setStartTimes({});
             setExperienceToAdd("");
             toast.success(t("routes.createSuccess", "Route created"));
         },
@@ -129,9 +171,37 @@ export default function RoutesPage() {
             return;
         }
 
+        const scheduled = selectedExperienceIds
+            .map((experienceId) => {
+                const startTime = startTimes[experienceId];
+                const startSeconds = parseTimeToSeconds(startTime);
+                if (startSeconds == null) return null;
+                const durationSeconds = parseDurationToSeconds(experiencesById[experienceId]?.event_duration);
+                return {
+                    experienceId,
+                    startSeconds,
+                    endSeconds: startSeconds + durationSeconds,
+                };
+            })
+            .filter(Boolean)
+            .sort((a, b) => a.startSeconds - b.startSeconds);
+
+        for (let i = 1; i < scheduled.length; i += 1) {
+            if (scheduled[i - 1].endSeconds > scheduled[i].startSeconds) {
+                const exp = experiencesById[scheduled[i].experienceId];
+                toast.error(
+                    t("routes.overlap", "Experience {{name}} overlaps with previous experience", {
+                        name: exp?.experience_info || exp?.name || scheduled[i].experienceId,
+                    })
+                );
+                return;
+            }
+        }
+
         const experiencesPayload = selectedExperienceIds.map((experienceId, idx) => ({
             experience: experienceId,
             sequence: idx + 1,
+            start_time: startTimes[experienceId] ? `${startTimes[experienceId]}:00` : undefined,
         }));
 
         createMutation.mutate({
@@ -263,6 +333,17 @@ export default function RoutesPage() {
                                                 ))}
                                                 {route.experiences.length > 3 && <span className="text-[10px] text-muted-foreground">+{route.experiences.length - 3}</span>}
                                             </div>
+                                            {route.experiences.some((exp) => exp.start_time) && (
+                                                <div className="mt-2 space-y-1">
+                                                    {route.experiences.slice(0, 2).map((exp, i) => (
+                                                        exp.start_time ? (
+                                                            <p key={`time-${i}`} className="text-[10px] text-muted-foreground">
+                                                                {exp.experience || exp.experience_info || exp.name}: {String(exp.start_time).slice(0, 5)} - {String(exp.end_time || "").slice(0, 5) || "—"}
+                                                            </p>
+                                                        ) : null
+                                                    ))}
+                                                </div>
+                                            )}
                                         </div>
                                     )}
                                 </CardContent>
@@ -337,9 +418,29 @@ export default function RoutesPage() {
                                             <div key={`${expId}-${idx}`} className="flex items-center justify-between gap-3 p-2 bg-muted/20 rounded-lg border border-border">
                                                 <div className="min-w-0 flex items-center gap-2">
                                                     <span className="text-xs font-semibold bg-muted px-2 py-0.5 rounded text-muted-foreground">#{idx + 1}</span>
-                                                    <p className="text-sm font-medium truncate">
-                                                        {exp?.experience_info || exp?.name || expId}
-                                                    </p>
+                                                    <div className="min-w-0">
+                                                        <p className="text-sm font-medium truncate">
+                                                            {exp?.experience_info || exp?.name || expId}
+                                                        </p>
+                                                        <div className="flex items-center gap-2 mt-1">
+                                                            <input
+                                                                type="time"
+                                                                className="h-7 rounded border border-input bg-background px-2 text-xs"
+                                                                value={startTimes[expId] || ""}
+                                                                onChange={(e) => setStartTimes((prev) => ({ ...prev, [expId]: e.target.value }))}
+                                                            />
+                                                            {startTimes[expId] && (
+                                                                <span className="text-[10px] text-muted-foreground">
+                                                                    {t("routes.endTime", "End")}: {
+                                                                        secondsToTime(
+                                                                            (parseTimeToSeconds(startTimes[expId]) || 0) +
+                                                                            parseDurationToSeconds(exp?.event_duration)
+                                                                        ) || "—"
+                                                                    }
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                    </div>
                                                 </div>
                                                 <div className="flex items-center gap-1">
                                                     <button
@@ -413,6 +514,11 @@ export default function RoutesPage() {
                                             <div key={i} className="flex items-center gap-2 text-sm p-2 bg-muted rounded-lg">
                                                 <span className="w-5 h-5 rounded-full bg-cheese-500 text-black text-xs flex items-center justify-center font-bold">{exp.sequence || i + 1}</span>
                                                 <span>{exp.experience_info || exp.experience_id || exp.name}</span>
+                                                {exp.start_time && (
+                                                    <span className="text-xs text-muted-foreground ml-auto">
+                                                        {String(exp.start_time).slice(0, 5)} - {String(exp.end_time || "").slice(0, 5) || "—"}
+                                                    </span>
+                                                )}
                                             </div>
                                         ))}
                                     </div>
