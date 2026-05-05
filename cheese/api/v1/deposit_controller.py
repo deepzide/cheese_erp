@@ -14,7 +14,7 @@ RECEIVED_DEPOSIT_STATUSES = ("PAID", "REVIEW", "ADJUSTED")
 IGNORED_DEPOSIT_STATUSES = ("CANCELLED", "REFUNDED")
 
 
-def _instructions_for_deposit(amount_required, bank_accounts):
+def _instructions_for_deposit(amount_remaining, bank_accounts):
 	if not bank_accounts:
 		return _("Please make payment to complete your booking")
 	parts = []
@@ -28,7 +28,7 @@ def _instructions_for_deposit(amount_required, bank_accounts):
 		)
 	accounts_txt = "; ".join(parts)
 	first_cur = bank_accounts[0].get("currency") or ""
-	return _("Please transfer {0} {1}. Pay to one of: {2}").format(amount_required, first_cur, accounts_txt)
+	return _("Please transfer {0} {1}. Pay to one of: {2}").format(amount_remaining, first_cur, accounts_txt)
 
 
 def _bank_accounts_for_ticket(ticket):
@@ -544,7 +544,7 @@ def get_deposit_instructions(ticket_id, payment_type=None):
 		instructions = (
 			_("Your deposit payment has been completed")
 			if deposit_is_complete
-			else _instructions_for_deposit(deposit_doc.amount_required, bank_account)
+			else _instructions_for_deposit(_amount_remaining_for_deposit(deposit_doc), bank_account)
 		)
 
 		return success(
@@ -1368,7 +1368,9 @@ def create_remaining_balance_deposit(ticket_id=None, route_booking_id=None):
 					"status": balance_doc.status,
 					"payment_type": "Balance",
 					"bank_account": bank_accounts,
-					"instructions": _instructions_for_deposit(balance_doc.amount_required, bank_accounts),
+					"instructions": _instructions_for_deposit(
+						_amount_remaining_for_deposit(balance_doc), bank_accounts
+					),
 				},
 			)
 
