@@ -145,6 +145,7 @@ export default function EstablishmentCreate() {
                 <div className="space-y-2">
                     <Label>{t("establishment.googleMapsLink", "Google Maps Link")}</Label>
                     <Input
+                        type="url"
                         value={form.google_maps_link}
                         onChange={(e) => setForm((f) => ({ ...f, google_maps_link: e.target.value }))}
                         placeholder={t("establishment.googleMapsPlaceholder", "https://maps.google.com/...")}

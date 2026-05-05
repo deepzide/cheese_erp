@@ -661,10 +661,8 @@ def create_route_reservation(
 		if not route_experiences or len(route_experiences) == 0:
 			return validation_error("Route has no experiences")
 
-		# Calculate total price (deposit is calculated from included experiences/tickets below)
-		from cheese.cheese.utils.pricing import calculate_route_price
-
-		total_price = calculate_route_price(route_id, party_size)
+		# Final total will be derived from created ticket totals.
+		total_price = 0
 		deposit_amount = 0
 		deposit_required = False
 
@@ -786,6 +784,7 @@ def create_route_reservation(
 		# Calculate status and save route booking
 		route_booking.calculate_status()
 		route_booking.save()
+		total_price = route_booking.total_price or 0
 
 		# Create deposit if required
 		if deposit_required and deposit_amount > 0:
@@ -838,7 +837,7 @@ def create_route_reservation(
 				"contact_id": contact_id,
 				"party_size": party_size,
 				"status": route_booking.status,
-				"total_price": total_price,
+				"total_price": route_booking.total_price or total_price,
 				"deposit_required": deposit_required,
 				"deposit_amount": deposit_amount,
 				"tickets": tickets,
@@ -985,9 +984,13 @@ def get_route_summary(route_booking_id):
 				display_time = str(slot.time_from) if slot.time_from else None
 				display_time_to = str(slot.time_to) if slot.time_to else None
 
-				# Financial data
-				unit_cost = experience.route_price or experience.individual_price or 0
-				total_per_ticket = unit_cost * (ticket.party_size or 1)
+				# Financial data: rely on ticket total so HOTEL/nightly pricing is preserved.
+				total_per_ticket = ticket.total_price or 0
+				unit_cost = (
+					(total_per_ticket / (ticket.party_size or 1))
+					if (ticket.party_size or 1) > 0
+					else total_per_ticket
+				)
 				deposit_amount = ticket.deposit_amount or 0
 
 				# Fetch deposit records for this ticket

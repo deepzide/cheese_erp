@@ -6,6 +6,17 @@ from frappe.utils import now_datetime, getdate
 from cheese.cheese.utils.capacity import update_slot_capacity
 
 
+def _expire_ticket(ticket_name: str) -> str | None:
+	"""Expire a pending ticket without capacity validation side-effects."""
+	ticket = frappe.get_doc("Cheese Ticket", ticket_name)
+	if ticket.status != "PENDING":
+		return None
+	ticket.status = "EXPIRED"
+	ticket.flags.ignore_validate = True
+	ticket.save(ignore_permissions=True)
+	return ticket.slot
+
+
 def expire_pending_tickets():
 	"""
 	Expire PENDING tickets that have passed their expires_at time
@@ -27,14 +38,12 @@ def expire_pending_tickets():
 	slots_to_update = set()
 
 	for ticket_data in pending_tickets:
-		ticket = frappe.get_doc("Cheese Ticket", ticket_data.name)
-		ticket.status = "EXPIRED"
-		ticket.save()
-		expired_count += 1
-		
-		# Track slots that need capacity update
-		if ticket_data.slot:
-			slots_to_update.add(ticket_data.slot)
+		expired_slot = _expire_ticket(ticket_data.name)
+		if expired_slot is not None:
+			expired_count += 1
+			# Track slots that need capacity update
+			if expired_slot:
+				slots_to_update.add(expired_slot)
 
 	# Also expire pending tickets whose slot/event date has already passed.
 	pending_without_ttl = frappe.get_all(
@@ -51,12 +60,11 @@ def expire_pending_tickets():
 				slot_end = frappe.db.get_value("Cheese Experience Slot", ticket_data.slot, "date_to")
 			effective_date = getdate(ticket_data.selected_date or slot_end) if (ticket_data.selected_date or slot_end) else None
 			if effective_date and effective_date < current_date:
-				ticket = frappe.get_doc("Cheese Ticket", ticket_data.name)
-				ticket.status = "EXPIRED"
-				ticket.save()
-				expired_count += 1
-				if ticket_data.slot:
-					slots_to_update.add(ticket_data.slot)
+				expired_slot = _expire_ticket(ticket_data.name)
+				if expired_slot is not None:
+					expired_count += 1
+					if expired_slot:
+						slots_to_update.add(expired_slot)
 		except Exception as e:
 			frappe.log_error(f"Failed to expire stale pending ticket {ticket_data.name}: {e}")
 
@@ -77,12 +85,9 @@ def expire_pending_tickets():
 			# Cancel all tickets in the route booking
 			for ticket_row in route_booking.tickets:
 				if ticket_row.ticket:
-					ticket = frappe.get_doc("Cheese Ticket", ticket_row.ticket)
-					if ticket.status == "PENDING":
-						ticket.status = "EXPIRED"
-						ticket.save()
-						if ticket.slot:
-							slots_to_update.add(ticket.slot)
+					expired_slot = _expire_ticket(ticket_row.ticket)
+					if expired_slot:
+						slots_to_update.add(expired_slot)
 			
 			route_booking.calculate_status()
 			route_booking.save()

@@ -92,12 +92,24 @@ class CheeseRouteBooking(Document):
 			self.status = "PENDING"
 
 	def recalculate_total_price(self):
-		"""Recompute total price from route and party size."""
+		"""Recompute total price from ticket totals; fallback to route pricing."""
 		if not self.route:
 			return
-		party_size = 1
+
 		if self.tickets and len(self.tickets) > 0:
-			party_size = int((self.tickets[0].party_size or 1))
+			total_from_tickets = 0
+			has_ticket_total = False
+			for row in self.tickets:
+				if not row.ticket:
+					continue
+				ticket_total = frappe.db.get_value("Cheese Ticket", row.ticket, "total_price") or 0
+				total_from_tickets += ticket_total
+				has_ticket_total = True
+			if has_ticket_total:
+				self.total_price = total_from_tickets
+				return
+
+		party_size = int((self.tickets[0].party_size or 1)) if self.tickets and len(self.tickets) > 0 else 1
 		self.total_price = calculate_route_price(self.route, party_size)
 
 	def on_update(self):
