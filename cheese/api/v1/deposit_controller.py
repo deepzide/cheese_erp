@@ -451,16 +451,27 @@ def get_deposit_instructions(ticket_id, payment_type=None):
 			if not deposit:
 				# Create deposit based on payment_type
 				if payment_type == "Balance":
-					advance_required = flt(ticket.deposit_amount or 0) if ticket.deposit_required else 0
-					if (
-						advance_required > 0
-						and _get_amount_received_for_entity("Cheese Ticket", ticket_id) + 0.01
-						< advance_required
-					):
-						return validation_error(
-							"No paid advance deposit found. The advance must be paid before creating a remaining-balance deposit."
-						)
-					deposit_doc = _create_balance_deposit("Cheese Ticket", ticket)
+					# Before creating, check if a Balance deposit already exists (any status).
+					# This covers the case where it was already paid/reconciled.
+					existing_balance = [
+						d for d in existing_deps[1:] if d.status not in IGNORED_DEPOSIT_STATUSES
+					]
+					if existing_balance:
+						deposit_doc = frappe.get_doc("Cheese Deposit", existing_balance[-1].name)
+						deposit = deposit_doc.name
+					else:
+						advance_required = flt(ticket.deposit_amount or 0) if ticket.deposit_required else 0
+						if (
+							advance_required > 0
+							and _get_amount_received_for_entity("Cheese Ticket", ticket_id) + 0.01
+							< advance_required
+						):
+							return validation_error(
+								"No paid advance deposit found. The advance must be paid before creating a remaining-balance deposit."
+							)
+						deposit_doc = _create_balance_deposit("Cheese Ticket", ticket)
+						deposit = deposit_doc.name
+						frappe.db.commit()
 				else:
 					experience = frappe.get_doc("Cheese Experience", ticket.experience)
 					due_at = add_to_date(
@@ -478,8 +489,8 @@ def get_deposit_instructions(ticket_id, payment_type=None):
 						}
 					)
 					deposit_doc.insert()
-				deposit = deposit_doc.name
-				frappe.db.commit()
+					deposit = deposit_doc.name
+					frappe.db.commit()
 			else:
 				deposit_doc = frappe.get_doc("Cheese Deposit", deposit)
 
