@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -22,6 +23,7 @@ const QT_STATUS = {
 
 export default function Quotations() {
     const navigate = useNavigate();
+    const { t } = useTranslation();
     const [searchTerm, setSearchTerm] = useState("");
     const [createOpen, setCreateOpen] = useState(false);
     const [form, setForm] = useState({ lead: "", route: "", total_price: "" });
@@ -57,16 +59,16 @@ export default function Quotations() {
     });
 
     const handleCreate = () => {
-        if (!form.lead || !form.route || !form.total_price) { toast.error("Lead, route, and total are required"); return; }
+        if (!form.lead || !form.route || !form.total_price) { toast.error(t("quotations.leadRouteTotalRequired", "Lead, route, and total are required")); return; }
         createMutation.mutate({ ...form, status: "DRAFT", total_price: parseFloat(form.total_price) }, {
-            onSuccess: () => { setForm({ lead: "", route: "", total_price: "" }); setCreateOpen(false); toast.success("Quotation created"); },
-            onError: (err) => toast.error(err?.message || "Failed"),
+            onSuccess: () => { setForm({ lead: "", route: "", total_price: "" }); setCreateOpen(false); toast.success(t("quotations.createSuccess", "Quotation created")); },
+            onError: (err) => toast.error(err?.message || t("common.failed", "Failed")),
         });
     };
 
     const updateStatus = (name, newStatus) => {
         updateMutation.mutate({ name, data: { status: newStatus } }, {
-            onSuccess: () => toast.success(`Quotation → ${newStatus}`),
+            onSuccess: () => toast.success(t("quotations.statusUpdated", "Quotation → {{status}}", { status: t(`status.${newStatus}`, newStatus) })),
         });
     };
 
@@ -74,9 +76,9 @@ export default function Quotations() {
         return (
             <div className="p-6 flex flex-col items-center justify-center min-h-[400px] text-center">
                 <AlertCircle className="w-12 h-12 text-red-400 mb-4" />
-                <h2 className="text-lg font-semibold mb-2">Failed to load quotations</h2>
+                <h2 className="text-lg font-semibold mb-2">{t("quotations.loadFailed", "Failed to load quotations")}</h2>
                 <p className="text-sm text-muted-foreground mb-4">{error?.message}</p>
-                <Button onClick={() => refetch()} variant="outline"><RefreshCw className="w-4 h-4 mr-2" /> Retry</Button>
+                <Button onClick={() => refetch()} variant="outline"><RefreshCw className="w-4 h-4 mr-2" /> {t("common.retry", "Retry")}</Button>
             </div>
         );
     }
@@ -85,12 +87,12 @@ export default function Quotations() {
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="p-6 space-y-6">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
-                    <h1 className="text-2xl font-bold text-foreground flex items-center gap-2"><FileText className="w-6 h-6 text-cheese-600" /> Quotations</h1>
-                    <p className="text-sm text-muted-foreground mt-1">{isLoading ? '...' : `${filtered.length} quotations`}</p>
+                    <h1 className="text-2xl font-bold text-foreground flex items-center gap-2"><FileText className="w-6 h-6 text-cheese-600" /> {t("quotations.title", "Quotations")}</h1>
+                    <p className="text-sm text-muted-foreground mt-1">{isLoading ? '...' : `${filtered.length} ${t("quotations.items", "quotations")}`}</p>
                 </div>
                 <div className="flex gap-2">
-                    <div className="relative"><Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" /><Input placeholder="Search..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-9 w-56 h-9" /></div>
-                    <Button className="cheese-gradient text-black font-semibold border-0 h-9" onClick={() => navigate("/cheese/quotations/new")}><Plus className="w-4 h-4 mr-1" /> New Quote</Button>
+                    <div className="relative"><Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" /><Input placeholder={t("common.search", "Search") + "..."} value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-9 w-56 h-9" /></div>
+                    <Button className="cheese-gradient text-black font-semibold border-0 h-9" onClick={() => navigate("/cheese/quotations/new")}><Plus className="w-4 h-4 mr-1" /> {t("quotations.newQuote", "New Quote")}</Button>
                     <Button variant="ghost" size="icon" onClick={() => refetch()} className="h-9 w-9"><RefreshCw className="w-4 h-4" /></Button>
                 </div>
             </div>
@@ -114,26 +116,26 @@ export default function Quotations() {
                                 <div className="w-10 h-10 rounded-lg bg-cheese-100 dark:bg-cheese-900/30 flex items-center justify-center"><FileText className="w-5 h-5 text-cheese-700 dark:text-cheese-400" /></div>
                                 <div className="flex-1 min-w-0">
                                     <div className="flex items-center gap-2"><h3 className="font-semibold text-sm text-foreground">{qt.lead || '—'}</h3><span className="text-xs font-mono text-muted-foreground">{qt.name}</span></div>
-                                    <p className="text-xs text-muted-foreground">{qt.route || '—'}{qt.valid_until ? ` • Valid until: ${qt.valid_until}` : ''}</p>
+                                    <p className="text-xs text-muted-foreground">{qt.route || '—'}{qt.valid_until ? ` • ${t("quotations.validUntil", "Valid until:")} ${qt.valid_until}` : ''}</p>
                                 </div>
                                 <div className="text-right">
                                     <p className="font-bold text-lg text-foreground flex items-center"><DollarSign className="w-4 h-4" />{Number(qt.total_price || 0).toLocaleString()}</p>
-                                    <Badge variant="outline" className={QT_STATUS[status] || QT_STATUS.DRAFT}>{status}</Badge>
+                                    <Badge variant="outline" className={QT_STATUS[status] || QT_STATUS.DRAFT}>{t(`status.${status}`, status)}</Badge>
                                 </div>
-                                <span className="text-xs text-muted-foreground hidden sm:block">{qt.deposit_amount ? `Deposit: $${Number(qt.deposit_amount).toLocaleString()}` : ''}</span>
+                                <span className="text-xs text-muted-foreground hidden sm:block">{qt.deposit_amount ? `${t("common.deposit", "Deposit")}: $${Number(qt.deposit_amount).toLocaleString()}` : ''}</span>
                                 <DropdownMenu>
                                     <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8 opacity-0 group-hover:opacity-100"><MoreHorizontal className="w-4 h-4" /></Button></DropdownMenuTrigger>
                                     <DropdownMenuContent align="end">
-                                        <DropdownMenuItem onClick={() => navigate(`/cheese/quotations/${qt.name}`)}><Eye className="w-3 h-3 mr-2" /> View Details</DropdownMenuItem>
+                                        <DropdownMenuItem onClick={() => navigate(`/cheese/quotations/${qt.name}`)}><Eye className="w-3 h-3 mr-2" /> {t("common.viewDetails", "View Details")}</DropdownMenuItem>
                                         <DropdownMenuSeparator />
-                                        {status === "DRAFT" && <DropdownMenuItem onClick={() => updateStatus(qt.name, "SENT")}><Send className="w-3 h-3 mr-2" /> Send</DropdownMenuItem>}
-                                        {status === "SENT" && <DropdownMenuItem onClick={() => updateStatus(qt.name, "ACCEPTED")}>Mark Accepted</DropdownMenuItem>}
+                                        {status === "DRAFT" && <DropdownMenuItem onClick={() => updateStatus(qt.name, "SENT")}><Send className="w-3 h-3 mr-2" /> {t("common.send", "Send")}</DropdownMenuItem>}
+                                        {status === "SENT" && <DropdownMenuItem onClick={() => updateStatus(qt.name, "ACCEPTED")}>{t("quotations.markAccepted", "Mark Accepted")}</DropdownMenuItem>}
                                         <DropdownMenuSeparator />
-                                        <DropdownMenuItem onClick={() => qt.lead && navigate(`/cheese/leads/${qt.lead}`)}>View Lead</DropdownMenuItem>
-                                        <DropdownMenuItem onClick={() => qt.route && navigate(`/cheese/routes/${qt.route}`)}><Route className="w-3 h-3 mr-2" /> View Route</DropdownMenuItem>
+                                        <DropdownMenuItem onClick={() => qt.lead && navigate(`/cheese/leads/${qt.lead}`)}>{t("nav.viewLead", "View Lead")}</DropdownMenuItem>
+                                        <DropdownMenuItem onClick={() => qt.route && navigate(`/cheese/routes/${qt.route}`)}><Route className="w-3 h-3 mr-2" /> {t("nav.viewRoute", "View Route")}</DropdownMenuItem>
                                         <DropdownMenuSeparator />
                                         {status === "DRAFT" && (
-                                            <DropdownMenuItem className="text-red-600" onClick={() => deleteMutation.mutate(qt.name, { onSuccess: () => toast.success("Deleted") })}><Trash2 className="w-3 h-3 mr-2" /> Delete</DropdownMenuItem>
+                                            <DropdownMenuItem className="text-red-600" onClick={() => deleteMutation.mutate(qt.name, { onSuccess: () => toast.success(t("common.deleted", "Deleted")) })}><Trash2 className="w-3 h-3 mr-2" /> {t("common.delete", "Delete")}</DropdownMenuItem>
                                         )}
                                     </DropdownMenuContent>
                                 </DropdownMenu>
@@ -146,21 +148,21 @@ export default function Quotations() {
             </div>
 
             {!isLoading && filtered.length === 0 && (
-                <div className="text-center py-16"><FileText className="w-16 h-16 text-muted-foreground/20 mx-auto mb-4" /><p className="text-muted-foreground">No quotations found</p></div>
+                <div className="text-center py-16"><FileText className="w-16 h-16 text-muted-foreground/20 mx-auto mb-4" /><p className="text-muted-foreground">{t("quotations.noQuotations", "No quotations found")}</p></div>
             )}
 
             <Dialog open={createOpen} onOpenChange={setCreateOpen}>
                 <DialogContent className="max-w-sm">
-                    <DialogHeader><DialogTitle className="flex items-center gap-2"><Plus className="w-5 h-5 text-cheese-600" /> New Quotation</DialogTitle><DialogDescription>Create a price quote</DialogDescription></DialogHeader>
+                    <DialogHeader><DialogTitle className="flex items-center gap-2"><Plus className="w-5 h-5 text-cheese-600" /> {t("quotations.newQuote", "New Quotation")}</DialogTitle><DialogDescription>{t("quotations.createDesc", "Create a price quote")}</DialogDescription></DialogHeader>
                     <div className="space-y-4">
-                        <div className="space-y-2"><Label>Lead *</Label><Input placeholder="Lead ID" value={form.lead} onChange={(e) => setForm(f => ({ ...f, lead: e.target.value }))} /></div>
-                        <div className="space-y-2"><Label>Route *</Label><Input placeholder="Route ID" value={form.route} onChange={(e) => setForm(f => ({ ...f, route: e.target.value }))} /></div>
-                        <div className="space-y-2"><Label>Total ($) *</Label><Input type="number" min="0" placeholder="1500" value={form.total_price} onChange={(e) => setForm(f => ({ ...f, total_price: e.target.value }))} /></div>
+                        <div className="space-y-2"><Label>{t("quotations.leadReq", "Lead *")}</Label><Input placeholder={t("quotations.leadId", "Lead ID")} value={form.lead} onChange={(e) => setForm(f => ({ ...f, lead: e.target.value }))} /></div>
+                        <div className="space-y-2"><Label>{t("quotations.routeReq", "Route *")}</Label><Input placeholder={t("quotations.routeId", "Route ID")} value={form.route} onChange={(e) => setForm(f => ({ ...f, route: e.target.value }))} /></div>
+                        <div className="space-y-2"><Label>{t("quotations.totalReq", "Total ($) *")}</Label><Input type="number" min="0" placeholder="1500" value={form.total_price} onChange={(e) => setForm(f => ({ ...f, total_price: e.target.value }))} /></div>
                     </div>
                     <DialogFooter>
-                        <Button variant="outline" onClick={() => setCreateOpen(false)}>Cancel</Button>
+                        <Button variant="outline" onClick={() => setCreateOpen(false)}>{t("common.cancel", "Cancel")}</Button>
                         <Button className="cheese-gradient text-black font-semibold border-0" onClick={handleCreate} disabled={createMutation.isPending}>
-                            {createMutation.isPending ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Plus className="w-4 h-4 mr-1" />} Create Quote
+                            {createMutation.isPending ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Plus className="w-4 h-4 mr-1" />} {t("quotations.createQuote", "Create Quote")}
                         </Button>
                     </DialogFooter>
                 </DialogContent>

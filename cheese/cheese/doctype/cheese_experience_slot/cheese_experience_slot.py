@@ -53,6 +53,11 @@ class CheeseExperienceSlot(Document):
 		if self.date_from and self.date_to:
 			if str(self.date_from) > str(self.date_to):
 				frappe.throw(_("Date From must be before or equal to Date To"))
+			
+			if self.experience:
+				experience = frappe.get_doc("Cheese Experience", self.experience)
+				if experience.experience_type == "HOTEL" and str(self.date_from) != str(self.date_to):
+					frappe.throw(_("Hotel experience slots must have the same Date From and Date To (one slot per night)"))
 
 		# Get time range fields (optional)
 		time_from = getattr(self, 'time_from', None)
@@ -100,6 +105,10 @@ class CheeseExperienceSlot(Document):
 
 	def calculate_reserved_capacity(self):
 		"""Store peak reserved load: per calendar day for multi-day slots, else that single day."""
+		if self.is_new():
+			self.reserved_capacity = 0
+			return
+
 		from cheese.cheese.utils.capacity import peak_reserved_capacity_for_slot_document
 
 		self.reserved_capacity = peak_reserved_capacity_for_slot_document(self)

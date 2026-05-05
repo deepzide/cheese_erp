@@ -5,6 +5,7 @@ import frappe
 from frappe import _
 from frappe.utils import now_datetime, cint, add_to_date
 from cheese.api.common.responses import success, created, error, not_found, validation_error, paginated_response
+from cheese.api.v1.user_controller import _get_current_user_company
 import json
 
 
@@ -34,16 +35,12 @@ def open_or_resume_conversation(contact_id, channel, status="ACTIVE"):
 		if not frappe.db.exists("Cheese Contact", contact_id):
 			return not_found("Contact", contact_id)
 		
-		# Check for existing active conversation within time window (e.g., last 24 hours)
-		time_window = add_to_date(now_datetime(), hours=-24, as_string=False)
-		
 		existing = frappe.db.get_value(
 			"Conversation",
 			{
 				"contact": contact_id,
 				"channel": channel,
-				"status": "ACTIVE",
-				"modified": [">", time_window]
+				"status": "ACTIVE"
 			},
 			"name",
 			order_by="modified desc"
@@ -70,8 +67,36 @@ def open_or_resume_conversation(contact_id, channel, status="ACTIVE"):
 			"channel": channel,
 			"status": status
 		})
-		conversation.insert()
-		frappe.db.commit()
+		try:
+			conversation.insert()
+			frappe.db.commit()
+		except frappe.DuplicateEntryError:
+			# Race condition: another request created the conversation first
+			frappe.db.rollback()
+			existing = frappe.db.get_value(
+				"Conversation",
+				{
+					"contact": contact_id,
+					"channel": channel,
+					"status": "ACTIVE",
+				},
+				"name",
+				order_by="modified desc"
+			)
+			if existing:
+				conversation = frappe.get_doc("Conversation", existing)
+				return success(
+					"Conversation resumed",
+					{
+						"conversation_id": conversation.name,
+						"contact_id": contact_id,
+						"channel": conversation.channel,
+						"status": conversation.status,
+						"is_new": False
+					}
+				)
+			# If somehow no existing conversation found, re-raise
+			raise
 		
 		return created(
 			"Conversation opened successfully",
@@ -339,6 +364,20 @@ def list_conversations(page=1, page_size=20, contact_id=None, channel=None, stat
 			filters["channel"] = channel
 		if status:
 			filters["status"] = status
+
+		# Apply company scoping: restrict to conversations linked to tickets in user's company
+		user_company = _get_current_user_company()
+		if user_company:
+			company_tickets = frappe.get_all(
+				"Cheese Ticket", filters={"company": user_company}, pluck="conversation"
+			)
+			# Filter to only conversations linked to this company's tickets
+			company_convos = [c for c in company_tickets if c]
+			if company_convos:
+				filters["name"] = ["in", company_convos]
+			else:
+				# No conversations for this company
+				return paginated_response([], "Conversations retrieved successfully", page=page, page_size=page_size, total=0)
 		
 		conversations = frappe.get_all(
 			"Conversation",

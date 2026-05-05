@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from "react";
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -23,6 +24,7 @@ const STATUS_CONFIG = {
 
 export default function Bookings() {
     const navigate = useNavigate();
+    const { t } = useTranslation();
     const [searchTerm, setSearchTerm] = useState("");
     const [filterStatus, setFilterStatus] = useState("all");
     const [filterEstablishment, setFilterEstablishment] = useState("all");
@@ -62,7 +64,7 @@ export default function Bookings() {
             _type: "route_booking",
             name: b.name,
             contact: b.contact,
-            entityInfo: b.route ? `Route: ${b.route}` : "Custom Route",
+            entityInfo: b.route ? `${t("routes.route", "Route")}: ${b.route}` : t("bookings.customRoute", "Custom Route"),
             entityLink: b.route,
             company: null,
             status: b.status,
@@ -70,16 +72,16 @@ export default function Bookings() {
             creation: b.creation
         }));
 
-        const tkts = (Array.isArray(tickets) ? tickets : []).map(t => ({
+        const tkts = (Array.isArray(tickets) ? tickets : []).map(ticketItem => ({
             _type: "ticket",
-            name: t.name,
-            contact: t.contact,
-            entityInfo: t.experience ? `Experience: ${t.experience}` : (t.route ? `Route: ${t.route}` : "Ticket"),
-            entityLink: t.experience,
-            company: t.company,
-            status: t.status,
-            price: t.deposit_amount, // fallback if price not explicitly available
-            creation: t.creation
+            name: ticketItem.name,
+            contact: ticketItem.contact,
+            entityInfo: ticketItem.experience ? `${t("routes.experiences", "Experience")}: ${ticketItem.experience}` : (ticketItem.route ? `${t("routes.route", "Route")}: ${ticketItem.route}` : t("nav.tickets", "Ticket")),
+            entityLink: ticketItem.experience,
+            company: ticketItem.company,
+            status: ticketItem.status,
+            price: ticketItem.deposit_amount, // fallback if price not explicitly available
+            creation: ticketItem.creation
         }));
 
         // Merge and sort
@@ -112,9 +114,9 @@ export default function Bookings() {
         return (
             <div className="p-6 flex flex-col items-center justify-center min-h-[400px] text-center">
                 <AlertCircle className="w-12 h-12 text-red-400 mb-4" />
-                <h2 className="text-lg font-semibold mb-2">Failed to load bookings data</h2>
+                <h2 className="text-lg font-semibold mb-2">{t("bookings.loadFailed", "Failed to load bookings data")}</h2>
                 <p className="text-sm text-muted-foreground mb-4">{error?.message}</p>
-                <Button onClick={refetchAll} variant="outline"><RefreshCw className="w-4 h-4 mr-2" /> Retry</Button>
+                <Button onClick={refetchAll} variant="outline"><RefreshCw className="w-4 h-4 mr-2" /> {t("common.retry", "Retry")}</Button>
             </div>
         );
     }
@@ -124,25 +126,25 @@ export default function Bookings() {
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
                     <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
-                        <ShoppingCart className="w-6 h-6 text-cheese-600" /> Bookings & Reservations
+                        <ShoppingCart className="w-6 h-6 text-cheese-600" /> {t("bookings.title", "Bookings & Reservations")}
                     </h1>
                     <p className="text-sm text-muted-foreground mt-1">
-                        {isLoading ? 'Loading reservations...' : `Showing ${filtered.length} reservations`}
+                        {isLoading ? '...' : `${t("common.showing", "Showing")} ${filtered.length} ${t("bookings.reservations", "reservations")}`}
                     </p>
                 </div>
                 <div className="flex flex-wrap gap-2 items-center">
                     <div className="relative">
                         <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-                        <Input placeholder="Search bookings..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-9 w-48 h-9" />
+                        <Input placeholder={t("bookings.search", "Search bookings...")} value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-9 w-48 h-9" />
                     </div>
 
                     <Select value={filterEstablishment} onValueChange={setFilterEstablishment}>
                         <SelectTrigger className="w-48 h-9">
                             <Building2 className="w-3 h-3 mr-1 text-muted-foreground" />
-                            <SelectValue placeholder="All Establishments" />
+                            <SelectValue placeholder={t("bookings.allEstablishments", "All Establishments")} />
                         </SelectTrigger>
                         <SelectContent>
-                            <SelectItem value="all">All Establishments</SelectItem>
+                            <SelectItem value="all">{t("bookings.allEstablishments", "All Establishments")}</SelectItem>
                             {Array.isArray(companies) && companies.map(c => (
                                 <SelectItem key={c.name} value={c.name}>{c.company_name || c.name}</SelectItem>
                             ))}
@@ -152,11 +154,11 @@ export default function Bookings() {
                     <Select value={filterStatus} onValueChange={setFilterStatus}>
                         <SelectTrigger className="w-36 h-9">
                             <Filter className="w-3 h-3 mr-1 text-muted-foreground" />
-                            <SelectValue placeholder="All Status" />
+                            <SelectValue placeholder={t("common.allStatus", "All Status")} />
                         </SelectTrigger>
                         <SelectContent>
-                            <SelectItem value="all">All Status</SelectItem>
-                            {Object.entries(STATUS_CONFIG).map(([k, v]) => <SelectItem key={k} value={k}>{v.label}</SelectItem>)}
+                            <SelectItem value="all">{t("common.allStatus", "All Status")}</SelectItem>
+                            {Object.entries(STATUS_CONFIG).map(([k, v]) => <SelectItem key={k} value={k}>{t(`status.${k}`, v.label)}</SelectItem>)}
                         </SelectContent>
                     </Select>
 
@@ -197,11 +199,11 @@ export default function Bookings() {
                                             {booking.company && <Badge variant="outline" className="text-[10px] font-normal px-1.5 py-0 h-4">{booking.company}</Badge>}
                                         </div>
                                         <p className="text-xs text-muted-foreground mt-0.5">
-                                            Contact: {booking.contact || '—'} • {booking.entityInfo}
+                                            {t("nav.contacts", "Contact")}: {booking.contact || '—'} • {booking.entityInfo}
                                         </p>
                                     </div>
                                     <div className="text-right flex flex-col items-end gap-1">
-                                        <Badge className={config.badge}>{config.label}</Badge>
+                                        <Badge className={config.badge}>{t(`status.${booking.status}`, config.label)}</Badge>
                                         {booking.price != null && (
                                             <p className="font-semibold text-xs text-foreground flex items-center">
                                                 <DollarSign className="w-3 h-3 text-muted-foreground mr-0.5" />
@@ -222,15 +224,15 @@ export default function Bookings() {
                                                 e.stopPropagation();
                                                 navigate(isTicket ? `/cheese/tickets/${booking.name}` : `/cheese/bookings/${booking.name}`);
                                             }}>
-                                                <Eye className="w-3 h-3 mr-2" /> View Details
+                                                <Eye className="w-3 h-3 mr-2" /> {t("common.viewDetails", "View Details")}
                                             </DropdownMenuItem>
                                             <DropdownMenuItem onClick={(e) => { e.stopPropagation(); booking?.contact && navigate(`/cheese/contacts/${booking.contact}`); }}>
-                                                <Users className="w-3 h-3 mr-2" /> Contact Record
+                                                <Users className="w-3 h-3 mr-2" /> {t("bookings.contactRecord", "Contact Record")}
                                             </DropdownMenuItem>
 
                                             {booking._type === "route_booking" && booking.entityLink && (
                                                 <DropdownMenuItem onClick={(e) => { e.stopPropagation(); navigate(`/cheese/routes/${booking.entityLink}`); }}>
-                                                    <Route className="w-3 h-3 mr-2" /> Route Definition
+                                                    <Route className="w-3 h-3 mr-2" /> {t("bookings.routeDefinition", "Route Definition")}
                                                 </DropdownMenuItem>
                                             )}
 
@@ -238,7 +240,7 @@ export default function Bookings() {
                                                 e.stopPropagation();
                                                 navigate(`/cheese/deposits/new?entity_type=${encodeURIComponent(isTicket ? "Cheese Ticket" : "Cheese Route Booking")}&entity_id=${encodeURIComponent(booking.name || "")}`);
                                             }}>
-                                                <Wallet className="w-3 h-3 mr-2" /> Register Deposit
+                                                <Wallet className="w-3 h-3 mr-2" /> {t("experiences.registerDeposit", "Register Deposit")}
                                             </DropdownMenuItem>
                                         </DropdownMenuContent>
                                     </DropdownMenu>
@@ -252,7 +254,7 @@ export default function Bookings() {
             {!isLoading && filtered.length === 0 && (
                 <div className="text-center py-16">
                     <ShoppingCart className="w-16 h-16 text-muted-foreground/20 mx-auto mb-4" />
-                    <p className="text-muted-foreground">No reservations found for the selected filters</p>
+                    <p className="text-muted-foreground">{t("bookings.noReservations", "No reservations found for the selected filters")}</p>
                 </div>
             )}
         </motion.div>

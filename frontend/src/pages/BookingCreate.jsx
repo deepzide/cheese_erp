@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { Ticket, CalendarDays } from "lucide-react";
 import { toast } from "sonner";
 import CreatePageLayout from "@/components/CreatePageLayout";
@@ -9,6 +10,7 @@ import { apiRequest } from "@/api/client";
 export default function BookingCreate() {
     const [searchParams] = useSearchParams();
     const navigate = useNavigate();
+    const { t } = useTranslation();
     const ticketId = searchParams.get("ticket") || "";
 
     const { data: ticket, isLoading } = useFrappeDoc("Cheese Ticket", ticketId, {
@@ -29,7 +31,7 @@ export default function BookingCreate() {
 
     const handleSubmit = async () => {
         if (!ticketId || !initialValues.contact) {
-            toast.error("Ticket and contact are required");
+            toast.error(t("bookings.ticketContactRequired", "Ticket and contact are required"));
             return;
         }
 
@@ -47,13 +49,13 @@ export default function BookingCreate() {
 
             const payload = res?.data?.message || res?.data || res;
             if (payload?.success === false) {
-                throw new Error(payload?.error?.message || payload?.message || "Failed to convert ticket");
+                throw new Error(payload?.error?.message || payload?.message || t("bookings.convertFailed", "Failed to convert ticket"));
             }
 
-            toast.success("Ticket confirmed as single-experience reservation");
+            toast.success(t("bookings.ticketConfirmed", "Ticket confirmed as single-experience reservation"));
             navigate(`/cheese/tickets/${encodeURIComponent(ticketId)}`);
         } catch (err) {
-            toast.error(err?.message || "Failed to create reservation");
+            toast.error(err?.message || t("bookings.createFailed", "Failed to create reservation"));
         } finally {
             setSubmitting(false);
         }
@@ -61,38 +63,38 @@ export default function BookingCreate() {
 
     return (
         <CreatePageLayout
-            title="Convert Ticket to Reservation"
+            title={t("bookings.convertTitle", "Convert Ticket to Reservation")}
             description={
                 ticketId
-                    ? `Create a route reservation from ticket ${ticketId}`
-                    : "Missing ticket ID in URL"
+                    ? `${t("bookings.convertDesc", "Create a route reservation from ticket")} ${ticketId}`
+                    : t("bookings.missingTicket", "Missing ticket ID in URL")
             }
             icon={Ticket}
             backPath={ticketId ? `/cheese/tickets/${ticketId}` : "/cheese/tickets"}
             onSubmit={handleSubmit}
             isSubmitting={submitting}
-            submitLabel="Create Reservation"
+            submitLabel={t("bookings.createReservation", "Create Reservation")}
             isLoading={isLoading && !!ticketId}
         >
             {ticketId ? (
                 <div className="space-y-5">
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                         <div className="space-y-1">
-                            <p className="text-xs text-muted-foreground">Ticket</p>
+                            <p className="text-xs text-muted-foreground">{t("nav.tickets", "Ticket")}</p>
                             <p className="text-sm font-mono">{ticketId}</p>
                         </div>
                         <div className="space-y-1">
-                            <p className="text-xs text-muted-foreground">Experience</p>
+                            <p className="text-xs text-muted-foreground">{t("routes.experiences", "Experience")}</p>
                             <p className="text-sm font-medium">
                                 {ticket?.experience || "—"}
                             </p>
                         </div>
                         <div className="space-y-1">
-                            <p className="text-xs text-muted-foreground">Slot</p>
+                            <p className="text-xs text-muted-foreground">{t("calendar.slot", "Slot")}</p>
                             <p className="text-sm font-medium">{ticket?.slot || "—"}</p>
                         </div>
                         <div className="space-y-1">
-                            <p className="text-xs text-muted-foreground">Party Size</p>
+                            <p className="text-xs text-muted-foreground">{t("tickets.partySize", "Party Size")}</p>
                             <p className="text-sm font-medium">
                                 {initialValues.party_size || 1}
                             </p>
@@ -100,7 +102,7 @@ export default function BookingCreate() {
                         {selectedDate && (
                             <div className="space-y-1">
                                 <p className="text-xs text-muted-foreground flex items-center gap-1">
-                                    <CalendarDays className="w-3 h-3" /> Selected Date
+                                    <CalendarDays className="w-3 h-3" /> {t("calendar.selectedDate", "Selected Date")}
                                 </p>
                                 <p className="text-sm font-semibold text-primary">
                                     {new Date(selectedDate + "T00:00:00").toLocaleDateString(undefined, {
@@ -115,13 +117,12 @@ export default function BookingCreate() {
                     </div>
 
                     <p className="text-xs text-muted-foreground">
-                        This conversion always confirms the ticket as a single-experience reservation.
+                        {t("bookings.conversionNote", "This conversion always confirms the ticket as a single-experience reservation.")}
                     </p>
                 </div>
             ) : (
                 <p className="text-sm text-red-500">
-                    No ticket specified. Please go back to the ticket and use
-                    "Convert to Booking" again.
+                    {t("bookings.noTicketSpecified", "No ticket specified. Please go back to the ticket and use Convert to Booking again.")}
                 </p>
             )}
         </CreatePageLayout>

@@ -44,7 +44,7 @@ def _generate_unique_qr_token(length=32, max_attempts=5):
 
 
 @frappe.whitelist()
-def get_qr_for_reservation(reservation_id=None, ticket_id=None):
+def get_qr_for_reservation(reservation_id=None, ticket_id=None, allow_pending=0, send_notification=0):
 	"""
 	Get QR for reservation - alias for get_qr
 	
@@ -62,7 +62,7 @@ def get_qr_for_reservation(reservation_id=None, ticket_id=None):
 				"reservation_id is required for this endpoint. Use validate_qr with token for check-in."
 			)
 		return validation_error("reservation_id is required")
-	return get_qr(reservation_id)
+	return get_qr(reservation_id, allow_pending=allow_pending, send_notification=send_notification)
 
 
 @frappe.whitelist()
@@ -124,12 +124,9 @@ def _pending_confirmation_allowed(ticket):
 	if not ticket.deposit_required or (ticket.deposit_amount or 0) <= 0:
 		return True
 
-	deposit_status = frappe.db.get_value(
-		"Cheese Deposit",
-		{"entity_type": "Cheese Ticket", "entity_id": ticket.name},
-		"status",
-	)
-	return deposit_status == "PAID"
+	from cheese.api.v1.deposit_controller import _get_amount_received_for_entity
+	total_received = _get_amount_received_for_entity("Cheese Ticket", ticket.name)
+	return total_received >= ticket.deposit_amount
 
 
 def _qr_generation_allowed(ticket):
@@ -137,12 +134,9 @@ def _qr_generation_allowed(ticket):
 	if not ticket.deposit_required or (ticket.deposit_amount or 0) <= 0:
 		return True
 
-	deposit_status = frappe.db.get_value(
-		"Cheese Deposit",
-		{"entity_type": "Cheese Ticket", "entity_id": ticket.name},
-		"status",
-	)
-	return deposit_status == "PAID"
+	from cheese.api.v1.deposit_controller import _get_amount_received_for_entity
+	total_received = _get_amount_received_for_entity("Cheese Ticket", ticket.name)
+	return total_received >= ticket.deposit_amount
 
 
 def _can_use_pending_qr_flow():
@@ -150,8 +144,18 @@ def _can_use_pending_qr_flow():
 	return bool(set(frappe.get_roles()) & allowed_roles)
 
 
+def _send_qr_notification(ticket_id):
+	try:
+		from cheese.cheese.utils.notifications import send_ticket_notification
+		send_ticket_notification(ticket_id, "qr_generated")
+		return True
+	except Exception as e:
+		frappe.log_error(f"Failed to send QR notification for ticket {ticket_id}: {e}", "QR Notification Error")
+		return False
+
+
 @frappe.whitelist()
-def get_qr(ticket_id=None, allow_pending=0):
+def get_qr(ticket_id=None, allow_pending=0, send_notification=0):
 	"""
 	Get or generate QR token for a ticket
 	
@@ -213,6 +217,7 @@ def get_qr(ticket_id=None, allow_pending=0):
 						frappe.db.commit()
 					except Exception as img_err:
 						frappe.log_error(f"Failed to regenerate QR image for ticket {ticket_id}: {img_err}", "QR Image Error")
+				notification_sent = _send_qr_notification(ticket_id) if int(send_notification or 0) else False
 				return success(
 					"QR token retrieved successfully",
 					{
@@ -222,7 +227,8 @@ def get_qr(ticket_id=None, allow_pending=0):
 						"status": qr.status,
 						"expires_at": str(qr.expires_at) if qr.expires_at else None,
 						"qr_image_url": qr_image_url,
-						"is_new": False
+						"is_new": False,
+						"notification_sent": notification_sent,
 					}
 				)
 			else:
@@ -248,11 +254,7 @@ def get_qr(ticket_id=None, allow_pending=0):
 		except Exception as e:
 			frappe.log_error(f"Failed to generate QR image for ticket {ticket_id}: {e}", "QR Image Error")
 
-		try:
-			from cheese.cheese.utils.notifications import send_ticket_notification
-			send_ticket_notification(ticket_id, "qr_generated")
-		except Exception as e:
-			frappe.log_error(f"Failed to send QR notification for ticket {ticket_id}: {e}", "QR Notification Error")
+		notification_sent = _send_qr_notification(ticket_id)
 
 		return created(
 			"QR token generated successfully",
@@ -263,7 +265,8 @@ def get_qr(ticket_id=None, allow_pending=0):
 				"status": qr.status,
 				"expires_at": str(qr.expires_at) if qr.expires_at else None,
 				"qr_image_url": qr_image_url,
-				"is_new": True
+				"is_new": True,
+				"notification_sent": notification_sent,
 			}
 		)
 	except frappe.ValidationError as e:
@@ -395,7 +398,7 @@ def resend_qr(ticket_id):
 			)
 		
 		# Get or create QR
-		qr_result = get_qr(ticket_id)
+		qr_result = get_qr(ticket_id, send_notification=1)
 		
 		if not qr_result.get("success"):
 			return qr_result
@@ -409,7 +412,9 @@ def resend_qr(ticket_id):
 				"qr_token": qr_data.get("token"),
 				"qr_token_id": qr_data.get("qr_token_id"),
 				"expires_at": qr_data.get("expires_at"),
-				"note": "QR should be sent to customer via bot/channel"
+				"qr_image_url": qr_data.get("qr_image_url"),
+				"notification_sent": qr_data.get("notification_sent", False),
+				"note": "QR notification was requested for the customer"
 			}
 		)
 	except Exception as e:

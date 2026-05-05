@@ -68,16 +68,30 @@ def calculate_reserved_capacity(slot_name, selected_date=None):
 
 	active_statuses = ["PENDING", "CONFIRMED", "CHECKED_IN"]
 
-	query = (
-		frappe.qb.from_(ticket)
-		.select(fn.Sum(ticket.party_size).as_("total"))
-		.where(ticket.slot == slot_name)
-		.where(ticket.status.isin(active_statuses))
-	)
-	
-	if selected_date:
-		query = query.where(ticket.selected_date == selected_date)
+	slot_doc = frappe.get_doc("Cheese Experience Slot", slot_name)
+	exp_doc = frappe.get_doc("Cheese Experience", slot_doc.experience)
+
+	if exp_doc.experience_type == "HOTEL":
+		query = (
+			frappe.qb.from_(ticket)
+			.select(fn.Sum(ticket.rooms_requested).as_("total"))
+			.where(ticket.slot == slot_name)
+			.where(ticket.status.isin(active_statuses))
+		)
+		if selected_date:
+			query = query.where(ticket.check_in_date <= selected_date)
+			query = query.where(ticket.check_out_date > selected_date)
+	else:
+		query = (
+			frappe.qb.from_(ticket)
+			.select(fn.Sum(ticket.party_size).as_("total"))
+			.where(ticket.slot == slot_name)
+			.where(ticket.status.isin(active_statuses))
+		)
 		
+		if selected_date:
+			query = query.where(ticket.selected_date == selected_date)
+			
 	result = query.run()
 
 	return result[0][0] if result and result[0][0] else 0

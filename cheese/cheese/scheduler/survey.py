@@ -16,12 +16,26 @@ def send_post_completion_surveys():
 
 	ticket = DocType("Cheese Ticket")
 	survey = DocType("Cheese Survey Response")
+	slot = DocType("Cheese Experience Slot")
+
+	# Only send surveys for tickets that have been COMPLETED for at least 30 minutes
+	# AND whose slot end time has definitively passed
+	survey_delay_minutes = 30
+	now = now_datetime()
+
+	effective_date = fn.Coalesce(ticket.selected_date, slot.date_to, slot.date_from)
+	effective_end = fn.Concat(effective_date, " ", fn.Coalesce(slot.time_to, "23:59:59"))
 
 	completed_tickets = (
 		frappe.qb.from_(ticket)
+		.left_join(slot).on(ticket.slot == slot.name)
 		.select(ticket.name)
 		.where(ticket.status == "COMPLETED")
-		.where(ticket.modified >= add_to_date(now_datetime(), days=-1, as_string=False))
+		.where(ticket.modified >= add_to_date(now, days=-1, as_string=False))
+		.where(
+			# Ensure the slot end time has actually passed + buffer
+			fn.TimestampDiff("MINUTE", effective_end, now) >= survey_delay_minutes
+		)
 		.where(
 			~fn.Exists(
 				frappe.qb.from_(survey)
@@ -79,15 +93,45 @@ def create_support_cases_for_low_ratings():
 
 	for survey_data in low_rating_surveys:
 		try:
-			# Create support case
+			# Enrich with ticket context for better support case information
+			ticket_info = {}
+			if survey_data.ticket:
+				ticket_info = frappe.db.get_value(
+					"Cheese Ticket", survey_data.ticket,
+					["experience", "company", "route", "contact", "total_price", "party_size"],
+					as_dict=True
+				) or {}
+
+			experience_name = ticket_info.get("experience") or ""
+			company_name = ticket_info.get("company") or ""
+
+			# Build enriched description
+			desc_parts = [
+				f"⭐ Rating: {survey_data.rating}/5",
+				f"💬 Comment: {survey_data.comment or 'No comment provided'}",
+			]
+			if experience_name:
+				desc_parts.append(f"🎯 Experience: {experience_name}")
+			if company_name:
+				desc_parts.append(f"🏢 Establishment: {company_name}")
+			if ticket_info.get("party_size"):
+				desc_parts.append(f"👥 Party Size: {ticket_info['party_size']}")
+			if ticket_info.get("total_price"):
+				desc_parts.append(f"💰 Total Price: ${ticket_info['total_price']}")
+
+			description = "\n".join(desc_parts)
+
+			# Create support case with full context
 			support_case_doc = frappe.get_doc({
 				"doctype": "Cheese Support Case",
 				"contact": survey_data.contact,
 				"ticket": survey_data.ticket,
 				"survey_response": survey_data.name,
-				"description": f"Low rating survey response (Rating: {survey_data.rating}). Comment: {survey_data.comment or 'No comment'}",
+				"description": description,
 				"status": "OPEN",
-				"priority": "High" if survey_data.rating == 1 else "Medium"
+				"priority": "High" if survey_data.rating == 1 else "Medium",
+				"route": ticket_info.get("route"),
+				"company": company_name,
 			})
 			support_case_doc.insert(ignore_permissions=True)
 			case_count += 1

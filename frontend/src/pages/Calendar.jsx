@@ -1,6 +1,7 @@
 import React, { useState, useCallback } from "react";
 import { motion } from "framer-motion";
 import { useSearchParams } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { useQueryClient } from "@tanstack/react-query";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
@@ -23,6 +24,7 @@ const VIEWS = ["day", "week", "month"];
 export default function CalendarPage() {
     const queryClient = useQueryClient();
     const [searchParams] = useSearchParams();
+    const { t } = useTranslation();
 
     const [view, setView] = useState("week");
     const [currentDate, setCurrentDate] = useState(new Date());
@@ -124,9 +126,9 @@ export default function CalendarPage() {
                 <div className="flex items-center gap-3">
                     <CalendarDays className="w-6 h-6 text-cheese-600" />
                     <div>
-                        <h1 className="text-xl font-bold text-foreground">Calendar</h1>
+                        <h1 className="text-xl font-bold text-foreground">{t("nav.calendar", "Calendar")}</h1>
                         <p className="text-xs text-muted-foreground">
-                            {isLoading ? "Loading..." : `${slots.length} slots`}
+                            {isLoading ? '...' : `${slots.length} ${t("tickets.slots", "slots")}`}
                         </p>
                     </div>
                 </div>
@@ -135,9 +137,9 @@ export default function CalendarPage() {
                     {/* View switcher */}
                     <Tabs value={view} onValueChange={setView}>
                         <TabsList className="h-8">
-                            <TabsTrigger value="day" className="text-xs px-3 h-6">Day</TabsTrigger>
-                            <TabsTrigger value="week" className="text-xs px-3 h-6">Week</TabsTrigger>
-                            <TabsTrigger value="month" className="text-xs px-3 h-6">Month</TabsTrigger>
+                            <TabsTrigger value="day" className="text-xs px-3 h-6">{t("calendar.day", "Day")}</TabsTrigger>
+                            <TabsTrigger value="week" className="text-xs px-3 h-6">{t("calendar.week", "Week")}</TabsTrigger>
+                            <TabsTrigger value="month" className="text-xs px-3 h-6">{t("calendar.month", "Month")}</TabsTrigger>
                         </TabsList>
                     </Tabs>
 
@@ -145,10 +147,10 @@ export default function CalendarPage() {
                     <Select value={selectedExperience || "all"} onValueChange={(v) => setSelectedExperience(v === "all" ? null : v)}>
                         <SelectTrigger className="w-44 h-8 text-xs">
                             <Filter className="w-3 h-3 mr-1" />
-                            <SelectValue placeholder="All Activities" />
+                            <SelectValue placeholder={t("calendar.allActivities", "All Activities")} />
                         </SelectTrigger>
                         <SelectContent>
-                            <SelectItem value="all">All Activities</SelectItem>
+                            <SelectItem value="all">{t("calendar.allActivities", "All Activities")}</SelectItem>
                             {(Array.isArray(experiences) ? experiences : []).map((exp) => (
                                 <SelectItem key={exp.name} value={exp.name}>
                                     {exp.experience_info || exp.name}
@@ -168,7 +170,7 @@ export default function CalendarPage() {
                         }}
                     >
                         <Plus className="w-3.5 h-3.5 mr-1" />
-                        New Slot
+                        {t("calendar.newSlot", "New Slot")}
                     </Button>
 
                     <Button variant="ghost" size="icon" onClick={() => refetch()} className="h-8 w-8">
@@ -181,7 +183,7 @@ export default function CalendarPage() {
             <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                     <Button variant="outline" size="sm" onClick={handleToday} className="h-7 text-xs">
-                        Today
+                        {t("calendar.today", "Today")}
                     </Button>
                     <Button variant="ghost" size="icon" onClick={handlePrev} className="h-7 w-7">
                         <ChevronLeft className="w-4 h-4" />
@@ -198,10 +200,10 @@ export default function CalendarPage() {
             {error ? (
                 <div className="flex flex-col items-center justify-center py-16">
                     <AlertCircle className="w-12 h-12 text-red-400 mb-4" />
-                    <h3 className="text-lg font-semibold mb-2">Failed to load slots</h3>
+                    <h3 className="text-lg font-semibold mb-2">{t("calendar.failedToLoadSlots", "Failed to load slots")}</h3>
                     <p className="text-sm text-muted-foreground mb-4">{error?.message}</p>
                     <Button onClick={() => refetch()} variant="outline">
-                        <RefreshCw className="w-4 h-4 mr-2" /> Retry
+                        <RefreshCw className="w-4 h-4 mr-2" /> {t("common.retry", "Retry")}
                     </Button>
                 </div>
             ) : isLoading ? (

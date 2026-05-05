@@ -9,9 +9,11 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { LayoutDashboard, Ticket, Users, DollarSign, Clock, TrendingUp, AlertCircle, RefreshCw, CalendarDays, Shield, Sparkles } from "lucide-react";
 import { dashboardService } from "@/api/dashboardService";
+import { useTranslation } from "react-i18next";
 
 export default function Dashboard() {
     const navigate = useNavigate();
+    const { t } = useTranslation();
     const [period, setPeriod] = useState("today");
 
     const { dateFrom, dateTo } = useMemo(() => {
@@ -40,9 +42,9 @@ export default function Dashboard() {
     }, [period]);
 
     const { data: dashRaw, isLoading, error, refetch } = useQuery({
-        queryKey: ['dashboard', period],
+        queryKey: ['dashboard', period, dateFrom, dateTo],
         queryFn: async () => {
-            const result = await dashboardService.getCentralDashboard(period);
+            const result = await dashboardService.getCentralDashboard(period, dateFrom, dateTo);
             const payload = result?.data?.message || result?.data || result;
             return payload?.data || payload || {};
         },
@@ -60,7 +62,7 @@ export default function Dashboard() {
     const kpis = kpisRaw || {};
 
     // Use server-side aggregated dashboard response to avoid stale local fallback totals.
-    let ticketsByStatus = dashboard.tickets_by_status || {};
+    let ticketsByStatus = dashboard.tickets_by_status || dashboard.tickets || {};
     const totalTickets = Object.values(ticketsByStatus).reduce((sum, v) => sum + (Number(v) || 0), 0) || kpis?.conversion_rates?.total_tickets || 0;
 
     const convRates = kpis?.conversion_rates || {};
@@ -73,10 +75,10 @@ export default function Dashboard() {
     const satisfaction = kpis?.average_satisfaction || 0;
 
     const kpiCards = [
-        { title: "Total Tickets", value: totalTickets || convRates.total_tickets || 0, icon: Ticket, color: "text-blue-600", onClick: () => navigate('/cheese/tickets') },
-        { title: "Revenue Collected", value: `$${Number(collectedRevenue).toLocaleString()}`, icon: DollarSign, color: "text-emerald-600", onClick: () => navigate('/cheese/deposits') },
-        { title: "Leads", value: totalLeads, icon: Users, color: "text-purple-600", onClick: () => navigate('/cheese/leads') },
-        { title: "Pending Deposits", value: pendingDeposits, icon: Clock, color: "text-orange-600", onClick: () => navigate('/cheese/deposits?status=PENDING') },
+        { title: t("dashboard.totalTickets", "Total Tickets"), value: totalTickets || convRates.total_tickets || 0, icon: Ticket, color: "text-blue-600", onClick: () => navigate('/cheese/tickets') },
+        { title: t("dashboard.revenueCollected", "Revenue Collected"), value: `$${Number(collectedRevenue).toLocaleString()}`, icon: DollarSign, color: "text-emerald-600", onClick: () => navigate('/cheese/deposits') },
+        { title: t("nav.leads", "Leads"), value: totalLeads, icon: Users, color: "text-purple-600", onClick: () => navigate('/cheese/leads') },
+        { title: t("dashboard.pendingDeposits", "Pending Deposits"), value: pendingDeposits, icon: Clock, color: "text-orange-600", onClick: () => navigate('/cheese/deposits?status=PENDING') },
     ];
 
     // Ticket status breakdown for chart
@@ -112,9 +114,9 @@ export default function Dashboard() {
         return (
             <div className="p-6 flex flex-col items-center justify-center min-h-[400px] text-center">
                 <AlertCircle className="w-12 h-12 text-red-400 mb-4" />
-                <h2 className="text-lg font-semibold mb-2">Failed to load dashboard</h2>
+                <h2 className="text-lg font-semibold mb-2">{t("dashboard.loadFailed", "Failed to load dashboard")}</h2>
                 <p className="text-sm text-muted-foreground mb-4">{error?.message}</p>
-                <Button onClick={() => refetch()} variant="outline"><RefreshCw className="w-4 h-4 mr-2" /> Retry</Button>
+                <Button onClick={() => refetch()} variant="outline"><RefreshCw className="w-4 h-4 mr-2" /> {t("common.retry", "Retry")}</Button>
             </div>
         );
     }
@@ -124,18 +126,18 @@ export default function Dashboard() {
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
                     <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
-                        <LayoutDashboard className="w-6 h-6 text-cheese-600" /> Dashboard
+                        <LayoutDashboard className="w-6 h-6 text-cheese-600" /> {t("nav.dashboard", "Dashboard")}
                     </h1>
-                    <p className="text-sm text-muted-foreground mt-1">Overview of your cheese operations</p>
+                    <p className="text-sm text-muted-foreground mt-1">{t("dashboard.overview", "Overview of your cheese operations")}</p>
                 </div>
                 <div className="flex gap-2">
                     <Select value={period} onValueChange={setPeriod}>
                         <SelectTrigger className="w-36 h-9"><SelectValue /></SelectTrigger>
                         <SelectContent>
-                            <SelectItem value="today">Today</SelectItem>
-                            <SelectItem value="yesterday">Yesterday</SelectItem>
-                            <SelectItem value="7">Last 7 Days</SelectItem>
-                            <SelectItem value="30">Last 30 Days</SelectItem>
+                            <SelectItem value="today">{t("dashboard.today", "Today")}</SelectItem>
+                            <SelectItem value="yesterday">{t("dashboard.yesterday", "Yesterday")}</SelectItem>
+                            <SelectItem value="7">{t("dashboard.last7", "Last 7 Days")}</SelectItem>
+                            <SelectItem value="30">{t("dashboard.last30", "Last 30 Days")}</SelectItem>
                         </SelectContent>
                     </Select>
                     <Button variant="ghost" size="icon" onClick={() => refetch()} className="h-9 w-9"><RefreshCw className="w-4 h-4" /></Button>
@@ -167,7 +169,7 @@ export default function Dashboard() {
                 {/* Ticket Status Chart */}
                 <Card className="border-0 shadow-lg">
                     <CardHeader className="pb-2">
-                        <CardTitle className="text-base flex items-center gap-2"><Ticket className="w-4 h-4 text-cheese-600" /> Tickets by Status</CardTitle>
+                        <CardTitle className="text-base flex items-center gap-2"><Ticket className="w-4 h-4 text-cheese-600" /> {t("dashboard.ticketsByStatus", "Tickets by Status")}</CardTitle>
                     </CardHeader>
                     <CardContent>
                         {isLoading ? (
@@ -185,7 +187,7 @@ export default function Dashboard() {
                                 ))}
                             </div>
                         ) : (
-                            <p className="text-center text-muted-foreground py-8">No ticket data for this period</p>
+                            <p className="text-center text-muted-foreground py-8">{t("dashboard.noTicketData", "No ticket data for this period")}</p>
                         )}
                     </CardContent>
                 </Card>
@@ -193,20 +195,20 @@ export default function Dashboard() {
                 {/* Quick Actions / Pending */}
                 <Card className="border-0 shadow-lg">
                     <CardHeader className="pb-2">
-                        <CardTitle className="text-base flex items-center gap-2"><Shield className="w-4 h-4 text-cheese-600" /> Quick Links</CardTitle>
+                        <CardTitle className="text-base flex items-center gap-2"><Shield className="w-4 h-4 text-cheese-600" /> {t("common.quickLinks", "Quick Links")}</CardTitle>
                     </CardHeader>
                     <CardContent>
                         <div className="grid grid-cols-2 gap-3">
                             {[
-                                { label: "Tickets", icon: Ticket, path: "/cheese/tickets", color: "bg-blue-50 dark:bg-blue-950 text-blue-700 dark:text-blue-400" },
-                                { label: "Routes", icon: Sparkles, path: "/cheese/routes", color: "bg-emerald-50 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-400" },
-                                { label: "Experiences", icon: Sparkles, path: "/cheese/experiences", color: "bg-purple-50 dark:bg-purple-950 text-purple-700 dark:text-purple-400" },
-                                { label: "New Experience", icon: Sparkles, path: "/cheese/experiences/new", color: "bg-purple-100 dark:bg-purple-900 text-purple-800 dark:text-purple-300" },
-                                { label: "Calendar", icon: CalendarDays, path: "/cheese/calendar", color: "bg-orange-50 dark:bg-orange-950 text-orange-700 dark:text-orange-400" },
-                                { label: "Deposits", icon: DollarSign, path: "/cheese/deposits", color: "bg-yellow-50 dark:bg-yellow-950 text-yellow-700 dark:text-yellow-400" },
-                                { label: "Support", icon: Shield, path: "/cheese/support", color: "bg-red-50 dark:bg-red-950 text-red-700 dark:text-red-400" },
-                                { label: "Contacts", icon: Users, path: "/cheese/contacts", color: "bg-teal-50 dark:bg-teal-950 text-teal-700 dark:text-teal-400" },
-                                { label: "Events Log", icon: Clock, path: "/cheese/events", color: "bg-gray-50 dark:bg-gray-900 text-gray-700 dark:text-gray-400" },
+                                { label: t("nav.tickets", "Tickets"), icon: Ticket, path: "/cheese/tickets", color: "bg-blue-50 dark:bg-blue-950 text-blue-700 dark:text-blue-400" },
+                                { label: t("nav.routes", "Routes"), icon: Sparkles, path: "/cheese/routes", color: "bg-emerald-50 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-400" },
+                                { label: t("nav.experiences", "Experiences"), icon: Sparkles, path: "/cheese/experiences", color: "bg-purple-50 dark:bg-purple-950 text-purple-700 dark:text-purple-400" },
+                                { label: t("routes.newExperience", "New Experience"), icon: Sparkles, path: "/cheese/experiences/new", color: "bg-purple-100 dark:bg-purple-900 text-purple-800 dark:text-purple-300" },
+                                { label: t("nav.calendar", "Calendar"), icon: CalendarDays, path: "/cheese/calendar", color: "bg-orange-50 dark:bg-orange-950 text-orange-700 dark:text-orange-400" },
+                                { label: t("nav.deposits", "Deposits"), icon: DollarSign, path: "/cheese/deposits", color: "bg-yellow-50 dark:bg-yellow-950 text-yellow-700 dark:text-yellow-400" },
+                                { label: t("nav.support", "Support"), icon: Shield, path: "/cheese/support", color: "bg-red-50 dark:bg-red-950 text-red-700 dark:text-red-400" },
+                                { label: t("nav.contacts", "Contacts"), icon: Users, path: "/cheese/contacts", color: "bg-teal-50 dark:bg-teal-950 text-teal-700 dark:text-teal-400" },
+                                { label: t("nav.eventsLog", "Events Log"), icon: Clock, path: "/cheese/events", color: "bg-gray-50 dark:bg-gray-900 text-gray-700 dark:text-gray-400" },
                             ].map((item) => (
                                 <Button key={item.label} variant="ghost" className={`h-auto flex flex-col items-center gap-2 py-4 rounded-xl ${item.color}`} onClick={() => navigate(item.path)}>
                                     <item.icon className="w-5 h-5" />
@@ -222,7 +224,7 @@ export default function Dashboard() {
             {(Array.isArray(agenda) && agenda.length > 0) && (
                 <Card className="border-0 shadow-lg">
                     <CardHeader className="pb-2">
-                        <CardTitle className="text-base flex items-center gap-2"><CalendarDays className="w-4 h-4 text-cheese-600" /> Today's Agenda</CardTitle>
+                        <CardTitle className="text-base flex items-center gap-2"><CalendarDays className="w-4 h-4 text-cheese-600" /> {t("dashboard.todaysAgenda", "Today's Agenda")}</CardTitle>
                     </CardHeader>
                     <CardContent>
                         <div className="space-y-2">
@@ -245,13 +247,13 @@ export default function Dashboard() {
             <Card className="border-0 shadow-lg">
                 <CardHeader className="pb-2">
                     <CardTitle className="text-base flex items-center gap-2">
-                        <Clock className="w-4 h-4 text-cheese-600" /> Pending Confirmations
+                        <Clock className="w-4 h-4 text-cheese-600" /> {t("dashboard.pendingConfirmations", "Pending Confirmations")}
                     </CardTitle>
                 </CardHeader>
                 <CardContent>
                     {pendingActionsError ? (
                         <div className="p-3 text-sm text-red-500">
-                            Failed to load pending confirmations.
+                            {t("dashboard.failedToLoadPending", "Failed to load pending confirmations.")}
                         </div>
                     ) : pendingActionsLoading ? (
                         <div className="space-y-2">
@@ -261,35 +263,35 @@ export default function Dashboard() {
                         </div>
                     ) : pendingConfirmations.length > 0 ? (
                         <div className="space-y-2">
-                            {pendingConfirmations.slice(0, 10).map((t) => (
-                                <div key={t.name} className="flex items-start justify-between gap-3 p-3 bg-muted/30 rounded-lg">
+                            {pendingConfirmations.slice(0, 10).map((ticketItem) => (
+                                <div key={ticketItem.name} className="flex items-start justify-between gap-3 p-3 bg-muted/30 rounded-lg">
                                     <div className="min-w-0">
-                                        <p className="text-sm font-medium truncate">{t.name}</p>
+                                        <p className="text-sm font-medium truncate">{ticketItem.name}</p>
                                         <p className="text-xs text-muted-foreground truncate">
-                                            {t.experience ? `Exp: ${t.experience}` : ""} {t.route ? `• Route: ${t.route}` : ""}
+                                            {ticketItem.experience ? `${t("routes.experiences", "Exp")}: ${ticketItem.experience}` : ""} {ticketItem.route ? `• ${t("routes.route", "Route")}: ${ticketItem.route}` : ""}
                                         </p>
                                         <p className="text-xs text-muted-foreground truncate">
-                                            {t.slot_date_from ? `Date: ${t.slot_date_from}` : ""} {t.slot_time_from ? `• Time: ${t.slot_time_from}` : ""}
-                                            {t.party_size ? ` • Ppl: ${t.party_size}` : ""}
+                                            {ticketItem.slot_date_from ? `${t("calendar.date", "Date")}: ${ticketItem.slot_date_from}` : ""} {ticketItem.slot_time_from ? `• ${t("calendar.time", "Time")}: ${ticketItem.slot_time_from}` : ""}
+                                            {ticketItem.party_size ? ` • ${t("tickets.partySize", "Ppl")}: ${ticketItem.party_size}` : ""}
                                         </p>
                                     </div>
                                     <div className="flex flex-col gap-2 shrink-0">
                                         <Button
                                             variant="outline"
                                             className="h-8"
-                                            onClick={() => navigate(`/cheese/bookings/new?ticket=${t.name}`)}
+                                            onClick={() => navigate(`/cheese/bookings/new?ticket=${ticketItem.name}`)}
                                         >
-                                            Convert to Booking
+                                            {t("tickets.convertToBooking", "Convert to Booking")}
                                         </Button>
                                     </div>
                                 </div>
                             ))}
                         </div>
                     ) : (
-                        <p className="text-sm text-muted-foreground">No pending confirmations for this period.</p>
+                        <p className="text-sm text-muted-foreground">{t("dashboard.noPendingConfirmations", "No pending confirmations for this period.")}</p>
                     )}
                     {pendingConfirmations.length > 10 ? (
-                        <p className="text-xs text-muted-foreground mt-2">Showing first 10 items.</p>
+                        <p className="text-xs text-muted-foreground mt-2">{t("common.showingFirst10", "Showing first 10 items.")}</p>
                     ) : null}
                 </CardContent>
             </Card>

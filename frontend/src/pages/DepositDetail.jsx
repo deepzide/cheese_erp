@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { useFrappeUpdate } from "@/lib/useApiData";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -15,17 +16,19 @@ import { useFrappeList } from "@/lib/useApiData";
 import { depositService } from "@/api/depositService";
 
 const STATUS_CONFIG = {
-    PENDING: { label: "Pending", class: "bg-yellow-500/15 text-yellow-700 border-yellow-300 dark:text-yellow-400 dark:border-yellow-700" },
-    PAID: { label: "Paid", class: "bg-emerald-500/15 text-emerald-700 border-emerald-300 dark:text-emerald-400 dark:border-emerald-700" },
-    ADJUSTED: { label: "Adjusted", class: "bg-blue-500/15 text-blue-700 border-blue-300 dark:text-blue-400 dark:border-blue-700" },
-    OVERDUE: { label: "Overdue", class: "bg-red-500/15 text-red-700 border-red-300 dark:text-red-400 dark:border-red-700" },
-    REFUNDED: { label: "Refunded", class: "bg-purple-500/15 text-purple-700 border-purple-300 dark:text-purple-400 dark:border-purple-700" },
-    CANCELLED: { label: "Cancelled", class: "bg-red-500/15 text-red-700 border-red-300 dark:text-red-400 dark:border-red-700" },
+    PENDING: { labelKey: "status.PENDING", defaultLabel: "Pending", class: "bg-yellow-500/15 text-yellow-700 border-yellow-300 dark:text-yellow-400 dark:border-yellow-700" },
+    PAID: { labelKey: "status.PAID", defaultLabel: "Paid", class: "bg-emerald-500/15 text-emerald-700 border-emerald-300 dark:text-emerald-400 dark:border-emerald-700" },
+    REVIEW: { labelKey: "status.REVIEW", defaultLabel: "Review", class: "bg-orange-500/15 text-orange-700 border-orange-300 dark:text-orange-400 dark:border-orange-700" },
+    ADJUSTED: { labelKey: "status.ADJUSTED", defaultLabel: "Adjusted", class: "bg-blue-500/15 text-blue-700 border-blue-300 dark:text-blue-400 dark:border-blue-700" },
+    OVERDUE: { labelKey: "status.OVERDUE", defaultLabel: "Overdue", class: "bg-red-500/15 text-red-700 border-red-300 dark:text-red-400 dark:border-red-700" },
+    REFUNDED: { labelKey: "status.REFUNDED", defaultLabel: "Refunded", class: "bg-purple-500/15 text-purple-700 border-purple-300 dark:text-purple-400 dark:border-purple-700" },
+    CANCELLED: { labelKey: "status.CANCELLED", defaultLabel: "Cancelled", class: "bg-red-500/15 text-red-700 border-red-300 dark:text-red-400 dark:border-red-700" },
 };
 
 export default function DepositDetail() {
     const { id } = useParams();
     const navigate = useNavigate();
+    const { t } = useTranslation();
     const { data: deposit, isLoading, refetch } = useQuery({
         queryKey: ["deposit-detail", id],
         queryFn: async () => {
@@ -38,6 +41,7 @@ export default function DepositDetail() {
     const updateMutation = useFrappeUpdate("Cheese Deposit");
     const [editMode, setEditMode] = useState(false);
     const [form, setForm] = useState({});
+    const [quickAction, setQuickAction] = useState(null);
 
     // Fetch attached files (receipts)
     const { data: attachments = [], isLoading: attachmentsLoading } = useFrappeList("File", {
@@ -75,23 +79,60 @@ export default function DepositDetail() {
 
         updateMutation.mutate({ name: id, data: changes }, {
             onSuccess: () => {
-                toast.success("Deposit updated");
+                toast.success(t("deposits.updateSuccess", "Deposit updated"));
                 setEditMode(false);
                 refetch();
             },
-            onError: (err) => toast.error(err?.message || "Failed to update"),
+            onError: (err) => toast.error(err?.message || t("common.failedToUpdate", "Failed to update")),
         });
     };
 
     const quickStatusChange = (newStatus) => {
+        setQuickAction(newStatus);
         updateMutation.mutate({ name: id, data: { status: newStatus } }, {
             onSuccess: () => {
                 setForm((prev) => ({ ...prev, status: newStatus }));
-                toast.success(`Deposit marked as ${newStatus}`);
+                toast.success(`${t("deposits.statusMarked", "Deposit marked as")} ${t("status." + newStatus, newStatus)}`);
                 refetch();
             },
-            onError: (err) => toast.error(err?.message || "Failed"),
+            onError: (err) => toast.error(err?.message || t("common.failed", "Failed")),
+            onSettled: () => setQuickAction(null),
         });
+    };
+
+    const markAsPaid = async () => {
+        setQuickAction("PAID");
+        try {
+            await depositService.verifyDeposit(id);
+            toast.success(t("deposits.markedAsPaid", "Deposit marked as paid"));
+            await refetch();
+        } catch (err) {
+            toast.error(err?.message || t("common.failed", "Failed"));
+        } finally {
+            setQuickAction(null);
+        }
+    };
+
+    const createRemainingBalance = async () => {
+        setQuickAction("BALANCE");
+        try {
+            const result = await depositService.createRemainingBalanceDeposit({
+                ticketId: deposit.entity_type === "Cheese Ticket" ? deposit.entity_id : undefined,
+                routeBookingId: deposit.entity_type === "Cheese Route Booking" ? deposit.entity_id : undefined,
+            });
+            const payload = result?.data?.message || result?.data || result;
+            const balanceDeposit = payload?.data || payload;
+            if (balanceDeposit?.deposit_id) {
+                toast.success(t("deposits.balanceReady", "Remaining balance deposit is ready"));
+                navigate(`/cheese/deposits/${balanceDeposit.deposit_id}`);
+            } else {
+                toast.error(payload?.message || t("deposits.couldNotCreateBalance", "Could not create remaining balance deposit"));
+            }
+        } catch (err) {
+            toast.error(err?.message || t("common.failed", "Failed"));
+        } finally {
+            setQuickAction(null);
+        }
     };
 
     const status = deposit?.status || "PENDING";
@@ -100,10 +141,10 @@ export default function DepositDetail() {
     return (
         <DetailPageLayout
             title={id}
-            subtitle={`Deposit for ${deposit?.entity_type || ""} ${deposit?.entity_id || ""}`}
+            subtitle={`${t("deposits.depositFor", "Deposit for")} ${deposit?.entity_type || ""} ${deposit?.entity_id || ""}`}
             backPath="/cheese/deposits"
             isLoading={isLoading}
-            statusBadge={<Badge variant="outline" className={config.class}>{config.label}</Badge>}
+            statusBadge={<Badge variant="outline" className={config.class}>{t(config.labelKey, config.defaultLabel)}</Badge>}
             onEditToggle={() => setEditMode(!editMode)}
             editMode={editMode}
             onSave={handleSave}
@@ -115,15 +156,15 @@ export default function DepositDetail() {
                     <Card className="border-border/60 shadow-sm">
                         <CardHeader className="border-b bg-muted/20 pb-4">
                             <CardTitle className="text-sm font-semibold text-muted-foreground uppercase flex items-center">
-                                <DollarSign className="w-4 h-4 mr-2" /> Payment Information
+                                <DollarSign className="w-4 h-4 mr-2" /> {t("deposits.paymentInfo", "Payment Information")}
                             </CardTitle>
                         </CardHeader>
                         <CardContent className="p-6">
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-6 gap-x-8">
-                                <EditableField label="Amount Required" type="number" value={form.amount_required} editMode={false} />
-                                <EditableField label="Amount Paid" type="number" value={form.amount_paid} onChange={(v) => setForm(f => ({ ...f, amount_paid: v }))} editMode={editMode} />
+                                <EditableField label={t("deposits.amountRequired", "Amount Required")} type="number" value={form.amount_required} editMode={false} />
+                                <EditableField label={t("deposits.amountPaid", "Amount Paid")} type="number" value={form.amount_paid} onChange={(v) => setForm(f => ({ ...f, amount_paid: v }))} editMode={editMode} />
                                 <div className="space-y-1">
-                                    <Label className="text-xs text-muted-foreground">Balance</Label>
+                                    <Label className="text-xs text-muted-foreground">{t("deposits.balance", "Balance")}</Label>
                                     <p className={`text-sm font-bold ${Number(form.amount_required) - Number(form.amount_paid) > 0 ? "text-red-600" : "text-emerald-600"}`}>
                                         ${(Number(form.amount_required) - Number(form.amount_paid)).toFixed(2)}
                                     </p>
@@ -131,19 +172,19 @@ export default function DepositDetail() {
                                 <div className="space-y-1">
                                     {editMode ? (
                                         <div className="space-y-1.5">
-                                            <Label className="text-xs text-muted-foreground">Status</Label>
+                                            <Label className="text-xs text-muted-foreground">{t("common.status", "Status")}</Label>
                                             <select
                                                 value={form.status}
                                                 onChange={(e) => setForm(f => ({ ...f, status: e.target.value }))}
                                                 className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm"
                                             >
                                                 {Object.entries(STATUS_CONFIG).map(([key, val]) => (
-                                                    <option key={key} value={key}>{val.label}</option>
+                                                    <option key={key} value={key}>{t(val.labelKey, val.defaultLabel)}</option>
                                                 ))}
                                             </select>
                                         </div>
                                     ) : (
-                                        <EditableField label="Status" value={form.status} editMode={false} />
+                                        <EditableField label={t("common.status", "Status")} value={t(STATUS_CONFIG[form.status]?.labelKey || `status.${form.status}`, form.status)} editMode={false} />
                                     )}
                                 </div>
                             </div>
@@ -154,28 +195,28 @@ export default function DepositDetail() {
                     <Card className="border-border/60 shadow-sm">
                         <CardHeader className="border-b bg-muted/20 pb-4">
                             <CardTitle className="text-sm font-semibold text-muted-foreground uppercase flex items-center">
-                                <CreditCard className="w-4 h-4 mr-2" /> Linked Entity
+                                <CreditCard className="w-4 h-4 mr-2" /> {t("deposits.linkedEntity", "Linked Entity")}
                             </CardTitle>
                         </CardHeader>
                         <CardContent className="p-6">
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-6 gap-x-8">
-                                <EditableField label="Entity Type" value={deposit?.entity_type || "—"} editMode={false} />
-                                <EditableField label="Entity ID" value={deposit?.entity_id || "—"} editMode={false} />
-                                <EditableField label="Contact" value={deposit?.contact_name || deposit?.contact || "—"} editMode={false} />
-                                <EditableField label="Due At" value={deposit?.due_at ? new Date(deposit.due_at).toLocaleString() : "—"} editMode={false} />
+                                <EditableField label={t("deposits.entityType", "Entity Type")} value={deposit?.entity_type || "—"} editMode={false} />
+                                <EditableField label={t("deposits.entityId", "Entity ID")} value={deposit?.entity_id || "—"} editMode={false} />
+                                <EditableField label={t("ticket.contact", "Contact")} value={deposit?.contact_name || deposit?.contact || "—"} editMode={false} />
+                                <EditableField label={t("deposits.dueAt", "Due At")} value={deposit?.due_at ? new Date(deposit.due_at).toLocaleString() : "—"} editMode={false} />
                                 {editMode ? (
                                     <div className="space-y-1.5 flex flex-col justify-end">
-                                        <Label className="text-xs text-muted-foreground">Bank Account</Label>
+                                        <Label className="text-xs text-muted-foreground">{t("bankAccounts.bankAccount", "Bank Account")}</Label>
                                         <FrappeSearchSelect
                                             doctype="Cheese Bank Account"
-                                            label="name"
+                                            label="bank"
                                             value={form.bank_account || ""}
                                             onChange={(v) => setForm(f => ({ ...f, bank_account: v }))}
-                                            placeholder="Select bank account..."
+                                            placeholder={t("bankAccounts.selectBankAccount", "Select bank account...")}
                                         />
                                     </div>
                                 ) : (
-                                    <EditableField label="Bank Account" value={deposit?.bank_account || "—"} editMode={false} />
+                                    <EditableField label={t("bankAccounts.bankAccount", "Bank Account")} value={deposit?.bank_account_title || deposit?.bank_account || "—"} editMode={false} />
                                 )}
                             </div>
                         </CardContent>
@@ -185,12 +226,12 @@ export default function DepositDetail() {
                     <Card className="border-border/60 shadow-sm">
                         <CardHeader className="border-b bg-muted/20 pb-4">
                             <CardTitle className="text-sm font-semibold text-muted-foreground uppercase flex items-center">
-                                <FileImage className="w-4 h-4 mr-2" /> Receipts & Attachments
+                                <FileImage className="w-4 h-4 mr-2" /> {t("deposits.receipts", "Receipts & Attachments")}
                             </CardTitle>
                         </CardHeader>
                         <CardContent className="p-0">
                             {attachmentsLoading ? (
-                                <div className="p-6 text-sm text-muted-foreground">Loading attachments...</div>
+                                <div className="p-6 text-sm text-muted-foreground">{t("deposits.loadingAttachments", "Loading attachments...")}</div>
                             ) : attachments && attachments.length > 0 ? (
                                 <div className="divide-y divide-border/50">
                                     {attachments.map((file) => (
@@ -201,11 +242,11 @@ export default function DepositDetail() {
                                                 </div>
                                                 <div className="min-w-0">
                                                     <p className="font-medium text-sm truncate">{file.file_name}</p>
-                                                    <p className="text-xs text-muted-foreground">Attached Receipt</p>
+                                                    <p className="text-xs text-muted-foreground">{t("deposits.attachedReceipt", "Attached Receipt")}</p>
                                                 </div>
                                             </div>
                                             <Button variant="outline" size="sm" onClick={() => window.open(file.file_url, '_blank')}>
-                                                <Download className="w-4 h-4 mr-2" /> View
+                                                <Download className="w-4 h-4 mr-2" /> {t("common.viewDetails", "View")}
                                             </Button>
                                         </div>
                                     ))}
@@ -213,7 +254,7 @@ export default function DepositDetail() {
                             ) : (
                                 <div className="p-12 text-center text-muted-foreground flex flex-col items-center">
                                     <FileImage className="w-8 h-8 mb-4 opacity-20" />
-                                    <p>No receipts or files attached to this deposit yet.</p>
+                                    <p>{t("deposits.noReceipts", "No receipts or files attached to this deposit yet.")}</p>
                                 </div>
                             )}
                         </CardContent>
@@ -223,7 +264,7 @@ export default function DepositDetail() {
                     {editMode && (
                         <Card className="border-border/60 shadow-sm">
                             <CardHeader className="border-b bg-muted/20 pb-4">
-                                <CardTitle className="text-sm font-semibold text-muted-foreground uppercase">Notes</CardTitle>
+                                <CardTitle className="text-sm font-semibold text-muted-foreground uppercase">{t("deposits.notes", "Notes")}</CardTitle>
                             </CardHeader>
                             <CardContent className="p-6">
                                 <textarea
@@ -231,7 +272,7 @@ export default function DepositDetail() {
                                     onChange={(e) => setForm(f => ({ ...f, notes: e.target.value }))}
                                     rows={4}
                                     className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm"
-                                    placeholder="Add notes about this deposit..."
+                                    placeholder={t("deposits.addNotes", "Add notes about this deposit...")}
                                 />
                             </CardContent>
                         </Card>
@@ -242,45 +283,28 @@ export default function DepositDetail() {
                 <div className="space-y-6">
                     <Card className="border-border/60 shadow-sm bg-primary/5 border-primary/20">
                         <CardHeader className="pb-2">
-                            <CardTitle className="text-sm font-semibold text-primary">Quick Actions</CardTitle>
+                            <CardTitle className="text-sm font-semibold text-primary">{t("common.quickActions", "Quick Actions")}</CardTitle>
                         </CardHeader>
                         <CardContent className="space-y-2 p-4 pt-0">
                             <div className="flex flex-col gap-2">
-                                {status === "PENDING" && (
-                                    <Button variant="outline" size="sm" onClick={() => quickStatusChange("PAID")} className="justify-start text-emerald-700">
-                                        <CheckCircle className="w-4 h-4 mr-2" /> Mark as Paid
+                                {(status === "PENDING" || status === "OVERDUE") && (
+                                    <Button variant="outline" size="sm" onClick={markAsPaid} disabled={!!quickAction} className="justify-start text-emerald-700">
+                                        <CheckCircle className="w-4 h-4 mr-2" /> {quickAction === "PAID" ? t("common.saving", "Saving...") : t("deposits.markAsPaid", "Mark as Paid")}
                                     </Button>
                                 )}
-                                {status === "PENDING" && (
-                                    <Button variant="outline" size="sm" onClick={() => quickStatusChange("CANCELLED")} className="justify-start text-red-700">
-                                        <XCircle className="w-4 h-4 mr-2" /> Cancel Deposit
+                                {(status === "PENDING" || status === "OVERDUE" || status === "REVIEW") && (
+                                    <Button variant="outline" size="sm" onClick={() => quickStatusChange("CANCELLED")} disabled={!!quickAction} className="justify-start text-red-700">
+                                        <XCircle className="w-4 h-4 mr-2" /> {quickAction === "CANCELLED" ? t("common.saving", "Saving...") : t("deposits.cancelDeposit", "Cancel Deposit")}
                                     </Button>
                                 )}
-                                {status === "PAID" && (
-                                    <Button variant="outline" size="sm" onClick={() => quickStatusChange("REFUNDED")} className="justify-start text-purple-700">
-                                        <AlertTriangle className="w-4 h-4 mr-2" /> Refund
+                                {(status === "PAID" || status === "REVIEW") && (
+                                    <Button variant="outline" size="sm" onClick={() => quickStatusChange("REFUNDED")} disabled={!!quickAction} className="justify-start text-purple-700">
+                                        <AlertTriangle className="w-4 h-4 mr-2" /> {quickAction === "REFUNDED" ? t("common.saving", "Saving...") : t("deposits.refund", "Refund")}
                                     </Button>
                                 )}
-                                {status === "PAID" && deposit?.entity_type === "Cheese Ticket" && deposit?.entity_id && (
-                                    <Button variant="outline" size="sm" className="justify-start text-cheese-700" onClick={async () => {
-                                        try {
-                                            const res = await fetch("/api/method/cheese.api.v1.deposit_controller.create_remaining_balance_deposit", {
-                                                method: "POST",
-                                                headers: { "Content-Type": "application/json", "X-Frappe-CSRF-Token": window.csrf_token },
-                                                body: JSON.stringify({ ticket_id: deposit.entity_id }),
-                                            });
-                                            const data = await res.json();
-                                            if (data?.data?.data?.deposit_id) {
-                                                navigate(`/cheese/deposits/${data.data.data.deposit_id}`);
-                                            } else {
-                                                const msg = data?.data?.message || data?.message || "Could not create remaining balance deposit";
-                                                alert(msg);
-                                            }
-                                        } catch (err) {
-                                            alert(err?.message || "Failed");
-                                        }
-                                    }}>
-                                        <DollarSign className="w-4 h-4 mr-2" /> Pay Remaining Balance
+                                {(status === "PAID" || status === "REVIEW") && deposit?.entity_type === "Cheese Ticket" && deposit?.entity_id && (
+                                    <Button variant="outline" size="sm" className="justify-start text-cheese-700" onClick={createRemainingBalance} disabled={!!quickAction}>
+                                        <DollarSign className="w-4 h-4 mr-2" /> {quickAction === "BALANCE" ? t("common.loading", "Loading...") : t("hotelReservations.payRemainingBalance", "Pay Remaining Balance")}
                                     </Button>
                                 )}
                                 {deposit?.entity_id && (
@@ -288,12 +312,12 @@ export default function DepositDetail() {
                                         if (deposit.entity_type === "Cheese Ticket") navigate(`/cheese/tickets/${deposit.entity_id}`);
                                         else if (deposit.entity_type === "Cheese Route Booking") navigate(`/cheese/bookings/${deposit.entity_id}`);
                                     }}>
-                                        <Ticket className="w-4 h-4 mr-2" /> View {deposit.entity_type === "Cheese Ticket" ? "Ticket" : "Booking"}
+                                        <Ticket className="w-4 h-4 mr-2" /> {deposit.entity_type === "Cheese Ticket" ? t("deposits.viewTicket", "View Ticket") : t("deposits.viewBooking", "View Booking")}
                                     </Button>
                                 )}
                                 {deposit?.contact && (
                                     <Button variant="outline" size="sm" className="justify-start" onClick={() => navigate(`/cheese/contacts/${deposit.contact}`)}>
-                                        <Users className="w-4 h-4 mr-2" /> View Contact
+                                        <Users className="w-4 h-4 mr-2" /> {t("deposits.viewContact", "View Contact")}
                                     </Button>
                                 )}
                             </div>
@@ -302,15 +326,15 @@ export default function DepositDetail() {
 
                     <Card className="border-border/60 shadow-sm">
                         <CardHeader className="border-b bg-muted/20 pb-4">
-                            <CardTitle className="text-sm font-semibold text-muted-foreground uppercase">System Info</CardTitle>
+                            <CardTitle className="text-sm font-semibold text-muted-foreground uppercase">{t("experiences.systemInfo", "System Info")}</CardTitle>
                         </CardHeader>
                         <CardContent className="p-6 space-y-4">
                             <div className="space-y-1">
-                                <Label className="text-xs text-muted-foreground">Created</Label>
+                                <Label className="text-xs text-muted-foreground">{t("common.created", "Created")}</Label>
                                 <p className="text-sm">{deposit?.creation ? new Date(deposit.creation).toLocaleString() : "—"}</p>
                             </div>
                             <div className="space-y-1">
-                                <Label className="text-xs text-muted-foreground">Last Modified</Label>
+                                <Label className="text-xs text-muted-foreground">{t("experiences.lastModified", "Last Modified")}</Label>
                                 <p className="text-sm">{deposit?.modified ? new Date(deposit.modified).toLocaleString() : "—"}</p>
                             </div>
                         </CardContent>

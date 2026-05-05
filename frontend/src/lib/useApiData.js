@@ -91,7 +91,7 @@ export function useFrappeCreate(doctype) {
             return result?.data?.message || result?.data || result;
         },
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['frappe-list', doctype] });
+            queryClient.invalidateQueries();
         },
     });
 }
@@ -111,7 +111,7 @@ export function useFrappeUpdate(doctype) {
         },
         onSuccess: (data, variables) => {
             const updatedName = variables?.name;
-            queryClient.invalidateQueries({ queryKey: ['frappe-list', doctype] });
+            queryClient.invalidateQueries();
             // Ensure the specific document query refetches (not only the prefix).
             if (updatedName) {
                 queryClient.invalidateQueries({ queryKey: ['frappe-doc', doctype, updatedName] });
@@ -135,7 +135,7 @@ export function useFrappeDelete(doctype) {
             return result?.data?.message || result?.data || result;
         },
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['frappe-list', doctype] });
+            queryClient.invalidateQueries();
         },
     });
 }

@@ -63,8 +63,21 @@ class CheeseTicket(Document):
 		# Prevent duplicate active tickets for same contact + experience + slot
 		self.validate_duplicate_active_ticket()
 
+		# Set nights before capacity checks
+		experience_doc = frappe.get_doc("Cheese Experience", self.experience) if self.experience else None
+		if experience_doc and experience_doc.experience_type == "HOTEL":
+			if self.check_in_date and self.check_out_date:
+				from frappe.utils import date_diff
+				if str(self.check_out_date) <= str(self.check_in_date):
+					frappe.throw(_("Check-out date must be after check-in date"))
+				self.nights = date_diff(self.check_out_date, self.check_in_date)
+			else:
+				frappe.throw(_("Check-in and Check-out dates are required for Hotel reservations"))
+			if not self.rooms_requested or self.rooms_requested < 1:
+				frappe.throw(_("Rooms requested must be at least 1 for Hotel reservations"))
+
 		# Validate capacity
-		self.validate_capacity()
+		self.validate_capacity(experience_doc)
 
 		# Create snapshots on creation
 		if self.is_new():
@@ -133,9 +146,45 @@ class CheeseTicket(Document):
 				frappe.ValidationError,
 			)
 
-	def validate_capacity(self):
-		"""Validate slot capacity for the ticket's selected calendar day (multi-day slots)."""
+	def validate_capacity(self, experience_doc=None):
+		"""Validate slot capacity for the ticket's selected calendar day (multi-day slots) or across check-in/out range."""
 		if not self.slot:
+			return
+
+		from cheese.cheese.utils.capacity import get_available_capacity
+
+		slot = frappe.get_doc("Cheese Experience Slot", self.slot)
+		
+		if not experience_doc:
+			experience_doc = frappe.get_doc("Cheese Experience", self.experience)
+
+		if experience_doc.experience_type == "HOTEL":
+			from frappe.utils import add_days
+			from frappe.utils import cint
+			room_size = cint(getattr(experience_doc, "room_size", 0) or getattr(experience_doc, "max_occupancy_per_unit", 0) or 0)
+			if room_size < 1:
+				frappe.throw(_("Room Size must be configured for hotel room reservations"))
+			max_guests = room_size * (self.rooms_requested or 1)
+			if (self.party_size or 1) > max_guests:
+				frappe.throw(
+					_("Guest count ({0}) exceeds room capacity ({1}) for {2} room(s)").format(
+						self.party_size, max_guests, self.rooms_requested or 1
+					),
+					frappe.ValidationError,
+				)
+			current_date = getdate(self.check_in_date)
+			end_date = getdate(self.check_out_date)
+			
+			while current_date < end_date:
+				available_capacity = get_available_capacity(self.slot, current_date)
+				if self.rooms_requested > available_capacity:
+					frappe.throw(
+						_("Not enough rooms available on {0}. Requested: {1}, Available: {2}").format(
+							current_date, self.rooms_requested, available_capacity
+						),
+						frappe.ValidationError
+					)
+				current_date = add_days(current_date, 1)
 			return
 
 		from cheese.cheese.utils.capacity import get_available_capacity
@@ -163,18 +212,28 @@ class CheeseTicket(Document):
 
 	def create_snapshots(self):
 		"""Create snapshots of policy and pricing"""
-		# Policy snapshot
-		policy = frappe.db.get_value(
-			"Cheese Booking Policy",
-			{"experience": self.experience},
-			["cancel_until_hours_before", "modify_until_hours_before", "min_hours_before_booking"],
-			as_dict=True
-		)
-		if policy:
-			self.policy_snapshot = json.dumps(policy)
-
 		# Price snapshot — record the effective unit price used for calculation
 		experience = frappe.get_doc("Cheese Experience", self.experience)
+		
+		# Hotel policy
+		if experience.experience_type == "HOTEL":
+			policy_data = {
+				"cancel_days_before": experience.cancel_days_before,
+				"modify_days_before": experience.modify_days_before,
+				"refund_policy": experience.refund_policy
+			}
+			self.policy_snapshot = json.dumps(policy_data)
+		else:
+			# Activity Policy snapshot
+			policy = frappe.db.get_value(
+				"Cheese Booking Policy",
+				{"experience": self.experience},
+				["cancel_until_hours_before", "modify_until_hours_before", "min_hours_before_booking"],
+				as_dict=True
+			)
+			if policy:
+				self.policy_snapshot = json.dumps(policy)
+
 		if self.route:
 			# For route tickets, the unit price may come from route.price (Manual mode)
 			# or experience.route_price / individual_price (Sum mode)
@@ -189,18 +248,32 @@ class CheeseTicket(Document):
 		else:
 			effective_unit_price = experience.individual_price or 0
 
-		price_data = {
-			"individual_price": experience.individual_price,
-			"route_price": experience.route_price,
-			"effective_unit_price": effective_unit_price,
-		}
+		if experience.experience_type == "HOTEL":
+			price_data = {
+				"price_per_night": experience.price_per_night,
+				"nights": self.nights,
+				"rooms": self.rooms_requested,
+				"effective_unit_price": experience.price_per_night,
+			}
+		else:
+			price_data = {
+				"individual_price": experience.individual_price,
+				"route_price": experience.route_price,
+				"effective_unit_price": effective_unit_price,
+			}
 		self.price_snapshot = json.dumps(price_data)
 
 	def apply_experience_deposit_policy(self):
 		"""Derive ticket deposit settings using shared route-aware pricing helpers."""
 		if not self.experience:
 			return
-		price_data = calculate_ticket_price(self.experience, self.party_size or 1, route_id=self.route)
+		experience_doc = frappe.get_doc("Cheese Experience", self.experience)
+		if experience_doc.experience_type == "HOTEL":
+			party_size = self.rooms_requested or 1
+		else:
+			party_size = self.party_size or 1
+
+		price_data = calculate_ticket_price(self.experience, party_size, route_id=self.route, ticket=self)
 		total_price = price_data.get("total_price", 0)
 		self.total_price = total_price
 		self.deposit_amount = calculate_deposit_amount(self.experience, total_price, route_id=self.route)
@@ -209,15 +282,20 @@ class CheeseTicket(Document):
 	def set_expires_at(self):
 		"""Set expiration time for PENDING tickets"""
 		if self.status == "PENDING":
-			# Default TTL: 24 hours
-			ttl_hours = 24
-			
-			# Check if experience has deposit TTL
 			experience = frappe.get_doc("Cheese Experience", self.experience)
-			if experience.deposit_ttl_hours:
-				ttl_hours = experience.deposit_ttl_hours
 			
-			self.expires_at = add_to_date(now_datetime(), hours=ttl_hours, as_string=False)
+			if experience.experience_type == "HOTEL":
+				ttl_days = experience.deposit_ttl_days or 1  # default 1 day for hotels
+				self.expires_at = add_to_date(now_datetime(), days=ttl_days, as_string=False)
+			else:
+				# Default TTL: 24 hours for activities
+				ttl_hours = 24
+				
+				# Check if experience has deposit TTL
+				if experience.deposit_ttl_hours:
+					ttl_hours = experience.deposit_ttl_hours
+				
+				self.expires_at = add_to_date(now_datetime(), hours=ttl_hours, as_string=False)
 
 	def update_capacity(self):
 		"""Update slot capacity when ticket status changes"""

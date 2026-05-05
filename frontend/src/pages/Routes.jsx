@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -25,6 +26,7 @@ const STATUS_CONFIG = {
 
 export default function RoutesPage() {
     const navigate = useNavigate();
+    const { t } = useTranslation();
     const queryClient = useQueryClient();
     const [searchTerm, setSearchTerm] = useState("");
     const [filterStatus, setFilterStatus] = useState("all");
@@ -74,16 +76,16 @@ export default function RoutesPage() {
 
     const addExperienceToRoute = () => {
         if (!experienceToAdd) {
-            toast.error("Select an experience to add");
+            toast.error(t("routes.selectExperience", "Select an experience to add"));
             return;
         }
         if (selectedExperienceIds.includes(experienceToAdd)) {
-            toast.error("This experience is already included in the route");
+            toast.error(t("routes.experienceAlreadyIncluded", "This experience is already included in the route"));
             return;
         }
         const exp = experiencesById[experienceToAdd];
         if (exp && !["Route", "Both"].includes(exp.package_mode)) {
-            toast.error(`Experience "${exp.experience_info || exp.name}" is not eligible for routes`);
+            toast.error(t("routes.experienceNotEligible", "Experience \"{{name}}\" is not eligible for routes", { name: exp.experience_info || exp.name }));
             return;
         }
         setSelectedExperienceIds(prev => [...prev, experienceToAdd]);
@@ -112,18 +114,18 @@ export default function RoutesPage() {
             setForm({ name: "", description: "", price: "" });
             setSelectedExperienceIds([]);
             setExperienceToAdd("");
-            toast.success("Route created");
+            toast.success(t("routes.createSuccess", "Route created"));
         },
-        onError: (err) => toast.error(err?.message || "Failed"),
+        onError: (err) => toast.error(err?.message || t("common.failed", "Failed")),
     });
 
     const handleCreateRoute = () => {
         if (!form.description.trim()) {
-            toast.error("Short Description is required");
+            toast.error(t("routes.shortDescRequired", "Short Description is required"));
             return;
         }
         if (selectedExperienceIds.length === 0) {
-            toast.error("Add at least one experience to the route");
+            toast.error(t("routes.atLeastOneExperience", "Add at least one experience to the route"));
             return;
         }
 
@@ -145,17 +147,17 @@ export default function RoutesPage() {
 
     const publishMutation = useMutation({
         mutationFn: (routeId) => routeService.publishRoute(routeId),
-        onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['routes'] }); toast.success("Route published"); },
+        onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['routes'] }); toast.success(t("routes.publishSuccess", "Route published")); },
     });
 
     const unpublishMutation = useMutation({
         mutationFn: (routeId) => routeService.unpublishRoute(routeId),
-        onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['routes'] }); toast.success("Route unpublished"); },
+        onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['routes'] }); toast.success(t("routes.unpublishSuccess", "Route unpublished")); },
     });
 
     const archiveMutation = useMutation({
         mutationFn: (routeId) => routeService.archiveRoute(routeId),
-        onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['routes'] }); toast.success("Route archived"); },
+        onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['routes'] }); toast.success(t("routes.archiveSuccess", "Route archived")); },
     });
 
     const filtered = routes.filter(r => {
@@ -171,9 +173,9 @@ export default function RoutesPage() {
         return (
             <div className="p-6 flex flex-col items-center justify-center min-h-[400px] text-center">
                 <AlertCircle className="w-12 h-12 text-red-400 mb-4" />
-                <h2 className="text-lg font-semibold mb-2">Failed to load routes</h2>
+                <h2 className="text-lg font-semibold mb-2">{t("routes.loadFailed", "Failed to load routes")}</h2>
                 <p className="text-sm text-muted-foreground mb-4">{error?.message}</p>
-                <Button onClick={() => refetch()} variant="outline"><RefreshCw className="w-4 h-4 mr-2" /> Retry</Button>
+                <Button onClick={() => refetch()} variant="outline"><RefreshCw className="w-4 h-4 mr-2" /> {t("common.retry", "Retry")}</Button>
             </div>
         );
     }
@@ -182,19 +184,19 @@ export default function RoutesPage() {
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="p-6 space-y-6">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
-                    <h1 className="text-2xl font-bold text-foreground flex items-center gap-2"><Route className="w-6 h-6 text-cheese-600" /> Routes</h1>
-                    <p className="text-sm text-muted-foreground mt-1">{isLoading ? '...' : `${filtered.length} routes`}</p>
+                    <h1 className="text-2xl font-bold text-foreground flex items-center gap-2"><Route className="w-6 h-6 text-cheese-600" /> {t("routes.title", "Routes")}</h1>
+                    <p className="text-sm text-muted-foreground mt-1">{isLoading ? '...' : `${filtered.length} ${t("routes.items", "routes")}`}</p>
                 </div>
                 <div className="flex gap-2">
-                    <div className="relative"><Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" /><Input placeholder="Search..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-9 w-56 h-9" /></div>
+                    <div className="relative"><Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" /><Input placeholder={t("common.search", "Search") + "..."} value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-9 w-56 h-9" /></div>
                     <Select value={filterStatus} onValueChange={setFilterStatus}>
                         <SelectTrigger className="w-36 h-9"><SelectValue /></SelectTrigger>
                         <SelectContent>
-                            <SelectItem value="all">All Status</SelectItem>
-                            {Object.entries(STATUS_CONFIG).map(([k, v]) => <SelectItem key={k} value={k}>{v.label}</SelectItem>)}
+                            <SelectItem value="all">{t("common.allStatus", "All Status")}</SelectItem>
+                            {Object.entries(STATUS_CONFIG).map(([k, v]) => <SelectItem key={k} value={k}>{t(`status.${k}`, v.label)}</SelectItem>)}
                         </SelectContent>
                     </Select>
-                    <Button className="cheese-gradient text-black font-semibold border-0 h-9" onClick={() => setCreateOpen(true)}><Plus className="w-4 h-4 mr-1" /> New Route</Button>
+                    <Button className="cheese-gradient text-black font-semibold border-0 h-9" onClick={() => setCreateOpen(true)}><Plus className="w-4 h-4 mr-1" /> {t("routes.newRoute", "New Route")}</Button>
                     <Button variant="ghost" size="icon" onClick={() => refetch()} className="h-9 w-9"><RefreshCw className="w-4 h-4" /></Button>
                 </div>
             </div>
@@ -230,24 +232,24 @@ export default function RoutesPage() {
                                                 <Button variant="ghost" size="icon" className="h-8 w-8 opacity-0 group-hover:opacity-100" onClick={(e) => e.stopPropagation()}><MoreHorizontal className="w-4 h-4" /></Button>
                                             </DropdownMenuTrigger>
                                             <DropdownMenuContent align="end">
-                                                <DropdownMenuItem onClick={() => navigate(`/cheese/routes/${route.name}`)}><Eye className="w-3 h-3 mr-2" /> View Details</DropdownMenuItem>
+                                                <DropdownMenuItem onClick={() => navigate(`/cheese/routes/${route.name}`)}><Eye className="w-3 h-3 mr-2" /> {t("common.viewDetails", "View Details")}</DropdownMenuItem>
                                                 <DropdownMenuSeparator />
                                                 {route.status === "ONLINE" ? (
-                                                    <DropdownMenuItem onClick={(e) => { e.stopPropagation(); updateStatus(route.name, "OFFLINE"); }}><WifiOff className="w-3 h-3 mr-2" /> Take Offline</DropdownMenuItem>
+                                                    <DropdownMenuItem onClick={(e) => { e.stopPropagation(); updateStatus(route.name, "OFFLINE"); }}><WifiOff className="w-3 h-3 mr-2" /> {t("common.takeOffline", "Take Offline")}</DropdownMenuItem>
                                                 ) : (
-                                                    <DropdownMenuItem onClick={(e) => { e.stopPropagation(); updateStatus(route.name, "ONLINE"); }}><Globe className="w-3 h-3 mr-2" /> Publish Online</DropdownMenuItem>
+                                                    <DropdownMenuItem onClick={(e) => { e.stopPropagation(); updateStatus(route.name, "ONLINE"); }}><Globe className="w-3 h-3 mr-2" /> {t("common.publishOnline", "Publish Online")}</DropdownMenuItem>
                                                 )}
                                                 <DropdownMenuSeparator />
-                                                <DropdownMenuItem className="text-red-600" onClick={(e) => { e.stopPropagation(); archiveMutation.mutate(route.name); }}><Archive className="w-3 h-3 mr-2" /> Archive</DropdownMenuItem>
+                                                <DropdownMenuItem className="text-red-600" onClick={(e) => { e.stopPropagation(); archiveMutation.mutate(route.name); }}><Archive className="w-3 h-3 mr-2" /> {t("common.archive", "Archive")}</DropdownMenuItem>
                                                 <DropdownMenuSeparator />
-                                                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); navigate(`/cheese/bank-accounts?route=${route.name}`); }}>Bank Account</DropdownMenuItem>
-                                                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); navigate(`/cheese/documents?entity_type=${encodeURIComponent("Cheese Route")}&entity_id=${route.name}`); }}>Documents</DropdownMenuItem>
+                                                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); navigate(`/cheese/bank-accounts?route=${route.name}`); }}>{t("nav.bankAccounts", "Bank Accounts")}</DropdownMenuItem>
+                                                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); navigate(`/cheese/documents?entity_type=${encodeURIComponent("Cheese Route")}&entity_id=${route.name}`); }}>{t("nav.documents", "Documents")}</DropdownMenuItem>
                                             </DropdownMenuContent>
                                         </DropdownMenu>
                                     </div>
                                     {route.description && <p className="text-xs text-muted-foreground mb-3 line-clamp-2">{route.description}</p>}
                                     <div className="flex items-center justify-between">
-                                        <Badge className={config.badge}><StatusIcon className="w-3 h-3 mr-1" />{config.label}</Badge>
+                                        <Badge className={config.badge}><StatusIcon className="w-3 h-3 mr-1" />{t(`status.${route.status}`, config.label)}</Badge>
                                         {route.price != null && (
                                             <span className="text-sm font-semibold text-foreground flex items-center"><DollarSign className="w-3.5 h-3.5" />{Number(route.price).toLocaleString()}</span>
                                         )}
@@ -273,7 +275,7 @@ export default function RoutesPage() {
             {!isLoading && filtered.length === 0 && (
                 <div className="text-center py-16">
                     <Route className="w-16 h-16 text-muted-foreground/20 mx-auto mb-4" />
-                    <p className="text-muted-foreground">No routes found</p>
+                    <p className="text-muted-foreground">{t("routes.noRoutes", "No routes found")}</p>
                 </div>
             )}
 
@@ -281,14 +283,14 @@ export default function RoutesPage() {
             <Dialog open={createOpen} onOpenChange={setCreateOpen}>
                 <DialogContent className="max-w-md">
                     <DialogHeader>
-                        <DialogTitle className="flex items-center gap-2"><Plus className="w-5 h-5 text-cheese-600" /> New Route</DialogTitle>
-                        <DialogDescription>Create a new experience route</DialogDescription>
+                        <DialogTitle className="flex items-center gap-2"><Plus className="w-5 h-5 text-cheese-600" /> {t("routes.newRoute", "New Route")}</DialogTitle>
+                        <DialogDescription>{t("routes.createDesc", "Create a new experience route")}</DialogDescription>
                     </DialogHeader>
                     <div className="space-y-4">
                         <div className="space-y-2">
-                            <Label>Short Description *</Label>
+                            <Label>{t("routes.shortDesc", "Short Description *")}</Label>
                             <Input
-                                placeholder="e.g. Golden Route"
+                                placeholder={t("routes.shortDescPlaceholder", "e.g. Golden Route")}
                                 value={form.description}
                                 onChange={(e) =>
                                     setForm((f) => ({
@@ -301,12 +303,12 @@ export default function RoutesPage() {
                         </div>
 
                         <div className="space-y-2">
-                            <Label>Experiences *</Label>
+                            <Label>{t("routes.experiencesReq", "Experiences *")}</Label>
                             <div className="flex items-end gap-2">
                                 <div className="flex-1">
                                     <Select value={experienceToAdd} onValueChange={setExperienceToAdd}>
                                         <SelectTrigger>
-                                            <SelectValue placeholder="Select an experience..." />
+                                            <SelectValue placeholder={t("routes.selectExperiencePlaceholder", "Select an experience...")} />
                                         </SelectTrigger>
                                         <SelectContent>
                                             {eligibleExperiences.map((exp) => (
@@ -323,7 +325,7 @@ export default function RoutesPage() {
                                     disabled={!experienceToAdd}
                                     onClick={addExperienceToRoute}
                                 >
-                                    <Plus className="w-4 h-4 mr-1" /> Add
+                                    <Plus className="w-4 h-4 mr-1" /> {t("common.add", "Add")}
                                 </Button>
                             </div>
 
@@ -342,7 +344,7 @@ export default function RoutesPage() {
                                                 <div className="flex items-center gap-1">
                                                     <button
                                                         type="button"
-                                                        aria-label="Move up"
+                                                        aria-label={t("common.moveUp", "Move up")}
                                                         disabled={idx === 0}
                                                         onClick={() => moveExperience(idx, idx - 1)}
                                                         className="p-1 rounded hover:bg-muted disabled:opacity-50 disabled:cursor-not-allowed"
@@ -351,7 +353,7 @@ export default function RoutesPage() {
                                                     </button>
                                                     <button
                                                         type="button"
-                                                        aria-label="Move down"
+                                                        aria-label={t("common.moveDown", "Move down")}
                                                         disabled={idx === selectedExperienceIds.length - 1}
                                                         onClick={() => moveExperience(idx, idx + 1)}
                                                         className="p-1 rounded hover:bg-muted disabled:opacity-50 disabled:cursor-not-allowed"
@@ -360,7 +362,7 @@ export default function RoutesPage() {
                                                     </button>
                                                     <button
                                                         type="button"
-                                                        aria-label="Remove experience"
+                                                        aria-label={t("common.remove", "Remove")}
                                                         onClick={() => removeExperienceAt(idx)}
                                                         className="p-1 rounded hover:bg-muted"
                                                     >
@@ -375,16 +377,16 @@ export default function RoutesPage() {
                         </div>
 
                         <div className="space-y-2">
-                            <Label>Route Price (Sum of included experiences) *</Label>
+                            <Label>{t("routes.routePriceDesc", "Route Price (Sum of included experiences) *")}</Label>
                             <div className="text-sm font-semibold px-3 py-2 rounded-md bg-muted/40 border border-border">
                                 ${Number(computedRoutePrice || 0).toLocaleString()}
                             </div>
                         </div>
                     </div>
                     <DialogFooter>
-                        <Button variant="outline" onClick={() => setCreateOpen(false)}>Cancel</Button>
+                        <Button variant="outline" onClick={() => setCreateOpen(false)}>{t("common.cancel", "Cancel")}</Button>
                         <Button className="cheese-gradient text-black font-semibold border-0" onClick={handleCreateRoute} disabled={createMutation.isPending}>
-                            {createMutation.isPending ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Plus className="w-4 h-4 mr-1" />} Create
+                            {createMutation.isPending ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Plus className="w-4 h-4 mr-1" />} {t("common.create", "Create")}
                         </Button>
                     </DialogFooter>
                 </DialogContent>
@@ -399,13 +401,13 @@ export default function RoutesPage() {
                     {detailRoute && (
                         <div className="space-y-4">
                             <div className="grid grid-cols-2 gap-4">
-                                <div><p className="text-xs text-muted-foreground">Status</p><Badge className={STATUS_CONFIG[detailRoute.status]?.badge}>{STATUS_CONFIG[detailRoute.status]?.label}</Badge></div>
-                                <div><p className="text-xs text-muted-foreground">Price</p><p className="font-semibold">${Number(detailRoute.price || 0).toLocaleString()}</p></div>
+                                <div><p className="text-xs text-muted-foreground">{t("common.status", "Status")}</p><Badge className={STATUS_CONFIG[detailRoute.status]?.badge}>{t(`status.${detailRoute.status}`, STATUS_CONFIG[detailRoute.status]?.label)}</Badge></div>
+                                <div><p className="text-xs text-muted-foreground">{t("common.price", "Price")}</p><p className="font-semibold">${Number(detailRoute.price || 0).toLocaleString()}</p></div>
                             </div>
-                            {detailRoute.description && <div><p className="text-xs text-muted-foreground">Description</p><p className="text-sm">{detailRoute.description}</p></div>}
+                            {detailRoute.description && <div><p className="text-xs text-muted-foreground">{t("common.description", "Description")}</p><p className="text-sm">{detailRoute.description}</p></div>}
                             {detailRoute.experiences?.length > 0 && (
                                 <div>
-                                    <p className="text-xs text-muted-foreground mb-2">Experiences ({detailRoute.experiences.length})</p>
+                                    <p className="text-xs text-muted-foreground mb-2">{t("routes.experiences", "Experiences")} ({detailRoute.experiences.length})</p>
                                     <div className="space-y-1">
                                         {detailRoute.experiences.map((exp, i) => (
                                             <div key={i} className="flex items-center gap-2 text-sm p-2 bg-muted rounded-lg">
@@ -417,8 +419,8 @@ export default function RoutesPage() {
                                 </div>
                             )}
                             <DialogFooter className="gap-2">
-                                <Button variant="outline" onClick={() => navigate(`/cheese/tickets?route=${detailRoute.name}`)}><Ticket className="w-4 h-4 mr-1" /> View Tickets</Button>
-                                <Button variant="outline" onClick={() => navigate(`/cheese/bookings?route=${detailRoute.name}`)}>Bookings</Button>
+                                <Button variant="outline" onClick={() => navigate(`/cheese/tickets?route=${detailRoute.name}`)}><Ticket className="w-4 h-4 mr-1" /> {t("nav.tickets", "View Tickets")}</Button>
+                                <Button variant="outline" onClick={() => navigate(`/cheese/bookings?route=${detailRoute.name}`)}>{t("nav.bookings", "Bookings")}</Button>
                             </DialogFooter>
                         </div>
                     )}

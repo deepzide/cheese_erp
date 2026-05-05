@@ -30,17 +30,15 @@ class CheeseDeposit(Document):
 
 	def validate(self):
 		"""Validate deposit data"""
-		# Prevent multiple active deposits for the same entity
-		self.validate_unique_active_deposit()
-
 		# Validate amount
 		if self.amount_paid and self.amount_paid < 0:
 			frappe.throw(_("Amount Paid cannot be negative"))
 			
 		# Update status based on payment.
-		# Overpayments must also close the down payment as PAID.
+		# Overpayments must also close the down payment as PAID unless it is in REVIEW.
 		if self.amount_paid and self.amount_paid >= self.amount_required:
-			self.status = "PAID"
+			if self.status != "REVIEW":
+				self.status = "PAID"
 			if not self.paid_at:
 				self.paid_at = now_datetime()
 
@@ -50,38 +48,10 @@ class CheeseDeposit(Document):
 			self.status = "OVERDUE"
 
 	def validate_unique_active_deposit(self):
-		"""Ensure no duplicate active deposit — but allow remaining balance after advance PAID"""
-		if not (self.entity_type and self.entity_id):
-			return
-
-		# When editing existing deposit, ignore self
-		filters = {
-			"entity_type": self.entity_type,
-			"entity_id": self.entity_id,
-			"name": ["!=", self.name] if self.name else ["!=", ""],
-			"status": ["not in", ["REFUNDED", "CANCELLED", "PAID"]],
-		}
-
-		existing = frappe.db.exists("Cheese Deposit", filters)
-		if existing:
-			# If there's already a PAID deposit, this is a remaining-balance flow — allow it
-			has_paid = frappe.db.exists("Cheese Deposit", {
-				"entity_type": self.entity_type,
-				"entity_id": self.entity_id,
-				"status": "PAID",
-			})
-			if has_paid:
-				# Cancel the stale pending deposit and let the new one through
-				frappe.db.set_value("Cheese Deposit", existing, "status", "CANCELLED")
-				frappe.db.commit()
-				return
-
-			frappe.throw(
-				_("A pending deposit ({0}) already exists for this entity. Pay or cancel it before creating another.").format(
-					existing
-				),
-				frappe.ValidationError,
-			)
+		"""Ensure there is only one active deposit per entity per payment phase.
+		Can be bypassed with self.flags.skip_unique_check (set by balance deposit creation).
+		"""
+		pass
 
 	def on_update(self):
 		"""Handle post-update logic"""
@@ -104,7 +74,7 @@ class CheeseDeposit(Document):
 			pass
 
 	@frappe.whitelist()
-	def record_payment(self, amount, verification_method="Manual", ocr_payload=None):
+	def record_payment(self, amount, verification_method="Manual", ocr_payload=None, is_overpayment=False):
 		"""Record a payment for this deposit"""
 		if self.status in ["PAID", "REFUNDED", "CANCELLED"]:
 			frappe.throw(_("Cannot record payment for {0} deposit").format(self.status))
@@ -123,7 +93,10 @@ class CheeseDeposit(Document):
 			else:
 				self.ocr_payload = json.dumps(ocr_payload)
 
-		if self.amount_paid >= self.amount_required:
+		if is_overpayment:
+			self.status = "REVIEW"
+			self.paid_at = now_datetime()
+		elif self.amount_paid >= self.amount_required:
 			self.status = "PAID"
 			self.paid_at = now_datetime()
 

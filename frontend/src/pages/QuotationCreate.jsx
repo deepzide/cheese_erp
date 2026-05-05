@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -14,6 +15,7 @@ import { experienceService } from "@/api/experienceService";
 export default function QuotationCreate() {
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
+    const { t } = useTranslation();
     const todayStr = new Date().toISOString().slice(0, 10);
 
     const toDatetimeLocal = (d) => {
@@ -81,7 +83,7 @@ export default function QuotationCreate() {
             setExperienceDetailsById(prev => ({ ...prev, [experienceId]: details }));
             return details;
         } catch (err) {
-            toast.error(err?.message || "Failed to load experience details");
+            toast.error(err?.message || t("common.failedLoadDetails", "Failed to load experience details"));
             return null;
         }
     };
@@ -89,7 +91,7 @@ export default function QuotationCreate() {
     const fetchSlotForDate = async (rowIndex, experienceId, date) => {
         if (!experienceId || !date) return;
         if (date < todayStr) {
-            toast.error("Past dates are not allowed.");
+            toast.error(t("tickets.pastDatesError", "Past dates are not allowed."));
             return;
         }
         const partySize = parseInt(form.party_size, 10) || 1;
@@ -111,7 +113,7 @@ export default function QuotationCreate() {
             const best = capacitySlots[0];
 
             if (!best) {
-                toast.error(`No open slot available for ${date} with enough capacity for ${partySize} people.`);
+                toast.error(t("calendar.noOpenSlotCapacity", { date, partySize, defaultValue: `No open slot available for ${date} with enough capacity for ${partySize} people.` }));
                 return;
             }
 
@@ -123,7 +125,7 @@ export default function QuotationCreate() {
                 })
             );
         } catch (err) {
-            toast.error(err?.message || "Failed to fetch slot");
+            toast.error(err?.message || t("tickets.failedFetchSlot", "Failed to fetch slot"));
         }
     };
 
@@ -155,7 +157,7 @@ export default function QuotationCreate() {
             setAvailableSlotsByRow((prev) => ({ ...prev, [rowIndex]: filteredSlots }));
             return uniqueDates;
         } catch (err) {
-            toast.error(err?.message || "Failed to load available dates");
+            toast.error(err?.message || t("calendar.failedToLoadDates", "Failed to load available dates"));
             setAvailableDatesByRow((prev) => ({ ...prev, [rowIndex]: [] }));
             setAvailableSlotsByRow((prev) => ({ ...prev, [rowIndex]: [] }));
             return [];
@@ -167,7 +169,7 @@ export default function QuotationCreate() {
         if (form.route && routeDoc?.experiences?.length) {
             const allowed = new Set(routeDoc.experiences.map((row) => row.experience));
             if (experienceId && !allowed.has(experienceId)) {
-                toast.error("Selected experience does not belong to the chosen route.");
+                toast.error(t("routes.experienceNotBelongRoute", "Selected experience does not belong to the chosen route."));
                 return;
             }
         }
@@ -177,7 +179,7 @@ export default function QuotationCreate() {
 
         const details = await ensureExperienceDetails(experienceId);
         if (form.establishment && details?.company && details.company !== form.establishment) {
-            toast.error("Experience does not belong to selected establishment.");
+            toast.error(t("experiences.experienceNotBelongCompany", "Experience does not belong to selected establishment."));
             setExperiences(prev =>
                 prev.map((exp, i) => (i === index ? { ...exp, experience: "", slot: "" } : exp))
             );
@@ -192,14 +194,14 @@ export default function QuotationCreate() {
                 );
                 fetchSlotForDate(index, experienceId, preferredDate);
             } else {
-                toast.error("No available slot dates for the selected experience.");
+                toast.error(t("calendar.noSlotDates", "No available slot dates for the selected experience."));
             }
         }
     };
 
     const handleDateChange = (index, date) => {
         if (date && date < todayStr) {
-            toast.error("Past dates are not allowed.");
+            toast.error(t("tickets.pastDatesError", "Past dates are not allowed."));
             return;
         }
         const rowExperience = experiences[index]?.experience || "";
@@ -253,15 +255,15 @@ export default function QuotationCreate() {
     }, [experiences, experienceDetailsById, partySize, form.route]);
 
     const handleSubmit = () => {
-        if (!form.lead || !form.route) { toast.error("Lead and route are required"); return; }
+        if (!form.lead || !form.route) { toast.error(t("quotations.leadRouteRequired", "Lead and route are required")); return; }
         if (form.valid_until && new Date(form.valid_until) < new Date()) {
-            toast.error("Quotation cannot be created with an expired validity date.");
+            toast.error(t("quotations.validUntilPast", "Quotation cannot be created with an expired validity date."));
             return;
         }
 
         const filledExperiences = experiences.filter(exp => exp.experience && exp.slot);
         if (filledExperiences.length === 0) {
-            toast.error("Add at least one experience with a slot (select date + auto-fetch slot).");
+            toast.error(t("quotations.addAtLeastOneExp", "Add at least one experience with a slot (select date + auto-fetch slot)."));
             return;
         }
 
@@ -283,42 +285,42 @@ export default function QuotationCreate() {
         }));
 
         createMutation.mutate(payload, {
-            onSuccess: () => { toast.success("Quotation created"); navigate("/cheese/quotations"); },
-            onError: (err) => toast.error(err?.message || "Failed to create quotation"),
+            onSuccess: () => { toast.success(t("quotations.createSuccess", "Quotation created")); navigate("/cheese/quotations"); },
+            onError: (err) => toast.error(err?.message || t("quotations.createError", "Failed to create quotation")),
         });
     };
 
     return (
         <CreatePageLayout
-            title="New Quotation"
-            description="Create a price quote for a lead"
+            title={t("quotations.newQuotation", "New Quotation")}
+            description={t("quotations.newQuotationDesc", "Create a price quote for a lead")}
             icon={FileText}
             backPath="/cheese/quotations"
             onSubmit={handleSubmit}
             isSubmitting={createMutation.isPending}
-            submitLabel="Create Quotation"
+            submitLabel={t("quotations.createQuotation", "Create Quotation")}
         >
             <div className="space-y-6">
                 {/* Lead & Establishment */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                     <div className="space-y-2">
-                        <Label>Lead <span className="text-red-500">*</span></Label>
+                        <Label>{t("nav.leads", "Lead")} <span className="text-red-500">*</span></Label>
                         <FrappeSearchSelect
                             doctype="Cheese Lead"
                             label="contact"
                             value={form.lead}
                             onChange={(v) => setForm(f => ({ ...f, lead: v }))}
-                            placeholder="Select a lead..."
+                            placeholder={t("quotations.selectLead", "Select a lead...")}
                         />
                     </div>
                     <div className="space-y-2">
-                        <Label>Establishment</Label>
+                        <Label>{t("experiences.establishment", "Establishment")}</Label>
                         <FrappeSearchSelect
                             doctype="Company"
                             label="name"
                             value={form.establishment}
                             onChange={(v) => setForm(f => ({ ...f, establishment: v }))}
-                            placeholder="Select company..."
+                            placeholder={t("quotations.selectCompany", "Select company...")}
                         />
                     </div>
                 </div>
@@ -326,16 +328,16 @@ export default function QuotationCreate() {
                 {/* Route & Conversation */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                     <div className="space-y-2">
-                        <Label>Route <span className="text-red-500">*</span></Label>
+                        <Label>{t("nav.routes", "Route")} <span className="text-red-500">*</span></Label>
                         <Select
                             value={form.route || "none"}
                             onValueChange={(v) => setForm(f => ({ ...f, route: v === "none" ? "" : v }))}
                         >
                             <SelectTrigger>
-                                <SelectValue placeholder="Select a route..." />
+                                <SelectValue placeholder={t("tickets.selectRoute", "Select a route...")} />
                             </SelectTrigger>
                             <SelectContent>
-                                <SelectItem value="none">Select a route...</SelectItem>
+                                <SelectItem value="none">{t("tickets.selectRoute", "Select a route...")}</SelectItem>
                                 {routeOptions.map((route) => (
                                     <SelectItem key={route.name} value={route.name}>
                                         {route.short_description || route.name}
@@ -345,13 +347,13 @@ export default function QuotationCreate() {
                         </Select>
                     </div>
                     <div className="space-y-2">
-                        <Label>Conversation</Label>
+                        <Label>{t("quotations.conversation", "Conversation")}</Label>
                         <FrappeSearchSelect
                             doctype="Conversation"
                             label="name"
                             value={form.conversation}
                             onChange={(v) => setForm(f => ({ ...f, conversation: v }))}
-                            placeholder="Link a conversation..."
+                            placeholder={t("quotations.linkConversation", "Link a conversation...")}
                         />
                     </div>
                 </div>
@@ -359,18 +361,18 @@ export default function QuotationCreate() {
                 {/* Valid Until */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                     <div className="space-y-2">
-                        <Label>Valid Until</Label>
+                        <Label>{t("quotations.validUntil", "Valid Until")}</Label>
                         <Input
                             type="datetime-local"
                             value={form.valid_until}
                             onChange={(e) => setForm(f => ({ ...f, valid_until: e.target.value }))}
                             min={toDatetimeLocal(new Date())}
                         />
-                        <p className="text-xs text-muted-foreground">When this quote expires</p>
+                        <p className="text-xs text-muted-foreground">{t("quotations.validUntilHelp", "When this quote expires")}</p>
                     </div>
                     <div className="space-y-2">
                         <Label>
-                            Party Size <span className="text-red-500">*</span>
+                            {t("tickets.partySize", "Party Size")} <span className="text-red-500">*</span>
                         </Label>
                         <Input
                             type="number"
@@ -378,23 +380,23 @@ export default function QuotationCreate() {
                             value={form.party_size}
                             onChange={(e) => setForm(f => ({ ...f, party_size: e.target.value }))}
                         />
-                        <p className="text-xs text-muted-foreground">Number of people for this quote</p>
+                        <p className="text-xs text-muted-foreground">{t("quotations.partySizeHelp", "Number of people for this quote")}</p>
                     </div>
                 </div>
 
                 {/* Experiences Table */}
                 <div className="space-y-3">
                     <div className="flex items-center justify-between">
-                        <Label className="text-base font-semibold">Experiences</Label>
+                        <Label className="text-base font-semibold">{t("routes.experiences", "Experiences")}</Label>
                         <Button type="button" variant="outline" size="sm" onClick={addExperience} className="h-7 text-xs">
-                            <Plus className="w-3 h-3 mr-1" /> Add Experience
+                            <Plus className="w-3 h-3 mr-1" /> {t("routes.addExperience", "Add Experience")}
                         </Button>
                     </div>
                     {experiences.length === 0 ? (
                         <div className="text-center py-6 border-2 border-dashed border-border rounded-lg bg-muted/30">
-                            <p className="text-sm text-muted-foreground">No experiences added yet</p>
+                            <p className="text-sm text-muted-foreground">{t("quotations.noExperiences", "No experiences added yet")}</p>
                             <Button type="button" variant="ghost" size="sm" onClick={addExperience} className="mt-2 text-xs">
-                                <Plus className="w-3 h-3 mr-1" /> Add Experience
+                                <Plus className="w-3 h-3 mr-1" /> {t("routes.addExperience", "Add Experience")}
                             </Button>
                         </div>
                     ) : (
@@ -409,16 +411,16 @@ export default function QuotationCreate() {
                                     </div>
                                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                                         <div className="space-y-1">
-                                            <Label className="text-xs">Experience *</Label>
+                                            <Label className="text-xs">{t("tickets.experience", "Experience")} *</Label>
                                             <Select
                                                 value={exp.experience || "none"}
                                                 onValueChange={(v) => handleExperienceChange(index, v === "none" ? "" : v)}
                                             >
                                                 <SelectTrigger className="h-9">
-                                                    <SelectValue placeholder="Select..." />
+                                                    <SelectValue placeholder={t("common.select", "Select...")} />
                                                 </SelectTrigger>
                                                 <SelectContent>
-                                                    <SelectItem value="none">Select...</SelectItem>
+                                                    <SelectItem value="none">{t("common.select", "Select...")}</SelectItem>
                                                     {experienceOptions.map((eOpt) => (
                                                         <SelectItem key={eOpt.name} value={eOpt.name}>
                                                             {eOpt.experience_info || eOpt.name}
@@ -428,17 +430,17 @@ export default function QuotationCreate() {
                                             </Select>
                                         </div>
                                         <div className="space-y-1">
-                                            <Label className="text-xs">Date</Label>
+                                            <Label className="text-xs">{t("calendar.date", "Date")}</Label>
                                             <Select
                                                 value={exp.date || "none"}
                                                 onValueChange={(v) => handleDateChange(index, v === "none" ? "" : v)}
                                                 disabled={!exp.experience}
                                             >
                                                 <SelectTrigger className="h-9">
-                                                    <SelectValue placeholder={exp.experience ? "Select date" : "Select experience first"} />
+                                                    <SelectValue placeholder={exp.experience ? t("calendar.selectDate", "Select date") : t("quotations.selectExpFirst", "Select experience first")} />
                                                 </SelectTrigger>
                                                 <SelectContent>
-                                                    <SelectItem value="none">Select date</SelectItem>
+                                                    <SelectItem value="none">{t("calendar.selectDate", "Select date")}</SelectItem>
                                                     {(availableDatesByRow[index] || []).map((dateValue) => (
                                                         <SelectItem key={dateValue} value={dateValue}>
                                                             {dateValue}
@@ -448,7 +450,7 @@ export default function QuotationCreate() {
                                             </Select>
                                         </div>
                                         <div className="space-y-1">
-                                            <Label className="text-xs">Time Slot</Label>
+                                            <Label className="text-xs">{t("calendar.timeSlot", "Time Slot")}</Label>
                                             <Select
                                                 value={exp.slot || "none"}
                                                 onValueChange={(v) => {
@@ -459,15 +461,15 @@ export default function QuotationCreate() {
                                                 disabled={!exp.date}
                                             >
                                                 <SelectTrigger className="h-9">
-                                                    <SelectValue placeholder={exp.date ? "Select time slot" : "Select date first"} />
+                                                    <SelectValue placeholder={exp.date ? t("calendar.selectTimeSlot", "Select time slot") : t("quotations.selectDateFirst", "Select date first")} />
                                                 </SelectTrigger>
                                                 <SelectContent>
-                                                    <SelectItem value="none">Select time slot</SelectItem>
+                                                    <SelectItem value="none">{t("calendar.selectTimeSlot", "Select time slot")}</SelectItem>
                                                     {(availableSlotsByRow[index] || [])
                                                         .filter((s) => s.date_from === exp.date)
                                                         .map((s) => (
                                                             <SelectItem key={s.name} value={s.name}>
-                                                                {s.time_from || "All day"} – {s.time_to || ""} ({s.available_capacity ?? 0} avail.)
+                                                                {s.time_from || t("calendar.allDay", "All day")} – {s.time_to || ""} ({s.available_capacity ?? 0} {t("calendar.avail", "avail.")})
                                                             </SelectItem>
                                                         ))}
                                                 </SelectContent>
@@ -483,7 +485,7 @@ export default function QuotationCreate() {
                 {/* Pricing */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                     <div className="space-y-2">
-                        <Label>Total Price ($)</Label>
+                        <Label>{t("quotations.totalPrice", "Total Price ($)")}</Label>
                         <Input
                             type="number"
                             min="0"
@@ -494,7 +496,7 @@ export default function QuotationCreate() {
                         />
                     </div>
                     <div className="space-y-2">
-                        <Label>Deposit Amount ($)</Label>
+                        <Label>{t("quotations.depositAmount", "Deposit Amount ($)")}</Label>
                         <Input
                             type="number"
                             min="0"

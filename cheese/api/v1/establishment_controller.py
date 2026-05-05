@@ -5,6 +5,7 @@ import frappe
 from frappe import _
 from frappe.utils import getdate, cint
 from cheese.api.common.responses import success, error, not_found, validation_error, paginated_response
+from cheese.api.v1.user_controller import _get_current_user_company
 from cheese.api.v1.bank_account_controller import (
 	get_active_company_bank_accounts_list,
 	get_active_company_bank_accounts_map,
@@ -21,17 +22,25 @@ def _company_has_cheese_establishment_fields():
 	return bool(frappe.get_meta("Company").get_field("cheese_payment_methods"))
 
 
+def _company_has_is_hotel_field():
+	return bool(frappe.get_meta("Company").get_field("cheese_is_hotel"))
+
+
 def _get_establishment_extra_fields(company):
 	"""Extract new establishment fields from a Company doc, returns a dict."""
-	if not _company_has_cheese_establishment_fields():
-		return {}
-	return {
-		"payment_methods": getattr(company, "cheese_payment_methods", None),
-		"cheese_types": getattr(company, "cheese_types", None),
-		"establishment_type": getattr(company, "cheese_establishment_type", None),
-		"operating_hours": getattr(company, "cheese_operating_hours", None),
-		"google_maps_link": getattr(company, "cheese_google_maps_link", None),
-	}
+	fields = {}
+	if _company_has_is_hotel_field():
+		fields["is_hotel"] = bool(getattr(company, "cheese_is_hotel", 0))
+		fields["cheese_is_hotel"] = 1 if fields["is_hotel"] else 0
+	if _company_has_cheese_establishment_fields():
+		fields.update({
+			"payment_methods": getattr(company, "cheese_payment_methods", None),
+			"cheese_types": getattr(company, "cheese_types", None),
+			"establishment_type": getattr(company, "cheese_establishment_type", None),
+			"operating_hours": getattr(company, "cheese_operating_hours", None),
+			"google_maps_link": getattr(company, "cheese_google_maps_link", None),
+		})
+	return fields
 
 
 def _establishment_delete_blockers(company_id):
@@ -80,6 +89,10 @@ def list_establishments(page=1, page_size=20, search=None, status=None, locality
 
 		# Build search query
 		search_fields = ["company_name"]
+		user_company = _get_current_user_company()
+		if user_company:
+			filters["name"] = user_company
+			
 		or_filters = []
 		
 		if search:
@@ -400,6 +413,8 @@ def create_establishment(
 	email=None,
 	phone_no=None,
 	website=None,
+	is_hotel=0,
+	cheese_is_hotel=0,
 ):
 	"""
 	Create a new establishment (ERPNext Company) by copying chart of accounts from an existing company.
@@ -430,8 +445,7 @@ def create_establishment(
 		if not country_val:
 			return validation_error(_("country is required (no default country on template company)"))
 
-		doc = frappe.get_doc(
-			{
+		doc_data = {
 				"doctype": "Company",
 				"company_name": company_name,
 				"abbr": abbr,
@@ -442,8 +456,10 @@ def create_establishment(
 				"email": email,
 				"phone_no": phone_no,
 				"website": website,
-			}
-		)
+		}
+		if _company_has_is_hotel_field():
+			doc_data["cheese_is_hotel"] = 1 if cint(is_hotel) or cint(cheese_is_hotel) else 0
+		doc = frappe.get_doc(doc_data)
 		doc.insert()
 		frappe.db.commit()
 
@@ -453,6 +469,7 @@ def create_establishment(
 				"company_id": doc.name,
 				"company_name": doc.company_name,
 				"status": "ACTIVE",
+				"is_hotel": bool(getattr(doc, "cheese_is_hotel", 0)),
 				"bank_account": [],
 			},
 		)
@@ -557,10 +574,15 @@ def update_establishment(company_id, **kwargs):
 			"company_name", "email", "phone_no", "website", 
 			"company_description", "company_logo", "administrator_contact"
 		]
+		if _company_has_is_hotel_field():
+			allowed_fields.extend(["cheese_is_hotel", "is_hotel"])
 		
 		changes = []
 		for field, value in kwargs.items():
 			if field in allowed_fields:
+				if field == "is_hotel":
+					field = "cheese_is_hotel"
+					value = 1 if cint(value) else 0
 				old_value = getattr(company, field, None)
 				if old_value != value:
 					setattr(company, field, value)

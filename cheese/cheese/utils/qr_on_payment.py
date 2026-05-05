@@ -17,6 +17,19 @@ def on_deposit_paid(doc, method=None):
 	# ── Step 1: Auto-confirm the ticket if still PENDING ─────────────────
 	try:
 		ticket = frappe.get_doc("Cheese Ticket", ticket_id)
+		if ticket.deposit_required and (ticket.deposit_amount or 0) > 0:
+			total_paid = frappe.db.sql(
+				"""
+				select coalesce(sum(amount_paid), 0)
+				from `tabCheese Deposit`
+				where entity_type='Cheese Ticket'
+				  and entity_id=%s
+				  and status='PAID'
+				""",
+				(ticket_id,),
+			)[0][0] or 0
+			if float(total_paid) < float(ticket.deposit_amount or 0):
+				return
 		if ticket.status == "PENDING":
 			ticket.status = "CONFIRMED"
 			ticket.save()
@@ -38,6 +51,14 @@ def on_deposit_paid(doc, method=None):
 		"name",
 	)
 	if existing:
+		try:
+			from cheese.api.v1.qr_controller import _send_qr_notification
+			_send_qr_notification(ticket_id)
+		except Exception as e:
+			frappe.log_error(
+				f"QR notification failed for existing token on ticket {ticket_id}: {e}",
+				"QR Auto-Notification",
+			)
 		return
 
 	try:

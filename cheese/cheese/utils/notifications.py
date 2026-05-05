@@ -175,8 +175,8 @@ def _build_notification_message(notification_type, ticket, experience, slot, **k
 			"Party size: {party_size}. Reservation ID: {ticket_id}"
 		).format(
 			experience_name=experience.name,
-			date=slot.date,
-			time=slot.time,
+			date=ticket.selected_date or slot.date_from,
+			time=slot.time_from,
 			party_size=ticket.party_size,
 			ticket_id=ticket.name
 		),
@@ -185,8 +185,8 @@ def _build_notification_message(notification_type, ticket, experience, slot, **k
 			"Please contact us for alternative options. Reservation ID: {ticket_id}"
 		).format(
 			experience_name=experience.name,
-			date=slot.date,
-			time=slot.time,
+			date=ticket.selected_date or slot.date_from,
+			time=slot.time_from,
 			ticket_id=ticket.name
 		),
 		"expired": _(
@@ -194,8 +194,8 @@ def _build_notification_message(notification_type, ticket, experience, slot, **k
 			"If you still wish to book, please create a new reservation. Reservation ID: {ticket_id}"
 		).format(
 			experience_name=experience.name,
-			date=slot.date,
-			time=slot.time,
+			date=ticket.selected_date or slot.date_from,
+			time=slot.time_from,
 			ticket_id=ticket.name
 		),
 		"qr_generated": _(
@@ -203,8 +203,8 @@ def _build_notification_message(notification_type, ticket, experience, slot, **k
 			"Please present this QR code at check-in. Reservation ID: {ticket_id}"
 		).format(
 			experience_name=experience.name,
-			date=slot.date,
-			time=slot.time,
+			date=ticket.selected_date or slot.date_from,
+			time=slot.time_from,
 			ticket_id=ticket.name
 		),
 		"deposit_due": _(

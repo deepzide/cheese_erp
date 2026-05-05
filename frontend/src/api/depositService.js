@@ -16,4 +16,11 @@ export const depositService = {
     verifyDeposit: async (depositId) => {
         return apiRequest(`${BASE}.verify_deposit`, { method: 'POST', body: JSON.stringify({ deposit_id: depositId }) });
     },
+
+    createRemainingBalanceDeposit: async ({ ticketId, routeBookingId } = {}) => {
+        return apiRequest(`${BASE}.create_remaining_balance_deposit`, {
+            method: 'POST',
+            body: JSON.stringify({ ticket_id: ticketId, route_booking_id: routeBookingId }),
+        });
+    },
 };

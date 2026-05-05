@@ -5,7 +5,7 @@ from frappe.utils import now_datetime
 def auto_complete_checked_in_tickets():
 	"""
 	Move CHECKED_IN tickets to COMPLETED when the experience slot's end time
-	(date_from + time_to) has passed.  Runs every 15 minutes via scheduler.
+	(selected_date or date_to + time_to) has passed.  Runs every 15 minutes via scheduler.
 	"""
 	from frappe.query_builder import DocType
 	from frappe.query_builder import functions as fn
@@ -15,13 +15,23 @@ def auto_complete_checked_in_tickets():
 
 	now = now_datetime()
 
+	# Add a 15-minute grace period after slot end time before auto-completing,
+	# so tickets aren't marked COMPLETED while guests are still in the experience.
+	grace_minutes = 15
+
+	# Use the ticket's selected_date if set, otherwise fall back to slot.date_to, then slot.date_from
+	effective_date = fn.Coalesce(ticket.selected_date, slot.date_to, slot.date_from)
+
+	# Build the effective end datetime and add grace period
+	effective_end = fn.Concat(effective_date, " ", fn.Coalesce(slot.time_to, "23:59:59"))
+
 	rows = (
 		frappe.qb.from_(ticket)
 		.join(slot).on(ticket.slot == slot.name)
 		.select(ticket.name, ticket.slot)
 		.where(ticket.status == "CHECKED_IN")
 		.where(
-			fn.Concat(slot.date_from, " ", fn.Coalesce(slot.time_to, "23:59:59")) < now
+			fn.TimestampDiff("MINUTE", effective_end, now) >= grace_minutes
 		)
 	).run(as_dict=True)
 

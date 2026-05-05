@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { motion } from "framer-motion";
 import { useNavigate, useSearchParams } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -43,6 +44,7 @@ const emptyForm = { contact_id: "", experience_id: "", slot_id: "", party_size: 
 
 export default function Tickets() {
     const navigate = useNavigate();
+    const { t } = useTranslation();
     const [searchParams] = useSearchParams();
     const queryClient = useQueryClient();
     const experienceFilter = searchParams.get("experience") || "";
@@ -107,24 +109,24 @@ export default function Tickets() {
         mutationFn: ({ ticketId, newStatus, reason }) =>
             ticketService.updateTicketStatus(ticketId, newStatus, reason),
         onSuccess: (_data, variables) => {
-            queryClient.invalidateQueries({ queryKey: ['ticket-board'] });
+            queryClient.invalidateQueries();
             setDetailOpen(false);
             const label = STATUS_CONFIG[variables.newStatus]?.label || variables.newStatus;
-            toast.success(`Ticket ${variables.ticketId} → ${label}`);
+            toast.success(t("tickets.statusUpdated", "Ticket {{id}} → {{status}}", { id: variables.ticketId, status: t(`status.${variables.newStatus}`, label) }));
         },
-        onError: (err) => toast.error(err?.message || "Failed to update ticket status"),
+        onError: (err) => toast.error(err?.message || t("tickets.updateError", "Failed to update ticket status")),
     });
 
     // Create ticket mutation
     const createMutation = useMutation({
         mutationFn: (data) => ticketService.createPendingTicket(data),
         onSuccess: (result) => {
-            queryClient.invalidateQueries({ queryKey: ['ticket-board'] });
+            queryClient.invalidateQueries();
             setForm(emptyForm);
             setCreateOpen(false);
-            toast.success("Ticket created successfully");
+            toast.success(t("tickets.createSuccess", "Ticket created successfully"));
         },
-        onError: (err) => toast.error(err?.message || "Failed to create ticket"),
+        onError: (err) => toast.error(err?.message || t("tickets.createError", "Failed to create ticket")),
     });
 
     // Build ticket list from board data
@@ -163,7 +165,7 @@ export default function Tickets() {
 
     const handleCreate = () => {
         if (!form.contact_id || !form.experience_id) {
-            toast.error("Contact and experience are required");
+            toast.error(t("tickets.contactExperienceRequired", "Contact and experience are required"));
             return;
         }
         createMutation.mutate({
@@ -182,9 +184,9 @@ export default function Tickets() {
         return (
             <div className="p-6 flex flex-col items-center justify-center min-h-[400px] text-center">
                 <AlertCircle className="w-12 h-12 text-red-400 mb-4" />
-                <h2 className="text-lg font-semibold text-foreground mb-2">Failed to load tickets</h2>
-                <p className="text-sm text-muted-foreground mb-4">{error?.message || 'Unknown error'}</p>
-                <Button onClick={() => refetch()} variant="outline"><RefreshCw className="w-4 h-4 mr-2" /> Retry</Button>
+                <h2 className="text-lg font-semibold text-foreground mb-2">{t("tickets.loadFailed", "Failed to load tickets")}</h2>
+                <p className="text-sm text-muted-foreground mb-4">{error?.message || t("common.unknown", "Unknown error")}</p>
+                <Button onClick={() => refetch()} variant="outline"><RefreshCw className="w-4 h-4 mr-2" /> {t("common.retry", "Retry")}</Button>
             </div>
         );
     }
@@ -196,19 +198,19 @@ export default function Tickets() {
                 <div>
                     <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
                         <Ticket className="w-6 h-6 text-cheese-600" />
-                        Ticket Board
+                        {t("nav.tickets", "Ticket Board")}
                     </h1>
                     <p className="text-sm text-muted-foreground mt-1">
-                        {isLoading ? '...' : `${boardData?.total_tickets || 0} tickets`} • Drag to change status
+                        {isLoading ? '...' : `${boardData?.total_tickets || 0} ${t("tickets.items", "tickets")}`} • {t("tickets.dragToChange", "Drag to change status")}
                     </p>
                     {(experienceFilter || routeFilter || bookingFilter || slotFilter) && (
                         <p className="text-xs text-muted-foreground mt-1">
-                            Filtered by {
+                            {t("common.filteredBy", "Filtered by ")} {
                                 slotFilter
-                                    ? `Slot: ${slotFilter}`
+                                    ? `${t("tickets.slot", "Slot:")} ${slotFilter}`
                                     : bookingFilter
-                                        ? `Reservation: ${bookingFilter}`
-                                        : (experienceFilter ? `Experience: ${experienceFilter}` : `Route: ${routeFilter}`)
+                                        ? `${t("tickets.reservation", "Reservation:")} ${bookingFilter}`
+                                        : (experienceFilter ? `${t("tickets.experience", "Experience:")} ${experienceFilter}` : `${t("tickets.route", "Route:")} ${routeFilter}`)
                             }
                         </p>
                     )}
@@ -216,17 +218,17 @@ export default function Tickets() {
                 <div className="flex gap-2">
                     <div className="relative">
                         <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-                        <Input placeholder="Search tickets..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-9 w-64 h-9" />
+                        <Input placeholder={t("common.search", "Search") + "..."} value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-9 w-64 h-9" />
                     </div>
                     <Select value={filterStatus} onValueChange={setFilterStatus}>
                         <SelectTrigger className="w-40 h-9"><Filter className="w-3 h-3 mr-1" /><SelectValue /></SelectTrigger>
                         <SelectContent>
-                            <SelectItem value="all">All Status</SelectItem>
-                            {STATUSES.map(s => <SelectItem key={s} value={s}>{STATUS_CONFIG[s]?.label || s}</SelectItem>)}
+                            <SelectItem value="all">{t("common.allStatus", "All Status")}</SelectItem>
+                            {STATUSES.map(s => <SelectItem key={s} value={s}>{t(`status.${s}`, STATUS_CONFIG[s]?.label || s)}</SelectItem>)}
                         </SelectContent>
                     </Select>
                     <Button className="cheese-gradient text-black font-semibold border-0 h-9" onClick={() => navigate("/cheese/tickets/new")}>
-                        <Plus className="w-4 h-4 mr-1" /> New Ticket
+                        <Plus className="w-4 h-4 mr-1" /> {t("tickets.newTicket", "New Ticket")}
                     </Button>
                     <Button variant="ghost" size="icon" onClick={() => refetch()} className="h-9 w-9">
                         <RefreshCw className="w-4 h-4" />
@@ -245,7 +247,7 @@ export default function Tickets() {
                         <div key={status} className="flex-shrink-0 w-72">
                             <div className="flex items-center gap-2 mb-3 px-1">
                                 <div className={`w-2.5 h-2.5 rounded-full ${config.color}`} />
-                                <span className="text-sm font-semibold text-foreground">{config.label}</span>
+                                <span className="text-sm font-semibold text-foreground">{t(`status.${status}`, config.label)}</span>
                                 <Badge variant="secondary" className="ml-auto text-xs px-1.5 py-0">
                                     {isLoading ? '...' : columnTickets.length}
                                 </Badge>
@@ -278,13 +280,13 @@ export default function Tickets() {
                                                                         </Button>
                                                                     </DropdownMenuTrigger>
                                                                     <DropdownMenuContent align="end">
-                                                                        <DropdownMenuItem onClick={() => navigate(`/cheese/tickets/${ticket.name}`)}><Eye className="w-3 h-3 mr-2" /> View Details</DropdownMenuItem>
+                                                                        <DropdownMenuItem onClick={() => navigate(`/cheese/tickets/${ticket.name}`)}><Eye className="w-3 h-3 mr-2" /> {t("common.viewDetails", "View Details")}</DropdownMenuItem>
                                                                         <DropdownMenuSeparator />
-                                                                        <DropdownMenuItem onClick={() => navigate(`/cheese/deposits/new?ticket=${ticket.name}`)}>Register Deposit</DropdownMenuItem>
+                                                                        <DropdownMenuItem onClick={() => navigate(`/cheese/deposits/new?ticket=${ticket.name}`)}>{t("tickets.registerDeposit", "Register Deposit")}</DropdownMenuItem>
                                                                         <DropdownMenuSeparator />
-                                                                        {ticket.status === "PENDING" && <DropdownMenuItem onClick={(e) => { e.stopPropagation(); updateStatus(ticket.name, "CONFIRMED"); }}><CheckCircle className="w-3 h-3 mr-2" /> Confirm</DropdownMenuItem>}
-                                                                        {ticket.status !== "CANCELLED" && <DropdownMenuItem className="text-red-600" onClick={(e) => { e.stopPropagation(); updateStatus(ticket.name, "CANCELLED"); }}><XCircle className="w-3 h-3 mr-2" /> Cancel</DropdownMenuItem>}
-                                                                        <DropdownMenuItem onClick={(e) => { e.stopPropagation(); navigate(`/cheese/support/new?ticket=${ticket.name}`); }}><AlertTriangle className="w-3 h-3 mr-2" /> Create Support Case</DropdownMenuItem>
+                                                                        {ticket.status === "PENDING" && <DropdownMenuItem onClick={(e) => { e.stopPropagation(); updateStatus(ticket.name, "CONFIRMED"); }}><CheckCircle className="w-3 h-3 mr-2" /> {t("common.confirm", "Confirm")}</DropdownMenuItem>}
+                                                                        {ticket.status !== "CANCELLED" && <DropdownMenuItem className="text-red-600" onClick={(e) => { e.stopPropagation(); updateStatus(ticket.name, "CANCELLED"); }}><XCircle className="w-3 h-3 mr-2" /> {t("common.cancel", "Cancel")}</DropdownMenuItem>}
+                                                                        <DropdownMenuItem onClick={(e) => { e.stopPropagation(); navigate(`/cheese/support/new?ticket=${ticket.name}`); }}><AlertTriangle className="w-3 h-3 mr-2" /> {t("tickets.createSupportCase", "Create Support Case")}</DropdownMenuItem>
                                                                     </DropdownMenuContent>
                                                                 </DropdownMenu>
                                                             </div>
@@ -293,7 +295,7 @@ export default function Tickets() {
                                                                     <User className="w-3.5 h-3.5 text-cheese-700 dark:text-cheese-400" />
                                                                 </div>
                                                                 <div className="min-w-0">
-                                                                    <p className="text-sm font-medium text-foreground truncate">{ticket.contact_name || ticket.contact || 'Unknown'}</p>
+                                                                    <p className="text-sm font-medium text-foreground truncate">{ticket.contact_name || ticket.contact || t("common.unknown", "Unknown")}</p>
                                                                 </div>
                                                             </div>
                                                             <p className="text-xs text-muted-foreground mb-2 truncate">{ticket.experience || '—'}</p>
@@ -319,7 +321,7 @@ export default function Tickets() {
                                             {columnTickets.length === 0 && (
                                                 <div className="p-8 text-center rounded-xl border-2 border-dashed border-border">
                                                     <StatusIcon className="w-8 h-8 text-muted-foreground/30 mx-auto mb-2" />
-                                                    <p className="text-xs text-muted-foreground">No tickets</p>
+                                                    <p className="text-xs text-muted-foreground">{t("tickets.noTickets", "No tickets")}</p>
                                                 </div>
                                             )}
                                         </>
@@ -335,39 +337,39 @@ export default function Tickets() {
             <Dialog open={createOpen} onOpenChange={setCreateOpen}>
                 <DialogContent className="max-w-md">
                     <DialogHeader>
-                        <DialogTitle className="flex items-center gap-2"><Plus className="w-5 h-5 text-cheese-600" /> Create New Ticket</DialogTitle>
-                        <DialogDescription>Create a new pending ticket for a guest</DialogDescription>
+                        <DialogTitle className="flex items-center gap-2"><Plus className="w-5 h-5 text-cheese-600" /> {t("tickets.createNew", "Create New Ticket")}</DialogTitle>
+                        <DialogDescription>{t("tickets.createDesc", "Create a new pending ticket for a guest")}</DialogDescription>
                     </DialogHeader>
                     <div className="space-y-4">
                         <div className="space-y-2">
-                            <Label>Contact ID *</Label>
-                            <Input placeholder="e.g. CT-001 or contact name" value={form.contact_id} onChange={(e) => setForm(f => ({ ...f, contact_id: e.target.value }))} />
+                            <Label>{t("tickets.contactRequired", "Contact ID *")}</Label>
+                            <Input placeholder={t("tickets.contactPlaceholder", "e.g. CT-001 or contact name")} value={form.contact_id} onChange={(e) => setForm(f => ({ ...f, contact_id: e.target.value }))} />
                         </div>
                         <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-2">
-                                <Label>Experience *</Label>
+                                <Label>{t("tickets.experienceRequired", "Experience *")}</Label>
                                 <Select value={form.experience_id} onValueChange={(v) => setForm(f => ({ ...f, experience_id: v }))}>
-                                    <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+                                    <SelectTrigger><SelectValue placeholder={t("common.select", "Select")} /></SelectTrigger>
                                     <SelectContent>
                                         {experiences.map(e => <SelectItem key={e.name} value={e.name}>{e.experience_info || e.name}</SelectItem>)}
                                     </SelectContent>
                                 </Select>
                             </div>
                             <div className="space-y-2">
-                                <Label>Party Size</Label>
+                                <Label>{t("hotelReservations.partySize", "Party Size")}</Label>
                                 <Input type="number" min="1" max="20" value={form.party_size} onChange={(e) => setForm(f => ({ ...f, party_size: e.target.value }))} />
                             </div>
                         </div>
                         <div className="space-y-2">
-                            <Label>Slot ID</Label>
-                            <Input placeholder="e.g. SLOT-001" value={form.slot_id} onChange={(e) => setForm(f => ({ ...f, slot_id: e.target.value }))} />
+                            <Label>{t("tickets.slotId", "Slot ID")}</Label>
+                            <Input placeholder={t("tickets.slotPlaceholder", "e.g. SLOT-001")} value={form.slot_id} onChange={(e) => setForm(f => ({ ...f, slot_id: e.target.value }))} />
                         </div>
                     </div>
                     <DialogFooter>
-                        <Button variant="outline" onClick={() => setCreateOpen(false)}>Cancel</Button>
+                        <Button variant="outline" onClick={() => setCreateOpen(false)}>{t("common.cancel", "Cancel")}</Button>
                         <Button className="cheese-gradient text-black font-semibold border-0" onClick={handleCreate} disabled={createMutation.isPending}>
                             {createMutation.isPending ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Plus className="w-4 h-4 mr-1" />}
-                            Create Ticket
+                            {t("tickets.createTicket", "Create Ticket")}
                         </Button>
                     </DialogFooter>
                 </DialogContent>
@@ -378,39 +380,39 @@ export default function Tickets() {
                 <DialogContent className="max-w-md">
                     <DialogHeader>
                         <DialogTitle className="flex items-center gap-2"><Ticket className="w-5 h-5 text-cheese-600" /> {selectedTicket?.name}</DialogTitle>
-                        <DialogDescription>Ticket Details</DialogDescription>
+                        <DialogDescription>{t("tickets.ticketDetails", "Ticket Details")}</DialogDescription>
                     </DialogHeader>
                     {selectedTicket && (
                         <div className="space-y-4">
                             <div className="grid grid-cols-2 gap-4">
-                                <div><p className="text-xs text-muted-foreground">Contact</p><p className="font-medium text-sm">{selectedTicket.contact_name || selectedTicket.contact || '—'}</p></div>
-                                <div><p className="text-xs text-muted-foreground">Status</p><Badge className={STATUS_CONFIG[selectedTicket.status]?.badge}>{STATUS_CONFIG[selectedTicket.status]?.label || selectedTicket.status}</Badge></div>
-                                <div><p className="text-xs text-muted-foreground">Experience</p><p className="font-medium text-sm">{selectedTicket.experience || '—'}</p></div>
-                                <div><p className="text-xs text-muted-foreground">Route</p><p className="font-medium text-sm">{selectedTicket.route || '—'}</p></div>
-                                <div><p className="text-xs text-muted-foreground">Time</p><p className="font-medium text-sm">{selectedTicket.slot_time || '—'}</p></div>
-                                <div><p className="text-xs text-muted-foreground">Date</p><p className="font-medium text-sm">{selectedTicket.slot_date || '—'}</p></div>
-                                <div><p className="text-xs text-muted-foreground">Party Size</p><p className="font-medium text-sm">{selectedTicket.party_size || 1} people</p></div>
-                                <div><p className="text-xs text-muted-foreground">Total Price</p><p className="font-medium text-sm">{selectedTicket.total_price != null ? `$${Number(selectedTicket.total_price).toFixed(2)}` : '—'}</p></div>
-                                <div><p className="text-xs text-muted-foreground">Company</p><p className="font-medium text-sm">{selectedTicket.company || '—'}</p></div>
+                                <div><p className="text-xs text-muted-foreground">{t("common.contact", "Contact")}</p><p className="font-medium text-sm">{selectedTicket.contact_name || selectedTicket.contact || '—'}</p></div>
+                                <div><p className="text-xs text-muted-foreground">{t("common.status", "Status")}</p><Badge className={STATUS_CONFIG[selectedTicket.status]?.badge}>{t(`status.${selectedTicket.status}`, STATUS_CONFIG[selectedTicket.status]?.label || selectedTicket.status)}</Badge></div>
+                                <div><p className="text-xs text-muted-foreground">{t("tickets.experience", "Experience")}</p><p className="font-medium text-sm">{selectedTicket.experience || '—'}</p></div>
+                                <div><p className="text-xs text-muted-foreground">{t("tickets.route", "Route")}</p><p className="font-medium text-sm">{selectedTicket.route || '—'}</p></div>
+                                <div><p className="text-xs text-muted-foreground">{t("common.time", "Time")}</p><p className="font-medium text-sm">{selectedTicket.slot_time || '—'}</p></div>
+                                <div><p className="text-xs text-muted-foreground">{t("common.date", "Date")}</p><p className="font-medium text-sm">{selectedTicket.slot_date || '—'}</p></div>
+                                <div><p className="text-xs text-muted-foreground">{t("hotelReservations.partySize", "Party Size")}</p><p className="font-medium text-sm">{selectedTicket.party_size || 1} {t("tickets.people", "people")}</p></div>
+                                <div><p className="text-xs text-muted-foreground">{t("tickets.totalPrice", "Total Price")}</p><p className="font-medium text-sm">{selectedTicket.total_price != null ? `$${Number(selectedTicket.total_price).toFixed(2)}` : '—'}</p></div>
+                                <div><p className="text-xs text-muted-foreground">{t("common.company", "Company")}</p><p className="font-medium text-sm">{selectedTicket.company || '—'}</p></div>
                             </div>
                             <DialogFooter className="gap-2">
                                 {selectedTicket.status === "PENDING" && (
                                     <>
-                                        <Button className="cheese-gradient text-black border-0" onClick={() => updateStatus(selectedTicket.name, "CONFIRMED")}><CheckCircle className="w-4 h-4 mr-1" /> Confirm</Button>
-                                        <Button variant="destructive" onClick={() => updateStatus(selectedTicket.name, "REJECTED")}><XCircle className="w-4 h-4 mr-1" /> Reject</Button>
+                                        <Button className="cheese-gradient text-black border-0" onClick={() => updateStatus(selectedTicket.name, "CONFIRMED")}><CheckCircle className="w-4 h-4 mr-1" /> {t("common.confirm", "Confirm")}</Button>
+                                        <Button variant="destructive" onClick={() => updateStatus(selectedTicket.name, "REJECTED")}><XCircle className="w-4 h-4 mr-1" /> {t("common.reject", "Reject")}</Button>
                                     </>
                                 )}
                                 {selectedTicket.status === "CONFIRMED" && (
-                                    <Button className="bg-blue-500 text-white hover:bg-blue-600" onClick={() => updateStatus(selectedTicket.name, "CHECKED_IN")}><Eye className="w-4 h-4 mr-1" /> Check In</Button>
+                                    <Button className="bg-blue-500 text-white hover:bg-blue-600" onClick={() => updateStatus(selectedTicket.name, "CHECKED_IN")}><Eye className="w-4 h-4 mr-1" /> {t("common.checkIn", "Check In")}</Button>
                                 )}
                                 {selectedTicket.status === "CHECKED_IN" && (
                                     <>
-                                        <Button className="bg-purple-500 text-white hover:bg-purple-600" onClick={() => updateStatus(selectedTicket.name, "COMPLETED")}><CheckCircle className="w-4 h-4 mr-1" /> Complete</Button>
-                                        <Button variant="outline" className="text-orange-600 border-orange-200 hover:bg-orange-50 dark:hover:bg-orange-950" onClick={() => updateStatus(selectedTicket.name, "NO_SHOW")}><Ban className="w-4 h-4 mr-1" /> No-Show</Button>
+                                        <Button className="bg-purple-500 text-white hover:bg-purple-600" onClick={() => updateStatus(selectedTicket.name, "COMPLETED")}><CheckCircle className="w-4 h-4 mr-1" /> {t("common.complete", "Complete")}</Button>
+                                        <Button variant="outline" className="text-orange-600 border-orange-200 hover:bg-orange-50 dark:hover:bg-orange-950" onClick={() => updateStatus(selectedTicket.name, "NO_SHOW")}><Ban className="w-4 h-4 mr-1" /> {t("common.noShow", "No-Show")}</Button>
                                     </>
                                 )}
                                 <Button variant="outline" onClick={() => navigate(`/cheese/support/new?ticket=${selectedTicket.name}`)}>
-                                    <AlertTriangle className="w-4 h-4 mr-1" /> Support Case
+                                    <AlertTriangle className="w-4 h-4 mr-1" /> {t("tickets.supportCase", "Support Case")}
                                 </Button>
                             </DialogFooter>
                         </div>

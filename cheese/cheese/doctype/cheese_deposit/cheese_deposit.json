@@ -16,6 +16,7 @@
         "amount_required",
         "amount_paid",
         "bank_account",
+        "currency",
         "status",
         "timing_section",
         "due_at",
@@ -71,6 +72,13 @@
             "label": "Bank Account",
             "options": "Cheese Bank Account",
             "in_list_view": 1
+        },
+        {
+            "fieldname": "currency",
+            "fieldtype": "Select",
+            "label": "Currency",
+            "options": "UYU\nUSD",
+            "default": "UYU"
         },
         {
             "fieldname": "status",

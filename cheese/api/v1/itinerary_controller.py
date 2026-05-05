@@ -59,13 +59,27 @@ def get_customer_itinerary(contact_id):
 				as_dict=True
 			)
 			
-			# Get deposit status
-			deposit = frappe.db.get_value(
+			# Get aggregate deposit status. Tickets can have an advance row and a balance row.
+			deposits = frappe.get_all(
 				"Cheese Deposit",
-				{"entity_type": "Cheese Ticket", "entity_id": ticket.name},
-				["status", "amount_required", "amount_paid"],
-				as_dict=True
+				filters={
+					"entity_type": "Cheese Ticket",
+					"entity_id": ticket.name,
+					"status": ["not in", ["CANCELLED", "REFUNDED"]],
+				},
+				fields=["status", "amount_required", "amount_paid"],
+				order_by="creation asc",
 			)
+			deposit_paid = sum(d.amount_paid or 0 for d in deposits)
+			deposit_required = sum(d.amount_required or 0 for d in deposits)
+			if not deposits:
+				deposit_status = None
+			elif deposit_required > 0 and deposit_paid >= deposit_required:
+				deposit_status = "PAID"
+			elif any(d.status in ("PENDING", "OVERDUE") for d in deposits):
+				deposit_status = "PENDING"
+			else:
+				deposit_status = deposits[-1].status
 			
 			item = {
 				"reservation_id": ticket.name,
@@ -74,14 +88,18 @@ def get_customer_itinerary(contact_id):
 				"experience_name": experience.name,
 				"date": str(ticket.selected_date) if ticket.selected_date else str(slot.date_from),
 				"time": str(slot.time_from) if slot.time_from else "",
+				"time_from": str(slot.time_from) if slot.time_from else None,
+				"time_to": str(slot.time_to) if slot.time_to else None,
+				"scheduled_start": f"{str(ticket.selected_date) if ticket.selected_date else str(slot.date_from)} {slot.time_from}" if slot.time_from else str(ticket.selected_date) if ticket.selected_date else str(slot.date_from),
+				"scheduled_end": f"{str(ticket.selected_date) if ticket.selected_date else str(slot.date_from)} {slot.time_to}" if slot.time_to else None,
 				"status": ticket.status,
 				"party_size": ticket.party_size,
 				"qr_status": qr_token.status if qr_token else None,
 				"checked_in": attendance.status == "PRESENT" if attendance else False,
 				"checked_in_at": str(attendance.checked_in_at) if attendance and attendance.checked_in_at else None,
-				"deposit_status": deposit.status if deposit else None,
-				"deposit_paid": deposit.amount_paid if deposit else 0,
-				"deposit_required": deposit.amount_required if deposit else 0
+				"deposit_status": deposit_status,
+				"deposit_paid": deposit_paid,
+				"deposit_required": deposit_required
 			}
 			
 			if ticket.route:

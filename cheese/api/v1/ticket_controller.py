@@ -3,11 +3,12 @@
 
 import frappe
 from frappe import _
-from frappe.utils import now_datetime, get_datetime, cint, getdate
+from frappe.utils import now_datetime, get_datetime, cint, getdate, add_to_date
 from cheese.cheese.utils.pricing import calculate_ticket_price, calculate_deposit_amount
 from cheese.cheese.utils.validation import validate_booking_policy
 from cheese.cheese.utils.capacity import update_slot_capacity, get_available_capacity
 from cheese.api.common.responses import success, created, error, not_found, validation_error
+from cheese.api.v1.user_controller import _get_current_user_company
 import json
 
 
@@ -110,7 +111,7 @@ def _recalculate_ticket_financials(ticket):
 
 
 @frappe.whitelist()
-def create_pending_reservation(contact_id, experience_id, slot_id, party_size, selected_date=None, route_id=None):
+def create_pending_reservation(contact_id, experience_id, slot_id, party_size=1, selected_date=None, route_id=None, check_in_date=None, check_out_date=None, rooms_requested=None):
 	"""
 	Create pending reservation (individual) - alias for create_pending_ticket
 	
@@ -118,15 +119,17 @@ def create_pending_reservation(contact_id, experience_id, slot_id, party_size, s
 		contact_id: ID of the contact
 		experience_id: ID of the experience
 		slot_id: ID of the slot
-		party_size: Number of people
+		party_size: Number of people (for activities)
 		selected_date: Optional specific date within the slot range chosen by the user (YYYY-MM-DD).
 		              This is important for multi-day slots: pass the date the user actually selected
 		              so that booking policy validation uses that date instead of slot.date_from.
-		
+		check_in_date: Check in date (for hotels)
+		check_out_date: Check out date (for hotels)
+		rooms_requested: Number of rooms (for hotels)
 	Returns:
 		Success response with reservation data
 	"""
-	return create_pending_ticket(contact_id, experience_id, slot_id, party_size, selected_date=selected_date, route_id=route_id)
+	return create_pending_ticket(contact_id, experience_id, slot_id, party_size, selected_date=selected_date, route_id=route_id, check_in_date=check_in_date, check_out_date=check_out_date, rooms_requested=rooms_requested)
 
 
 @frappe.whitelist()
@@ -144,7 +147,7 @@ def get_reservation_status(reservation_id):
 
 
 @frappe.whitelist()
-def create_pending_ticket(contact_id, experience_id, slot_id, party_size, selected_date=None, route_id=None):
+def create_pending_ticket(contact_id, experience_id, slot_id, party_size=1, selected_date=None, route_id=None, check_in_date=None, check_out_date=None, rooms_requested=None):
 	"""
 	Create a pending ticket with TTL
 	
@@ -159,7 +162,11 @@ def create_pending_ticket(contact_id, experience_id, slot_id, party_size, select
 		Success response with ticket data
 	"""
 	try:
+		# Keep a local binding to avoid any accidental local-scope shadowing later.
+		parse_date = getdate
 		selected_date = _read_selected_date_input(selected_date)
+		party_size = cint(party_size) if party_size is not None else 1
+		rooms_requested = cint(rooms_requested) if rooms_requested is not None else None
 
 		# Validate inputs
 		if not contact_id:
@@ -168,8 +175,6 @@ def create_pending_ticket(contact_id, experience_id, slot_id, party_size, select
 			return validation_error("experience_id is required")
 		if not slot_id:
 			return validation_error("slot_id is required")
-		if not party_size or party_size < 1:
-			return validation_error("party_size must be at least 1")
 
 		if not frappe.db.exists("Cheese Contact", contact_id):
 			return not_found("Contact", contact_id)
@@ -194,9 +199,32 @@ def create_pending_ticket(contact_id, experience_id, slot_id, party_size, select
 			return validation_error(str(e))
 
 		# Validation 1: Capacity check
-		available = get_available_capacity(slot_id, selected_date)
-		if party_size > available:
-			return validation_error(f"Cannot book {party_size} tickets. Only {available} slots available.")
+		if experience.experience_type == "HOTEL":
+			if not check_in_date or not check_out_date:
+				return validation_error("check_in_date and check_out_date are required for hotel reservations")
+			if not rooms_requested or rooms_requested < 1:
+				return validation_error("rooms_requested must be at least 1 for hotel reservations")
+			room_size = cint(getattr(experience, "room_size", 0) or getattr(experience, "max_occupancy_per_unit", 0) or 0)
+			if room_size < 1:
+				return validation_error("room_size must be configured for hotel room reservations")
+			max_guests = room_size * rooms_requested
+			if party_size > max_guests:
+				return validation_error(
+					f"Cannot book {party_size} guests. This room allows {room_size} guests per room ({max_guests} total for {rooms_requested} rooms)."
+				)
+			try:
+				check_in_obj = parse_date(check_in_date)
+				check_out_obj = parse_date(check_out_date)
+			except Exception:
+				return validation_error("check_in_date and check_out_date must be valid dates (YYYY-MM-DD)")
+			if check_out_obj <= check_in_obj:
+				return validation_error("check_out_date must be after check_in_date")
+		else:
+			if not party_size or party_size < 1:
+				return validation_error("party_size must be at least 1")
+			available = get_available_capacity(slot_id, selected_date_obj)
+			if party_size > available:
+				return validation_error(f"Cannot book {party_size} tickets. Only {available} slots available.")
 
 		# Validate booking policy using the same date resolver as modification endpoints.
 		try:
@@ -210,7 +238,8 @@ def create_pending_ticket(contact_id, experience_id, slot_id, party_size, select
 			return validation_error(str(e))
 
 		# Calculate price
-		price_data = calculate_ticket_price(experience_id, party_size, route_id=route_id)
+		party_size_for_price = rooms_requested if experience.experience_type == "HOTEL" else party_size
+		price_data = calculate_ticket_price(experience_id, party_size_for_price, route_id=route_id)
 		
 		# Calculate deposit
 		deposit_amount = calculate_deposit_amount(experience_id, price_data["total_price"], route_id=route_id)
@@ -226,7 +255,11 @@ def create_pending_ticket(contact_id, experience_id, slot_id, party_size, select
 			"status": "PENDING",
 			"total_price": price_data["total_price"],
 			"deposit_required": bool(deposit_amount > 0),
-			"deposit_amount": deposit_amount
+			"deposit_amount": deposit_amount,
+			"check_in_date": check_in_date,
+			"check_out_date": check_out_date,
+			"rooms_requested": rooms_requested,
+			"currency": frappe.db.get_value("Company", experience.company, "default_currency") or "UYU"
 		}
 		
 		# Store selected_date if provided
@@ -611,6 +644,8 @@ def get_ticket_summary(ticket_id):
 
 		# Use selected_date if available, otherwise fall back to slot.date_from
 		display_date = str(ticket.selected_date) if ticket.selected_date else str(slot.date_from)
+		display_time_from = str(slot.time_from) if slot.time_from else None
+		display_time_to = str(slot.time_to) if slot.time_to else None
 
 		return success(
 			"Ticket details retrieved successfully",
@@ -631,7 +666,11 @@ def get_ticket_summary(ticket_id):
 				"slot": {
 					"slot_id": slot.name,
 					"date": display_date,
-					"time": str(slot.time_from),
+					"time": display_time_from,
+					"time_from": display_time_from,
+					"time_to": display_time_to,
+					"scheduled_start": f"{display_date} {display_time_from}" if display_time_from else display_date,
+					"scheduled_end": f"{display_date} {display_time_to}" if display_time_to else None,
 					"max_capacity": slot.max_capacity
 				},
 				"party_size": ticket.party_size,
@@ -676,6 +715,28 @@ def confirm_ticket(ticket_id):
 		if ticket.expires_at and ticket.expires_at < now_datetime():
 			return validation_error("Cannot confirm expired ticket")
 		
+		# If deposit is required but no deposit exists, auto-create a PENDING deposit
+		# This supports autobooking: ticket is confirmed and deposit collected later
+		deposit_id = None
+		if ticket.deposit_required and ticket.deposit_amount > 0:
+			existing_deposit = frappe.db.exists(
+				"Cheese Deposit",
+				{"entity_type": "Cheese Ticket", "entity_id": ticket_id}
+			)
+			if not existing_deposit:
+				deposit = frappe.get_doc({
+					"doctype": "Cheese Deposit",
+					"entity_type": "Cheese Ticket",
+					"entity_id": ticket_id,
+					"amount_required": ticket.deposit_amount,
+					"amount_paid": 0,
+					"status": "PENDING",
+					"currency": ticket.currency or "UYU",
+					"due_at": add_to_date(now_datetime(), hours=24),
+				})
+				deposit.insert(ignore_permissions=True)
+				deposit_id = deposit.name
+		
 		old_status = ticket.status
 		ticket.status = "CONFIRMED"
 		ticket.save()
@@ -685,14 +746,15 @@ def confirm_ticket(ticket_id):
 		
 		frappe.db.commit()
 		
-		return success(
-			"Ticket confirmed successfully",
-			{
-				"ticket_id": ticket.name,
-				"old_status": old_status,
-				"new_status": ticket.status
-			}
-		)
+		response_data = {
+			"ticket_id": ticket.name,
+			"old_status": old_status,
+			"new_status": ticket.status
+		}
+		if deposit_id:
+			response_data["auto_created_deposit"] = deposit_id
+		
+		return success("Ticket confirmed successfully", response_data)
 	except frappe.ValidationError as e:
 		return validation_error(str(e))
 	except Exception as e:
@@ -779,6 +841,10 @@ def list_tickets(page=1, page_size=20, status=None, route_id=None, establishment
 		page = cint(page) or 1
 		page_size = cint(page_size) or 20
 		
+		user_company = _get_current_user_company()
+		if user_company:
+			establishment_id = user_company
+			
 		filters = {}
 		if status:
 			filters["status"] = status
@@ -1134,17 +1200,9 @@ def update_ticket_status(ticket_id, new_status, reason=None):
 		ticket = frappe.get_doc("Cheese Ticket", ticket_id)
 		old_status = ticket.status
 		
-		# Validate status transition
-		allowed_transitions = {
-			"PENDING": ["CONFIRMED", "REJECTED", "EXPIRED", "CANCELLED"],
-			"CONFIRMED": ["CHECKED_IN", "CANCELLED", "NO_SHOW"],
-			"CHECKED_IN": ["COMPLETED", "NO_SHOW"],
-			"COMPLETED": [],
-			"EXPIRED": [],
-			"REJECTED": [],
-			"CANCELLED": [],
-			"NO_SHOW": []
-		}
+		# Validate status transition using the doctype state machine.
+		from cheese.cheese.doctype.cheese_ticket.cheese_ticket import CheeseTicket
+		allowed_transitions = CheeseTicket.VALID_TRANSITIONS
 		
 		if new_status not in allowed_transitions.get(old_status, []):
 			return validation_error(

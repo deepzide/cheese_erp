@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { useFrappeDoc, useFrappeUpdate, useFrappeList } from "@/lib/useApiData";
 import { toast } from "sonner";
 import DocumentGallery from "@/components/DocumentGallery";
@@ -19,6 +20,7 @@ import { experienceService } from "@/api/experienceService";
 export default function ExperienceDetail() {
     const { id } = useParams();
     const navigate = useNavigate();
+    const { t } = useTranslation();
 
     // Fetch Data
     const { data: exp, isLoading } = useFrappeDoc("Cheese Experience", id);
@@ -60,6 +62,7 @@ export default function ExperienceDetail() {
         if (exp) {
             const hours = exp.event_duration ? exp.event_duration / 3600 : 0;
             setForm({
+                experience_type: exp.experience_type || "ACTIVITY",
                 company: exp.company || "",
                 google_maps_link: exp.google_maps_link || "",
                 description: exp.description || "",
@@ -67,6 +70,13 @@ export default function ExperienceDetail() {
                 event_duration: Number(hours.toFixed(2)),
                 individual_price: exp.individual_price || 0,
                 route_price: exp.route_price || 0,
+                price_per_night: exp.price_per_night || 0,
+                max_occupancy_per_unit: exp.max_occupancy_per_unit || 2,
+                min_nights_stay: exp.min_nights_stay || 1,
+                cancel_days_before: exp.cancel_days_before || 0,
+                modify_days_before: exp.modify_days_before || 0,
+                refund_policy: exp.refund_policy || "FULL",
+                deposit_ttl_days: exp.deposit_ttl_days || 2,
                 package_mode: exp.package_mode || "Both",
                 deposit_required: exp.deposit_required || 0,
                 deposit_type: exp.deposit_type || "Amount",
@@ -84,7 +94,7 @@ export default function ExperienceDetail() {
 
     const handleSave = () => {
         if (!form.company) {
-            toast.error("Company is required.");
+            toast.error(t("experiences.companyRequired", "Company is required."));
             return;
         }
 
@@ -110,17 +120,17 @@ export default function ExperienceDetail() {
 
         updateMutation.mutate({ name: id, data: changes }, {
             onSuccess: () => {
-                toast.success("Experience updated successfully.");
+                toast.success(t("experiences.updateSuccess", "Experience updated successfully."));
                 setEditMode(false);
             },
-            onError: (err) => toast.error(err?.message || "Failed to update experience")
+            onError: (err) => toast.error(err?.message || t("experiences.updateError", "Failed to update experience"))
         });
     };
 
     const handleRename = async () => {
         const targetId = (newId || "").trim();
         if (!targetId) {
-            toast.error("New ID is required");
+            toast.error(t("experiences.newIdRequired", "New ID is required"));
             return;
         }
         try {
@@ -133,13 +143,13 @@ export default function ExperienceDetail() {
             });
             const payload = res?.data?.message || res?.data || res;
             if (payload?.success === false) {
-                throw new Error(payload?.error?.message || payload?.message || "Failed to rename experience");
+                throw new Error(payload?.error?.message || payload?.message || t("experiences.renameError", "Failed to rename experience"));
             }
-            toast.success("Experience ID renamed");
+            toast.success(t("experiences.renameSuccess", "Experience ID renamed"));
             setRenameOpen(false);
             navigate(`/cheese/experiences/${encodeURIComponent(targetId)}`);
         } catch (e) {
-            toast.error(e?.message || "Failed to rename experience");
+            toast.error(e?.message || t("experiences.renameError", "Failed to rename experience"));
         }
     };
 
@@ -149,17 +159,17 @@ export default function ExperienceDetail() {
             {
                 onSuccess: () => {
                     setForm((prev) => ({ ...prev, status: nextStatus }));
-                    toast.success(`Experience is now ${nextStatus}`);
+                    toast.success(t("experiences.statusUpdateSuccess", "Experience is now {{status}}", { status: nextStatus }));
                 },
-                onError: (err) => toast.error(err?.message || "Failed to update status"),
+                onError: (err) => toast.error(err?.message || t("experiences.statusUpdateError", "Failed to update status")),
             }
         );
     };
 
     const getStatusBadge = (status) => {
         switch (status) {
-            case "ONLINE": return <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-200">Online</Badge>;
-            case "OFFLINE": return <Badge variant="outline" className="bg-slate-50 text-slate-700 border-slate-200">Offline</Badge>;
+            case "ONLINE": return <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-200">{t("status.ONLINE", "Online")}</Badge>;
+            case "OFFLINE": return <Badge variant="outline" className="bg-slate-50 text-slate-700 border-slate-200">{t("status.OFFLINE", "Offline")}</Badge>;
             default: return <Badge variant="outline">{status}</Badge>;
         }
     };
@@ -167,7 +177,14 @@ export default function ExperienceDetail() {
     return (
         <DetailPageLayout
             title={id}
-            subtitle={`Experience Provider: ${exp?.company || "Loading..."}`}
+            subtitle={
+                <div className="flex items-center gap-2">
+                    <Badge variant="outline" className={exp?.experience_type === "HOTEL" ? "bg-primary/10 text-primary border-primary/20" : "bg-purple-50 text-purple-700 border-purple-200"}>
+                        {exp?.experience_type || "ACTIVITY"}
+                    </Badge>
+                    <span>{t("experiences.provider", "Provider")}: {exp?.company || t("common.loading", "Loading...")}</span>
+                </div>
+            }
             backPath="/cheese/experiences"
             isLoading={isLoading}
             statusBadge={getStatusBadge(exp?.status)}
@@ -181,8 +198,8 @@ export default function ExperienceDetail() {
                 <div className="lg:col-span-2 space-y-6">
                     <Tabs defaultValue="details" className="w-full">
                         <TabsList className="w-full justify-start h-12 bg-muted/50 p-1">
-                            <TabsTrigger value="details" className="flex-1 max-w-[200px] h-full data-[state=active]:bg-background data-[state=active]:shadow-sm"><Building2 className="w-4 h-4 mr-2" /> Details</TabsTrigger>
-                            <TabsTrigger value="pricing" className="flex-1 max-w-[200px] h-full data-[state=active]:bg-background data-[state=active]:shadow-sm"><DollarSign className="w-4 h-4 mr-2" /> Pricing & Deposits</TabsTrigger>
+                            <TabsTrigger value="details" className="flex-1 max-w-[200px] h-full data-[state=active]:bg-background data-[state=active]:shadow-sm"><Building2 className="w-4 h-4 mr-2" /> {t("common.details", "Details")}</TabsTrigger>
+                            <TabsTrigger value="pricing" className="flex-1 max-w-[200px] h-full data-[state=active]:bg-background data-[state=active]:shadow-sm"><DollarSign className="w-4 h-4 mr-2" /> {t("experiences.pricingDeposits", "Pricing & Deposits")}</TabsTrigger>
                         </TabsList>
 
                         <TabsContent value="details" className="pt-4 space-y-6">
@@ -190,59 +207,61 @@ export default function ExperienceDetail() {
                             <Card className="border-border/60 shadow-sm">
                                 <CardHeader className="border-b bg-muted/20 pb-4">
                                     <CardTitle className="text-sm font-semibold text-muted-foreground uppercase flex items-center">
-                                        <Info className="w-4 h-4 mr-2" /> Base Configuration
+                                        <Info className="w-4 h-4 mr-2" /> {t("experiences.baseConfig", "Base Configuration")}
                                     </CardTitle>
                                 </CardHeader>
                                 <CardContent className="p-6">
                                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-6 gap-x-8">
-                                        <EditableField label="Provider Company" value={form.company} onChange={(v) => handleFieldChange("company", v)} editMode={editMode} doctype="Company" searchLabel="name" />
+                                        <EditableField label={t("experiences.providerCompany", "Provider Company")} value={form.company} onChange={(v) => handleFieldChange("company", v)} editMode={editMode} doctype="Company" searchLabel="name" />
 
                                         <div className="space-y-1">
                                             {editMode ? (
                                                 <div className="space-y-1.5 animate-in fade-in zoom-in-95 duration-200">
-                                                    <label className="text-xs text-muted-foreground">Status</label>
+                                                    <label className="text-xs text-muted-foreground">{t("common.status", "Status")}</label>
                                                     <select
                                                         value={form.status}
                                                         onChange={(e) => handleFieldChange("status", e.target.value)}
                                                         className="flex h-9 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm ring-offset-background disabled:cursor-not-allowed disabled:opacity-50"
                                                     >
-                                                        <option value="ONLINE">ONLINE</option>
-                                                        <option value="OFFLINE">OFFLINE</option>
+                                                        <option value="ONLINE">{t("status.ONLINE", "ONLINE")}</option>
+                                                        <option value="OFFLINE">{t("status.OFFLINE", "OFFLINE")}</option>
                                                     </select>
                                                 </div>
                                             ) : (
-                                                <EditableField label="Status" value={form.status} editMode={false} />
+                                                <EditableField label={t("common.status", "Status")} value={t(`status.${form.status}`, form.status)} editMode={false} />
                                             )}
                                         </div>
 
                                         <div className="space-y-1 col-span-1 sm:col-span-2 border-t border-border/50 pt-4 mt-2">
                                             <div className="flex items-center justify-between">
                                                 <div>
-                                                    <label className="text-xs font-medium text-muted-foreground">Experience Name / ID</label>
+                                                    <label className="text-xs font-medium text-muted-foreground">{t("experiences.experienceNameId", "Experience Name / ID")}</label>
                                                     <p className="font-semibold text-sm">{id}</p>
                                                 </div>
                                                 <Button type="button" variant="outline" size="sm" onClick={() => { setNewId(id); setRenameOpen(true); }}>
-                                                    Rename Experience Name
+                                                    {t("experiences.renameExperience", "Rename Experience Name")}
                                                 </Button>
                                             </div>
                                         </div>
 
-                                        <EditableField
-                                            label="Event Duration (Hours)"
-                                            type="number"
-                                            value={form.event_duration}
-                                            onChange={(v) => handleFieldChange("event_duration", v)}
-                                            editMode={editMode}
-                                        />
+                                        {form.experience_type === "ACTIVITY" && (
+                                            <EditableField
+                                                label={t("experiences.eventDuration", "Event Duration (Hours)")}
+                                                type="number"
+                                                value={form.event_duration}
+                                                onChange={(v) => handleFieldChange("event_duration", v)}
+                                                editMode={editMode}
+                                            />
+                                        )}
 
                                         <div className="space-y-1">
                                             {editMode ? (
-                                                <EditableField label="Google Maps Link" value={form.google_maps_link} onChange={(v) => handleFieldChange("google_maps_link", v)} editMode={editMode} />
+                                                <EditableField label={t("experiences.googleMapsLink", "Google Maps Link")} value={form.google_maps_link} onChange={(v) => handleFieldChange("google_maps_link", v)} editMode={editMode} />
                                             ) : (
                                                 <div className="space-y-1">
-                                                    <label className="text-xs text-muted-foreground">Google Maps Link</label>
+                                                    <label className="text-xs text-muted-foreground">{t("experiences.googleMapsLink", "Google Maps Link")}</label>
                                                     <div className="font-medium text-sm border-b border-transparent py-2">
-                                                        {form.google_maps_link ? <a href={form.google_maps_link} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline flex items-center"><MapPin className="w-3 h-3 mr-1" /> View on Map</a> : <span className="text-muted-foreground italic">None</span>}
+                                                        {form.google_maps_link ? <a href={form.google_maps_link} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline flex items-center"><MapPin className="w-3 h-3 mr-1" /> {t("experiences.viewOnMap", "View on Map")}</a> : <span className="text-muted-foreground italic">{t("common.none", "None")}</span>}
                                                     </div>
                                                 </div>
                                             )}
@@ -254,7 +273,7 @@ export default function ExperienceDetail() {
                             <Card className="border-border/60 shadow-sm">
                                 <CardHeader className="border-b bg-muted/20 pb-4">
                                     <CardTitle className="text-sm font-semibold text-muted-foreground uppercase flex items-center">
-                                        <Info className="w-4 h-4 mr-2" /> Rich Description
+                                        <Info className="w-4 h-4 mr-2" /> {t("experiences.richDescription", "Rich Description")}
                                     </CardTitle>
                                 </CardHeader>
                                 <CardContent className="p-6">
@@ -262,13 +281,13 @@ export default function ExperienceDetail() {
                                         <textarea
                                             value={form.description?.replace(/<[^>]*>?/gm, '')} // Strip basic HTML for pure text editing
                                             onChange={(e) => handleFieldChange("description", e.target.value)}
-                                            placeholder="Detailed experience outline..."
+                                            placeholder={t("experiences.descPlaceholder", "Detailed experience outline...")}
                                             className="w-full min-h-[160px] p-3 text-sm border rounded-md focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary"
                                         />
                                     ) : (
                                         <div
                                             className="text-sm prose prose-sm max-w-none text-muted-foreground"
-                                            dangerouslySetInnerHTML={{ __html: exp?.description || '<span class="italic font-normal">No description</span>' }}
+                                            dangerouslySetInnerHTML={{ __html: exp?.description || `<span class="italic font-normal">${t("common.noDescription", "No description")}</span>` }}
                                         />
                                     )}
                                 </CardContent>
@@ -278,7 +297,7 @@ export default function ExperienceDetail() {
                             <Card className="border-border/60 shadow-sm">
                                 <CardHeader className="border-b bg-muted/20 pb-4">
                                     <CardTitle className="text-sm font-semibold text-muted-foreground uppercase flex items-center">
-                                        <FileText className="w-4 h-4 mr-2" /> Attached Documents
+                                        <FileText className="w-4 h-4 mr-2" /> {t("common.attachedDocuments", "Attached Documents")}
                                     </CardTitle>
                                 </CardHeader>
                                 <CardContent className="p-0">
@@ -288,9 +307,9 @@ export default function ExperienceDetail() {
                                         onAddClick={() => navigate(`/cheese/documents/new?entity_type=${encodeURIComponent("Cheese Experience")}&entity_id=${encodeURIComponent(id)}`)}
                                     />
                                     <div className="p-4 bg-muted/20 border-t border-border flex justify-between items-center">
-                                        <p className="text-xs text-muted-foreground">To add documents to the Establishment instead, click here.</p>
+                                        <p className="text-xs text-muted-foreground">{t("experiences.addDocsToEstb", "To add documents to the Establishment instead, click here.")}</p>
                                         <Button variant="outline" size="sm" onClick={() => navigate(`/cheese/documents/new?entity_type=${encodeURIComponent("Company")}&entity_id=${encodeURIComponent(exp?.company || "")}`)}>
-                                            Add Establishment Doc
+                                            {t("experiences.addEstbDoc", "Add Establishment Doc")}
                                         </Button>
                                     </div>
                                 </CardContent>
@@ -302,7 +321,7 @@ export default function ExperienceDetail() {
                             <Card className="border-border/60 shadow-sm">
                                 <CardHeader className="border-b bg-muted/20 pb-4">
                                     <CardTitle className="text-sm font-semibold text-muted-foreground uppercase flex items-center">
-                                        <DollarSign className="w-4 h-4 mr-2" /> Dynamic Pricing
+                                        <DollarSign className="w-4 h-4 mr-2" /> {t("experiences.dynamicPricing", "Dynamic Pricing")}
                                     </CardTitle>
                                 </CardHeader>
                                 <CardContent className="p-6">
@@ -310,33 +329,78 @@ export default function ExperienceDetail() {
                                         <div className="space-y-1">
                                             {editMode ? (
                                                 <div className="space-y-1.5 animate-in fade-in zoom-in-95 duration-200">
-                                                    <label className="text-xs text-muted-foreground">Package Mode</label>
+                                                    <label className="text-xs text-muted-foreground">{t("experiences.packageMode", "Package Mode")}</label>
                                                     <select
                                                         value={form.package_mode}
                                                         onChange={(e) => handleFieldChange("package_mode", e.target.value)}
                                                         className="flex h-9 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm ring-offset-background disabled:cursor-not-allowed disabled:opacity-50"
                                                     >
-                                                        <option value="Establishment">A La Carte (Establishment)</option>
-                                                        <option value="Route">Packaged (Route)</option>
-                                                        <option value="Both">Available in Both</option>
+                                                        <option value="Establishment">{t("experiences.pkgEstablishment", "A La Carte (Establishment)")}</option>
+                                                        <option value="Route">{t("experiences.pkgRoute", "Packaged (Route)")}</option>
+                                                        <option value="Both">{t("experiences.pkgBoth", "Available in Both")}</option>
                                                     </select>
                                                 </div>
                                             ) : (
-                                                <EditableField label="Package Availability" value={form.package_mode} editMode={false} />
+                                                <EditableField label={t("experiences.packageAvailability", "Package Availability")} value={form.package_mode} editMode={false} />
                                             )}
                                         </div>
                                         <div /> {/* Spacing */}
-                                        <EditableField label="Individual Price ($)" type="number" value={form.individual_price} onChange={(v) => handleFieldChange("individual_price", v)} editMode={editMode} />
-                                        <EditableField label="Route Price ($)" type="number" value={form.route_price} onChange={(v) => handleFieldChange("route_price", v)} editMode={editMode} />
+                                        {form.experience_type === "HOTEL" ? (
+                                            <>
+                                                <EditableField label={t("experiences.pricePerNight", "Price per Night ($)")} type="number" value={form.price_per_night} onChange={(v) => handleFieldChange("price_per_night", v)} editMode={editMode} />
+                                                <EditableField label={t("experiences.maxOccupancy", "Max Occupancy / Room")} type="number" value={form.max_occupancy_per_unit} onChange={(v) => handleFieldChange("max_occupancy_per_unit", v)} editMode={editMode} />
+                                                <EditableField label={t("experiences.minNightsStay", "Min Nights Stay")} type="number" value={form.min_nights_stay} onChange={(v) => handleFieldChange("min_nights_stay", v)} editMode={editMode} />
+                                            </>
+                                        ) : (
+                                            <>
+                                                <EditableField label={t("experiences.individualPrice", "Individual Price ($)")} type="number" value={form.individual_price} onChange={(v) => handleFieldChange("individual_price", v)} editMode={editMode} />
+                                                <EditableField label={t("experiences.routePrice", "Route Price ($)")} type="number" value={form.route_price} onChange={(v) => handleFieldChange("route_price", v)} editMode={editMode} />
+                                            </>
+                                        )}
                                     </div>
                                 </CardContent>
                             </Card>
+
+                            {/* Policies & Deposits */}
+                            {form.experience_type === "HOTEL" && (
+                                <Card className="border-border/60 shadow-sm mt-6">
+                                    <CardHeader className="border-b bg-muted/20 pb-4">
+                                        <CardTitle className="text-sm font-semibold text-muted-foreground uppercase flex items-center">
+                                            <Building2 className="w-4 h-4 mr-2" /> {t("experiences.hotelPolicies", "Hotel Policies")}
+                                        </CardTitle>
+                                    </CardHeader>
+                                    <CardContent className="p-6">
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-y-6 gap-x-8">
+                                            <EditableField label={t("experiences.cancelDeadline", "Cancel Deadline (Days)")} type="number" value={form.cancel_days_before} onChange={(v) => handleFieldChange("cancel_days_before", v)} editMode={editMode} />
+                                            <EditableField label={t("experiences.modifyDeadline", "Modify Deadline (Days)")} type="number" value={form.modify_days_before} onChange={(v) => handleFieldChange("modify_days_before", v)} editMode={editMode} />
+                                            <div className="space-y-1">
+                                                {editMode ? (
+                                                    <div className="space-y-1.5">
+                                                        <label className="text-xs text-muted-foreground">{t("experiences.refundPolicy", "Refund Policy")}</label>
+                                                        <select
+                                                            value={form.refund_policy}
+                                                            onChange={(e) => handleFieldChange("refund_policy", e.target.value)}
+                                                            className="flex h-9 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm ring-offset-background disabled:cursor-not-allowed disabled:opacity-50"
+                                                        >
+                                                            <option value="FULL">{t("experiences.refundFull", "FULL")}</option>
+                                                            <option value="PARTIAL">{t("experiences.refundPartial", "PARTIAL")}</option>
+                                                            <option value="NONE">{t("experiences.refundNone", "NONE")}</option>
+                                                        </select>
+                                                    </div>
+                                                ) : (
+                                                    <EditableField label={t("experiences.refundPolicy", "Refund Policy")} value={form.refund_policy} editMode={false} />
+                                                )}
+                                            </div>
+                                        </div>
+                                    </CardContent>
+                                </Card>
+                            )}
 
                             {/* Experience Deposit Rules */}
                             <Card className="border-border/60 shadow-sm">
                                 <CardHeader className="border-b bg-muted/20 pb-4">
                                     <CardTitle className="text-sm font-semibold text-muted-foreground uppercase flex items-center">
-                                        <DollarSign className="w-4 h-4 mr-2" /> Standalone Deposit Rules
+                                        <DollarSign className="w-4 h-4 mr-2" /> {t("experiences.standaloneDepositRules", "Standalone Deposit Rules")}
                                     </CardTitle>
                                 </CardHeader>
                                 <CardContent className="p-6">
@@ -350,13 +414,13 @@ export default function ExperienceDetail() {
                                                         onChange={(e) => handleFieldChange("deposit_required", e.target.checked ? 1 : 0)}
                                                         className="rounded border-gray-300 text-primary shadow-sm focus:border-primary focus:ring focus:ring-primary focus:ring-opacity-50"
                                                     />
-                                                    Deposit Required on Independent Bookings
+                                                    {t("experiences.depositRequiredCb", "Deposit Required on Independent Bookings")}
                                                 </label>
                                             </div>
                                         ) : (
                                             <div className="space-y-1">
-                                                <label className="text-xs text-muted-foreground">Deposit Required</label>
-                                                <div className="font-medium text-sm border-b border-transparent py-2 px-0">{form.deposit_required ? "Yes" : "No"}</div>
+                                                <label className="text-xs text-muted-foreground">{t("experiences.depositRequired", "Deposit Required")}</label>
+                                                <div className="font-medium text-sm border-b border-transparent py-2 px-0">{form.deposit_required ? t("common.yes", "Yes") : t("common.no", "No")}</div>
                                             </div>
                                         )}
 
@@ -365,22 +429,26 @@ export default function ExperienceDetail() {
                                                 <div className="space-y-1">
                                                     {editMode ? (
                                                         <div className="space-y-1.5">
-                                                            <label className="text-xs text-muted-foreground">Deposit Format</label>
+                                                            <label className="text-xs text-muted-foreground">{t("experiences.depositFormat", "Deposit Format")}</label>
                                                             <select
                                                                 value={form.deposit_type}
                                                                 onChange={(e) => handleFieldChange("deposit_type", e.target.value)}
                                                                 className="flex h-9 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm ring-offset-background disabled:cursor-not-allowed disabled:opacity-50"
                                                             >
-                                                                <option value="Amount">Fixed Amount ($)</option>
-                                                                <option value="%">Percentage (%)</option>
+                                                                <option value="Amount">{t("experiences.fixedAmount", "Fixed Amount ($)")}</option>
+                                                                <option value="%">{t("experiences.percentage", "Percentage (%)")}</option>
                                                             </select>
                                                         </div>
                                                     ) : (
-                                                        <EditableField label="Deposit Format" value={form.deposit_type} editMode={false} />
+                                                        <EditableField label={t("experiences.depositFormat", "Deposit Format")} value={form.deposit_type} editMode={false} />
                                                     )}
                                                 </div>
-                                                <EditableField label="Deposit Value" type="number" value={form.deposit_value} onChange={(v) => handleFieldChange("deposit_value", v)} editMode={editMode} />
-                                                <EditableField label="TTL (Hours)" type="number" value={form.deposit_ttl_hours} onChange={(v) => handleFieldChange("deposit_ttl_hours", v)} editMode={editMode} />
+                                                <EditableField label={t("experiences.depositValue", "Deposit Value")} type="number" value={form.deposit_value} onChange={(v) => handleFieldChange("deposit_value", v)} editMode={editMode} />
+                                                {form.experience_type === "HOTEL" ? (
+                                                    <EditableField label={t("experiences.ttlDays", "TTL (Days)")} type="number" value={form.deposit_ttl_days} onChange={(v) => handleFieldChange("deposit_ttl_days", v)} editMode={editMode} />
+                                                ) : (
+                                                    <EditableField label={t("experiences.ttlHours", "TTL (Hours)")} type="number" value={form.deposit_ttl_hours} onChange={(v) => handleFieldChange("deposit_ttl_hours", v)} editMode={editMode} />
+                                                )}
                                             </div>
                                         )}
                                     </div>
@@ -394,15 +462,15 @@ export default function ExperienceDetail() {
                 <div className="lg:col-span-1 space-y-6">
                     <Card className="border-border/60 shadow-sm">
                         <CardHeader className="border-b bg-muted/20 pb-4">
-                            <CardTitle className="text-sm font-semibold text-muted-foreground uppercase">System Information</CardTitle>
+                            <CardTitle className="text-sm font-semibold text-muted-foreground uppercase">{t("experiences.systemInfo", "System Information")}</CardTitle>
                         </CardHeader>
                         <CardContent className="p-6 space-y-4">
                             <div className="space-y-1">
-                                <Label className="text-xs text-muted-foreground">Created On</Label>
+                                <Label className="text-xs text-muted-foreground">{t("experiences.createdOn", "Created On")}</Label>
                                 <p className="text-sm font-medium">{exp?.creation ? new Date(exp.creation).toLocaleString() : "—"}</p>
                             </div>
                             <div className="space-y-1">
-                                <Label className="text-xs text-muted-foreground">Last Modified</Label>
+                                <Label className="text-xs text-muted-foreground">{t("experiences.lastModified", "Last Modified")}</Label>
                                 <p className="text-sm font-medium">{exp?.modified ? new Date(exp.modified).toLocaleString() : "—"}</p>
                             </div>
                         </CardContent>
@@ -410,7 +478,7 @@ export default function ExperienceDetail() {
 
                     <Card className="border-border/60 shadow-sm">
                         <CardHeader className="border-b bg-muted/20 pb-4">
-                            <CardTitle className="text-sm font-semibold text-muted-foreground uppercase flex items-center"><Settings className="w-4 h-4 mr-2" /> Booking Rules</CardTitle>
+                            <CardTitle className="text-sm font-semibold text-muted-foreground uppercase flex items-center"><Settings className="w-4 h-4 mr-2" /> {t("experiences.bookingRules", "Booking Rules")}</CardTitle>
                         </CardHeader>
                         <CardContent className="p-6 space-y-4">
                             {editMode ? (
@@ -422,15 +490,15 @@ export default function ExperienceDetail() {
                                             onChange={(e) => handleFieldChange("manual_confirmation", e.target.checked ? 1 : 0)}
                                             className="rounded border-gray-300 text-primary shadow-sm focus:border-primary focus:ring focus:ring-primary focus:ring-opacity-50"
                                         />
-                                        Requires Manual Confirmation
+                                        {t("experiences.requiresManualConfirmation", "Requires Manual Confirmation")}
                                     </label>
-                                    <p className="text-xs text-muted-foreground ml-6">If enabled, bookings cannot be auto-confirmed without human agent approval.</p>
+                                    <p className="text-xs text-muted-foreground ml-6">{t("experiences.manualConfDesc", "If enabled, bookings cannot be auto-confirmed without human agent approval.")}</p>
                                 </div>
                             ) : (
                                 <div className="space-y-1">
                                     <div className="font-medium text-sm py-2 px-0 flex items-center gap-2">
                                         <span className={`w-3 h-3 rounded-full ${form.manual_confirmation ? 'bg-amber-500' : 'bg-emerald-500'}`}></span>
-                                        {form.manual_confirmation ? "Manual Confirmation Required" : "Instant Auto-Booking Enabled"}
+                                        {form.manual_confirmation ? t("experiences.manualConfReq", "Manual Confirmation Required") : t("experiences.instantAutoBooking", "Instant Auto-Booking Enabled")}
                                     </div>
                                 </div>
                             )}
@@ -439,42 +507,42 @@ export default function ExperienceDetail() {
 
                     <Card className="border-border/60 shadow-sm bg-primary/5 border-primary/20">
                         <CardHeader className="pb-2">
-                            <CardTitle className="text-sm font-semibold text-primary">Experience Actions</CardTitle>
+                            <CardTitle className="text-sm font-semibold text-primary">{t("experiences.actions", "Experience Actions")}</CardTitle>
                         </CardHeader>
                         <CardContent className="space-y-2 p-4 pt-0">
                             <div className="flex flex-col gap-2">
                                 {exp?.status === "ONLINE" ? (
                                     <button onClick={() => handleSetStatus("OFFLINE")} disabled={updateMutation.isPending} className="text-sm text-left px-3 py-2 rounded-md hover:bg-primary/10 transition-colors text-primary font-medium flex items-center justify-between">
-                                        <span>Take Experience Offline</span>
+                                        <span>{t("experiences.takeOffline", "Take Experience Offline")}</span>
                                     </button>
                                 ) : (
                                     <button onClick={() => handleSetStatus("ONLINE")} disabled={updateMutation.isPending} className="text-sm text-left px-3 py-2 rounded-md hover:bg-primary/10 transition-colors text-primary font-medium flex items-center justify-between">
-                                        <span>Publish Experience Online</span>
+                                        <span>{t("experiences.publishOnline", "Publish Experience Online")}</span>
                                     </button>
                                 )}
                                 <button onClick={() => navigate(`/cheese/routes?add_experience=${encodeURIComponent(id)}`)} className="text-sm text-left px-3 py-2 rounded-md hover:bg-primary/10 transition-colors text-primary font-medium flex items-center justify-between">
-                                    <span className="flex items-center"><LinkIcon className="w-4 h-4 mr-2" /> Add to Route Template</span>
+                                    <span className="flex items-center"><LinkIcon className="w-4 h-4 mr-2" /> {t("experiences.addToRoute", "Add to Route Template")}</span>
                                 </button>
                                 <button type="button" onClick={() => { setNewId(id); setRenameOpen(true); }} className="text-sm text-left px-3 py-2 rounded-md hover:bg-primary/10 transition-colors text-primary font-medium">
-                                    Rename Experience Name
+                                    {t("experiences.renameExperience", "Rename Experience Name")}
                                 </button>
                                 <button onClick={() => navigate(`/cheese/tickets?experience=${encodeURIComponent(id)}`)} className="text-sm text-left px-3 py-2 rounded-md hover:bg-primary/10 transition-colors text-primary font-medium">
-                                    View Tickets
+                                    {t("experiences.viewTickets", "View Tickets")}
                                 </button>
                                 <button onClick={() => navigate(`/cheese/booking-policy?experience=${encodeURIComponent(id)}`)} className="text-sm text-left px-3 py-2 rounded-md hover:bg-primary/10 transition-colors text-primary font-medium">
-                                    Booking Policy
+                                    {t("experiences.bookingPolicy", "Booking Policy")}
                                 </button>
                                 <button
                                     onClick={() => {
-                                        if (window.confirm("Delete this experience? This will also delete its slots. This cannot be undone.")) {
+                                        if (window.confirm(t("experiences.deleteConfirm", "Delete this experience? This will also delete its slots. This cannot be undone."))) {
                                             experienceService.deleteExperience(id)
-                                                .then(() => { toast.success("Experience deleted"); navigate("/cheese/experiences"); })
-                                                .catch((err) => toast.error(err?.message || "Failed to delete experience"));
+                                                .then(() => { toast.success(t("experiences.deleteSuccess", "Experience deleted")); navigate("/cheese/experiences"); })
+                                                .catch((err) => toast.error(err?.message || t("experiences.deleteError", "Failed to delete experience")));
                                         }
                                     }}
                                     className="text-sm text-left px-3 py-2 rounded-md hover:bg-red-500/10 transition-colors text-red-600 dark:text-red-400 font-medium flex items-center"
                                 >
-                                    <Trash2 className="w-4 h-4 mr-2" /> Delete Experience
+                                    <Trash2 className="w-4 h-4 mr-2" /> {t("experiences.deleteExperience", "Delete Experience")}
                                 </button>
                             </div>
                         </CardContent>
@@ -484,15 +552,15 @@ export default function ExperienceDetail() {
             <Dialog open={renameOpen} onOpenChange={setRenameOpen}>
                 <DialogContent className="max-w-md">
                     <DialogHeader>
-                        <DialogTitle>Rename Experience ID</DialogTitle>
+                        <DialogTitle>{t("experiences.renameExperienceId", "Rename Experience ID")}</DialogTitle>
                     </DialogHeader>
                     <div className="space-y-3">
-                        <Label>New ID</Label>
-                        <Input value={newId} onChange={(e) => setNewId(e.target.value)} placeholder="Enter new document ID" />
+                        <Label>{t("experiences.newId", "New ID")}</Label>
+                        <Input value={newId} onChange={(e) => setNewId(e.target.value)} placeholder={t("experiences.newIdPlaceholder", "Enter new document ID")} />
                     </div>
                     <DialogFooter>
-                        <Button variant="outline" onClick={() => setRenameOpen(false)}>Cancel</Button>
-                        <Button onClick={handleRename}>Rename</Button>
+                        <Button variant="outline" onClick={() => setRenameOpen(false)}>{t("common.cancel", "Cancel")}</Button>
+                        <Button onClick={handleRename}>{t("common.rename", "Rename")}</Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>

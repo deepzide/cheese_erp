@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { useFrappeDoc, useFrappeList, useFrappeUpdate } from "@/lib/useApiData";
 import { toast } from "sonner";
 import DetailPageLayout from "@/components/DetailPageLayout";
@@ -14,6 +15,7 @@ import { Badge } from "@/components/ui/badge";
 export default function LeadDetail() {
     const { id } = useParams();
     const navigate = useNavigate();
+    const { t } = useTranslation();
 
     // Fetch Data
     const { data: lead, isLoading } = useFrappeDoc("Cheese Lead", id);
@@ -74,7 +76,7 @@ export default function LeadDetail() {
 
     const handleSave = () => {
         if (!form.contact) {
-            toast.error("Contact is required.");
+            toast.error(t("leads.contactRequired", "Contact is required."));
             return;
         }
 
@@ -93,28 +95,28 @@ export default function LeadDetail() {
 
         updateMutation.mutate({ name: id, data: changes }, {
             onSuccess: () => {
-                toast.success("Lead updated successfully.");
+                toast.success(t("leads.updateSuccess", "Lead updated successfully."));
                 setEditMode(false);
             },
-            onError: (err) => toast.error(err?.message || "Failed to update lead")
+            onError: (err) => toast.error(err?.message || t("leads.updateError", "Failed to update lead"))
         });
     };
 
     const getStatusBadge = (status) => {
         switch (status) {
-            case "OPEN": return <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">Open</Badge>;
-            case "IN_PROGRESS": return <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200">In Progress</Badge>;
-            case "CONVERTED": return <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-200">Converted</Badge>;
+            case "OPEN": return <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">{t("status.OPEN", "Open")}</Badge>;
+            case "IN_PROGRESS": return <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200">{t("status.IN_PROGRESS", "In Progress")}</Badge>;
+            case "CONVERTED": return <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-200">{t("status.CONVERTED", "Converted")}</Badge>;
             case "LOST":
-            case "DISCARDED": return <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200">{status}</Badge>;
-            default: return <Badge variant="outline">{status}</Badge>;
+            case "DISCARDED": return <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200">{t(`status.${status}`, status)}</Badge>;
+            default: return <Badge variant="outline">{status ? t(`status.${status}`, status) : ""}</Badge>;
         }
     };
 
     return (
         <DetailPageLayout
-            title={lead?.contact || "Loading Lead..."}
-            subtitle={`Lead • ${id}`}
+            title={lead?.contact || t("leads.loadingLead", "Loading Lead...")}
+            subtitle={`${t("leads.lead", "Lead")} • ${id}`}
             backPath="/cheese/leads"
             isLoading={isLoading}
             statusBadge={getStatusBadge(lead?.status)}
@@ -128,8 +130,8 @@ export default function LeadDetail() {
                 <div className="lg:col-span-2 space-y-6">
                     <Tabs defaultValue="details" className="w-full">
                         <TabsList className="w-full justify-start h-12 bg-muted/50 p-1">
-                            <TabsTrigger value="details" className="flex-1 max-w-[200px] h-full data-[state=active]:bg-background data-[state=active]:shadow-sm"><Target className="w-4 h-4 mr-2" /> Details</TabsTrigger>
-                            <TabsTrigger value="activity" className="flex-1 max-w-[200px] h-full data-[state=active]:bg-background data-[state=active]:shadow-sm"><Activity className="w-4 h-4 mr-2" /> Activity</TabsTrigger>
+                            <TabsTrigger value="details" className="flex-1 max-w-[200px] h-full data-[state=active]:bg-background data-[state=active]:shadow-sm"><Target className="w-4 h-4 mr-2" /> {t("common.details", "Details")}</TabsTrigger>
+                            <TabsTrigger value="activity" className="flex-1 max-w-[200px] h-full data-[state=active]:bg-background data-[state=active]:shadow-sm"><Activity className="w-4 h-4 mr-2" /> {t("contacts.activityBookings", "Activity")}</TabsTrigger>
                         </TabsList>
 
                         <TabsContent value="details" className="pt-4 space-y-6">
@@ -137,69 +139,69 @@ export default function LeadDetail() {
                             <Card className="border-border/60 shadow-sm">
                                 <CardHeader className="border-b bg-muted/20 pb-4">
                                     <CardTitle className="text-sm font-semibold text-muted-foreground uppercase flex items-center">
-                                        <Target className="w-4 h-4 mr-2" /> Lead Information
+                                        <Target className="w-4 h-4 mr-2" /> {t("leads.leadInfo", "Lead Information")}
                                     </CardTitle>
                                 </CardHeader>
                                 <CardContent className="p-6">
                                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-6 gap-x-8">
-                                        <EditableField label="Contact" value={form.contact} onChange={(v) => handleFieldChange("contact", v)} editMode={editMode} doctype="Cheese Contact" searchLabel="full_name" />
+                                        <EditableField label={t("ticket.contact", "Contact")} value={form.contact} onChange={(v) => handleFieldChange("contact", v)} editMode={editMode} doctype="Cheese Contact" searchLabel="full_name" />
                                         <div className="space-y-1">
                                             {/* We manually map select options if in edit mode, otherwise use standard EditableField */}
                                             {editMode ? (
                                                 <div className="space-y-1.5 animate-in fade-in zoom-in-95 duration-200">
-                                                    <label className="text-xs text-muted-foreground">Status</label>
+                                                    <label className="text-xs text-muted-foreground">{t("common.status", "Status")}</label>
                                                     <select
                                                         value={form.status}
                                                         onChange={(e) => handleFieldChange("status", e.target.value)}
                                                         className="flex h-9 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
                                                     >
-                                                        <option value="OPEN">OPEN</option>
-                                                        <option value="IN_PROGRESS">IN_PROGRESS</option>
-                                                        <option value="CONVERTED">CONVERTED</option>
-                                                        <option value="LOST">LOST</option>
-                                                        <option value="DISCARDED">DISCARDED</option>
+                                                        <option value="OPEN">{t("status.OPEN", "OPEN")}</option>
+                                                        <option value="IN_PROGRESS">{t("status.IN_PROGRESS", "IN_PROGRESS")}</option>
+                                                        <option value="CONVERTED">{t("status.CONVERTED", "CONVERTED")}</option>
+                                                        <option value="LOST">{t("status.LOST", "LOST")}</option>
+                                                        <option value="DISCARDED">{t("status.DISCARDED", "DISCARDED")}</option>
                                                     </select>
                                                 </div>
                                             ) : (
-                                                <EditableField label="Status" value={form.status} editMode={false} />
+                                                <EditableField label={t("common.status", "Status")} value={t(`status.${form.status}`, form.status)} editMode={false} />
                                             )}
                                         </div>
 
                                         {editMode ? (
                                             <div className="space-y-1.5 animate-in fade-in zoom-in-95 duration-200">
-                                                <label className="text-xs text-muted-foreground">Interest Type</label>
+                                                <label className="text-xs text-muted-foreground">{t("leads.interestType", "Interest Type")}</label>
                                                 <select
                                                     value={form.interest_type}
                                                     onChange={(e) => handleFieldChange("interest_type", e.target.value)}
                                                     className="flex h-9 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
                                                 >
-                                                    <option value="">Select...</option>
-                                                    <option value="Route">Route</option>
-                                                    <option value="Experience">Experience</option>
+                                                    <option value="">{t("common.select", "Select...")}</option>
+                                                    <option value="Route">{t("ticket.route", "Route")}</option>
+                                                    <option value="Experience">{t("ticket.experience", "Experience")}</option>
                                                 </select>
                                             </div>
                                         ) : (
-                                            <EditableField label="Interest Type" value={form.interest_type} editMode={false} />
+                                            <EditableField label={t("leads.interestType", "Interest Type")} value={form.interest_type === "Route" ? t("ticket.route", "Route") : form.interest_type === "Experience" ? t("ticket.experience", "Experience") : form.interest_type} editMode={false} />
                                         )}
 
                                         {(form.status === "LOST" || form.status === "DISCARDED" || editMode) && (
                                             editMode ? (
                                                 <div className="space-y-1.5 animate-in fade-in zoom-in-95 duration-200">
-                                                    <label className="text-xs text-muted-foreground">Lost Reason</label>
+                                                    <label className="text-xs text-muted-foreground">{t("leads.lostReason", "Lost Reason")}</label>
                                                     <select
                                                         value={form.lost_reason}
                                                         onChange={(e) => handleFieldChange("lost_reason", e.target.value)}
                                                         className="flex h-9 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
                                                     >
-                                                        <option value="">Select...</option>
-                                                        <option value="No Response">No Response</option>
-                                                        <option value="Price Too High">Price Too High</option>
-                                                        <option value="Not Interested">Not Interested</option>
-                                                        <option value="Other">Other</option>
+                                                        <option value="">{t("common.select", "Select...")}</option>
+                                                        <option value="No Response">{t("leads.lostReasonNoResponse", "No Response")}</option>
+                                                        <option value="Price Too High">{t("leads.lostReasonPrice", "Price Too High")}</option>
+                                                        <option value="Not Interested">{t("leads.lostReasonNotInterested", "Not Interested")}</option>
+                                                        <option value="Other">{t("leads.lostReasonOther", "Other")}</option>
                                                     </select>
                                                 </div>
                                             ) : (
-                                                <EditableField label="Lost Reason" value={form.lost_reason} editMode={false} />
+                                                <EditableField label={t("leads.lostReason", "Lost Reason")} value={form.lost_reason === "No Response" ? t("leads.lostReasonNoResponse", "No Response") : form.lost_reason === "Price Too High" ? t("leads.lostReasonPrice", "Price Too High") : form.lost_reason === "Not Interested" ? t("leads.lostReasonNotInterested", "Not Interested") : form.lost_reason === "Other" ? t("leads.lostReasonOther", "Other") : form.lost_reason} editMode={false} />
                                             )
                                         )}
                                     </div>
@@ -210,11 +212,11 @@ export default function LeadDetail() {
                             <Card className="border-border/60 shadow-sm">
                                 <CardHeader className="border-b bg-muted/20 pb-4">
                                     <CardTitle className="text-sm font-semibold text-muted-foreground uppercase flex items-center">
-                                        <MessageSquare className="w-4 h-4 mr-2" /> Connected Conversation
+                                        <MessageSquare className="w-4 h-4 mr-2" /> {t("leads.connectedConversation", "Connected Conversation")}
                                     </CardTitle>
                                 </CardHeader>
                                 <CardContent className="p-6">
-                                    <EditableField label="Conversation" value={form.conversation} onChange={(v) => handleFieldChange("conversation", v)} editMode={editMode} doctype="Conversation" searchLabel="name" />
+                                    <EditableField label={t("nav.conversations", "Conversation")} value={form.conversation} onChange={(v) => handleFieldChange("conversation", v)} editMode={editMode} doctype="Conversation" searchLabel="name" />
                                 </CardContent>
                             </Card>
 
@@ -222,12 +224,12 @@ export default function LeadDetail() {
                             <Card className="border-border/60 shadow-sm">
                                 <CardHeader className="border-b bg-muted/20 pb-4">
                                     <CardTitle className="text-sm font-semibold text-muted-foreground uppercase flex items-center">
-                                        <FileText className="w-4 h-4 mr-2" /> Quotations
+                                        <FileText className="w-4 h-4 mr-2" /> {t("nav.quotations", "Quotations")}
                                     </CardTitle>
                                 </CardHeader>
                                 <CardContent className="p-6 space-y-3">
                                     {quotationsLoading ? (
-                                        <p className="text-sm text-muted-foreground">Loading quotations...</p>
+                                        <p className="text-sm text-muted-foreground">{t("common.loading", "Loading...")}</p>
                                     ) : quotations.length > 0 ? (
                                         <div className="space-y-2">
                                             {quotations.map((q) => (
@@ -235,7 +237,7 @@ export default function LeadDetail() {
                                                     <div className="min-w-0">
                                                         <p className="text-sm font-medium truncate">{q.name}</p>
                                                         <p className="text-xs text-muted-foreground truncate">
-                                                            {q.route ? `Route: ${q.route}` : "No route"} • {q.status || "—"}
+                                                            {q.route ? `${t("ticket.route", "Route")}: ${q.route}` : t("leads.noRoute", "No route")} • {q.status ? t(`status.${q.status}`, q.status) : "—"}
                                                         </p>
                                                     </div>
                                                     <div className="flex items-center gap-2 shrink-0">
@@ -249,14 +251,14 @@ export default function LeadDetail() {
                                                             size="sm"
                                                             onClick={() => navigate(`/cheese/quotations/${q.name}`)}
                                                         >
-                                                            View
+                                                            {t("common.viewDetails", "View Details")}
                                                         </Button>
                                                     </div>
                                                 </div>
                                             ))}
                                         </div>
                                     ) : (
-                                        <p className="text-sm text-muted-foreground">No quotations for this lead.</p>
+                                        <p className="text-sm text-muted-foreground">{t("leads.noQuotations", "No quotations for this lead.")}</p>
                                     )}
                                 </CardContent>
                             </Card>
@@ -265,35 +267,35 @@ export default function LeadDetail() {
                             <Card className="border-border/60 shadow-sm">
                                 <CardHeader className="border-b bg-muted/20 pb-4">
                                     <CardTitle className="text-sm font-semibold text-muted-foreground uppercase flex items-center">
-                                        <Ticket className="w-4 h-4 mr-2" /> Tickets
+                                        <Ticket className="w-4 h-4 mr-2" /> {t("nav.tickets", "Tickets")}
                                     </CardTitle>
                                 </CardHeader>
                                 <CardContent className="p-6 space-y-3">
                                     {ticketsLoading ? (
-                                        <p className="text-sm text-muted-foreground">Loading tickets...</p>
+                                        <p className="text-sm text-muted-foreground">{t("common.loading", "Loading...")}</p>
                                     ) : tickets.length > 0 ? (
                                         <div className="space-y-2">
-                                            {tickets.map((t) => (
-                                                <div key={t.name} className="flex items-center justify-between gap-3 p-2 bg-muted rounded-lg">
+                                            {tickets.map((tItem) => (
+                                                <div key={tItem.name} className="flex items-center justify-between gap-3 p-2 bg-muted rounded-lg">
                                                     <div className="min-w-0">
-                                                        <p className="text-sm font-medium truncate">{t.name}</p>
+                                                        <p className="text-sm font-medium truncate">{tItem.name}</p>
                                                         <p className="text-xs text-muted-foreground truncate">
-                                                            {t.experience || "—"} • {t.selected_date || "—"} • People: {t.party_size || 1}
+                                                            {tItem.experience || "—"} • {tItem.selected_date || "—"} • {t("common.guests", "Guests")}: {tItem.party_size || 1}
                                                         </p>
                                                     </div>
                                                     <Button
                                                         type="button"
                                                         variant="outline"
                                                         size="sm"
-                                                        onClick={() => navigate(`/cheese/tickets/${t.name}`)}
+                                                        onClick={() => navigate(`/cheese/tickets/${tItem.name}`)}
                                                     >
-                                                        View
+                                                        {t("common.viewDetails", "View Details")}
                                                     </Button>
                                                 </div>
                                             ))}
                                         </div>
                                     ) : (
-                                        <p className="text-sm text-muted-foreground">No tickets for this contact.</p>
+                                        <p className="text-sm text-muted-foreground">{t("contacts.noTickets", "No tickets for this contact.")}</p>
                                     )}
                                 </CardContent>
                             </Card>
@@ -302,12 +304,12 @@ export default function LeadDetail() {
                             <Card className="border-border/60 shadow-sm">
                                 <CardHeader className="border-b bg-muted/20 pb-4">
                                     <CardTitle className="text-sm font-semibold text-muted-foreground uppercase flex items-center">
-                                        <ShoppingCart className="w-4 h-4 mr-2" /> Route Bookings
+                                        <ShoppingCart className="w-4 h-4 mr-2" /> {t("leads.routeBookings", "Route Bookings")}
                                     </CardTitle>
                                 </CardHeader>
                                 <CardContent className="p-6 space-y-3">
                                     {routeBookingsLoading ? (
-                                        <p className="text-sm text-muted-foreground">Loading route bookings...</p>
+                                        <p className="text-sm text-muted-foreground">{t("common.loading", "Loading...")}</p>
                                     ) : routeBookings.length > 0 ? (
                                         <div className="space-y-2">
                                             {routeBookings.map((b) => (
@@ -315,7 +317,7 @@ export default function LeadDetail() {
                                                     <div className="min-w-0">
                                                         <p className="text-sm font-medium truncate">{b.name}</p>
                                                         <p className="text-xs text-muted-foreground truncate">
-                                                            Route: {b.route || "—"} • {b.status || "—"}
+                                                            {t("ticket.route", "Route")}: {b.route || "—"} • {b.status ? t(`status.${b.status}`, b.status) : "—"}
                                                         </p>
                                                     </div>
                                                     <div className="flex items-center gap-2 shrink-0">
@@ -329,14 +331,14 @@ export default function LeadDetail() {
                                                             size="sm"
                                                             onClick={() => navigate(`/cheese/bookings/${b.name}`)}
                                                         >
-                                                            View
+                                                            {t("common.viewDetails", "View Details")}
                                                         </Button>
                                                     </div>
                                                 </div>
                                             ))}
                                         </div>
                                     ) : (
-                                        <p className="text-sm text-muted-foreground">No route bookings for this contact.</p>
+                                        <p className="text-sm text-muted-foreground">{t("leads.noRouteBookings", "No route bookings for this contact.")}</p>
                                     )}
                                 </CardContent>
                             </Card>
@@ -345,13 +347,13 @@ export default function LeadDetail() {
                             <Card className="border-border/60 shadow-sm">
                                 <CardHeader className="border-b bg-muted/20 pb-4">
                                     <CardTitle className="text-sm font-semibold text-muted-foreground uppercase flex items-center">
-                                        <MessageSquare className="w-4 h-4 mr-2" /> Conversations
+                                        <MessageSquare className="w-4 h-4 mr-2" /> {t("nav.conversations", "Conversations")}
                                     </CardTitle>
                                 </CardHeader>
                                 <CardContent className="p-6 space-y-3">
                                     <div className="flex items-center justify-between gap-3">
                                         <p className="text-sm text-muted-foreground">
-                                            {conversationsLoading ? "Loading..." : `${conversations.length} found`}
+                                            {conversationsLoading ? t("common.loading", "Loading...") : `${conversations.length} ${t("leads.found", "found")}`}
                                         </p>
                                         <Button
                                             type="button"
@@ -359,11 +361,11 @@ export default function LeadDetail() {
                                             size="sm"
                                             onClick={() => navigate(`/cheese/conversations?lead=${encodeURIComponent(id)}`)}
                                         >
-                                            Open
+                                            {t("leads.open", "Open")}
                                         </Button>
                                     </div>
                                     {conversationsLoading ? (
-                                        <p className="text-sm text-muted-foreground">Loading conversations...</p>
+                                        <p className="text-sm text-muted-foreground">{t("common.loading", "Loading...")}</p>
                                     ) : conversations.length > 0 ? (
                                         <div className="space-y-2">
                                             {conversations.map((c) => (
@@ -371,7 +373,7 @@ export default function LeadDetail() {
                                                     <div className="min-w-0">
                                                         <p className="text-sm font-medium truncate">{c.name}</p>
                                                         <p className="text-xs text-muted-foreground truncate">
-                                                            {c.channel || "—"} • {c.status || "—"}
+                                                            {c.channel || "—"} • {c.status ? t(`status.${c.status}`, c.status) : "—"}
                                                         </p>
                                                         {c.summary ? <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{c.summary}</p> : null}
                                                     </div>
@@ -382,14 +384,14 @@ export default function LeadDetail() {
                                                             size="sm"
                                                             onClick={() => window.open(c.transcript_url, "_blank")}
                                                         >
-                                                            Transcript
+                                                            {t("conversation.viewTranscript", "Transcript")}
                                                         </Button>
                                                     ) : null}
                                                 </div>
                                             ))}
                                         </div>
                                     ) : (
-                                        <p className="text-sm text-muted-foreground">No conversations for this lead.</p>
+                                        <p className="text-sm text-muted-foreground">{t("leads.noConversations", "No conversations for this lead.")}</p>
                                     )}
                                 </CardContent>
                             </Card>
@@ -399,7 +401,7 @@ export default function LeadDetail() {
                             <Card className="border-border/60 shadow-sm">
                                 <CardContent className="p-12 text-center text-muted-foreground flex flex-col items-center">
                                     <Activity className="w-8 h-8 mb-4 opacity-20" />
-                                    <p>Lead timeline and conversion path will appear here.</p>
+                                    <p>{t("leads.timelinePath", "Lead timeline and conversion path will appear here.")}</p>
                                 </CardContent>
                             </Card>
                         </TabsContent>
@@ -410,23 +412,23 @@ export default function LeadDetail() {
                 <div className="lg:col-span-1 space-y-6">
                     <Card className="border-border/60 shadow-sm">
                         <CardHeader className="border-b bg-muted/20 pb-4">
-                            <CardTitle className="text-sm font-semibold text-muted-foreground uppercase">System Information</CardTitle>
+                            <CardTitle className="text-sm font-semibold text-muted-foreground uppercase">{t("experiences.systemInfo", "System Information")}</CardTitle>
                         </CardHeader>
                         <CardContent className="p-6 space-y-4">
                             <div className="space-y-1">
-                                <Label className="text-xs text-muted-foreground">Last Interaction</Label>
+                                <Label className="text-xs text-muted-foreground">{t("leads.lastInteraction", "Last Interaction")}</Label>
                                 <p className="text-sm font-medium">{lead?.last_interaction_at ? new Date(lead.last_interaction_at).toLocaleString() : "—"}</p>
                             </div>
                             <div className="space-y-1">
-                                <Label className="text-xs text-muted-foreground">Created On</Label>
+                                <Label className="text-xs text-muted-foreground">{t("experiences.createdOn", "Created On")}</Label>
                                 <p className="text-sm font-medium">{lead?.creation ? new Date(lead.creation).toLocaleString() : "—"}</p>
                             </div>
                             <div className="space-y-1">
-                                <Label className="text-xs text-muted-foreground">Last Modified</Label>
+                                <Label className="text-xs text-muted-foreground">{t("experiences.lastModified", "Last Modified")}</Label>
                                 <p className="text-sm font-medium">{lead?.modified ? new Date(lead.modified).toLocaleString() : "—"}</p>
                             </div>
                             <div className="space-y-1">
-                                <Label className="text-xs text-muted-foreground">Owner</Label>
+                                <Label className="text-xs text-muted-foreground">{t("common.owner", "Owner")}</Label>
                                 <p className="text-sm font-medium">{lead?.owner || "—"}</p>
                             </div>
                         </CardContent>
@@ -434,25 +436,25 @@ export default function LeadDetail() {
 
                     <Card className="border-border/60 shadow-sm bg-primary/5 border-primary/20">
                         <CardHeader className="pb-2">
-                            <CardTitle className="text-sm font-semibold text-primary">Conversion Actions</CardTitle>
+                            <CardTitle className="text-sm font-semibold text-primary">{t("leads.conversionActions", "Conversion Actions")}</CardTitle>
                         </CardHeader>
                         <CardContent className="space-y-2 p-4 pt-0">
                             <div className="flex flex-col gap-2">
                                 <button onClick={() => navigate(`/cheese/quotations/new?lead=${id}`)} className="text-sm text-left px-3 py-2 rounded-md hover:bg-primary/10 transition-colors text-primary font-medium flex items-center justify-between group">
-                                    <span className="flex items-center"><FileText className="w-4 h-4 mr-2" /> Create Quotation</span>
+                                    <span className="flex items-center"><FileText className="w-4 h-4 mr-2" /> {t("leads.createQuotation", "Create Quotation")}</span>
                                     <ChevronRight className="w-4 h-4 opacity-0 group-hover:opacity-100 transition-opacity" />
                                 </button>
                                 <button
                                     onClick={() => {
                                         if (!lead?.contact) {
-                                            toast.error("This lead has no linked contact.");
+                                            toast.error(t("leads.noContactLinked", "This lead has no linked contact."));
                                             return;
                                         }
                                         navigate(`/cheese/contacts/${lead.contact}`);
                                     }}
                                     className="text-sm text-left px-3 py-2 rounded-md hover:bg-primary/10 transition-colors text-primary font-medium flex items-center justify-between group"
                                 >
-                                    <span className="flex items-center"><Target className="w-4 h-4 mr-2" /> View Contact Setup</span>
+                                    <span className="flex items-center"><Target className="w-4 h-4 mr-2" /> {t("leads.viewContactSetup", "View Contact Setup")}</span>
                                     <ChevronRight className="w-4 h-4 opacity-0 group-hover:opacity-100 transition-opacity" />
                                 </button>
                             </div>

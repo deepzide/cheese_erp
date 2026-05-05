@@ -1,22 +1,24 @@
 import React, { useState, useMemo } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Ticket } from "lucide-react";
 import { toast } from "sonner";
-import { useFrappeCreate } from "@/lib/useApiData";
+import { useFrappeCreate, useFrappeDoc, extractData } from "@/lib/useApiData";
 import CreatePageLayout from "@/components/CreatePageLayout";
 import FrappeSearchSelect from "@/components/FrappeSearchSelect";
 import { routeService } from "@/api/routeService";
-import { extractData } from "@/lib/useApiData";
 
 export default function TicketCreate() {
     const navigate = useNavigate();
     const queryClient = useQueryClient();
     const [searchParams] = useSearchParams();
+    const { t } = useTranslation();
     const contactId = searchParams.get("contact") || "";
     const backPath = contactId ? `/cheese/contacts/${contactId}` : "/cheese/tickets";
+    
     const [form, setForm] = useState({
         contact: searchParams.get("contact") || "",
         company: searchParams.get("company") || "",
@@ -24,11 +26,21 @@ export default function TicketCreate() {
         route: searchParams.get("route") || "",
         slot: searchParams.get("slot") || "",
         party_size: searchParams.get("party_size") || "1",
+        rooms_requested: "1",
         conversation: searchParams.get("conversation") || "",
         selected_date: searchParams.get("date") || "",
+        check_in_date: "",
+        check_out_date: "",
     });
+
     const createMutation = useFrappeCreate("Cheese Ticket");
     const todayStr = new Date().toISOString().slice(0, 10);
+
+    // Fetch Experience Type
+    const { data: experienceData } = useFrappeDoc("Cheese Experience", form.experience, {
+        enabled: !!form.experience
+    });
+    const isHotel = experienceData?.experience_type === "HOTEL";
 
     // Cascading filter: fetch experiences for the selected route
     const { data: routeExperiences } = useQuery({
@@ -51,60 +63,88 @@ export default function TicketCreate() {
 
     const handleSubmit = () => {
         if (!form.contact || !form.experience || !form.slot) {
-            toast.error("Contact, experience, and slot are required");
+            toast.error(t("tickets.validationError", "Contact, experience, and slot are required"));
             return;
         }
-        if (form.selected_date && form.selected_date < todayStr) {
-            toast.error("Past dates are not allowed");
-            return;
-        }
-        createMutation.mutate({
+
+        const payload = {
             contact: form.contact,
             company: form.company || undefined,
             experience: form.experience,
             route: form.route || undefined,
             slot: form.slot,
-            party_size: parseInt(form.party_size) || 1,
             status: "PENDING",
             conversation: form.conversation || undefined,
-            selected_date: form.selected_date || undefined,
-        }, {
-            onSuccess: () => { toast.success("Ticket created"); queryClient.invalidateQueries({ queryKey: ['ticket-board'] }); navigate("/cheese/tickets"); },
-            onError: (err) => toast.error(err?.message || "Failed to create ticket"),
+        };
+
+        if (isHotel) {
+            if (!form.check_in_date || !form.check_out_date) {
+                toast.error(t("hotelReservations.datesRequired", "Check-in and check-out dates are required for hotels"));
+                return;
+            }
+            if (form.check_in_date < todayStr) {
+                toast.error(t("hotelReservations.checkInPastError", "Check-in date cannot be in the past"));
+                return;
+            }
+            if (form.check_out_date <= form.check_in_date) {
+                toast.error(t("hotelReservations.checkOutBeforeCheckInError", "Check-out date must be after check-in date"));
+                return;
+            }
+            payload.rooms_requested = parseInt(form.rooms_requested) || 1;
+            payload.check_in_date = form.check_in_date;
+            payload.check_out_date = form.check_out_date;
+            // Provide party_size default to bypass frappe mandatory field check, though logic relies on rooms_requested
+            payload.party_size = 1;
+        } else {
+            if (form.selected_date && form.selected_date < todayStr) {
+                toast.error(t("tickets.pastDatesError", "Past dates are not allowed"));
+                return;
+            }
+            payload.party_size = parseInt(form.party_size) || 1;
+            payload.selected_date = form.selected_date || undefined;
+        }
+
+        createMutation.mutate(payload, {
+            onSuccess: () => { 
+                toast.success(t("tickets.createSuccess", "Ticket created")); 
+                queryClient.invalidateQueries({ queryKey: ['ticket-board'] }); 
+                navigate("/cheese/tickets"); 
+            },
+            onError: (err) => toast.error(err?.message || t("tickets.createError", "Failed to create ticket")),
         });
     };
 
     return (
         <CreatePageLayout
-            title="New Ticket"
-            description="Create a pending ticket for a guest"
+            title={t("tickets.newTicket", "New Ticket")}
+            description={t("tickets.newTicketDesc", "Create a pending ticket for a guest")}
             icon={Ticket}
             backPath={backPath}
             onSubmit={handleSubmit}
             isSubmitting={createMutation.isPending}
-            submitLabel="Create Ticket"
+            submitLabel={t("tickets.createTicket", "Create Ticket")}
         >
             <div className="space-y-5">
                 {/* Contact & Company */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                     <div className="space-y-2">
-                        <Label>Contact <span className="text-red-500">*</span></Label>
+                        <Label>{t("common.contact", "Contact")} <span className="text-red-500">*</span></Label>
                         <FrappeSearchSelect
                             doctype="Cheese Contact"
                             label="full_name"
                             value={form.contact}
                             onChange={(v) => setForm(f => ({ ...f, contact: v }))}
-                            placeholder="Select a contact..."
+                            placeholder={t("tickets.selectContact", "Select a contact...")}
                         />
                     </div>
                     <div className="space-y-2">
-                        <Label>Company</Label>
+                        <Label>{t("common.company", "Company")}</Label>
                         <FrappeSearchSelect
                             doctype="Company"
                             label="name"
                             value={form.company}
                             onChange={(v) => setForm(f => ({ ...f, company: v }))}
-                            placeholder="Select company..."
+                            placeholder={t("tickets.selectCompany", "Select company...")}
                         />
                     </div>
                 </div>
@@ -112,81 +152,99 @@ export default function TicketCreate() {
                 {/* Route & Experience (cascading) */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                     <div className="space-y-2">
-                        <Label>Route</Label>
+                        <Label>{t("tickets.route", "Route")}</Label>
                         <FrappeSearchSelect
                             doctype="Cheese Route"
                             label="short_description"
                             value={form.route}
                             onChange={(v) => setForm(f => ({ ...f, route: v, experience: "", slot: "" }))}
-                            placeholder="Select a route..."
+                            placeholder={t("tickets.selectRoute", "Select a route...")}
                         />
-                        <p className="text-xs text-muted-foreground">Selecting a route filters the experiences below</p>
+                        <p className="text-xs text-muted-foreground">{t("tickets.routeFilterInfo", "Selecting a route filters the experiences below")}</p>
                     </div>
                     <div className="space-y-2">
-                        <Label>Experience <span className="text-red-500">*</span></Label>
+                        <Label>{t("tickets.experience", "Experience")} <span className="text-red-500">*</span></Label>
                         <FrappeSearchSelect
                             doctype="Cheese Experience"
                             label="name"
                             value={form.experience}
                             onChange={(v) => setForm(f => ({ ...f, experience: v, slot: "" }))}
-                            placeholder={form.route ? "Select from route experiences..." : "Select an experience..."}
+                            placeholder={form.route ? t("tickets.selectFromRouteExp", "Select from route experiences...") : t("tickets.selectExperience", "Select an experience...")}
                             filters={experienceFilters}
                         />
                     </div>
                 </div>
 
-                {/* Slot & Party Size */}
+                {/* Date Selection */}
+                {isHotel ? (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 animate-in fade-in slide-in-from-bottom-2">
+                        <div className="space-y-2">
+                            <Label>{t("hotelReservations.checkInDate", "Check-in Date")} <span className="text-red-500">*</span></Label>
+                            <Input
+                                type="date"
+                                min={todayStr}
+                                value={form.check_in_date}
+                                onChange={(e) => setForm(f => ({ ...f, check_in_date: e.target.value, slot: "" }))}
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <Label>{t("hotelReservations.checkOutDate", "Check-out Date")} <span className="text-red-500">*</span></Label>
+                            <Input
+                                type="date"
+                                min={form.check_in_date || todayStr}
+                                value={form.check_out_date}
+                                onChange={(e) => setForm(f => ({ ...f, check_out_date: e.target.value }))}
+                            />
+                        </div>
+                    </div>
+                ) : (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 animate-in fade-in slide-in-from-bottom-2">
+                        <div className="space-y-2">
+                            <Label>{t("tickets.selectedDate", "Selected Date")}</Label>
+                            <Input
+                                type="date"
+                                min={todayStr}
+                                value={form.selected_date}
+                                onChange={(e) => setForm(f => ({ ...f, selected_date: e.target.value, slot: "" }))}
+                            />
+                            <p className="text-xs text-muted-foreground">{t("tickets.onlyFutureDates", "Only today or future dates are allowed")}</p>
+                        </div>
+                    </div>
+                )}
+
+                {/* Slot & Size */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                     <div className="space-y-2">
-                        <Label>Slot <span className="text-red-500">*</span></Label>
+                        <Label>{t("tickets.slot", "Slot")} <span className="text-red-500">*</span></Label>
                         <FrappeSearchSelect
                             doctype="Cheese Experience Slot"
                             label="name"
                             value={form.slot}
                             onChange={(v) => setForm(f => ({ ...f, slot: v }))}
-                            placeholder="Select a slot..."
-                            // Slot must cover selected date (or today) within date_from..date_to range.
+                            placeholder={t("tickets.selectSlot", "Select a slot...")}
                             filters={form.experience ? {
                                 experience: form.experience,
-                                date_from: ["<=", form.selected_date || todayStr],
-                                date_to: [">=", form.selected_date || todayStr],
+                                date_from: ["<=", isHotel ? (form.check_in_date || todayStr) : (form.selected_date || todayStr)],
+                                date_to: [">=", isHotel ? (form.check_in_date || todayStr) : (form.selected_date || todayStr)],
                             } : {}}
                         />
+                        {isHotel && <p className="text-xs text-muted-foreground">{t("hotelReservations.selectSlotInfo", "Select the slot corresponding to the first night.")}</p>}
                     </div>
-                    <div className="space-y-2">
-                        <Label>Party Size <span className="text-red-500">*</span></Label>
-                        <Input type="number" min="1" max="50" value={form.party_size} onChange={(e) => setForm(f => ({ ...f, party_size: e.target.value }))} />
-                        <p className="text-xs text-muted-foreground">Number of guests</p>
-                    </div>
+                    {isHotel ? (
+                        <div className="space-y-2 animate-in fade-in slide-in-from-bottom-2">
+                            <Label>{t("hotelReservations.roomsRequested", "Rooms Requested")} <span className="text-red-500">*</span></Label>
+                            <Input type="number" min="1" max="50" value={form.rooms_requested} onChange={(e) => setForm(f => ({ ...f, rooms_requested: e.target.value }))} />
+                            <p className="text-xs text-muted-foreground">{t("hotelReservations.numberOfRooms", "Number of rooms")}</p>
+                        </div>
+                    ) : (
+                        <div className="space-y-2 animate-in fade-in slide-in-from-bottom-2">
+                            <Label>{t("hotelReservations.partySize", "Party Size")} <span className="text-red-500">*</span></Label>
+                            <Input type="number" min="1" max="50" value={form.party_size} onChange={(e) => setForm(f => ({ ...f, party_size: e.target.value }))} />
+                            <p className="text-xs text-muted-foreground">{t("hotelReservations.numberOfGuests", "Number of guests")}</p>
+                        </div>
+                    )}
                 </div>
 
-                {/* Selected Date */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-                    <div className="space-y-2">
-                        <Label>Selected Date</Label>
-                        <Input
-                            type="date"
-                            min={todayStr}
-                            value={form.selected_date}
-                            onChange={(e) => setForm(f => ({ ...f, selected_date: e.target.value, slot: "" }))}
-                        />
-                        <p className="text-xs text-muted-foreground">Only today or future dates are allowed</p>
-                    </div>
-                </div>
-
-                {/* Conversation */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-                    <div className="space-y-2">
-                        <Label>Conversation</Label>
-                        <FrappeSearchSelect
-                            doctype="Conversation"
-                            label="name"
-                            value={form.conversation}
-                            onChange={(v) => setForm(f => ({ ...f, conversation: v }))}
-                            placeholder="Link a conversation..."
-                        />
-                    </div>
-                </div>
             </div>
         </CreatePageLayout>
     );

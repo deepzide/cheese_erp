@@ -2,7 +2,7 @@
  "actions": [],
  "allow_import": 1,
  "allow_rename": 1,
- "autoname": "format:{experience}-{date_from}",
+ "autoname": "format:{experience}-{date_from}-{time_from}",
  "creation": "2024-01-01 00:00:00",
  "doctype": "DocType",
  "name": "Cheese Experience Slot",
@@ -11,6 +11,7 @@
  "field_order": [
   "slot_info",
   "experience",
+  "hotel",
   "calendar_section",
   "date_from",
   "date_to",
@@ -37,6 +38,13 @@
    "label": "Experience",
    "options": "Cheese Experience",
    "reqd": 1
+  },
+  {
+   "fieldname": "hotel",
+   "fieldtype": "Link",
+   "label": "Hotel",
+   "options": "Cheese Hotel",
+   "description": "Optional: link to hotel for shared availability across room-type experiences"
   },
   {
    "fieldname": "calendar_section",

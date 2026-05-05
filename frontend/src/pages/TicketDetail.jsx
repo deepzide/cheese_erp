@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { useFrappeDoc, useFrappeUpdate, useFrappeList } from "@/lib/useApiData";
 import { toast } from "sonner";
 import DetailPageLayout from "@/components/DetailPageLayout";
@@ -30,6 +31,7 @@ const formatSlotDateTime = (slot, selectedDate) => {
 export default function TicketDetail() {
     const { id } = useParams();
     const navigate = useNavigate();
+    const { t } = useTranslation();
 
     const { data: ticket, isLoading, refetch } = useFrappeDoc("Cheese Ticket", id);
     const updateMutation = useFrappeUpdate("Cheese Ticket");
@@ -67,6 +69,11 @@ export default function TicketDetail() {
                 slot: ticket.slot || "",
                 selected_date: ticket.selected_date || "",
                 party_size: ticket.party_size || 1,
+                rooms_requested: ticket.rooms_requested || 1,
+                check_in_date: ticket.check_in_date || "",
+                check_out_date: ticket.check_out_date || "",
+                nights: ticket.nights || 0,
+                room_number_assigned: ticket.room_number_assigned || "",
                 status: ticket.status || "PENDING",
                 expires_at: ticket.expires_at || "",
                 conversation: ticket.conversation || "",
@@ -77,13 +84,15 @@ export default function TicketDetail() {
         }
     }, [ticket]);
 
+    const isHotel = experienceDoc?.experience_type === "HOTEL";
+
     const handleFieldChange = (field, value) => {
         setForm(prev => ({ ...prev, [field]: value }));
     };
 
     const handleSave = () => {
         if (!form.contact || !form.experience || !form.slot) {
-            toast.error("Contact, Experience, and Slot are required.");
+            toast.error(t("tickets.validationError", "Contact, Experience, and Slot are required."));
             return;
         }
         const changes = {};
@@ -100,10 +109,10 @@ export default function TicketDetail() {
         }
         updateMutation.mutate({ name: id, data: changes }, {
             onSuccess: () => {
-                toast.success("Ticket updated successfully.");
+                toast.success(t("tickets.updateSuccess", "Ticket updated successfully."));
                 setEditMode(false);
             },
-            onError: (err) => toast.error(err?.message || "Failed to update ticket")
+            onError: (err) => toast.error(err?.message || t("tickets.updateError", "Failed to update ticket"))
         });
     };
 
@@ -114,24 +123,24 @@ export default function TicketDetail() {
                 body: JSON.stringify({ ticket_id: id }),
             });
             if (res?.data?.data?.deposit_id) {
-                toast.success("Remaining balance deposit created");
+                toast.success(t("tickets.remainingDepositSuccess", "Remaining balance deposit created"));
                 navigate(`/cheese/deposits/${res.data.data.deposit_id}`);
             }
         } catch (err) {
-            toast.error(err?.message || "Failed to create remaining balance deposit");
+            toast.error(err?.message || t("tickets.remainingDepositError", "Failed to create remaining balance deposit"));
         }
     };
 
     const getStatusBadge = (status) => {
         switch (status) {
-            case "PENDING": return <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200">Pending</Badge>;
-            case "CONFIRMED": return <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">Confirmed</Badge>;
-            case "CHECKED_IN": return <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-200">Checked In</Badge>;
-            case "COMPLETED": return <Badge variant="outline" className="bg-slate-50 text-slate-700 border-slate-200">Completed</Badge>;
+            case "PENDING": return <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200">{t("status.PENDING", "Pending")}</Badge>;
+            case "CONFIRMED": return <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">{t("status.CONFIRMED", "Confirmed")}</Badge>;
+            case "CHECKED_IN": return <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-200">{t("status.CHECKED_IN", "Checked In")}</Badge>;
+            case "COMPLETED": return <Badge variant="outline" className="bg-slate-50 text-slate-700 border-slate-200">{t("status.COMPLETED", "Completed")}</Badge>;
             case "EXPIRED":
             case "CANCELLED":
             case "NO_SHOW":
-            case "REJECTED": return <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200">{status.replace("_", " ")}</Badge>;
+            case "REJECTED": return <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200">{t(`status.${status}`, status.replace("_", " "))}</Badge>;
             default: return <Badge variant="outline">{status}</Badge>;
         }
     };
@@ -139,7 +148,11 @@ export default function TicketDetail() {
     // Computed financials
     const backendTotal = Number(ticket?.total_price || 0);
     const partySize = ticket?.party_size || form.party_size || 1;
-    const unitCost = partySize > 0 ? backendTotal / partySize : 0;
+    const roomsRequested = ticket?.rooms_requested || form.rooms_requested || 1;
+    const nights = ticket?.nights || form.nights || 0;
+    const unitCost = isHotel 
+        ? (roomsRequested > 0 && nights > 0 ? backendTotal / (roomsRequested * nights) : 0)
+        : (partySize > 0 ? backendTotal / partySize : 0);
     const totalPerTicket = backendTotal;
     const depositAmount = ticket?.deposit_amount || form.deposit_amount || 0;
     const totalDepositPaid = deposits.reduce((sum, d) => sum + (d.amount_paid || 0), 0);
@@ -149,13 +162,13 @@ export default function TicketDetail() {
     const remainingPaid = Math.max(totalDepositPaid - depositAmount, 0);
     const remainingPending = Math.max(remainingTotal - remainingPaid, 0);
 
-    const hasAdvancePaid = deposits.some(d => d.status === "PAID");
+    const hasAdvancePaid = depositAmount === 0 || deposits.some(d => d.status === "PAID" || d.status === "CONFIRMED");
     const hasNoPendingDeposit = !deposits.some(d => d.status === "PENDING" || d.status === "OVERDUE");
 
     return (
         <DetailPageLayout
             title={id}
-            subtitle={`Ticket for ${ticket?.contact || "Loading..."}`}
+            subtitle={`${t("tickets.ticketFor", "Ticket for")} ${ticket?.contact || t("common.loading", "Loading...")}`}
             backPath="/cheese/tickets"
             isLoading={isLoading}
             statusBadge={getStatusBadge(ticket?.status)}
@@ -168,8 +181,8 @@ export default function TicketDetail() {
                 <div className="lg:col-span-2 space-y-6">
                     <Tabs defaultValue="details" className="w-full">
                         <TabsList className="w-full justify-start h-12 bg-muted/50 p-1">
-                            <TabsTrigger value="details" className="flex-1 max-w-[200px] h-full data-[state=active]:bg-background data-[state=active]:shadow-sm"><Ticket className="w-4 h-4 mr-2" /> Details</TabsTrigger>
-                            <TabsTrigger value="financials" className="flex-1 max-w-[200px] h-full data-[state=active]:bg-background data-[state=active]:shadow-sm"><DollarSign className="w-4 h-4 mr-2" /> Financials</TabsTrigger>
+                            <TabsTrigger value="details" className="flex-1 max-w-[200px] h-full data-[state=active]:bg-background data-[state=active]:shadow-sm"><Ticket className="w-4 h-4 mr-2" /> {t("common.details", "Details")}</TabsTrigger>
+                            <TabsTrigger value="financials" className="flex-1 max-w-[200px] h-full data-[state=active]:bg-background data-[state=active]:shadow-sm"><DollarSign className="w-4 h-4 mr-2" /> {t("tickets.financials", "Financials")}</TabsTrigger>
                         </TabsList>
 
                         <TabsContent value="details" className="pt-4 space-y-6">
@@ -177,26 +190,30 @@ export default function TicketDetail() {
                             <Card className="border-border/60 shadow-sm">
                                 <CardHeader className="border-b bg-muted/20 pb-4">
                                     <CardTitle className="text-sm font-semibold text-muted-foreground uppercase flex items-center">
-                                        <Users className="w-4 h-4 mr-2" /> Guest & Booking Info
+                                        <Users className="w-4 h-4 mr-2" /> {t("tickets.guestBookingInfo", "Guest & Booking Info")}
                                     </CardTitle>
                                 </CardHeader>
                                 <CardContent className="p-6">
                                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-6 gap-x-8">
-                                        <EditableField label="Contact" value={form.contact} onChange={(v) => handleFieldChange("contact", v)} editMode={editMode} doctype="Cheese Contact" searchLabel="full_name" />
-                                        <EditableField label="Company" value={form.company} onChange={(v) => handleFieldChange("company", v)} editMode={editMode} doctype="Company" searchLabel="name" />
-                                        <EditableField label="Party Size" type="number" value={form.party_size} onChange={(v) => handleFieldChange("party_size", v)} editMode={editMode} />
+                                        <EditableField label={t("common.contact", "Contact")} value={form.contact} onChange={(v) => handleFieldChange("contact", v)} editMode={editMode} doctype="Cheese Contact" searchLabel="full_name" />
+                                        <EditableField label={t("common.company", "Company")} value={form.company} onChange={(v) => handleFieldChange("company", v)} editMode={editMode} doctype="Company" searchLabel="name" />
+                                        {isHotel ? (
+                                            <EditableField label={t("hotelReservations.roomsRequested", "Rooms Requested")} type="number" value={form.rooms_requested} onChange={(v) => handleFieldChange("rooms_requested", v)} editMode={editMode} />
+                                        ) : (
+                                            <EditableField label={t("hotelReservations.partySize", "Party Size")} type="number" value={form.party_size} onChange={(v) => handleFieldChange("party_size", v)} editMode={editMode} />
+                                        )}
                                         <div className="space-y-1">
                                             {editMode ? (
                                                 <div className="space-y-1.5 animate-in fade-in zoom-in-95 duration-200">
-                                                    <label className="text-xs text-muted-foreground">Status</label>
+                                                    <label className="text-xs text-muted-foreground">{t("common.status", "Status")}</label>
                                                     <select value={form.status} onChange={(e) => handleFieldChange("status", e.target.value)} className="flex h-9 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm ring-offset-background focus:outline-none focus:ring-1 focus:ring-ring">
                                                         {["PENDING", "CONFIRMED", "CHECKED_IN", "COMPLETED", "EXPIRED", "REJECTED", "CANCELLED", "NO_SHOW"].map(s => (
-                                                            <option key={s} value={s}>{s}</option>
+                                                            <option key={s} value={s}>{t(`status.${s}`, s)}</option>
                                                         ))}
                                                     </select>
                                                 </div>
                                             ) : (
-                                                <EditableField label="Status" value={form.status} editMode={false} />
+                                                <EditableField label={t("common.status", "Status")} value={t(`status.${form.status}`, form.status)} editMode={false} />
                                             )}
                                         </div>
                                     </div>
@@ -207,50 +224,64 @@ export default function TicketDetail() {
                             <Card className="border-border/60 shadow-sm">
                                 <CardHeader className="border-b bg-muted/20 pb-4">
                                     <CardTitle className="text-sm font-semibold text-muted-foreground uppercase flex items-center">
-                                        <MapPin className="w-4 h-4 mr-2" /> Experience Links
+                                        <MapPin className="w-4 h-4 mr-2" /> {t("tickets.experienceLinks", "Experience Links")}
                                     </CardTitle>
                                 </CardHeader>
                                 <CardContent className="p-6">
                                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-6 gap-x-8">
-                                        <EditableField label="Experience" value={form.experience} onChange={(v) => handleFieldChange("experience", v)} editMode={editMode} doctype="Cheese Experience" searchLabel="name" />
-                                        <EditableField label="Route" value={form.route} onChange={(v) => handleFieldChange("route", v)} editMode={editMode} doctype="Cheese Route" searchLabel="short_description" />
+                                        <EditableField label={t("tickets.experience", "Experience")} value={form.experience} onChange={(v) => handleFieldChange("experience", v)} editMode={editMode} doctype="Cheese Experience" searchLabel="name" />
+                                        <EditableField label={t("tickets.route", "Route")} value={form.route} onChange={(v) => handleFieldChange("route", v)} editMode={editMode} doctype="Cheese Route" searchLabel="short_description" />
                                         {editMode ? (
                                             <>
-                                                <EditableField label="Slot" value={form.slot} onChange={(v) => handleFieldChange("slot", v)} editMode={editMode} doctype="Cheese Experience Slot" searchLabel="name" />
-                                                <div className="space-y-1.5 animate-in fade-in zoom-in-95 duration-200">
-                                                    <label className="text-xs text-muted-foreground">Selected Date</label>
-                                                    <input type="date" value={form.selected_date || ""} onChange={(e) => handleFieldChange("selected_date", e.target.value)} className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring" />
-                                                </div>
+                                                <EditableField label={t("tickets.slot", "Slot")} value={form.slot} onChange={(v) => handleFieldChange("slot", v)} editMode={editMode} doctype="Cheese Experience Slot" searchLabel="name" />
+                                                {isHotel ? (
+                                                    <>
+                                                        <div className="space-y-1.5 animate-in fade-in zoom-in-95 duration-200">
+                                                            <label className="text-xs text-muted-foreground">{t("hotelReservations.checkInDate", "Check-in Date")}</label>
+                                                            <input type="date" value={form.check_in_date || ""} onChange={(e) => handleFieldChange("check_in_date", e.target.value)} className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring" />
+                                                        </div>
+                                                        <div className="space-y-1.5 animate-in fade-in zoom-in-95 duration-200">
+                                                            <label className="text-xs text-muted-foreground">{t("hotelReservations.checkOutDate", "Check-out Date")}</label>
+                                                            <input type="date" value={form.check_out_date || ""} onChange={(e) => handleFieldChange("check_out_date", e.target.value)} className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring" />
+                                                        </div>
+                                                        <EditableField label={t("tickets.roomAssigned", "Room Assigned")} value={form.room_number_assigned} onChange={(v) => handleFieldChange("room_number_assigned", v)} editMode={editMode} />
+                                                    </>
+                                                ) : (
+                                                    <div className="space-y-1.5 animate-in fade-in zoom-in-95 duration-200">
+                                                        <label className="text-xs text-muted-foreground">{t("tickets.selectedDate", "Selected Date")}</label>
+                                                        <input type="date" value={form.selected_date || ""} onChange={(e) => handleFieldChange("selected_date", e.target.value)} className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring" />
+                                                    </div>
+                                                )}
                                             </>
                                         ) : (
                                             <>
-                                                <EditableField label="Date" value={formatSlotDateTime(slotDoc, ticket?.selected_date).date} editMode={false} />
-                                                <EditableField label="Time" value={formatSlotDateTime(slotDoc, ticket?.selected_date).time} editMode={false} />
+                                                {isHotel ? (
+                                                    <>
+                                                        <EditableField label={t("hotelReservations.checkInDate", "Check-in")} value={form.check_in_date ? new Date(form.check_in_date + "T00:00:00").toLocaleDateString() : "—"} editMode={false} />
+                                                        <EditableField label={t("hotelReservations.checkOutDate", "Check-out")} value={form.check_out_date ? new Date(form.check_out_date + "T00:00:00").toLocaleDateString() : "—"} editMode={false} />
+                                                        <EditableField label={t("common.nights", "Nights")} value={form.nights} editMode={false} />
+                                                        <EditableField label={t("tickets.roomAssigned", "Room Assigned")} value={form.room_number_assigned || "—"} editMode={false} />
+                                                    </>
+                                                ) : (
+                                                    <>
+                                                        <EditableField label={t("common.date", "Date")} value={formatSlotDateTime(slotDoc, ticket?.selected_date).date} editMode={false} />
+                                                        <EditableField label={t("common.time", "Time")} value={formatSlotDateTime(slotDoc, ticket?.selected_date).time} editMode={false} />
+                                                    </>
+                                                )}
                                             </>
                                         )}
                                         {editMode ? (
                                             <div className="space-y-1.5 animate-in fade-in zoom-in-95 duration-200">
-                                                <label className="text-xs text-muted-foreground">Expires At</label>
+                                                <label className="text-xs text-muted-foreground">{t("tickets.expiresAt", "Expires At")}</label>
                                                 <input type="datetime-local" value={form.expires_at ? form.expires_at.substring(0, 16) : ""} onChange={(e) => handleFieldChange("expires_at", e.target.value)} className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring" />
                                             </div>
                                         ) : (
-                                            <EditableField label="Expires At" value={form.expires_at ? new Date(form.expires_at).toLocaleString() : ""} editMode={false} />
+                                            <EditableField label={t("tickets.expiresAt", "Expires At")} value={form.expires_at ? new Date(form.expires_at).toLocaleString() : ""} editMode={false} />
                                         )}
                                     </div>
                                 </CardContent>
                             </Card>
 
-                            {/* Linked Conversation Card */}
-                            <Card className="border-border/60 shadow-sm">
-                                <CardHeader className="border-b bg-muted/20 pb-4">
-                                    <CardTitle className="text-sm font-semibold text-muted-foreground uppercase flex items-center">
-                                        <MessageSquare className="w-4 h-4 mr-2" /> Related Conversation
-                                    </CardTitle>
-                                </CardHeader>
-                                <CardContent className="p-6">
-                                    <EditableField label="Conversation" value={form.conversation} onChange={(v) => handleFieldChange("conversation", v)} editMode={editMode} doctype="Conversation" searchLabel="name" />
-                                </CardContent>
-                            </Card>
                         </TabsContent>
 
                         {/* ─── Financials Tab ─── */}
@@ -259,7 +290,7 @@ export default function TicketDetail() {
                             <Card className="border-border/60 shadow-sm overflow-hidden">
                                 <CardHeader className="border-b bg-muted/20 pb-4">
                                     <CardTitle className="text-sm font-semibold text-muted-foreground uppercase flex items-center">
-                                        <Ticket className="w-4 h-4 mr-2" /> Experience Details
+                                        <Ticket className="w-4 h-4 mr-2" /> {t("tickets.experienceDetails", "Experience Details")}
                                     </CardTitle>
                                 </CardHeader>
                                 <CardContent className="p-0">
@@ -267,12 +298,12 @@ export default function TicketDetail() {
                                         <table className="w-full text-sm">
                                             <thead>
                                                 <tr className="bg-muted/30 text-muted-foreground text-xs uppercase">
-                                                    <th className="text-left px-4 py-3 font-semibold">Experience</th>
-                                                    <th className="text-left px-4 py-3 font-semibold">Ticket ID</th>
-                                                    <th className="text-right px-4 py-3 font-semibold">Unit Cost</th>
-                                                    <th className="text-center px-4 py-3 font-semibold">Party Size</th>
-                                                    <th className="text-right px-4 py-3 font-semibold">Total</th>
-                                                    <th className="text-right px-4 py-3 font-semibold">Seña 10%</th>
+                                                    <th className="text-left px-4 py-3 font-semibold">{t("tickets.experience", "Experience")}</th>
+                                                    <th className="text-left px-4 py-3 font-semibold">{t("tickets.ticketId", "Ticket ID")}</th>
+                                                    <th className="text-right px-4 py-3 font-semibold">{isHotel ? t("tickets.pricePerNight", "Price / Night") : t("tickets.unitCost", "Unit Cost")}</th>
+                                                    <th className="text-center px-4 py-3 font-semibold">{isHotel ? t("tickets.roomsXNights", "Rooms x Nights") : t("hotelReservations.partySize", "Party Size")}</th>
+                                                    <th className="text-right px-4 py-3 font-semibold">{t("common.total", "Total")}</th>
+                                                    <th className="text-right px-4 py-3 font-semibold">{t("tickets.advance", "Seña 10%")}</th>
                                                 </tr>
                                             </thead>
                                             <tbody>
@@ -284,7 +315,7 @@ export default function TicketDetail() {
                                                     </td>
                                                     <td className="px-4 py-3 font-mono text-xs text-muted-foreground">{id}</td>
                                                     <td className="px-4 py-3 text-right tabular-nums">{fmt(unitCost)}</td>
-                                                    <td className="px-4 py-3 text-center">{partySize}</td>
+                                                    <td className="px-4 py-3 text-center">{isHotel ? `${roomsRequested} x ${nights}` : partySize}</td>
                                                     <td className="px-4 py-3 text-right font-semibold tabular-nums">{fmt(totalPerTicket)}</td>
                                                     <td className="px-4 py-3 text-right tabular-nums">{fmt(depositAmount)}</td>
                                                 </tr>
@@ -298,7 +329,7 @@ export default function TicketDetail() {
                             <Card className="border-border/60 shadow-sm overflow-hidden">
                                 <CardHeader className="border-b bg-muted/20 pb-4">
                                     <CardTitle className="text-sm font-semibold text-muted-foreground uppercase flex items-center">
-                                        <DollarSign className="w-4 h-4 mr-2" /> Payment Information
+                                        <DollarSign className="w-4 h-4 mr-2" /> {t("tickets.paymentInformation", "Payment Information")}
                                     </CardTitle>
                                 </CardHeader>
                                 <CardContent className="p-0">
@@ -306,16 +337,16 @@ export default function TicketDetail() {
                                         <table className="w-full text-sm">
                                             <thead>
                                                 <tr className="bg-muted/30 text-muted-foreground text-xs uppercase">
-                                                    <th className="text-left px-4 py-3 font-semibold">Concept</th>
-                                                    <th className="text-right px-4 py-3 font-semibold">Total</th>
-                                                    <th className="text-right px-4 py-3 font-semibold">Paid</th>
-                                                    <th className="text-right px-4 py-3 font-semibold">Pending</th>
+                                                    <th className="text-left px-4 py-3 font-semibold">{t("tickets.concept", "Concept")}</th>
+                                                    <th className="text-right px-4 py-3 font-semibold">{t("common.total", "Total")}</th>
+                                                    <th className="text-right px-4 py-3 font-semibold">{t("tickets.paid", "Paid")}</th>
+                                                    <th className="text-right px-4 py-3 font-semibold">{t("tickets.pending", "Pending")}</th>
                                                 </tr>
                                             </thead>
                                             <tbody className="divide-y divide-border/50">
                                                 <tr className="hover:bg-muted/10">
                                                     <td className="px-4 py-2.5 flex items-center gap-2">
-                                                        <Wallet className="w-4 h-4 text-cheese-600" /> Seña (Advance)
+                                                        <Wallet className="w-4 h-4 text-cheese-600" /> {t("tickets.advancePayment", "Seña (Advance)")}
                                                     </td>
                                                     <td className="px-4 py-2.5 text-right tabular-nums">{fmt(depositAmount)}</td>
                                                     <td className="px-4 py-2.5 text-right tabular-nums text-emerald-600">{fmt(advancePaid)}</td>
@@ -323,7 +354,7 @@ export default function TicketDetail() {
                                                 </tr>
                                                 <tr className="hover:bg-muted/10">
                                                     <td className="px-4 py-2.5 flex items-center gap-2">
-                                                        <DollarSign className="w-4 h-4 text-cheese-600" /> Remanente
+                                                        <DollarSign className="w-4 h-4 text-cheese-600" /> {t("tickets.remainingBalance", "Remanente")}
                                                     </td>
                                                     <td className="px-4 py-2.5 text-right tabular-nums">{fmt(remainingTotal)}</td>
                                                     <td className="px-4 py-2.5 text-right tabular-nums text-emerald-600">{fmt(remainingPaid)}</td>
@@ -332,7 +363,7 @@ export default function TicketDetail() {
                                             </tbody>
                                             <tfoot>
                                                 <tr className="bg-muted/30 font-bold">
-                                                    <td className="px-4 py-3">Total</td>
+                                                    <td className="px-4 py-3">{t("common.total", "Total")}</td>
                                                     <td className="px-4 py-3 text-right tabular-nums">{fmt(totalPerTicket)}</td>
                                                     <td className="px-4 py-3 text-right tabular-nums text-emerald-600">{fmt(totalDepositPaid)}</td>
                                                     <td className="px-4 py-3 text-right tabular-nums text-red-600">{fmt(totalPerTicket - totalDepositPaid)}</td>
@@ -347,29 +378,29 @@ export default function TicketDetail() {
                             <Card className="border-border/60 shadow-sm overflow-hidden">
                                 <CardHeader className="border-b bg-muted/20 pb-4">
                                     <CardTitle className="text-sm font-semibold text-muted-foreground uppercase flex items-center">
-                                        <CreditCard className="w-4 h-4 mr-2" /> Ticket Card
+                                        <CreditCard className="w-4 h-4 mr-2" /> {t("tickets.ticketCard", "Ticket Card")}
                                     </CardTitle>
                                 </CardHeader>
                                 <CardContent className="p-0">
                                     <table className="w-full text-sm">
                                         <thead>
                                             <tr className="bg-muted/30 text-muted-foreground text-xs uppercase">
-                                                <th className="text-left px-4 py-3 font-semibold">Concept</th>
-                                                <th className="text-right px-4 py-3 font-semibold">Paid</th>
-                                                <th className="text-right px-4 py-3 font-semibold">Pending</th>
+                                                <th className="text-left px-4 py-3 font-semibold">{t("tickets.concept", "Concept")}</th>
+                                                <th className="text-right px-4 py-3 font-semibold">{t("tickets.paid", "Paid")}</th>
+                                                <th className="text-right px-4 py-3 font-semibold">{t("tickets.pending", "Pending")}</th>
                                             </tr>
                                         </thead>
                                         <tbody className="divide-y divide-border/50">
                                             <tr className="hover:bg-muted/10">
                                                 <td className="px-4 py-3 flex items-center gap-2">
-                                                    <Wallet className="w-4 h-4 text-cheese-600" /> Advance Payment
+                                                    <Wallet className="w-4 h-4 text-cheese-600" /> {t("tickets.advancePayment", "Advance Payment")}
                                                 </td>
                                                 <td className="px-4 py-3 text-right tabular-nums font-medium text-emerald-600">{fmt(advancePaid)}</td>
                                                 <td className="px-4 py-3 text-right tabular-nums font-medium text-red-600">{fmt(advancePending)}</td>
                                             </tr>
                                             <tr className="hover:bg-muted/10">
                                                 <td className="px-4 py-3 flex items-center gap-2">
-                                                    <DollarSign className="w-4 h-4 text-cheese-600" /> Remaining Balance
+                                                    <DollarSign className="w-4 h-4 text-cheese-600" /> {t("tickets.remainingBalance", "Remaining Balance")}
                                                 </td>
                                                 <td className="px-4 py-3 text-right tabular-nums font-medium text-emerald-600">{fmt(remainingPaid)}</td>
                                                 <td className="px-4 py-3 text-right tabular-nums font-medium text-red-600">{fmt(remainingPending)}</td>
@@ -384,7 +415,7 @@ export default function TicketDetail() {
                                 <Card className="border-border/60 shadow-sm">
                                     <CardHeader className="border-b bg-muted/20 pb-4">
                                         <CardTitle className="text-sm font-semibold text-muted-foreground uppercase">
-                                            Deposit Records
+                                            {t("tickets.depositRecords", "Deposit Records")}
                                         </CardTitle>
                                     </CardHeader>
                                     <CardContent className="p-0">
@@ -398,7 +429,7 @@ export default function TicketDetail() {
                                                     <div>
                                                         <p className="text-sm font-mono">{d.name}</p>
                                                         <p className="text-xs text-muted-foreground">
-                                                            Required: {fmt(d.amount_required)} • Paid: {fmt(d.amount_paid)}
+                                                            {t("tickets.required", "Required")}: {fmt(d.amount_required)} • {t("tickets.paid", "Paid")}: {fmt(d.amount_paid)}
                                                         </p>
                                                     </div>
                                                     <Badge variant="outline" className={
@@ -406,7 +437,7 @@ export default function TicketDetail() {
                                                         d.status === "PENDING" ? "bg-yellow-500/15 text-yellow-700 border-yellow-200" :
                                                         "bg-red-500/15 text-red-700 border-red-200"
                                                     }>
-                                                        {d.status}
+                                                        {t(`status.${d.status}`, d.status)}
                                                     </Badge>
                                                 </button>
                                             ))}
@@ -422,19 +453,19 @@ export default function TicketDetail() {
                 <div className="lg:col-span-1 space-y-6">
                     <Card className="border-border/60 shadow-sm">
                         <CardHeader className="border-b bg-muted/20 pb-4">
-                            <CardTitle className="text-sm font-semibold text-muted-foreground uppercase">System Information</CardTitle>
+                            <CardTitle className="text-sm font-semibold text-muted-foreground uppercase">{t("tickets.systemInfo", "System Information")}</CardTitle>
                         </CardHeader>
                         <CardContent className="p-6 space-y-4">
                             <div className="space-y-1">
-                                <Label className="text-xs text-muted-foreground">Ticket Created</Label>
+                                <Label className="text-xs text-muted-foreground">{t("tickets.ticketCreated", "Ticket Created")}</Label>
                                 <p className="text-sm font-medium">{ticket?.creation ? new Date(ticket.creation).toLocaleString() : "—"}</p>
                             </div>
                             <div className="space-y-1">
-                                <Label className="text-xs text-muted-foreground">Last Modified</Label>
+                                <Label className="text-xs text-muted-foreground">{t("tickets.lastModified", "Last Modified")}</Label>
                                 <p className="text-sm font-medium">{ticket?.modified ? new Date(ticket.modified).toLocaleString() : "—"}</p>
                             </div>
                             <div className="space-y-1">
-                                <Label className="text-xs text-muted-foreground">Owner</Label>
+                                <Label className="text-xs text-muted-foreground">{t("tickets.owner", "Owner")}</Label>
                                 <p className="text-sm font-medium">{ticket?.owner || "—"}</p>
                             </div>
                         </CardContent>
@@ -442,29 +473,29 @@ export default function TicketDetail() {
 
                     <Card className="border-border/60 shadow-sm bg-primary/5 border-primary/20">
                         <CardHeader className="pb-2">
-                            <CardTitle className="text-sm font-semibold text-primary">Ticket Workflows</CardTitle>
+                            <CardTitle className="text-sm font-semibold text-primary">{t("tickets.ticketWorkflows", "Ticket Workflows")}</CardTitle>
                         </CardHeader>
                         <CardContent className="space-y-2 p-4 pt-0">
                             <div className="flex flex-col gap-2">
                                 <Button variant="outline" size="sm" className="justify-start" onClick={() => navigate(`/cheese/deposits/new?ticket=${id}`)}>
-                                    <DollarSign className="w-4 h-4 mr-2" /> Register Deposit Payment
+                                    <DollarSign className="w-4 h-4 mr-2" /> {t("tickets.registerDepositPayment", "Register Deposit Payment")}
                                 </Button>
                                 {hasAdvancePaid && hasNoPendingDeposit && remainingPending > 0 && (
-                                    <Button variant="outline" size="sm" className="justify-start text-cheese-700" onClick={handleCreateRemainingDeposit}>
-                                        <Wallet className="w-4 h-4 mr-2" /> Pay Remaining Balance
+                                    <Button variant="outline" size="sm" className="justify-start text-cheese-700 border-cheese-300 hover:bg-cheese-50" onClick={handleCreateRemainingDeposit}>
+                                        <Wallet className="w-4 h-4 mr-2" /> {t("tickets.payRemainingBalance", "Pay Remaining Balance")}
                                     </Button>
                                 )}
                                 <Button variant="outline" size="sm" className="justify-start" onClick={() => navigate(`/cheese/bookings/new?ticket=${id}`)}>
-                                    <Briefcase className="w-4 h-4 mr-2" /> Convert to Final Booking
+                                    <Briefcase className="w-4 h-4 mr-2" /> {t("tickets.convertToFinalBooking", "Convert to Final Booking")}
                                 </Button>
                                 {ticket?.status !== "CONFIRMED" && (
                                     <Button variant="outline" size="sm" className="justify-start text-emerald-700" onClick={() => updateMutation.mutate({ name: id, data: { status: "CONFIRMED" } })} disabled={updateMutation.isPending}>
-                                        <CheckCircle className="w-4 h-4 mr-2" /> Mark as Confirmed
+                                        <CheckCircle className="w-4 h-4 mr-2" /> {t("tickets.markAsConfirmed", "Mark as Confirmed")}
                                     </Button>
                                 )}
                                 {ticket?.contact && (
                                     <Button variant="outline" size="sm" className="justify-start" onClick={() => navigate(`/cheese/contacts/${ticket.contact}`)}>
-                                        <Users className="w-4 h-4 mr-2" /> View Contact
+                                        <Users className="w-4 h-4 mr-2" /> {t("tickets.viewContact", "View Contact")}
                                     </Button>
                                 )}
                             </div>

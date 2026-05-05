@@ -29,6 +29,7 @@ class CheeseBankAccount(Document):
 
 	def validate(self):
 		"""Validate bank account data"""
+		self.title = f"{self.bank} - {self.account}"
 		self.sync_legacy_route_field()
 		self.validate_entity()
 
