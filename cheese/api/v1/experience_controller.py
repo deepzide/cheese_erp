@@ -119,7 +119,7 @@ def list_experiences(page=1, page_size=20, status=None, company=None, establishm
 			filters=filters,
 			or_filters=or_filters if or_filters else None,
 			fields=["name", "name as id", "name as experience_name", "company", "company as establishment", "description", "status", "package_mode", 
-				"individual_price", "route_price", "deposit_required", "is_room", "room_size"],
+				"individual_price", "route_price", "deposit_required", "is_room", "room_size", "experience_type"],
 			limit_start=(page - 1) * page_size,
 			limit_page_length=page_size,
 			order_by="name asc"
@@ -130,6 +130,12 @@ def list_experiences(page=1, page_size=20, status=None, company=None, establishm
 		company_ids = list({e.get("company") for e in experiences if e.get("company")})
 		bank_map = get_active_company_bank_accounts_map(company_ids)
 		for row in experiences:
+			# HOTEL experiences must be represented as room inventory in API payloads.
+			if row.get("experience_type") == "HOTEL":
+				row["is_room"] = 1
+			else:
+				row["is_room"] = 1 if row.get("is_room") else 0
+			row.pop("experience_type", None)
 			row["bank_account"] = bank_map.get(row.get("company"), [])
 
 		return paginated_response(
@@ -273,7 +279,7 @@ def get_experience_detail(experience_id, include_next_availability=True):
 					"individual_price": experience.individual_price,
 					"route_price": experience.route_price
 				},
-				"is_room": experience.is_room,
+				"is_room": 1 if experience.experience_type == "HOTEL" else (1 if experience.is_room else 0),
 				"room_size": experience.room_size,
 				"deposit": {
 					"deposit_required": experience.deposit_required,
