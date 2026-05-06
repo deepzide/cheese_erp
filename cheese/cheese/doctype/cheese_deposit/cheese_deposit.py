@@ -34,10 +34,11 @@ class CheeseDeposit(Document):
 		if self.amount_paid and self.amount_paid < 0:
 			frappe.throw(_("Amount Paid cannot be negative"))
 			
-		# Update status based on payment.
-		# Overpayments must also close the down payment as PAID unless it is in REVIEW.
-		if self.amount_paid and self.amount_paid >= self.amount_required:
-			if self.status != "REVIEW":
+		# Auto-mark fully paid only when status is not already a settled/manual state.
+		# Otherwise REFUNDED/CANCELLED/ADJUSTED (and REVIEW) would be overwritten back to PAID on save.
+		_payment_complete = bool(self.amount_paid and self.amount_paid >= self.amount_required)
+		if _payment_complete:
+			if self.status not in ("REVIEW", "REFUNDED", "CANCELLED", "ADJUSTED"):
 				self.status = "PAID"
 			if not self.paid_at:
 				self.paid_at = now_datetime()
