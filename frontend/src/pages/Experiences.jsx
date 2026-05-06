@@ -11,7 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Sparkles, Search, Plus, DollarSign, Calendar, Ticket, Shield, FileText, MoreHorizontal, AlertCircle, RefreshCw, Loader2, Eye } from "lucide-react";
+import { Sparkles, Search, Plus, DollarSign, Calendar, Ticket, Shield, FileText, MoreHorizontal, AlertCircle, RefreshCw, Loader2, Eye, BedDouble } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
 import { experienceService } from "@/api/experienceService";
@@ -233,6 +233,14 @@ export default function Experiences() {
                                     <Badge className={STATUS_BADGE[exp.status] || STATUS_BADGE.DRAFT}>{exp.status ? t(`status.${exp.status}`, exp.status) : t("status.DRAFT", "DRAFT")}</Badge>
                                     {exp.deposit_required && <Badge variant="outline" className="text-[10px]">{t("experiences.depositRequired", "Deposit Required")}</Badge>}
                                 </div>
+                                {Number(exp.is_room) === 1 && (
+                                    <div className="mt-2">
+                                        <Badge variant="outline" className="text-[10px] inline-flex items-center gap-1">
+                                            <BedDouble className="w-3 h-3" />
+                                            {t("experiences.roomSizeBadge", "Room · max {{count}} guests", { count: exp.room_size || 0 })}
+                                        </Badge>
+                                    </div>
+                                )}
                                 {exp.company && (
                                     <div className="mt-2 pt-2 border-t border-border">
                                         <span className="text-[10px] text-muted-foreground">{exp.company}</span>

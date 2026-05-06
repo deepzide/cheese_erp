@@ -9,8 +9,10 @@ import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Building2, Search, Plus, AlertCircle, RefreshCw, Landmark } from "lucide-react";
 import { establishmentService } from "@/api/establishmentService";
+import { useTranslation } from "react-i18next";
 
 export default function Establishments() {
+    const { t } = useTranslation();
     const navigate = useNavigate();
     const [searchTerm, setSearchTerm] = useState("");
     const [includeArchived, setIncludeArchived] = useState(false);
@@ -41,9 +43,9 @@ export default function Establishments() {
         return (
             <div className="p-6 flex flex-col items-center justify-center min-h-[400px] text-center">
                 <AlertCircle className="w-12 h-12 text-red-400 mb-4" />
-                <h2 className="text-lg font-semibold mb-2">Failed to load establishments</h2>
+                <h2 className="text-lg font-semibold mb-2">{t("establishments.loadFailed", "Failed to load establishments")}</h2>
                 <Button onClick={() => refetch()} variant="outline">
-                    <RefreshCw className="w-4 h-4 mr-2" /> Retry
+                    <RefreshCw className="w-4 h-4 mr-2" /> {t("common.retry", "Retry")}
                 </Button>
             </div>
         );
@@ -54,17 +56,17 @@ export default function Establishments() {
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
                     <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
-                        <Building2 className="w-6 h-6 text-cheese-600" /> Establishments
+                        <Building2 className="w-6 h-6 text-cheese-600" /> {t("nav.establishments", "Establishments")}
                     </h1>
                     <p className="text-sm text-muted-foreground mt-1">
-                        {isLoading ? "…" : `${filtered.length} establishments`}
+                        {isLoading ? "…" : t("establishments.count", { count: filtered.length, defaultValue: `${filtered.length} establishments` })}
                     </p>
                 </div>
                 <div className="flex flex-wrap gap-2 items-center">
                     <div className="relative">
                         <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
                         <Input
-                            placeholder="Search…"
+                            placeholder={t("common.search", "Search")}
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
                             className="pl-9 w-56 h-9"
@@ -76,13 +78,13 @@ export default function Establishments() {
                             checked={includeArchived}
                             onChange={(e) => setIncludeArchived(e.target.checked)}
                         />
-                        Show archived
+                        {t("establishments.showArchived", "Show archived")}
                     </label>
                     <Button
                         className="cheese-gradient text-black font-semibold border-0 h-9"
                         onClick={() => navigate("/cheese/establishments/new")}
                     >
-                        <Plus className="w-4 h-4 mr-1" /> Add company
+                        <Plus className="w-4 h-4 mr-1" /> {t("establishments.addCompany", "Add company")}
                     </Button>
                     <Button variant="ghost" size="icon" onClick={() => refetch()} className="h-9 w-9">
                         <RefreshCw className="w-4 h-4" />
@@ -111,9 +113,9 @@ export default function Establishments() {
                                         <div className="w-12 h-12 rounded-xl cheese-gradient flex items-center justify-center">
                                             <Plus className="w-6 h-6 text-black" />
                                         </div>
-                                        <span className="font-semibold text-foreground">Add company</span>
+                                        <span className="font-semibold text-foreground">{t("establishments.addCompany", "Add company")}</span>
                                         <span className="text-xs text-muted-foreground">
-                                            Create a new establishment
+                                            {t("establishments.createNewHint", "Create a new establishment")}
                                         </span>
                                     </CardContent>
                                 </Card>
@@ -155,10 +157,13 @@ export default function Establishments() {
                                                 </div>
                                                 <div className="flex items-center gap-2 text-xs text-muted-foreground mt-2">
                                                     <Landmark className="w-3.5 h-3.5" />
-                                                    {ba.length} bank account{ba.length !== 1 ? "s" : ""}
+                                                    {t("establishments.bankAccountsCount", { count: ba.length, defaultValue: `${ba.length} bank account${ba.length !== 1 ? "s" : ""}` })}
                                                 </div>
                                                 <p className="text-xs text-muted-foreground mt-1">
-                                                    {est.experiences_count ?? 0} experiences
+                                                    {t("establishments.experiencesCount", {
+                                                        count: est.experiences_count ?? 0,
+                                                        defaultValue: `${est.experiences_count ?? 0} experiences`,
+                                                    })}
                                                 </p>
                                             </CardContent>
                                         </Card>

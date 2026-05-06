@@ -138,28 +138,10 @@ def create_pending_booking(contact_id, items, preferred_dates=None, conversation
 				
 				route_booking_id = route_result.get("data", {}).get("route_booking_id")
 				
-				# Calculate route pricing
-				route = frappe.get_doc("Cheese Route", route_id)
-				if route.price_mode == "Manual" and route.price:
-					route_price = route.price * party_size
-				elif route.price_mode == "Sum":
-					route_price = 0
-					for exp_row in route.experiences:
-						exp = frappe.get_doc("Cheese Experience", exp_row.experience)
-						if exp.route_price:
-							route_price += exp.route_price * party_size
-						elif exp.individual_price:
-							route_price += exp.individual_price * party_size
-				else:
-					route_price = 0
-				
-				# Calculate deposit
-				deposit = 0
-				if route.deposit_required:
-					if route.deposit_type == "Amount":
-						deposit = route.deposit_value
-					elif route.deposit_type == "%":
-						deposit = (route_price * route.deposit_value) / 100
+				# Reuse the finalized values from route booking creation
+				route_payload = route_result.get("data", {}) or {}
+				route_price = route_payload.get("total_price", 0) or 0
+				deposit = route_payload.get("deposit_amount", 0) or 0
 				
 				total_price += route_price
 				total_deposit += deposit

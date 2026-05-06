@@ -1,5 +1,5 @@
 import frappe
-from frappe.utils import now_datetime
+from frappe.utils import now_datetime, get_datetime
 
 
 def auto_complete_checked_in_tickets():
@@ -7,40 +7,46 @@ def auto_complete_checked_in_tickets():
 	Move CHECKED_IN tickets to COMPLETED when the experience slot's end time
 	(selected_date or date_to + time_to) has passed.  Runs every 15 minutes via scheduler.
 	"""
-	from frappe.query_builder import DocType
-	from frappe.query_builder import functions as fn
-
-	ticket = DocType("Cheese Ticket")
-	slot = DocType("Cheese Experience Slot")
-
 	now = now_datetime()
 
 	# Add a 15-minute grace period after slot end time before auto-completing,
 	# so tickets aren't marked COMPLETED while guests are still in the experience.
 	grace_minutes = 15
 
-	# Use the ticket's selected_date if set, otherwise fall back to slot.date_to, then slot.date_from
-	effective_date = fn.Coalesce(ticket.selected_date, slot.date_to, slot.date_from)
-
-	# Build the effective end datetime and add grace period
-	effective_end = fn.Concat(effective_date, " ", fn.Coalesce(slot.time_to, "23:59:59"))
-
-	rows = (
-		frappe.qb.from_(ticket)
-		.join(slot).on(ticket.slot == slot.name)
-		.select(ticket.name, ticket.slot)
-		.where(ticket.status == "CHECKED_IN")
-		.where(
-			fn.TimestampDiff("MINUTE", effective_end, now) >= grace_minutes
-		)
-	).run(as_dict=True)
+	rows = frappe.get_all(
+		"Cheese Ticket",
+		filters={"status": "CHECKED_IN"},
+		fields=["name", "slot", "selected_date"],
+	)
 
 	completed = 0
 	for row in rows:
 		try:
+			if not row.slot:
+				continue
+			slot_data = frappe.db.get_value(
+				"Cheese Experience Slot",
+				row.slot,
+				["date_from", "date_to", "time_to"],
+				as_dict=True,
+			)
+			if not slot_data:
+				continue
+
+			effective_date = row.selected_date or slot_data.date_to or slot_data.date_from
+			if not effective_date:
+				continue
+			effective_time = slot_data.time_to or "23:59:59"
+			effective_end = get_datetime(f"{effective_date} {effective_time}")
+			if (now - effective_end).total_seconds() < grace_minutes * 60:
+				continue
+
 			doc = frappe.get_doc("Cheese Ticket", row.name)
+			if doc.status != "CHECKED_IN":
+				continue
 			doc.status = "COMPLETED"
-			doc.save()
+			doc.flags.ignore_validate = True
+			doc.save(ignore_permissions=True)
 			completed += 1
 		except Exception as e:
 			frappe.log_error(

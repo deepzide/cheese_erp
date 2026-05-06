@@ -10,7 +10,8 @@
  "engine": "InnoDB",
  "field_order": [
   "experience",
-  "sequence"
+  "sequence",
+  "start_time"
  ],
  "fields": [
   {
@@ -27,6 +28,12 @@
    "in_list_view": 1,
    "label": "Sequence",
    "reqd": 1
+  },
+  {
+   "fieldname": "start_time",
+   "fieldtype": "Time",
+   "in_list_view": 1,
+   "label": "Start Time"
   }
  ],
  "index_web_pages_for_search": 1,

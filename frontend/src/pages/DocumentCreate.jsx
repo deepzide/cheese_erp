@@ -9,6 +9,7 @@ import { useFrappeCreate } from "@/lib/useApiData";
 import CreatePageLayout from "@/components/CreatePageLayout";
 import FrappeSearchSelect from "@/components/FrappeSearchSelect";
 import { apiRequest } from "@/api/client";
+import { useTranslation } from "react-i18next";
 
 const ENTITY_DOCTYPE_MAP = {
     "Cheese Route": { doctype: "Cheese Route", label: "route_info" },
@@ -16,6 +17,7 @@ const ENTITY_DOCTYPE_MAP = {
 };
 
 export default function DocumentCreate() {
+    const { t } = useTranslation();
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
     const [form, setForm] = useState({

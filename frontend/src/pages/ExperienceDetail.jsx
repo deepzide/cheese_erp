@@ -73,6 +73,8 @@ export default function ExperienceDetail() {
                 price_per_night: exp.price_per_night || 0,
                 max_occupancy_per_unit: exp.max_occupancy_per_unit || 2,
                 min_nights_stay: exp.min_nights_stay || 1,
+                is_room: exp.is_room || 0,
+                room_size: exp.room_size || 0,
                 cancel_days_before: exp.cancel_days_before || 0,
                 modify_days_before: exp.modify_days_before || 0,
                 refund_policy: exp.refund_policy || "FULL",
@@ -350,6 +352,32 @@ export default function ExperienceDetail() {
                                                 <EditableField label={t("experiences.pricePerNight", "Price per Night ($)")} type="number" value={form.price_per_night} onChange={(v) => handleFieldChange("price_per_night", v)} editMode={editMode} />
                                                 <EditableField label={t("experiences.maxOccupancy", "Max Occupancy / Room")} type="number" value={form.max_occupancy_per_unit} onChange={(v) => handleFieldChange("max_occupancy_per_unit", v)} editMode={editMode} />
                                                 <EditableField label={t("experiences.minNightsStay", "Min Nights Stay")} type="number" value={form.min_nights_stay} onChange={(v) => handleFieldChange("min_nights_stay", v)} editMode={editMode} />
+                                                <div className="space-y-1">
+                                                    {editMode ? (
+                                                        <div className="space-y-1.5">
+                                                            <label className="text-xs text-muted-foreground">{t("experiences.isRoom", "Is Room")}</label>
+                                                            <select
+                                                                value={Number(form.is_room) === 1 ? "1" : "0"}
+                                                                onChange={(e) => handleFieldChange("is_room", Number(e.target.value))}
+                                                                className="flex h-9 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm ring-offset-background disabled:cursor-not-allowed disabled:opacity-50"
+                                                            >
+                                                                <option value="0">{t("common.no", "No")}</option>
+                                                                <option value="1">{t("common.yes", "Yes")}</option>
+                                                            </select>
+                                                        </div>
+                                                    ) : (
+                                                        <EditableField label={t("experiences.isRoom", "Is Room")} value={Number(form.is_room) === 1 ? t("common.yes", "Yes") : t("common.no", "No")} editMode={false} />
+                                                    )}
+                                                </div>
+                                                {Number(form.is_room) === 1 && (
+                                                    <EditableField
+                                                        label={t("experiences.roomSize", "Room Size (Max Guests)")}
+                                                        type="number"
+                                                        value={form.room_size}
+                                                        onChange={(v) => handleFieldChange("room_size", v)}
+                                                        editMode={editMode}
+                                                    />
+                                                )}
                                             </>
                                         ) : (
                                             <>

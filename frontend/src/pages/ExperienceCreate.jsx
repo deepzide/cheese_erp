@@ -17,12 +17,18 @@ export default function ExperienceCreate() {
 
     const [form, setForm] = useState({
         experience_info: "",
+        experience_type: "ACTIVITY",
         company: "",
         status: "OFFLINE",
         package_mode: "Both",
         individual_price: "",
         route_price: "",
         event_duration_hours: "",
+        price_per_night: "",
+        max_occupancy_per_unit: "",
+        min_nights_stay: 1,
+        is_room: false,
+        room_size: "",
         deposit_ttl_hours: 48,
         deposit_required: false,
         deposit_type: "Amount",
@@ -44,9 +50,9 @@ export default function ExperienceCreate() {
         const payload = {
             name: form.experience_info,
             experience_info: form.experience_info,
+            experience_type: form.experience_type,
             company: form.company,
             status: form.status,
-            experience_type: "ACTIVITY",
             package_mode: form.package_mode,
             deposit_required: form.deposit_required ? 1 : 0,
             deposit_type: form.deposit_type,
@@ -54,6 +60,11 @@ export default function ExperienceCreate() {
             individual_price: form.individual_price ? Number(form.individual_price) : 0,
             route_price: form.route_price ? Number(form.route_price) : 0,
             event_duration: hours > 0 ? Math.round(hours * 3600) : 0,
+            price_per_night: form.price_per_night ? Number(form.price_per_night) : 0,
+            max_occupancy_per_unit: form.max_occupancy_per_unit ? Number(form.max_occupancy_per_unit) : 0,
+            min_nights_stay: form.min_nights_stay ? Number(form.min_nights_stay) : 1,
+            is_room: form.is_room ? 1 : 0,
+            room_size: form.room_size ? Number(form.room_size) : 0,
             deposit_ttl_hours: form.deposit_ttl_hours ? Number(form.deposit_ttl_hours) : 48,
         };
 
@@ -106,6 +117,17 @@ export default function ExperienceCreate() {
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                    <div className="space-y-2">
+                        <Label>{t("experiences.type", "Type")}</Label>
+                        <select
+                            value={form.experience_type}
+                            onChange={(e) => handleChange("experience_type", e.target.value)}
+                            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring transition-all"
+                        >
+                            <option value="ACTIVITY">{t("experiences.activity", "Activity")}</option>
+                            <option value="HOTEL">{t("nav.hotels", "Hotel")}</option>
+                        </select>
+                    </div>
                     <div className="space-y-2">
                         <Label>{t("common.status", "Status")}</Label>
                         <select
@@ -172,6 +194,41 @@ export default function ExperienceCreate() {
                             />
                         </div>
                     </div>
+                    {form.experience_type === "HOTEL" && (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                            <div className="space-y-2">
+                                <Label>{t("experiences.pricePerNight", "Price per Night ($)")}</Label>
+                                <Input type="number" min="0" step="0.01" value={form.price_per_night} onChange={(e) => handleChange("price_per_night", e.target.value)} />
+                            </div>
+                            <div className="space-y-2">
+                                <Label>{t("experiences.maxOccupancy", "Max Occupancy per Unit")}</Label>
+                                <Input type="number" min="1" value={form.max_occupancy_per_unit} onChange={(e) => handleChange("max_occupancy_per_unit", e.target.value)} />
+                            </div>
+                            <div className="space-y-2">
+                                <Label>{t("experiences.minNightsStay", "Minimum Nights Stay")}</Label>
+                                <Input type="number" min="1" value={form.min_nights_stay} onChange={(e) => handleChange("min_nights_stay", e.target.value)} />
+                            </div>
+                            <div className="space-y-2">
+                                <div className="flex items-center gap-2 pt-7">
+                                    <input
+                                        type="checkbox"
+                                        id="is-room-create"
+                                        className="w-4 h-4 rounded border-gray-300 text-primary focus:ring-primary"
+                                        checked={form.is_room}
+                                        onChange={(e) => handleChange("is_room", e.target.checked)}
+                                    />
+                                    <Label htmlFor="is-room-create" className="cursor-pointer">{t("experiences.isRoom", "Is Room")}</Label>
+                                </div>
+                            </div>
+                            {form.is_room && (
+                                <div className="space-y-2 sm:col-span-2">
+                                    <Label>{t("experiences.roomSize", "Room Size (Max Guests)")}</Label>
+                                    <Input type="number" min="1" value={form.room_size} onChange={(e) => handleChange("room_size", e.target.value)} />
+                                    <p className="text-xs text-muted-foreground">{t("experiences.roomSizeHelp", "Maximum number of people that can book this room type.")}</p>
+                                </div>
+                            )}
+                        </div>
+                    )}
                 </div>
 
                 <hr className="border-border/50" />

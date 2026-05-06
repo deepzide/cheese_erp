@@ -21,6 +21,37 @@ import { Input } from "@/components/ui/input";
 import { apiRequest } from "@/api/client";
 import DocumentGallery from "@/components/DocumentGallery";
 
+const parseDurationToSeconds = (value) => {
+    if (value == null) return 0;
+    if (typeof value === "number") return Number.isFinite(value) ? value : 0;
+    const text = String(value).trim();
+    if (!text) return 0;
+    if (/^\d+$/.test(text)) return Number(text);
+    const parts = text.split(":").map((p) => Number(p));
+    if (parts.some((n) => Number.isNaN(n))) return 0;
+    if (parts.length === 3) return (parts[0] * 3600) + (parts[1] * 60) + parts[2];
+    if (parts.length === 2) return (parts[0] * 3600) + (parts[1] * 60);
+    return 0;
+};
+
+const parseTimeToSeconds = (timeValue) => {
+    if (!timeValue) return null;
+    const [h = "0", m = "0", s = "0"] = String(timeValue).split(":");
+    const hours = Number(h);
+    const minutes = Number(m);
+    const seconds = Number(s);
+    if ([hours, minutes, seconds].some((n) => Number.isNaN(n))) return null;
+    return (hours * 3600) + (minutes * 60) + seconds;
+};
+
+const secondsToTime = (totalSeconds) => {
+    if (totalSeconds == null) return null;
+    const safe = Math.max(Number(totalSeconds), 0);
+    const h = Math.floor(safe / 3600) % 24;
+    const m = Math.floor((safe % 3600) / 60);
+    return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+};
+
 export default function RouteDetail() {
     const { id } = useParams();
     const navigate = useNavigate();
@@ -35,6 +66,7 @@ export default function RouteDetail() {
     const [form, setForm] = useState({});
     const [experienceToAdd, setExperienceToAdd] = useState("");
     const [experienceIds, setExperienceIds] = useState([]);
+    const [startTimes, setStartTimes] = useState({});
     const [isSavingExperiences, setIsSavingExperiences] = useState(false);
     const [renameOpen, setRenameOpen] = useState(false);
     const [newId, setNewId] = useState("");
@@ -46,7 +78,14 @@ export default function RouteDetail() {
                 ? [...route.experiences].sort((a, b) => (a.sequence || 0) - (b.sequence || 0))
                 : [];
             const initialIds = sorted.map((row) => row.experience).filter(Boolean);
+            const initialStartTimes = {};
+            sorted.forEach((row) => {
+                if (row?.experience && row?.start_time) {
+                    initialStartTimes[row.experience] = String(row.start_time).slice(0, 5);
+                }
+            });
             setExperienceIds(initialIds);
+            setStartTimes(initialStartTimes);
             setForm({
                 short_description: route.short_description || "",
                 description: route.description || "",
@@ -132,7 +171,15 @@ export default function RouteDetail() {
     };
 
     const handleRemoveExperience = (index) => {
-        setExperienceIds((prev) => prev.filter((_, i) => i !== index));
+        setExperienceIds((prev) => {
+            const removedId = prev[index];
+            setStartTimes((current) => {
+                const next = { ...current };
+                delete next[removedId];
+                return next;
+            });
+            return prev.filter((_, i) => i !== index);
+        });
     };
 
     const handleAddExperienceToRoute = () => {
@@ -145,6 +192,7 @@ export default function RouteDetail() {
             return;
         }
         setExperienceIds((prev) => [...prev, experienceToAdd]);
+        setStartTimes((prev) => ({ ...prev, [experienceToAdd]: prev[experienceToAdd] || "" }));
         setExperienceToAdd("");
     };
 
@@ -158,7 +206,15 @@ export default function RouteDetail() {
             ? [...route.experiences].sort((a, b) => (a.sequence || 0) - (b.sequence || 0))
             : [];
         const currentIds = sortedCurrent.map((row) => row.experience).filter(Boolean);
-        const experiencesChanged = JSON.stringify(currentIds) !== JSON.stringify(experienceIds);
+        const currentSchedule = sortedCurrent.map((row) => ({
+            experience: row.experience,
+            start_time: row.start_time ? String(row.start_time).slice(0, 5) : "",
+        }));
+        const nextSchedule = experienceIds.map((expId) => ({
+            experience: expId,
+            start_time: startTimes[expId] || "",
+        }));
+        const experiencesChanged = JSON.stringify(currentIds) !== JSON.stringify(experienceIds) || JSON.stringify(currentSchedule) !== JSON.stringify(nextSchedule);
 
         // Calculate only what changed (scalar fields)
         const changes = {};
@@ -176,10 +232,38 @@ export default function RouteDetail() {
         try {
             // Save experiences ordering through backend controller (child table update).
             if (experiencesChanged) {
+                const scheduled = experienceIds
+                    .map((expId) => {
+                        const startTime = startTimes[expId];
+                        const startSeconds = parseTimeToSeconds(startTime);
+                        if (startSeconds == null) return null;
+                        const durationSeconds = parseDurationToSeconds(expById[expId]?.event_duration);
+                        return {
+                            expId,
+                            startSeconds,
+                            endSeconds: startSeconds + durationSeconds,
+                        };
+                    })
+                    .filter(Boolean)
+                    .sort((a, b) => a.startSeconds - b.startSeconds);
+
+                for (let i = 1; i < scheduled.length; i += 1) {
+                    if (scheduled[i - 1].endSeconds > scheduled[i].startSeconds) {
+                        const exp = expById[scheduled[i].expId];
+                        toast.error(
+                            t("routes.overlap", "Experience {{name}} overlaps with previous experience", {
+                                name: exp?.experience_info || exp?.name || scheduled[i].expId,
+                            })
+                        );
+                        return;
+                    }
+                }
+
                 setIsSavingExperiences(true);
                 const experiencesPayload = experienceIds.map((expId, idx) => ({
                     experience: expId,
                     sequence: idx + 1,
+                    start_time: startTimes[expId] ? `${startTimes[expId]}:00` : undefined,
                 }));
                 const res = await routeService.updateRoute(id, { experiences: experiencesPayload });
                 if (res?.success === false) {
@@ -497,7 +581,28 @@ export default function RouteDetail() {
                                                     <div key={`${expId}-${idx}`} className="p-4 flex items-center justify-between gap-4 hover:bg-muted/10 transition-colors">
                                                         <div className="flex items-center gap-2 min-w-0">
                                                             <span className="text-xs font-semibold bg-muted px-2 py-0.5 rounded text-muted-foreground">#{idx + 1}</span>
-                                                            <p className="font-medium text-sm truncate">{label}</p>
+                                                            <div className="min-w-0">
+                                                                <p className="font-medium text-sm truncate">{label}</p>
+                                                                <div className="mt-1 flex items-center gap-2">
+                                                                    {editMode ? (
+                                                                        <input
+                                                                            type="time"
+                                                                            className="h-7 rounded border border-input bg-background px-2 text-xs"
+                                                                            value={startTimes[expId] || ""}
+                                                                            onChange={(e) => setStartTimes((prev) => ({ ...prev, [expId]: e.target.value }))}
+                                                                        />
+                                                                    ) : startTimes[expId] ? (
+                                                                        <span className="text-xs text-muted-foreground">
+                                                                            {t("routes.startTime", "Start")}: {startTimes[expId]}
+                                                                        </span>
+                                                                    ) : null}
+                                                                    {startTimes[expId] && (
+                                                                        <span className="text-xs text-muted-foreground">
+                                                                            {t("routes.endTime", "End")}: {secondsToTime((parseTimeToSeconds(startTimes[expId]) || 0) + parseDurationToSeconds(exp?.event_duration)) || "—"}
+                                                                        </span>
+                                                                    )}
+                                                                </div>
+                                                            </div>
                                                         </div>
 
                                                         {editMode ? (

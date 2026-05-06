@@ -18,8 +18,18 @@ def _company_has_cheese_archived():
 
 
 def _company_has_cheese_establishment_fields():
-	"""Check if the new establishment custom fields exist on Company."""
-	return bool(frappe.get_meta("Company").get_field("cheese_payment_methods"))
+	"""Check if any Cheese establishment custom fields exist on Company."""
+	meta = frappe.get_meta("Company")
+	return any(
+		meta.get_field(fieldname)
+		for fieldname in (
+			"cheese_payment_methods",
+			"cheese_types",
+			"cheese_establishment_type",
+			"cheese_operating_hours",
+			"cheese_google_maps_link",
+		)
+	)
 
 
 def _company_has_is_hotel_field():
@@ -28,18 +38,21 @@ def _company_has_is_hotel_field():
 
 def _get_establishment_extra_fields(company):
 	"""Extract new establishment fields from a Company doc, returns a dict."""
+	meta = frappe.get_meta("Company")
 	fields = {}
 	if _company_has_is_hotel_field():
 		fields["is_hotel"] = bool(getattr(company, "cheese_is_hotel", 0))
 		fields["cheese_is_hotel"] = 1 if fields["is_hotel"] else 0
-	if _company_has_cheese_establishment_fields():
-		fields.update({
-			"payment_methods": getattr(company, "cheese_payment_methods", None),
-			"cheese_types": getattr(company, "cheese_types", None),
-			"establishment_type": getattr(company, "cheese_establishment_type", None),
-			"operating_hours": getattr(company, "cheese_operating_hours", None),
-			"google_maps_link": getattr(company, "cheese_google_maps_link", None),
-		})
+	if meta.get_field("cheese_payment_methods"):
+		fields["payment_methods"] = getattr(company, "cheese_payment_methods", None)
+	if meta.get_field("cheese_types"):
+		fields["cheese_types"] = getattr(company, "cheese_types", None)
+	if meta.get_field("cheese_establishment_type"):
+		fields["establishment_type"] = getattr(company, "cheese_establishment_type", None)
+	if meta.get_field("cheese_operating_hours"):
+		fields["operating_hours"] = getattr(company, "cheese_operating_hours", None)
+	if meta.get_field("cheese_google_maps_link"):
+		fields["google_maps_link"] = getattr(company, "cheese_google_maps_link", None)
 	return fields
 
 
@@ -413,6 +426,7 @@ def create_establishment(
 	email=None,
 	phone_no=None,
 	website=None,
+	google_maps_link=None,
 	is_hotel=0,
 	cheese_is_hotel=0,
 ):
@@ -459,6 +473,8 @@ def create_establishment(
 		}
 		if _company_has_is_hotel_field():
 			doc_data["cheese_is_hotel"] = 1 if cint(is_hotel) or cint(cheese_is_hotel) else 0
+		if frappe.get_meta("Company").get_field("cheese_google_maps_link"):
+			doc_data["cheese_google_maps_link"] = google_maps_link
 		doc = frappe.get_doc(doc_data)
 		doc.insert()
 		frappe.db.commit()
@@ -572,7 +588,8 @@ def update_establishment(company_id, **kwargs):
 		# Allowed fields for update (restrict operational fields)
 		allowed_fields = [
 			"company_name", "email", "phone_no", "website", 
-			"company_description", "company_logo", "administrator_contact"
+			"company_description", "company_logo", "administrator_contact",
+			"google_maps_link", "cheese_google_maps_link",
 		]
 		if _company_has_is_hotel_field():
 			allowed_fields.extend(["cheese_is_hotel", "is_hotel"])
@@ -583,6 +600,10 @@ def update_establishment(company_id, **kwargs):
 				if field == "is_hotel":
 					field = "cheese_is_hotel"
 					value = 1 if cint(value) else 0
+				if field == "google_maps_link":
+					field = "cheese_google_maps_link"
+				if field == "cheese_google_maps_link" and not frappe.get_meta("Company").get_field("cheese_google_maps_link"):
+					continue
 				old_value = getattr(company, field, None)
 				if old_value != value:
 					setattr(company, field, value)

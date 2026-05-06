@@ -20,6 +20,8 @@ import {
     ArchiveRestore,
     Trash2,
     AlertCircle,
+    MapPin,
+    ExternalLink,
 } from "lucide-react";
 import { toast } from "sonner";
 import { establishmentService } from "@/api/establishmentService";
@@ -62,6 +64,7 @@ export default function EstablishmentDetail() {
                 email: payload.email || "",
                 phone_no: payload.phone || "",
                 website: payload.website || "",
+                google_maps_link: payload.google_maps_link || "",
                 company_description: payload.description || "",
             });
         }
@@ -74,6 +77,7 @@ export default function EstablishmentDetail() {
                 email: form.email,
                 phone_no: form.phone_no,
                 website: form.website,
+                google_maps_link: form.google_maps_link,
                 company_description: form.company_description,
             }),
         onSuccess: (res) => {
@@ -252,6 +256,30 @@ export default function EstablishmentDetail() {
                                     />
                                 ) : (
                                     <p className="text-sm">{payload?.website || "—"}</p>
+                                )}
+                            </div>
+                            <div className="space-y-2 sm:col-span-2">
+                                <Label>{t("establishment.googleMapsLink", "Google Maps Link")}</Label>
+                                {editMode ? (
+                                    <Input
+                                        type="url"
+                                        value={form.google_maps_link}
+                                        onChange={(e) => setForm((f) => ({ ...f, google_maps_link: e.target.value }))}
+                                        placeholder={t("establishment.googleMapsPlaceholder", "https://maps.google.com/...")}
+                                    />
+                                ) : payload?.google_maps_link ? (
+                                    <a
+                                        href={payload.google_maps_link}
+                                        target="_blank"
+                                        rel="noreferrer"
+                                        className="inline-flex items-center gap-2 text-sm text-blue-600 hover:underline"
+                                    >
+                                        <MapPin className="w-4 h-4" />
+                                        <span>{t("establishment.googleMaps", "Google Maps")}</span>
+                                        <ExternalLink className="w-3 h-3" />
+                                    </a>
+                                ) : (
+                                    <p className="text-sm">—</p>
                                 )}
                             </div>
                             <div className="space-y-2 sm:col-span-2">

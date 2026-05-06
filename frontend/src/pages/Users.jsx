@@ -12,8 +12,10 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { userService } from "@/api/userService";
 import { toast } from "sonner";
+import { useTranslation } from "react-i18next";
 
 export default function UsersPage() {
+    const { t } = useTranslation();
     const queryClient = useQueryClient();
     const [searchTerm, setSearchTerm] = useState("");
     const [isAddOpen, setIsAddOpen] = useState(false);
@@ -61,22 +63,22 @@ export default function UsersPage() {
     const createMutation = useMutation({
         mutationFn: (data) => userService.createUser(data),
         onSuccess: () => {
-            toast.success("User created successfully");
+            toast.success(t("users.userCreated", "User created successfully"));
             setIsAddOpen(false);
             queryClient.invalidateQueries({ queryKey: ["users"] });
             resetForm();
         },
-        onError: (err) => toast.error(err.message || "Failed to create user")
+        onError: (err) => toast.error(err.message || t("users.createFailed", "Failed to create user"))
     });
 
     const updateMutation = useMutation({
         mutationFn: ({ id, data }) => userService.updateUser(id, data),
         onSuccess: () => {
-            toast.success("User updated successfully");
+            toast.success(t("users.userUpdated", "User updated successfully"));
             setIsEditOpen(false);
             queryClient.invalidateQueries({ queryKey: ["users"] });
         },
-        onError: (err) => toast.error(err.message || "Failed to update user")
+        onError: (err) => toast.error(err.message || t("users.updateFailed", "Failed to update user"))
     });
 
     const resetForm = () => {
@@ -99,7 +101,7 @@ export default function UsersPage() {
     const handleSave = () => {
         if (isAddOpen) {
             if (!formData.email || !formData.full_name || !formData.company) {
-                toast.error("Email, name, and company are required");
+                toast.error(t("users.emailNameCompanyRequired", "Email, name, and company are required"));
                 return;
             }
             createMutation.mutate({
@@ -125,9 +127,9 @@ export default function UsersPage() {
         return (
             <div className="p-6 flex flex-col items-center justify-center min-h-[400px] text-center">
                 <AlertCircle className="w-12 h-12 text-red-400 mb-4" />
-                <h2 className="text-lg font-semibold mb-2">Failed to load users</h2>
+                <h2 className="text-lg font-semibold mb-2">{t("users.loadFailed", "Failed to load users")}</h2>
                 <Button onClick={() => refetch()} variant="outline">
-                    <RefreshCw className="w-4 h-4 mr-2" /> Retry
+                    <RefreshCw className="w-4 h-4 mr-2" /> {t("common.retry", "Retry")}
                 </Button>
             </div>
         );
@@ -138,22 +140,22 @@ export default function UsersPage() {
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
                     <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
-                        <Users className="w-6 h-6 text-cheese-600" /> System Users
+                        <Users className="w-6 h-6 text-cheese-600" /> {t("users.systemUsers", "System Users")}
                     </h1>
                     <p className="text-sm text-muted-foreground mt-1">
-                        {isLoading ? "…" : `${filtered.length} active users`}
+                        {isLoading ? "…" : t("users.activeUsersCount", { count: filtered.length, defaultValue: `${filtered.length} active users` })}
                     </p>
                 </div>
                 <div className="flex flex-wrap gap-2 items-center">
                     <div className="relative">
                         <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-                        <Input placeholder="Search users…" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-9 w-56 h-9" />
+                        <Input placeholder={t("users.searchUsers", "Search users...")} value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-9 w-56 h-9" />
                     </div>
                     <Button variant="ghost" size="icon" onClick={() => refetch()} className="h-9 w-9">
                         <RefreshCw className="w-4 h-4" />
                     </Button>
                     <Button onClick={() => { resetForm(); setIsAddOpen(true); }} className="h-9 gap-2">
-                        <Plus className="w-4 h-4" /> Add User
+                        <Plus className="w-4 h-4" /> {t("users.addUser", "Add User")}
                     </Button>
                 </div>
             </div>
@@ -183,7 +185,7 @@ export default function UsersPage() {
                                             </div>
                                         </div>
                                         <Badge className={user.enabled ? "bg-emerald-500/15 text-emerald-700" : "bg-red-500/15 text-red-700"}>
-                                            {user.enabled ? "Active" : "Disabled"}
+                                            {user.enabled ? t("users.active", "Active") : t("users.disabled", "Disabled")}
                                         </Badge>
                                     </div>
                                     <div className="space-y-2 flex-1 text-xs text-muted-foreground mt-2">
@@ -197,14 +199,14 @@ export default function UsersPage() {
                                         )}
                                         {user.last_active && (
                                             <div className="flex items-center gap-2">
-                                                <Calendar className="w-3.5 h-3.5" /> Last active: {new Date(user.last_active).toLocaleDateString()}
+                                                <Calendar className="w-3.5 h-3.5" /> {t("users.lastActive", "Last active")}: {new Date(user.last_active).toLocaleDateString()}
                                             </div>
                                         )}
                                     </div>
                                     
                                     <div className="absolute right-3 bottom-3 opacity-0 group-hover:opacity-100 transition-opacity">
                                         <Button size="sm" variant="secondary" onClick={() => handleEditClick(user)}>
-                                            <Edit2 className="w-3.5 h-3.5 mr-1" /> Edit
+                                            <Edit2 className="w-3.5 h-3.5 mr-1" /> {t("common.edit", "Edit")}
                                         </Button>
                                     </div>
                                 </CardContent>
@@ -216,7 +218,7 @@ export default function UsersPage() {
             {!isLoading && filtered.length === 0 && (
                 <div className="text-center py-16">
                     <Users className="w-12 h-12 text-muted-foreground/30 mx-auto mb-4" />
-                    <h3 className="text-lg font-semibold text-muted-foreground">No users found</h3>
+                    <h3 className="text-lg font-semibold text-muted-foreground">{t("users.noUsersFound", "No users found")}</h3>
                 </div>
             )}
 
@@ -226,34 +228,34 @@ export default function UsersPage() {
             }}>
                 <DialogContent className="sm:max-w-[425px]">
                     <DialogHeader>
-                        <DialogTitle>{isAddOpen ? "Add New User" : "Edit User"}</DialogTitle>
+                        <DialogTitle>{isAddOpen ? t("users.addNewUser", "Add New User") : t("users.editUser", "Edit User")}</DialogTitle>
                         <DialogDescription>
-                            {isAddOpen ? "Create a new establishment user." : "Update user details and access."}
+                            {isAddOpen ? t("users.createUserDesc", "Create a new establishment user.") : t("users.updateUserDesc", "Update user details and access.")}
                         </DialogDescription>
                     </DialogHeader>
                     <div className="grid gap-4 py-4">
                         <div className="grid gap-2">
-                            <Label>Email (Login ID) *</Label>
+                            <Label>{t("users.emailLoginId", "Email (Login ID)")} *</Label>
                             <Input 
-                                placeholder="user@company.com" 
+                                placeholder={t("users.emailPlaceholder", "user@company.com")} 
                                 value={formData.email}
                                 onChange={(e) => setFormData({...formData, email: e.target.value})}
                                 disabled={isEditOpen} 
                             />
                         </div>
                         <div className="grid gap-2">
-                            <Label>Full Name *</Label>
+                            <Label>{t("users.fullName", "Full Name")} *</Label>
                             <Input 
-                                placeholder="John Doe" 
+                                placeholder={t("users.fullNamePlaceholder", "John Doe")} 
                                 value={formData.full_name}
                                 onChange={(e) => setFormData({...formData, full_name: e.target.value})}
                             />
                         </div>
                         <div className="grid gap-2">
-                            <Label>Assigned Company *</Label>
+                            <Label>{t("users.assignedCompany", "Assigned Company")} *</Label>
                             <Select value={formData.company} onValueChange={(val) => setFormData({...formData, company: val})}>
                                 <SelectTrigger>
-                                    <SelectValue placeholder="Select a company" />
+                                    <SelectValue placeholder={t("users.selectCompany", "Select a company")} />
                                 </SelectTrigger>
                                 <SelectContent>
                                     {companies.map(c => (
@@ -263,7 +265,7 @@ export default function UsersPage() {
                             </Select>
                         </div>
                         <div className="grid gap-2">
-                            <Label>Password {isEditOpen && "(Leave blank to keep unchanged)"}</Label>
+                            <Label>{t("auth.password", "Password")} {isEditOpen && `(${t("users.passwordKeepBlank", "Leave blank to keep unchanged")})`}</Label>
                             <Input 
                                 type="password" 
                                 placeholder="••••••••" 
@@ -276,10 +278,10 @@ export default function UsersPage() {
                                 <div className="space-y-0.5">
                                     <Label className="text-base flex items-center gap-2">
                                         {formData.enabled ? <CheckCircle2 className="w-4 h-4 text-emerald-500"/> : <ShieldOff className="w-4 h-4 text-red-500"/>}
-                                        Active Account
+                                        {t("users.activeAccount", "Active Account")}
                                     </Label>
                                     <p className="text-sm text-muted-foreground">
-                                        Allow user to log in
+                                        {t("users.allowLogin", "Allow user to log in")}
                                     </p>
                                 </div>
                                 <input 
@@ -292,9 +294,9 @@ export default function UsersPage() {
                         )}
                     </div>
                     <DialogFooter>
-                        <Button variant="outline" onClick={() => { setIsAddOpen(false); setIsEditOpen(false); resetForm(); }}>Cancel</Button>
+                        <Button variant="outline" onClick={() => { setIsAddOpen(false); setIsEditOpen(false); resetForm(); }}>{t("common.cancel", "Cancel")}</Button>
                         <Button onClick={handleSave} disabled={createMutation.isPending || updateMutation.isPending}>
-                            {createMutation.isPending || updateMutation.isPending ? "Saving..." : "Save User"}
+                            {createMutation.isPending || updateMutation.isPending ? t("common.saving", "Saving...") : t("users.saveUser", "Save User")}
                         </Button>
                     </DialogFooter>
                 </DialogContent>

@@ -12,6 +12,7 @@ import { UserCheck, Search, Filter, Clock, AlertCircle, RefreshCw, Ticket, QrCod
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { apiRequest } from "@/api/client";
 import FrappeSearchSelect from "@/components/FrappeSearchSelect";
+import { useTranslation } from "react-i18next";
 
 const STATUS_CONFIG = {
     PRESENT: { label: "Present", badge: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400" },
@@ -22,6 +23,7 @@ const METHOD_BADGE = {
 };
 
 export default function Attendance() {
+    const { t } = useTranslation();
     const navigate = useNavigate();
     const [searchTerm, setSearchTerm] = useState("");
     const [filterStatus, setFilterStatus] = useState("all");
@@ -68,7 +70,7 @@ export default function Attendance() {
                     <p className="text-sm text-muted-foreground mt-1">{isLoading ? '...' : `${filtered.length} records`}</p>
                 </div>
                 <div className="flex gap-2 flex-wrap">
-                    <div className="relative"><Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" /><Input placeholder="Search ticket..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-9 w-56 h-9" /></div>
+                    <div className="relative"><Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" /><Input placeholder={t("attendance.searchTicket", "Buscar ticket...")} value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-9 w-56 h-9" /></div>
                     <Select value={filterStatus} onValueChange={setFilterStatus}>
                         <SelectTrigger className="w-36 h-9"><Filter className="w-3 h-3 mr-1" /><SelectValue /></SelectTrigger>
                         <SelectContent>
@@ -78,10 +80,10 @@ export default function Attendance() {
                         </SelectContent>
                     </Select>
                     <div className="w-48">
-                        <FrappeSearchSelect doctype="Cheese Route" label="name" value={routeId} onChange={setRouteId} placeholder="Route..." />
+                        <FrappeSearchSelect doctype="Cheese Route" label="name" value={routeId} onChange={setRouteId} placeholder={t("attendance.route", "Ruta...")} />
                     </div>
                     <div className="w-48">
-                        <FrappeSearchSelect doctype="Company" label="name" value={companyId} onChange={setCompanyId} placeholder="Establishment..." />
+                        <FrappeSearchSelect doctype="Company" label="name" value={companyId} onChange={setCompanyId} placeholder={t("attendance.establishment", "Establecimiento...")} />
                     </div>
                     <Button variant="ghost" size="icon" onClick={() => refetch()} className="h-9 w-9"><RefreshCw className="w-4 h-4" /></Button>
                 </div>
@@ -127,7 +129,7 @@ export default function Attendance() {
             </div>
 
             {!isLoading && filtered.length === 0 && (
-                <div className="text-center py-16"><UserCheck className="w-16 h-16 text-muted-foreground/20 mx-auto mb-4" /><p className="text-muted-foreground">No attendance records</p></div>
+                <div className="text-center py-16"><UserCheck className="w-16 h-16 text-muted-foreground/20 mx-auto mb-4" /><p className="text-muted-foreground">No attendance {t("attendance.records", "registros")}</p></div>
             )}
         </motion.div>
     );

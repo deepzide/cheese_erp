@@ -12,6 +12,7 @@ import { QrCode, Search, Filter, Clock, AlertCircle, RefreshCw, Ticket, MoreHori
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { useFrappeList } from "@/lib/useApiData";
 import { getBaseUrl } from "@/api/client";
+import { useTranslation } from "react-i18next";
 
 const STATUS_CONFIG = {
     ACTIVE: { label: "Active", badge: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400" },
@@ -21,6 +22,7 @@ const STATUS_CONFIG = {
 };
 
 export default function QRTokens() {
+    const { t } = useTranslation();
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
     const [searchTerm, setSearchTerm] = useState(searchParams.get('ticket') || "");
@@ -43,7 +45,7 @@ export default function QRTokens() {
     if (error) {
         return (
             <div className="p-6 flex flex-col items-center justify-center min-h-[400px] text-center">
-                <AlertCircle className="w-12 h-12 text-red-400 mb-4" /><h2 className="text-lg font-semibold mb-2">Failed to load QR tokens</h2>
+                <AlertCircle className="w-12 h-12 text-red-400 mb-4" /><h2 className="text-lg font-semibold mb-2">Failed to load QR {t("qrTokens.tokens", "tokens")}</h2>
                 <Button onClick={() => refetch()} variant="outline"><RefreshCw className="w-4 h-4 mr-2" /> Retry</Button>
             </div>
         );
@@ -57,7 +59,7 @@ export default function QRTokens() {
                     <p className="text-sm text-muted-foreground mt-1">{isLoading ? '...' : `${filtered.length} tokens`}</p>
                 </div>
                 <div className="flex gap-2">
-                    <div className="relative"><Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" /><Input placeholder="Search ticket..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-9 w-56 h-9" /></div>
+                    <div className="relative"><Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" /><Input placeholder={t("qrTokens.searchTicket", "Buscar ticket...")} value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-9 w-56 h-9" /></div>
                     <Select value={filterStatus} onValueChange={setFilterStatus}>
                         <SelectTrigger className="w-36 h-9"><Filter className="w-3 h-3 mr-1" /><SelectValue /></SelectTrigger>
                         <SelectContent>
