@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { motion } from "framer-motion";
 import { useNavigate, useSearchParams } from "react-router-dom";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -8,12 +9,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Landmark, Search, Plus, AlertCircle, RefreshCw, Loader2, MoreHorizontal, Route, CheckCircle, XCircle } from "lucide-react";
+import { Landmark, Search, Plus, AlertCircle, RefreshCw, Loader2, MoreHorizontal, Route, Trash2 } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
 import { useFrappeList, useFrappeCreate } from "@/lib/useApiData";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useTranslation } from "react-i18next";
+import { bankAccountService } from "@/api/bankAccountService";
 
 const STATUS_BADGE = {
     ACTIVE: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400",
@@ -24,9 +26,11 @@ const STATUS_BADGE = {
 export default function BankAccounts() {
     const { t } = useTranslation();
     const navigate = useNavigate();
+    const queryClient = useQueryClient();
     const [searchParams] = useSearchParams();
     const [searchTerm, setSearchTerm] = useState("");
     const [createOpen, setCreateOpen] = useState(false);
+    const [deleteTarget, setDeleteTarget] = useState(null);
     const [form, setForm] = useState({ entity_type: "Cheese Route", entity_id: searchParams.get('route') || "", holder: "", bank: "", account: "", iban: "", currency: "EUR" });
     const routeFilter = searchParams.get('route');
 
@@ -37,6 +41,21 @@ export default function BankAccounts() {
     });
 
     const createMutation = useFrappeCreate("Cheese Bank Account");
+
+    const deleteMutation = useMutation({
+        mutationFn: (name) => bankAccountService.deleteBankAccount(name),
+        onSuccess: (res) => {
+            if (!res?.success) {
+                toast.error(t("common.failed", "Failed"));
+                return;
+            }
+            toast.success(t("bankAccounts.deleteSuccess", "Bank account deleted"));
+            setDeleteTarget(null);
+            queryClient.invalidateQueries({ queryKey: ["frappe-list", "Cheese Bank Account"] });
+            refetch();
+        },
+        onError: (err) => toast.error(err?.message || t("common.failed", "Failed")),
+    });
 
     const filtered = (Array.isArray(accounts) ? accounts : []).filter(a => {
         if (searchTerm) {
@@ -94,8 +113,14 @@ export default function BankAccounts() {
                                         <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8 opacity-0 group-hover:opacity-100"><MoreHorizontal className="w-4 h-4" /></Button></DropdownMenuTrigger>
                                         <DropdownMenuContent align="end">
                                             {account.entity_type === "Cheese Route" && (
-                                                <DropdownMenuItem onClick={() => navigate(`/cheese/routes?search=${account.entity_id || account.route}`)}><Route className="w-3 h-3 mr-2" /> {t("bankAccounts.viewRoute", "View Route")}</DropdownMenuItem>
+                                                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); navigate(`/cheese/routes?search=${account.entity_id || account.route}`); }}><Route className="w-3 h-3 mr-2" /> {t("bankAccounts.viewRoute", "View Route")}</DropdownMenuItem>
                                             )}
+                                            <DropdownMenuItem
+                                                className="text-destructive focus:text-destructive"
+                                                onClick={(e) => { e.stopPropagation(); setDeleteTarget(account); }}
+                                            >
+                                                <Trash2 className="w-3 h-3 mr-2" /> {t("common.delete", "Delete")}
+                                            </DropdownMenuItem>
                                         </DropdownMenuContent>
                                     </DropdownMenu>
                                 </div>
@@ -151,6 +176,33 @@ export default function BankAccounts() {
                         <Button variant="outline" onClick={() => setCreateOpen(false)}>{t("common.cancel", "Cancel")}</Button>
                         <Button className="cheese-gradient text-black font-semibold border-0" onClick={() => createMutation.mutate({ ...form, route: form.entity_type === "Cheese Route" ? form.entity_id : undefined }, { onSuccess: () => { setCreateOpen(false); toast.success(t("bankAccounts.accountAdded", "Account added")); } })} disabled={createMutation.isPending}>
                             {createMutation.isPending ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Plus className="w-4 h-4 mr-1" />} {t("common.create", "Create")}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            <Dialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+                <DialogContent onClick={(e) => e.stopPropagation()}>
+                    <DialogHeader>
+                        <DialogTitle>{t("bankAccounts.confirmDelete", "Delete bank account?")}</DialogTitle>
+                        <DialogDescription>
+                            {deleteTarget?.holder || deleteTarget?.name ? (
+                                <span className="font-medium text-foreground">{deleteTarget.holder || deleteTarget.name}</span>
+                            ) : null}{" "}
+                            {t(
+                                "bankAccounts.confirmDeleteDesc",
+                                "This cannot be undone. Deposits that still reference this account must be updated first.",
+                            )}
+                        </DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setDeleteTarget(null)}>{t("common.cancel", "Cancel")}</Button>
+                        <Button
+                            variant="destructive"
+                            disabled={deleteMutation.isPending}
+                            onClick={() => deleteTarget && deleteMutation.mutate(deleteTarget.name)}
+                        >
+                            {deleteMutation.isPending ? t("common.deleting", "Deleting…") : t("common.delete", "Delete")}
                         </Button>
                     </DialogFooter>
                 </DialogContent>

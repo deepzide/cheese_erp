@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useFrappeDoc, useFrappeUpdate } from "@/lib/useApiData";
 import { toast } from "sonner";
 import DetailPageLayout from "@/components/DetailPageLayout";
@@ -7,17 +8,44 @@ import EditableField from "@/components/EditableField";
 import { Label } from "@/components/ui/label";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Landmark, MapPin, Building2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from "@/components/ui/dialog";
+import { Landmark, Building2, Trash2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { bankAccountService } from "@/api/bankAccountService";
 
 export default function BankAccountDetail() {
     const { t } = useTranslation();
     const { id } = useParams();
     const navigate = useNavigate();
+    const queryClient = useQueryClient();
     const { data: account, isLoading } = useFrappeDoc("Cheese Bank Account", id);
     const updateMutation = useFrappeUpdate("Cheese Bank Account");
     const [editMode, setEditMode] = useState(false);
     const [form, setForm] = useState({});
+    const [deleteOpen, setDeleteOpen] = useState(false);
+
+    const deleteMutation = useMutation({
+        mutationFn: () => bankAccountService.deleteBankAccount(id),
+        onSuccess: (res) => {
+            if (!res?.success) {
+                toast.error(t("common.failed", "Failed"));
+                return;
+            }
+            toast.success(t("bankAccounts.deleteSuccess", "Bank account deleted"));
+            queryClient.invalidateQueries({ queryKey: ["frappe-list", "Cheese Bank Account"] });
+            setDeleteOpen(false);
+            navigate("/cheese/bank-accounts");
+        },
+        onError: (err) => toast.error(err?.message || t("common.failed", "Failed")),
+    });
 
     useEffect(() => {
         if (account) {
@@ -152,6 +180,30 @@ export default function BankAccountDetail() {
 
                 {/* Right Sidebar */}
                 <div className="space-y-6">
+                    <Card className="border-border/60 shadow-sm border-destructive/20">
+                        <CardHeader className="border-b bg-muted/20 pb-4">
+                            <CardTitle className="text-sm font-semibold text-destructive">{t("common.dangerZone", "Danger zone")}</CardTitle>
+                        </CardHeader>
+                        <CardContent className="p-6">
+                            <p className="text-xs text-muted-foreground mb-3">
+                                {t(
+                                    "bankAccounts.deleteHint",
+                                    "Delete this bank account only if no deposits reference it.",
+                                )}
+                            </p>
+                            <Button
+                                variant="destructive"
+                                size="sm"
+                                className="w-full"
+                                onClick={() => setDeleteOpen(true)}
+                                disabled={deleteMutation.isPending}
+                            >
+                                <Trash2 className="w-4 h-4 mr-2" />
+                                {t("bankAccounts.deleteAccount", "Delete bank account")}
+                            </Button>
+                        </CardContent>
+                    </Card>
+
                     <Card className="border-border/60 shadow-sm">
                         <CardHeader className="border-b bg-muted/20 pb-4">
                             <CardTitle className="text-sm font-semibold text-muted-foreground uppercase">System Information</CardTitle>
@@ -173,6 +225,28 @@ export default function BankAccountDetail() {
                     </Card>
                 </div>
             </div>
+
+            <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>{t("bankAccounts.confirmDelete", "Delete bank account?")}</DialogTitle>
+                        <DialogDescription>
+                            {t(
+                                "bankAccounts.confirmDeleteDesc",
+                                "This cannot be undone. Deposits that still reference this account must be updated first.",
+                            )}
+                        </DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setDeleteOpen(false)}>
+                            {t("common.cancel", "Cancel")}
+                        </Button>
+                        <Button variant="destructive" onClick={() => deleteMutation.mutate()} disabled={deleteMutation.isPending}>
+                            {deleteMutation.isPending ? t("common.deleting", "Deleting…") : t("common.delete", "Delete")}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </DetailPageLayout>
     );
 }

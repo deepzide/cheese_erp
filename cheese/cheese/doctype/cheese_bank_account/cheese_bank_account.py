@@ -100,6 +100,17 @@ class CheeseBankAccount(Document):
 				_("This bank account cannot be renamed because it is already linked to deposit records.")
 			)
 
+	def on_trash(self):
+		"""Runs before Frappe link checks; block delete when deposits reference this account."""
+		if self.has_linked_transactions():
+			ref_count = frappe.db.count("Cheese Deposit", {"bank_account": self.name})
+			frappe.throw(
+				_(
+					"Cannot delete bank account: it is linked to {0} deposit(s). "
+					"Remove or change the bank account on those deposits first."
+				).format(ref_count)
+			)
+
 	def has_linked_transactions(self):
 		return bool(
 			frappe.db.exists(
