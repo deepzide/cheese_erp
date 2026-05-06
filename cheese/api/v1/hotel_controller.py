@@ -618,11 +618,29 @@ def bot_book_hotel_room(contact_phone, room_id, date_from, date_to, rooms_reques
         if ticket_res.get("status") == "error":
             return ticket_res
             
-        ticket_id = ticket_res.get("data", {}).get("ticket_id")
-        
+        ticket_data = ticket_res.get("data", {}) or {}
+        ticket_id = ticket_data.get("ticket_id")
+        ticket_status = ticket_data.get("status")
+
+        if ticket_id and not ticket_status and frappe.db.exists("Cheese Ticket", ticket_id):
+            ticket_status = frappe.db.get_value("Cheese Ticket", ticket_id, "status")
+
+        ticket_status = ticket_status or "UNKNOWN"
+
+        if ticket_status in ("CANCELLED", "CANCELED"):
+            return {
+                "success": False,
+                "message": "Booking was cancelled",
+                "data": {
+                    "ticket_id": ticket_id,
+                    "status": ticket_status,
+                    "message": "Reservation was cancelled. Please create a new booking."
+                }
+            }
+
         return success("Booking created successfully", {
             "ticket_id": ticket_id,
-            "status": "PENDING",
+            "status": ticket_status,
             "message": "Reservation is pending. Please proceed to payment."
         })
     except Exception as e:
