@@ -2,7 +2,7 @@
  "actions": [],
  "allow_import": 1,
  "allow_rename": 1,
- "autoname": "format:{experience}-{sequence}",
+ "autoname": "hash",
  "creation": "2024-01-01 00:00:00",
  "doctype": "DocType",
  "name": "Cheese Route Experience",
@@ -42,7 +42,6 @@
  "modified": "2024-01-01 00:00:00",
  "modified_by": "Administrator",
  "module": "Cheese",
- "naming_rule": "By \"Naming Series\" field",
  "owner": "Administrator",
  "permissions": [
   {

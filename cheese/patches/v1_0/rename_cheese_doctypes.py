@@ -32,7 +32,6 @@ def execute():
 		"Cheese QR Token": rename_cheese_qr_token,
 		"Cheese Survey Response": rename_cheese_survey_response,
 		"Cheese Attendance": rename_cheese_attendance,
-		"Cheese Route Experience": rename_cheese_route_experience,
 		"Cheese Contact Channel Opt In": rename_cheese_contact_channel_opt_in,
 	}
 	
@@ -311,24 +310,6 @@ def rename_cheese_attendance():
 				frappe.rename_doc("Cheese Attendance", attendance.name, attendance.ticket, force=True, show_alert=False)
 			except Exception as e:
 				frappe.log_error(f"Error renaming attendance {attendance.name}: {str(e)}")
-
-
-def rename_cheese_route_experience():
-	"""Rename Cheese Route Experience using format:{experience}-{sequence}"""
-	# This is a child table, so we need to get parent records first
-	experiences = frappe.db.sql("""
-		SELECT name, experience, sequence, parent
-		FROM `tabCheese Route Experience`
-	""", as_dict=True)
-	
-	for exp in experiences:
-		if exp.experience and exp.sequence is not None:
-			new_name = f"{exp.experience}-{exp.sequence}"
-			if new_name and new_name != exp.name:
-				try:
-					frappe.rename_doc("Cheese Route Experience", exp.name, new_name, force=True, show_alert=False)
-				except Exception as e:
-					frappe.log_error(f"Error renaming route experience {exp.name}: {str(e)}")
 
 
 def rename_cheese_contact_channel_opt_in():

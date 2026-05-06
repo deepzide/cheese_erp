@@ -581,11 +581,11 @@ def bot_book_hotel_room(contact_phone, room_id, date_from, date_to, rooms_reques
         from cheese.api.v1.ticket_controller import create_pending_reservation
         
         contact_res = find_or_create_contact(contact_phone, contact_phone)
-        if contact_res.get("status") == "error":
+        if not contact_res.get("success"):
             return contact_res
-            
+
         contact_id = contact_res.get("data", {}).get("contact_id")
-        
+
         # We need the slot ID for the first night to satisfy ticket creation
         availability = get_hotel_availability(
             room_id,
@@ -594,17 +594,17 @@ def bot_book_hotel_room(contact_phone, room_id, date_from, date_to, rooms_reques
             guests=guests,
             rooms_requested=rooms_requested,
         )
-        if availability.get("status") == "error":
+        if not availability.get("success"):
             return availability
-            
+
         nights = availability.get("data", {}).get("nights", [])
         if not nights or any(night["available"] < cint(rooms_requested) for night in nights):
             return validation_error(f"Not enough rooms available for requested dates.")
-            
+
         slot_id = nights[0]["slot_id"]
         if not slot_id:
             return validation_error("No booking slot available for this date.")
-            
+
         ticket_res = create_pending_reservation(
             contact_id=contact_id,
             experience_id=room_id,
@@ -612,37 +612,67 @@ def bot_book_hotel_room(contact_phone, room_id, date_from, date_to, rooms_reques
             party_size=cint(guests) or 1,
             check_in_date=date_from,
             check_out_date=date_to,
-            rooms_requested=rooms_requested
+            rooms_requested=rooms_requested,
         )
-        
-        if ticket_res.get("status") == "error":
+
+        if not ticket_res.get("success"):
             return ticket_res
-            
-        ticket_data = ticket_res.get("data", {}) or {}
+
+        ticket_data = dict(ticket_res.get("data") or {})
         ticket_id = ticket_data.get("ticket_id")
         ticket_status = ticket_data.get("status")
 
         if ticket_id and not ticket_status and frappe.db.exists("Cheese Ticket", ticket_id):
             ticket_status = frappe.db.get_value("Cheese Ticket", ticket_id, "status")
+            ticket_data["status"] = ticket_status
 
-        ticket_status = ticket_status or "UNKNOWN"
+        if not ticket_id:
+            frappe.log_error(
+                message=str(ticket_res)[:2000],
+                title="bot_book_hotel_room: ticket creation missing ticket_id",
+            )
+            return error(
+                "Booking failed: ticket was not created",
+                "SERVER_ERROR",
+                {"detail": ticket_res},
+                500,
+            )
+
+        if not ticket_status:
+            ticket_status = frappe.db.get_value("Cheese Ticket", ticket_id, "status")
+            ticket_data["status"] = ticket_status
 
         if ticket_status in ("CANCELLED", "CANCELED"):
             return {
                 "success": False,
                 "message": "Booking was cancelled",
                 "data": {
-                    "ticket_id": ticket_id,
-                    "status": ticket_status,
-                    "message": "Reservation was cancelled. Please create a new booking."
-                }
+                    **ticket_data,
+                    "message": "Reservation was cancelled. Please create a new booking.",
+                    "check_in_date": date_from,
+                    "check_out_date": date_to,
+                    "rooms_requested": cint(rooms_requested) or 1,
+                    "guests": cint(guests) or 1,
+                },
             }
 
-        return success("Booking created successfully", {
-            "ticket_id": ticket_id,
-            "status": ticket_status,
-            "message": "Reservation is pending. Please proceed to payment."
-        })
+        if ticket_status == "PENDING":
+            hint = "Reservation is pending. Please proceed to payment."
+        elif ticket_status == "CONFIRMED":
+            hint = "Reservation is confirmed."
+        else:
+            hint = ticket_res.get("message") or "Reservation created."
+
+        booking_payload = {
+            **ticket_data,
+            "message": hint,
+            "check_in_date": date_from,
+            "check_out_date": date_to,
+            "rooms_requested": cint(rooms_requested) or 1,
+            "guests": cint(guests) or 1,
+        }
+
+        return success("Booking created successfully", booking_payload)
     except Exception as e:
         frappe.log_error(f"Error in bot_book_hotel_room: {str(e)}")
         return error("Failed to book room", "SERVER_ERROR", {"error": str(e)}, 500)

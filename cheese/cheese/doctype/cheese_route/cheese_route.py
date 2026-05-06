@@ -6,6 +6,32 @@ from frappe import _
 from frappe.model.document import Document
 
 
+def experience_combination_key(exp_ids):
+	"""Multiset fingerprint for route experiences (order-independent)."""
+	if not exp_ids:
+		return None
+	return tuple(sorted(exp_ids))
+
+
+def find_duplicate_route_for_experience_combination(exp_ids, exclude_route=None):
+	"""Return another non-archived route name with the same experience multiset, if any."""
+	key = experience_combination_key(exp_ids)
+	if not key:
+		return None
+
+	for route_name in frappe.get_all("Cheese Route", filters={"status": ["!=", "ARCHIVED"]}, pluck="name"):
+		if exclude_route and route_name == exclude_route:
+			continue
+		other_ids = frappe.get_all(
+			"Cheese Route Experience",
+			filters={"parent": route_name},
+			pluck="experience",
+		)
+		if experience_combination_key(other_ids) == key:
+			return route_name
+	return None
+
+
 class CheeseRoute(Document):
 	# begin: auto-generated types
 	# This code is auto-generated. Do not modify anything in this block.
@@ -41,3 +67,16 @@ class CheeseRoute(Document):
 		# Validate price mode
 		if self.price_mode == "Manual" and not self.price:
 			frappe.throw(_("Price is required when Price Mode is Manual"))
+
+		# No two active routes may share the exact same combination of experiences (multiset).
+		# Archived routes are ignored so their combinations can be reused.
+		if self.status != "ARCHIVED":
+			exp_ids = [row.experience for row in self.experiences if getattr(row, "experience", None)]
+			if exp_ids:
+				duplicate = find_duplicate_route_for_experience_combination(exp_ids, exclude_route=self.name)
+				if duplicate:
+					frappe.throw(
+						_("Another route already uses this exact combination of experiences: {0}").format(
+							duplicate
+						)
+					)
