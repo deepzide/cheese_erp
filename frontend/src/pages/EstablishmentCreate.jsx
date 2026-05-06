@@ -20,7 +20,7 @@ export default function EstablishmentCreate() {
         email: "",
         phone_no: "",
         website: "",
-        google_maps_link: "",
+        cheese_google_maps_link: "",
         cheese_is_hotel: false,
     });
 
@@ -34,7 +34,8 @@ export default function EstablishmentCreate() {
                 email: form.email.trim() || undefined,
                 phone_no: form.phone_no.trim() || undefined,
                 website: form.website.trim() || undefined,
-                google_maps_link: form.google_maps_link.trim() || undefined,
+                cheese_google_maps_link: form.cheese_google_maps_link.trim() || undefined,
+                google_maps_link: form.cheese_google_maps_link.trim() || undefined,
                 cheese_is_hotel: form.cheese_is_hotel,
             };
             const res = await establishmentService.createEstablishment(body);
@@ -143,11 +144,11 @@ export default function EstablishmentCreate() {
                     />
                 </div>
                 <div className="space-y-2">
-                    <Label>{t("establishment.googleMapsLink", "Google Maps Link")}</Label>
+                    <Label>{t("establishment.googleMapsLink", "Google Maps Link")} (`cheese_google_maps_link`)</Label>
                     <Input
                         type="url"
-                        value={form.google_maps_link}
-                        onChange={(e) => setForm((f) => ({ ...f, google_maps_link: e.target.value }))}
+                        value={form.cheese_google_maps_link}
+                        onChange={(e) => setForm((f) => ({ ...f, cheese_google_maps_link: e.target.value }))}
                         placeholder={t("establishment.googleMapsPlaceholder", "https://maps.google.com/...")}
                     />
                 </div>

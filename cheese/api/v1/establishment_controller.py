@@ -427,6 +427,7 @@ def create_establishment(
 	phone_no=None,
 	website=None,
 	google_maps_link=None,
+	cheese_google_maps_link=None,
 	is_hotel=0,
 	cheese_is_hotel=0,
 ):
@@ -474,7 +475,9 @@ def create_establishment(
 		if _company_has_is_hotel_field():
 			doc_data["cheese_is_hotel"] = 1 if cint(is_hotel) or cint(cheese_is_hotel) else 0
 		if frappe.get_meta("Company").get_field("cheese_google_maps_link"):
-			doc_data["cheese_google_maps_link"] = google_maps_link
+			doc_data["cheese_google_maps_link"] = (
+				cheese_google_maps_link if cheese_google_maps_link is not None else google_maps_link
+			)
 		doc = frappe.get_doc(doc_data)
 		doc.insert()
 		frappe.db.commit()
