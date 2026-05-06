@@ -656,6 +656,17 @@ def create_route_reservation(
 					f"The latest slot ends after the requested time_to ({normalized_time_to})"
 				)
 
+		# If the route includes hotel experiences, date_to must be after date_from (minimum 1 night)
+		if start_date and end_date and end_date <= start_date:
+			route_has_hotel = any(
+				frappe.db.get_value("Cheese Experience", exp_row.experience, "experience_type") == "HOTEL"
+				for exp_row in route.experiences
+			)
+			if route_has_hotel:
+				return validation_error(
+					"Route includes hotel experiences: date_to must be after date_from (minimum 1 night)"
+				)
+
 		# Verify all route experiences have slots
 		route_experiences = route.experiences
 		if not route_experiences or len(route_experiences) == 0:

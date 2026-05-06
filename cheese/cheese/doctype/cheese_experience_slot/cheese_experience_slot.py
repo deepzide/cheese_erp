@@ -5,7 +5,8 @@ import frappe
 from frappe import _
 from frappe.model.document import Document
 from frappe.query_builder import functions as fn
-from frappe.utils import getdate, today, get_time as _get_time
+from frappe.utils import get_time as _get_time
+from frappe.utils import getdate, today
 
 
 class CheeseExperienceSlot(Document):
@@ -53,15 +54,10 @@ class CheeseExperienceSlot(Document):
 		if self.date_from and self.date_to:
 			if str(self.date_from) > str(self.date_to):
 				frappe.throw(_("Date From must be before or equal to Date To"))
-			
-			if self.experience:
-				experience = frappe.get_doc("Cheese Experience", self.experience)
-				if experience.experience_type == "HOTEL" and str(self.date_from) != str(self.date_to):
-					frappe.throw(_("Hotel experience slots must have the same Date From and Date To (one slot per night)"))
 
 		# Get time range fields (optional)
-		time_from = getattr(self, 'time_from', None)
-		time_to = getattr(self, 'time_to', None)
+		time_from = getattr(self, "time_from", None)
+		time_to = getattr(self, "time_to", None)
 
 		# Validate time range (only if both time fields are provided)
 		if time_from and time_to:
@@ -84,20 +80,23 @@ class CheeseExperienceSlot(Document):
 
 	def update_time_range(self):
 		"""Update the combined time range field"""
-		time_from = getattr(self, 'time_from', None)
-		time_to = getattr(self, 'time_to', None)
+		time_from = getattr(self, "time_from", None)
+		time_to = getattr(self, "time_to", None)
 
 		if time_from and time_to:
 			# Format: "09:00 - 17:00"
 			from frappe.utils import format_time
+
 			self.time_range = f"{format_time(time_from)} - {format_time(time_to)}"
 		elif time_from:
 			# Only time_from provided
 			from frappe.utils import format_time
+
 			self.time_range = f"{format_time(time_from)} -"
 		elif time_to:
 			# Only time_to provided
 			from frappe.utils import format_time
+
 			self.time_range = f"- {format_time(time_to)}"
 		else:
 			# No time range
