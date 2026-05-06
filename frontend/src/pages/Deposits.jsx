@@ -15,13 +15,15 @@ import { depositService } from "@/api/depositService";
 import FrappeSearchSelect from "@/components/FrappeSearchSelect";
 import { useTranslation } from "react-i18next";
 
+/** Matches Cheese Deposit status Select options */
 const STATUS_CONFIG = {
     PENDING: { labelKey: "status.PENDING", defaultLabel: "Pending", badge: "bg-yellow-500/15 text-yellow-700 dark:text-yellow-400", icon: Clock },
     PAID: { labelKey: "status.PAID", defaultLabel: "Paid", badge: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400", icon: CheckCircle },
-    PARTIAL: { labelKey: "status.PARTIAL", defaultLabel: "Partial", badge: "bg-blue-500/15 text-blue-700 dark:text-blue-400", icon: AlertTriangle },
     OVERDUE: { labelKey: "status.OVERDUE", defaultLabel: "Overdue", badge: "bg-red-500/15 text-red-700 dark:text-red-400", icon: XCircle },
-    REFUNDED: { labelKey: "status.REFUNDED", defaultLabel: "Refunded", badge: "bg-gray-500/15 text-gray-600 dark:text-gray-400", icon: XCircle },
-    FORFEITED: { labelKey: "status.FORFEITED", defaultLabel: "Forfeited", badge: "bg-orange-500/15 text-orange-700 dark:text-orange-400", icon: XCircle },
+    REVIEW: { labelKey: "status.REVIEW", defaultLabel: "Review", badge: "bg-orange-500/15 text-orange-700 dark:text-orange-400", icon: AlertTriangle },
+    ADJUSTED: { labelKey: "status.ADJUSTED", defaultLabel: "Adjusted", badge: "bg-blue-500/15 text-blue-700 dark:text-blue-400", icon: AlertTriangle },
+    REFUNDED: { labelKey: "status.REFUNDED", defaultLabel: "Refunded", badge: "bg-purple-500/15 text-purple-700 dark:text-purple-400", icon: XCircle },
+    CANCELLED: { labelKey: "status.CANCELLED", defaultLabel: "Cancelled", badge: "bg-gray-500/15 text-gray-600 dark:text-gray-400", icon: XCircle },
 };
 
 export default function Deposits() {
@@ -122,7 +124,13 @@ export default function Deposits() {
                         <Skeleton className="w-10 h-10 rounded-lg" /><div className="flex-1"><Skeleton className="h-4 w-40 mb-2" /><Skeleton className="h-3 w-24" /></div><Skeleton className="h-6 w-20" />
                     </CardContent></Card>
                 )) : filtered.map((deposit) => {
-                    const config = STATUS_CONFIG[deposit.status] || STATUS_CONFIG.PENDING;
+                    const rawStatus = deposit.status || "";
+                    const config = STATUS_CONFIG[deposit.status] || {
+                        labelKey: rawStatus ? `status.${rawStatus}` : "status.UNKNOWN",
+                        defaultLabel: rawStatus || "Unknown",
+                        badge: "bg-muted/40 text-muted-foreground border-border",
+                        icon: AlertCircle,
+                    };
                     const StatusIcon = config.icon;
                     const remaining = (deposit.amount_required || 0) - (deposit.amount_paid || 0);
                     return (
