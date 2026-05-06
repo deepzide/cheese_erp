@@ -1,12 +1,14 @@
 # Copyright (c) 2024
 # License: MIT
 
+import json
+
 import frappe
 from frappe import _
 from frappe.model.document import Document
-from frappe.utils import add_to_date, now_datetime, getdate
-import json
-from cheese.cheese.utils.pricing import calculate_ticket_price, calculate_deposit_amount
+from frappe.utils import add_to_date, getdate, now_datetime
+
+from cheese.cheese.utils.pricing import calculate_deposit_amount, calculate_ticket_price
 
 
 class CheeseTicket(Document):
@@ -68,6 +70,7 @@ class CheeseTicket(Document):
 		if experience_doc and experience_doc.experience_type == "HOTEL":
 			if self.check_in_date and self.check_out_date:
 				from frappe.utils import date_diff
+
 				if str(self.check_out_date) <= str(self.check_in_date):
 					frappe.throw(_("Check-out date must be after check-in date"))
 				self.nights = date_diff(self.check_out_date, self.check_in_date)
@@ -94,23 +97,23 @@ class CheeseTicket(Document):
 	def validate_status_transition(self):
 		"""Validate status transitions according to state machine"""
 		previous_status = frappe.db.get_value("Cheese Ticket", self.name, "status")
-		
+
 		if previous_status and self.status != previous_status:
 			allowed_statuses = self.VALID_TRANSITIONS.get(previous_status, [])
-			
+
 			if self.status not in allowed_statuses:
 				frappe.throw(
 					_("Invalid status transition from {0} to {1}. Allowed transitions: {2}").format(
 						previous_status,
 						self.status,
-						", ".join(allowed_statuses) if allowed_statuses else "None"
+						", ".join(allowed_statuses) if allowed_statuses else "None",
 					),
-					frappe.ValidationError
+					frappe.ValidationError,
 				)
 
 	def validate_duplicate_active_ticket(self):
 		"""Prevent multiple active tickets with same contact+experience+slot+selected_date.
-		
+
 		If selected_date is set, two tickets on the same slot but different dates are allowed
 		(e.g. multi-day or recurring slots where the user picks a specific date).
 		"""
@@ -140,9 +143,7 @@ class CheeseTicket(Document):
 		exists = frappe.db.exists("Cheese Ticket", filters)
 		if exists:
 			frappe.throw(
-				_("A ticket already exists for this contact, experience, and slot: {0}").format(
-					exists
-				),
+				_("A ticket already exists for this contact, experience, and slot: {0}").format(exists),
 				frappe.ValidationError,
 			)
 
@@ -154,14 +155,18 @@ class CheeseTicket(Document):
 		from cheese.cheese.utils.capacity import get_available_capacity
 
 		slot = frappe.get_doc("Cheese Experience Slot", self.slot)
-		
+
 		if not experience_doc:
 			experience_doc = frappe.get_doc("Cheese Experience", self.experience)
 
 		if experience_doc.experience_type == "HOTEL":
-			from frappe.utils import add_days
-			from frappe.utils import cint
-			room_size = cint(getattr(experience_doc, "room_size", 0) or getattr(experience_doc, "max_occupancy_per_unit", 0) or 0)
+			from frappe.utils import add_days, cint
+
+			room_size = cint(
+				getattr(experience_doc, "room_size", 0)
+				or getattr(experience_doc, "max_occupancy_per_unit", 0)
+				or 0
+			)
 			if room_size < 1:
 				frappe.throw(_("Room Size must be configured for hotel room reservations"))
 			max_guests = room_size * (self.rooms_requested or 1)
@@ -174,15 +179,34 @@ class CheeseTicket(Document):
 				)
 			current_date = getdate(self.check_in_date)
 			end_date = getdate(self.check_out_date)
-			
+
 			while current_date < end_date:
-				available_capacity = get_available_capacity(self.slot, current_date)
+				# Find the slot that covers this specific night to get its max_capacity
+				night_slots = frappe.get_all(
+					"Cheese Experience Slot",
+					filters={
+						"experience": self.experience,
+						"date_from": ["<=", current_date],
+						"date_to": [">=", current_date],
+						"slot_status": ["in", ["OPEN", "CLOSED"]],
+					},
+					fields=["name"],
+					order_by="date_from asc",
+					limit=1,
+				)
+				if not night_slots:
+					frappe.throw(
+						_("No available slot found for night {0}").format(current_date),
+						frappe.ValidationError,
+					)
+				night_slot_name = night_slots[0].name
+				available_capacity = get_available_capacity(night_slot_name, current_date)
 				if self.rooms_requested > available_capacity:
 					frappe.throw(
 						_("Not enough rooms available on {0}. Requested: {1}, Available: {2}").format(
 							current_date, self.rooms_requested, available_capacity
 						),
-						frappe.ValidationError
+						frappe.ValidationError,
 					)
 				current_date = add_days(current_date, 1)
 			return
@@ -207,20 +231,20 @@ class CheeseTicket(Document):
 				_("Party size ({0}) exceeds available capacity ({1}) for slot {2}").format(
 					self.party_size, available_capacity, self.slot
 				),
-				frappe.ValidationError
+				frappe.ValidationError,
 			)
 
 	def create_snapshots(self):
 		"""Create snapshots of policy and pricing"""
 		# Price snapshot — record the effective unit price used for calculation
 		experience = frappe.get_doc("Cheese Experience", self.experience)
-		
+
 		# Hotel policy
 		if experience.experience_type == "HOTEL":
 			policy_data = {
 				"cancel_days_before": experience.cancel_days_before,
 				"modify_days_before": experience.modify_days_before,
-				"refund_policy": experience.refund_policy
+				"refund_policy": experience.refund_policy,
 			}
 			self.policy_snapshot = json.dumps(policy_data)
 		else:
@@ -229,7 +253,7 @@ class CheeseTicket(Document):
 				"Cheese Booking Policy",
 				{"experience": self.experience},
 				["cancel_until_hours_before", "modify_until_hours_before", "min_hours_before_booking"],
-				as_dict=True
+				as_dict=True,
 			)
 			if policy:
 				self.policy_snapshot = json.dumps(policy)
@@ -283,18 +307,18 @@ class CheeseTicket(Document):
 		"""Set expiration time for PENDING tickets"""
 		if self.status == "PENDING":
 			experience = frappe.get_doc("Cheese Experience", self.experience)
-			
+
 			if experience.experience_type == "HOTEL":
 				ttl_days = experience.deposit_ttl_days or 1  # default 1 day for hotels
 				self.expires_at = add_to_date(now_datetime(), days=ttl_days, as_string=False)
 			else:
 				# Default TTL: 24 hours for activities
 				ttl_hours = 24
-				
+
 				# Check if experience has deposit TTL
 				if experience.deposit_ttl_hours:
 					ttl_hours = experience.deposit_ttl_hours
-				
+
 				self.expires_at = add_to_date(now_datetime(), hours=ttl_hours, as_string=False)
 
 	def update_capacity(self):
@@ -325,6 +349,7 @@ class CheeseTicket(Document):
 			# Fire bot webhook for all relevant status changes
 			try:
 				from cheese.cheese.utils.notifications import enqueue_ticket_status_webhook
+
 				enqueue_ticket_status_webhook(self.name, self.status)
 			except Exception as e:
 				frappe.log_error(
@@ -336,11 +361,12 @@ class CheeseTicket(Document):
 		"""Log status change to System Event"""
 		try:
 			from cheese.cheese.utils.events import log_event
+
 			log_event(
 				entity_type="Cheese Ticket",
 				entity_id=self.name,
 				event_type="status_change",
-				payload={"old_status": self._doc_before_save.status, "new_status": self.status}
+				payload={"old_status": self._doc_before_save.status, "new_status": self.status},
 			)
 		except Exception:
 			# Silently fail if event logging fails
@@ -396,18 +422,15 @@ class CheeseTicket(Document):
 		try:
 			if not self.contact:
 				return
-			
+
 			# Find active lead for this contact (OPEN or IN_PROGRESS)
 			active_lead = frappe.db.get_value(
 				"Cheese Lead",
-				{
-					"contact": self.contact,
-					"status": ["in", ["OPEN", "IN_PROGRESS"]]
-				},
+				{"contact": self.contact, "status": ["in", ["OPEN", "IN_PROGRESS"]]},
 				"name",
-				order_by="modified desc"
+				order_by="modified desc",
 			)
-			
+
 			if active_lead:
 				lead = frappe.get_doc("Cheese Lead", active_lead)
 				if lead.status != "CONVERTED":
@@ -417,53 +440,62 @@ class CheeseTicket(Document):
 					frappe.db.commit()
 		except Exception as e:
 			# Silently fail if lead conversion fails
-			frappe.log_error(f"Failed to auto-convert lead for ticket {self.name}: {e}", "Lead Conversion Error")
+			frappe.log_error(
+				f"Failed to auto-convert lead for ticket {self.name}: {e}", "Lead Conversion Error"
+			)
 
 	def send_status_notification(self, notification_type):
 		"""Send notification about status change"""
 		try:
 			from cheese.cheese.utils.notifications import send_ticket_notification
+
 			send_ticket_notification(self.name, notification_type)
 		except Exception as e:
 			# Silently fail if notification fails
 			frappe.log_error(f"Failed to send notification for ticket {self.name}: {e}", "Notification Error")
 
+
 @frappe.whitelist()
 def make_route_booking(source_name, target_doc=None):
 	from frappe.model.mapper import get_mapped_doc
-	
+
 	def set_missing_values(source, target):
 		target.status = "PENDING"
-		
+
 		if source.route:
 			route = frappe.get_doc("Cheese Route", source.route)
 			target.total_price = route.price
 			target.deposit_required = route.deposit_required
-			
+
 			if route.deposit_required:
 				if route.deposit_type == "Amount":
 					target.deposit_amount = route.deposit_value
 				elif route.deposit_type == "%" and route.price:
 					target.deposit_amount = (route.price * route.deposit_value) / 100.0
 
-	doclist = get_mapped_doc("Cheese Ticket", source_name, {
-		"Cheese Ticket": {
-			"doctype": "Cheese Route Booking",
-			"field_map": {
-				"contact": "contact",
-				"route": "route",
-				"conversation": "conversation"
+	doclist = get_mapped_doc(
+		"Cheese Ticket",
+		source_name,
+		{
+			"Cheese Ticket": {
+				"doctype": "Cheese Route Booking",
+				"field_map": {"contact": "contact", "route": "route", "conversation": "conversation"},
 			}
-		}
-	}, target_doc, set_missing_values)
+		},
+		target_doc,
+		set_missing_values,
+	)
 
 	source = frappe.get_doc("Cheese Ticket", source_name)
-	doclist.append("tickets", {
-		"ticket": source.name,
-		"experience": source.experience,
-		"slot": source.slot,
-		"party_size": source.party_size,
-		"status": source.status
-	})
+	doclist.append(
+		"tickets",
+		{
+			"ticket": source.name,
+			"experience": source.experience,
+			"slot": source.slot,
+			"party_size": source.party_size,
+			"status": source.status,
+		},
+	)
 
 	return doclist

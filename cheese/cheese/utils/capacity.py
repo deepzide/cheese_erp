@@ -72,10 +72,12 @@ def calculate_reserved_capacity(slot_name, selected_date=None):
 	exp_doc = frappe.get_doc("Cheese Experience", slot_doc.experience)
 
 	if exp_doc.experience_type == "HOTEL":
+		# Count by experience + date range (not by slot) so that multi-night stays
+		# that span different per-night slots are all accounted for correctly.
 		query = (
 			frappe.qb.from_(ticket)
 			.select(fn.Sum(ticket.rooms_requested).as_("total"))
-			.where(ticket.slot == slot_name)
+			.where(ticket.experience == exp_doc.name)
 			.where(ticket.status.isin(active_statuses))
 		)
 		if selected_date:
@@ -88,10 +90,10 @@ def calculate_reserved_capacity(slot_name, selected_date=None):
 			.where(ticket.slot == slot_name)
 			.where(ticket.status.isin(active_statuses))
 		)
-		
+
 		if selected_date:
 			query = query.where(ticket.selected_date == selected_date)
-			
+
 	result = query.run()
 
 	return result[0][0] if result and result[0][0] else 0
@@ -100,11 +102,11 @@ def calculate_reserved_capacity(slot_name, selected_date=None):
 def get_available_capacity(slot_name, selected_date=None):
 	"""
 	Get available capacity for a slot
-	
+
 	Args:
 		slot_name: Name of the slot
 		selected_date: Optional date to filter by
-		
+
 	Returns:
 		Available capacity
 	"""
@@ -116,7 +118,7 @@ def get_available_capacity(slot_name, selected_date=None):
 def update_slot_capacity(slot_name):
 	"""
 	Update slot capacity calculations
-	
+
 	Args:
 		slot_name: Name of the slot
 	"""

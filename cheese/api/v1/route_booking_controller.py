@@ -558,26 +558,44 @@ def create_route_reservation(
 				or item.get("date")
 				or (str(selected_date_for_tickets) if selected_date_for_tickets else None)
 			)
-			if not exp_id or not slot_id:
-				return validation_error("Each item must have 'experience_id' and 'slot_id'")
+			if not exp_id:
+				return validation_error("Each item must have 'experience_id'")
 			if not frappe.db.exists("Cheese Experience", exp_id):
 				return not_found("Experience", exp_id)
-			if not frappe.db.exists("Cheese Experience Slot", slot_id):
-				return not_found("Slot", slot_id)
-			slot_experience = frappe.db.get_value("Cheese Experience Slot", slot_id, "experience")
-			if slot_experience != exp_id:
-				return validation_error(
-					f"Slot {slot_id} belongs to experience {slot_experience}, not {exp_id}"
-				)
-			slot_map[exp_id] = slot_id
+			exp_type = frappe.db.get_value("Cheese Experience", exp_id, "experience_type")
+			is_hotel_item = exp_type == "HOTEL"
+			if not is_hotel_item:
+				# Non-hotel experiences require an explicit slot_id
+				if not slot_id:
+					return validation_error(f"'slot_id' is required for non-hotel experience {exp_id}")
+				if not frappe.db.exists("Cheese Experience Slot", slot_id):
+					return not_found("Slot", slot_id)
+				slot_experience = frappe.db.get_value("Cheese Experience Slot", slot_id, "experience")
+				if slot_experience != exp_id:
+					return validation_error(
+						f"Slot {slot_id} belongs to experience {slot_experience}, not {exp_id}"
+					)
+				slot_map[exp_id] = slot_id
+			else:
+				# Hotel experiences: slot is resolved automatically from check_in date at ticket creation.
+				# Use start_date (check_in) as the reference date for the same-date validation.
+				if start_date:
+					item_selected_date = str(start_date)
+				# slot_map entry deliberately omitted — resolved later
 			if item_selected_date:
 				try:
 					selected_date_map[exp_id] = str(getdate(item_selected_date))
 				except Exception:
 					return validation_error("selected_date must be a valid date")
 
-		# Reject duplicate experience entries
-		if len(slot_map) < len(experiences_with_slots):
+		# Reject duplicate experience entries (hotel experiences are excluded from slot_map but still count)
+		non_hotel_items = [
+			item
+			for item in experiences_with_slots
+			if frappe.db.get_value("Cheese Experience", item.get("experience_id"), "experience_type")
+			!= "HOTEL"
+		]
+		if len(slot_map) < len(non_hotel_items):
 			return validation_error(
 				"Duplicate experience entries: each experience can only contribute one slot to a route"
 			)
@@ -598,13 +616,17 @@ def create_route_reservation(
 				if getdate(sel_date) < today_date:
 					return validation_error(f"Slot date {sel_date} for experience {exp_id} is in the past")
 
-		# All experiences must be ONLINE
-		for exp_id in slot_map:
+		# All experiences must be ONLINE (includes hotel experiences)
+		all_exp_ids = [
+			item.get("experience_id") for item in experiences_with_slots if item.get("experience_id")
+		]
+		for exp_id in all_exp_ids:
 			exp_status = frappe.db.get_value("Cheese Experience", exp_id, "status")
 			if exp_status != "ONLINE":
 				return validation_error(f"Experience {exp_id} is not ONLINE (status: {exp_status})")
 
 		# Slots must not overlap in time + build slot_time_data for time window validation
+		# Only non-hotel slots participate in overlap checks (hotels have no fixed time_from/time_to)
 		slot_time_data: dict = {}
 		for sl_id in slot_map.values():
 			t_from, t_to = frappe.db.get_value("Cheese Experience Slot", sl_id, ["time_from", "time_to"])
@@ -698,26 +720,49 @@ def create_route_reservation(
 
 		for exp_row in route.experiences:
 			experience_id = exp_row.experience
-			slot_id = slot_map.get(experience_id)
 			ticket_selected_date = selected_date_map.get(experience_id)
 
-			if not slot_id:
-				# Rollback route booking
-				route_booking.delete()
-				frappe.db.rollback()
-				return validation_error(
-					f"No slot provided for experience {experience_id} at sequence {exp_row.sequence}"
-				)
-
-			# Create pending ticket
-			# Pass selected_date if it was provided during auto-selection
-
-			# For HOTEL experiences, pass check_in/check_out dates
 			experience_doc = frappe.get_doc("Cheese Experience", experience_id)
 			is_hotel = experience_doc.experience_type == "HOTEL"
 			check_in = str(start_date) if is_hotel and start_date else None
 			check_out = str(end_date) if is_hotel and end_date else None
 			rooms = party_size if is_hotel else None
+
+			if is_hotel:
+				# Auto-resolve the slot for the check_in night
+				if not start_date:
+					route_booking.delete()
+					frappe.db.rollback()
+					return validation_error(
+						"date_from (check-in) is required when the route includes hotel experiences"
+					)
+				night_slots = frappe.get_all(
+					"Cheese Experience Slot",
+					filters={
+						"experience": experience_id,
+						"date_from": ["<=", start_date],
+						"date_to": [">=", start_date],
+						"slot_status": ["in", ["OPEN", "CLOSED"]],
+					},
+					fields=["name"],
+					order_by="date_from asc",
+					limit=1,
+				)
+				if not night_slots:
+					route_booking.delete()
+					frappe.db.rollback()
+					return validation_error(
+						f"No available slot found for hotel {experience_id} on check-in date {start_date}"
+					)
+				slot_id = night_slots[0].name
+			else:
+				slot_id = slot_map.get(experience_id)
+				if not slot_id:
+					route_booking.delete()
+					frappe.db.rollback()
+					return validation_error(
+						f"No slot provided for experience {experience_id} at sequence {exp_row.sequence}"
+					)
 
 			ticket_result = create_pending_ticket(
 				contact_id,
