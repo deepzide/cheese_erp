@@ -317,6 +317,21 @@ def get_payment_link_or_instructions(ticket_id=None, deposit_id=None, payment_ty
 			if not frappe.db.exists("Cheese Ticket", ticket_id):
 				return not_found("Ticket", ticket_id)
 
+			# If a Deposit-phase payment is requested but the ticket has no deposit requirement,
+			# return early — the Balance deposit should not be surfaced as a "Deposit".
+			if payment_type == "Deposit":
+				ticket_deposit_required = frappe.db.get_value("Cheese Ticket", ticket_id, "deposit_required")
+				if not ticket_deposit_required:
+					bank_account_list = _bank_accounts_for_ticket(frappe.get_doc("Cheese Ticket", ticket_id))
+					return success(
+						"No deposit required for this ticket",
+						{
+							"deposit_required": False,
+							"ticket_id": ticket_id,
+							"bank_account": bank_account_list,
+						},
+					)
+
 			deposit_name = _select_open_deposit("Cheese Ticket", ticket_id, payment_type=payment_type)
 
 			if deposit_name:
