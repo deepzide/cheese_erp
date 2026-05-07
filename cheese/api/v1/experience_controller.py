@@ -118,8 +118,8 @@ def list_experiences(page=1, page_size=20, status=None, company=None, establishm
 			"Cheese Experience",
 			filters=filters,
 			or_filters=or_filters if or_filters else None,
-			fields=["name", "name as id", "name as experience_name", "company", "company as establishment", "description", "status", "package_mode", 
-				"individual_price", "route_price", "deposit_required", "is_room", "room_size", "experience_type"],
+			fields=["name", "name as id", "name as experience_name", "company", "company as establishment", "description", "status", "package_mode",
+				"individual_price", "route_price", "price_per_night", "deposit_required", "is_room", "room_size", "experience_type"],
 			limit_start=(page - 1) * page_size,
 			limit_page_length=page_size,
 			order_by="name asc"
@@ -135,7 +135,6 @@ def list_experiences(page=1, page_size=20, status=None, company=None, establishm
 				row["is_room"] = 1
 			else:
 				row["is_room"] = 1 if row.get("is_room") else 0
-			row.pop("experience_type", None)
 			row["bank_account"] = bank_map.get(row.get("company"), [])
 
 		return paginated_response(

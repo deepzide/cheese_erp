@@ -349,7 +349,8 @@ export default function ExperienceDetail() {
                                         <div /> {/* Spacing */}
                                         {form.experience_type === "HOTEL" ? (
                                             <>
-                                                <EditableField label={t("experiences.pricePerNight", "Price per Night ($)")} type="number" value={form.price_per_night} onChange={(v) => handleFieldChange("price_per_night", v)} editMode={editMode} />
+                                                <EditableField label={t("experiences.pricePerNight", "Individual Price / Night ($)")} type="number" value={form.price_per_night} onChange={(v) => handleFieldChange("price_per_night", v)} editMode={editMode} />
+                                                <EditableField label={t("experiences.routePrice", "Route Price ($)")} type="number" value={form.route_price} onChange={(v) => handleFieldChange("route_price", v)} editMode={editMode} />
                                                 <EditableField label={t("experiences.maxOccupancy", "Max Occupancy / Room")} type="number" value={form.max_occupancy_per_unit} onChange={(v) => handleFieldChange("max_occupancy_per_unit", v)} editMode={editMode} />
                                                 <EditableField label={t("experiences.minNightsStay", "Min Nights Stay")} type="number" value={form.min_nights_stay} onChange={(v) => handleFieldChange("min_nights_stay", v)} editMode={editMode} />
                                                 <div className="space-y-1">

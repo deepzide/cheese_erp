@@ -157,48 +157,64 @@ export default function ExperienceCreate() {
 
                 <div className="space-y-6">
                     <div className="flex items-center gap-2">
-                        <h3 className="text-lg font-medium">{t("experiences.activityDetails", "Activity Details")}</h3>
-                        <Badge variant="outline" className="bg-primary/10 text-primary border-primary/20">{t("experiences.perEvent", "Per Event")}</Badge>
+                        <h3 className="text-lg font-medium">
+                            {form.experience_type === "HOTEL"
+                                ? t("experiences.hotelDetails", "Hotel Details")
+                                : t("experiences.activityDetails", "Activity Details")}
+                        </h3>
+                        <Badge variant="outline" className="bg-primary/10 text-primary border-primary/20">
+                            {form.experience_type === "HOTEL"
+                                ? t("experiences.perNight", "Per Night")
+                                : t("experiences.perEvent", "Per Event")}
+                        </Badge>
                     </div>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-5 animate-in fade-in slide-in-from-bottom-2 duration-300">
-                        <div className="space-y-2">
-                            <Label>{t("experiences.individualPrice", "Individual Price ($)")}</Label>
-                            <Input
-                                type="number"
-                                min="0"
-                                step="0.01"
-                                value={form.individual_price}
-                                onChange={(e) => handleChange("individual_price", e.target.value)}
-                            />
+                    {form.experience_type !== "HOTEL" && (
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-5 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                            <div className="space-y-2">
+                                <Label>{t("experiences.individualPrice", "Individual Price ($)")}</Label>
+                                <Input
+                                    type="number"
+                                    min="0"
+                                    step="0.01"
+                                    value={form.individual_price}
+                                    onChange={(e) => handleChange("individual_price", e.target.value)}
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <Label>{t("experiences.routeAddonPrice", "Route Price ($)")}</Label>
+                                <Input
+                                    type="number"
+                                    min="0"
+                                    step="0.01"
+                                    value={form.route_price}
+                                    onChange={(e) => handleChange("route_price", e.target.value)}
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <Label>{t("experiences.durationHours", "Duration (Hours)")}</Label>
+                                <Input
+                                    type="number"
+                                    min="0"
+                                    step="0.25"
+                                    value={form.event_duration_hours}
+                                    onChange={(e) => handleChange("event_duration_hours", e.target.value)}
+                                    placeholder={t("experiences.durationPlaceholder", "e.g. 1.5")}
+                                />
+                            </div>
                         </div>
-                        <div className="space-y-2">
-                            <Label>{t("experiences.routeAddonPrice", "Route Add-on Price ($)")}</Label>
-                            <Input
-                                type="number"
-                                min="0"
-                                step="0.01"
-                                value={form.route_price}
-                                onChange={(e) => handleChange("route_price", e.target.value)}
-                            />
-                        </div>
-                        <div className="space-y-2">
-                            <Label>{t("experiences.durationHours", "Duration (Hours)")}</Label>
-                            <Input
-                                type="number"
-                                min="0"
-                                step="0.25"
-                                value={form.event_duration_hours}
-                                onChange={(e) => handleChange("event_duration_hours", e.target.value)}
-                                placeholder={t("experiences.durationPlaceholder", "e.g. 1.5")}
-                            />
-                        </div>
-                    </div>
+                    )}
                     {form.experience_type === "HOTEL" && (
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 animate-in fade-in slide-in-from-bottom-2 duration-300">
                             <div className="space-y-2">
-                                <Label>{t("experiences.pricePerNight", "Price per Night ($)")}</Label>
+                                <Label>{t("experiences.pricePerNight", "Individual Price / Night ($)")}</Label>
                                 <Input type="number" min="0" step="0.01" value={form.price_per_night} onChange={(e) => handleChange("price_per_night", e.target.value)} />
+                                <p className="text-xs text-muted-foreground">{t("experiences.pricePerNightHelp", "Used for standalone hotel bookings (per night, per room).")}</p>
+                            </div>
+                            <div className="space-y-2">
+                                <Label>{t("experiences.routePrice", "Route Price ($)")}</Label>
+                                <Input type="number" min="0" step="0.01" value={form.route_price} onChange={(e) => handleChange("route_price", e.target.value)} />
+                                <p className="text-xs text-muted-foreground">{t("experiences.hotelRoutePriceHelp", "Per-person price contributed when this hotel is included in a route.")}</p>
                             </div>
                             <div className="space-y-2">
                                 <Label>{t("experiences.maxOccupancy", "Max Occupancy per Unit")}</Label>

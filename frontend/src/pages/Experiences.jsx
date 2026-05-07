@@ -216,11 +216,19 @@ export default function Experiences() {
                                     </DropdownMenu>
                                 </div>
                                 {exp.description && <p className="text-xs text-muted-foreground mb-3 line-clamp-2">{exp.description}</p>}
-                                <div className="flex items-center gap-3 mb-3">
+                                <div className="flex items-center gap-3 mb-3 flex-wrap">
                                     <div className="flex items-center gap-1 text-sm">
                                         <DollarSign className="w-3.5 h-3.5 text-muted-foreground" />
-                                        <span className="font-semibold">{exp.individual_price || 0}</span>
-                                        <span className="text-xs text-muted-foreground">{t("experiences.individualShort", "ind.")}</span>
+                                        <span className="font-semibold">
+                                            {exp.experience_type === "HOTEL"
+                                                ? (exp.price_per_night || 0)
+                                                : (exp.individual_price || 0)}
+                                        </span>
+                                        <span className="text-xs text-muted-foreground">
+                                            {exp.experience_type === "HOTEL"
+                                                ? t("experiences.perNightShort", "/night")
+                                                : t("experiences.individualShort", "ind.")}
+                                        </span>
                                     </div>
                                     {exp.route_price != null && (
                                         <div className="flex items-center gap-1 text-sm">
@@ -267,7 +275,18 @@ export default function Experiences() {
                         <div className="space-y-4">
                             <div className="grid grid-cols-2 gap-4">
                                 <div><p className="text-xs text-muted-foreground">{t("common.status", "Status")}</p><Badge className={STATUS_BADGE[selectedExperience.status]}>{selectedExperience.status ? t(`status.${selectedExperience.status}`, selectedExperience.status) : t("status.DRAFT", "DRAFT")}</Badge></div>
-                                <div><p className="text-xs text-muted-foreground">{t("experiences.individualPrice", "Individual Price")}</p><p className="font-semibold">${selectedExperience.individual_price || 0}</p></div>
+                                <div>
+                                    <p className="text-xs text-muted-foreground">
+                                        {selectedExperience.experience_type === "HOTEL"
+                                            ? t("experiences.pricePerNight", "Price per Night")
+                                            : t("experiences.individualPrice", "Individual Price")}
+                                    </p>
+                                    <p className="font-semibold">
+                                        ${selectedExperience.experience_type === "HOTEL"
+                                            ? (selectedExperience.price_per_night || 0)
+                                            : (selectedExperience.individual_price || 0)}
+                                    </p>
+                                </div>
                                 <div><p className="text-xs text-muted-foreground">{t("experiences.routePrice", "Route Price")}</p><p className="font-semibold">${selectedExperience.route_price || 0}</p></div>
                                 <div><p className="text-xs text-muted-foreground">{t("experiences.company", "Company")}</p><p className="text-sm">{selectedExperience.company || '—'}</p></div>
                             </div>

@@ -128,8 +128,7 @@
   {
    "fieldname": "route_price",
    "fieldtype": "Currency",
-   "label": "Route Price",
-   "depends_on": "eval:doc.experience_type!=\"HOTEL\""
+   "label": "Route Price"
   },
   {
    "fieldname": "package_mode",

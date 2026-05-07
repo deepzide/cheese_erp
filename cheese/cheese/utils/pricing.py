@@ -85,9 +85,15 @@ def calculate_deposit_amount(experience_id, total_price, route_id=None):
 def calculate_route_price(route_id, party_size):
 	"""
 	Calculate total price for a route booking.
-	
+
 	- Manual mode: route.price is the per-person price for the whole route.
-	- Sum mode: sum each experience's route_price (or individual_price) * party_size.
+	- Sum mode: sum each experience's route_price (with sensible fallbacks) * party_size.
+
+	HOTEL experiences expose two prices:
+		- price_per_night: individual booking price (per night, per room).
+		- route_price: per-person price contributed when this hotel is part of a route.
+	When summing a route, we use route_price for both ACTIVITY and HOTEL experiences,
+	falling back to the per-type individual price if route_price is not set.
 	"""
 	route = frappe.get_doc("Cheese Route", route_id)
 	
@@ -98,13 +104,8 @@ def calculate_route_price(route_id, party_size):
 	for exp_row in route.experiences:
 		experience = frappe.get_doc("Cheese Experience", exp_row.experience)
 		if experience.experience_type == "HOTEL":
-			# For route bookings without tickets created yet, we can't accurately know nights or rooms unless we pass them.
-			# But route booking total calculation is just a fallback for "Sum" mode.
-			# If we need exact calculation for hotels in route, we usually rely on ticket calculation.
-			# For now, we assume 1 night, party_size rooms for the route baseline if it's a hotel in a Sum mode route.
-			unit = experience.price_per_night or 0
-			total += unit * party_size
+			unit = experience.route_price or experience.price_per_night or 0
 		else:
 			unit = experience.route_price or experience.individual_price or 0
-			total += unit * party_size
+		total += unit * party_size
 	return total

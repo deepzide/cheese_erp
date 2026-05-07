@@ -55,6 +55,19 @@ const secondsToTime = (totalSeconds) => {
     return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
 };
 
+// Both ACTIVITY and HOTEL experiences contribute their `route_price` when summed
+// inside a route. We fall back to the per-type individual price if `route_price`
+// has not been set yet (HOTEL → price_per_night, ACTIVITY → individual_price).
+const getExperienceRouteUnitPrice = (exp) => {
+    if (!exp) return 0;
+    const fallback = exp.experience_type === "HOTEL"
+        ? exp.price_per_night
+        : exp.individual_price;
+    const raw = exp.route_price ?? fallback;
+    const price = Number(raw ?? 0);
+    return Number.isFinite(price) ? price : 0;
+};
+
 export default function RoutesPage() {
     const navigate = useNavigate();
     const { t } = useTranslation();
@@ -97,12 +110,11 @@ export default function RoutesPage() {
         return (experiences || []).filter((e) => ["Route", "Both"].includes(e.package_mode));
     }, [experiences]);
 
-    // Route price is the sum of included experience route prices (fallback to individual price)
+    // Route price is the sum of included experiences' route prices.
+    // HOTEL experiences contribute their Hotel Price (`price_per_night`).
     const computedRoutePrice = useMemo(() => {
         return selectedExperienceIds.reduce((sum, expId) => {
-            const exp = experiencesById[expId];
-            const price = Number(exp?.route_price ?? exp?.individual_price ?? 0);
-            return sum + (Number.isFinite(price) ? price : 0);
+            return sum + getExperienceRouteUnitPrice(experiencesById[expId]);
         }, 0);
     }, [selectedExperienceIds, experiencesById]);
 
@@ -414,6 +426,7 @@ export default function RoutesPage() {
                                 <div className="mt-2 space-y-2 max-h-48 overflow-y-auto pr-1">
                                     {selectedExperienceIds.map((expId, idx) => {
                                         const exp = experiencesById[expId];
+                                        const unitPrice = getExperienceRouteUnitPrice(exp);
                                         return (
                                             <div key={`${expId}-${idx}`} className="flex items-center justify-between gap-3 p-2 bg-muted/20 rounded-lg border border-border">
                                                 <div className="min-w-0 flex items-center gap-2">
@@ -422,7 +435,7 @@ export default function RoutesPage() {
                                                         <p className="text-sm font-medium truncate">
                                                             {exp?.experience_info || exp?.name || expId}
                                                         </p>
-                                                        <div className="flex items-center gap-2 mt-1">
+                                                        <div className="flex items-center gap-2 mt-1 flex-wrap">
                                                             <input
                                                                 type="time"
                                                                 className="h-7 rounded border border-input bg-background px-2 text-xs"
@@ -439,6 +452,9 @@ export default function RoutesPage() {
                                                                     }
                                                                 </span>
                                                             )}
+                                                            <span className="text-[10px] text-muted-foreground">
+                                                                {t("routes.routePriceUnit", "Route Price")}: ${Number(unitPrice).toLocaleString()}
+                                                            </span>
                                                         </div>
                                                     </div>
                                                 </div>

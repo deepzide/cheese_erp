@@ -52,6 +52,19 @@ const secondsToTime = (totalSeconds) => {
     return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
 };
 
+// Both ACTIVITY and HOTEL experiences contribute their `route_price` when summed
+// inside a route. We fall back to the per-type individual price if `route_price`
+// has not been set yet (HOTEL → price_per_night, ACTIVITY → individual_price).
+const getExperienceRouteUnitPrice = (exp) => {
+    if (!exp) return 0;
+    const fallback = exp.experience_type === "HOTEL"
+        ? exp.price_per_night
+        : exp.individual_price;
+    const raw = exp.route_price ?? fallback;
+    const price = Number(raw ?? 0);
+    return Number.isFinite(price) ? price : 0;
+};
+
 export default function RouteDetail() {
     const { id } = useParams();
     const navigate = useNavigate();
@@ -117,11 +130,11 @@ export default function RouteDetail() {
 
     const experiences = Array.isArray(experiencesRaw) ? experiencesRaw : [];
     const expById = useMemo(() => Object.fromEntries(experiences.map((e) => [e.name, e])), [experiences]);
+    // Route price is the sum of included experiences' route prices.
+    // HOTEL experiences contribute their Hotel Price (`price_per_night`).
     const computedRoutePrice = useMemo(() => {
         return experienceIds.reduce((sum, expId) => {
-            const exp = expById[expId];
-            const price = Number(exp?.route_price ?? exp?.individual_price ?? 0);
-            return sum + (Number.isFinite(price) ? price : 0);
+            return sum + getExperienceRouteUnitPrice(expById[expId]);
         }, 0);
     }, [experienceIds, expById]);
 
@@ -502,7 +515,12 @@ export default function RouteDetail() {
                                         </div>
                                         <EditableField label={t("routes.price", "Price ($)")} type="number" value={form.price} onChange={(v) => handleFieldChange("price", v)} editMode={editMode} />
                                     </div>
-                                    {form.price_mode === "Sum" && (
+                                    {editMode && (
+                                        <p className="text-xs text-muted-foreground mt-4 px-3 py-2 bg-muted/30 rounded-md border border-border/60">
+                                            {t("routes.priceAutoSumNote", "Price auto-syncs to the sum of each experience's Route Price. Current sum:")} ${Number(computedRoutePrice || 0).toLocaleString()}
+                                        </p>
+                                    )}
+                                    {!editMode && form.price_mode === "Sum" && (
                                         <p className="text-xs text-amber-600 mt-4 px-3 py-2 bg-amber-50 rounded-md border border-amber-100">
                                             {t("routes.priceSumNote", "Note: When Price Mode is 'Sum', the final route price cascades from the linked Cheese Experiences.")}
                                         </p>
@@ -577,30 +595,50 @@ export default function RouteDetail() {
                                             {experienceIds.map((expId, idx) => {
                                                 const exp = expById[expId];
                                                 const label = exp?.experience_info || exp?.name || expId;
+                                                const unitPrice = getExperienceRouteUnitPrice(exp);
+                                                const isHotel = exp?.experience_type === "HOTEL";
+                                                const durationSeconds = parseDurationToSeconds(exp?.event_duration);
+                                                const hasDuration = durationSeconds > 0;
+                                                const computedEnd = startTimes[expId] && hasDuration
+                                                    ? secondsToTime((parseTimeToSeconds(startTimes[expId]) || 0) + durationSeconds)
+                                                    : null;
                                                 return (
                                                     <div key={`${expId}-${idx}`} className="p-4 flex items-center justify-between gap-4 hover:bg-muted/10 transition-colors">
                                                         <div className="flex items-center gap-2 min-w-0">
                                                             <span className="text-xs font-semibold bg-muted px-2 py-0.5 rounded text-muted-foreground">#{idx + 1}</span>
                                                             <div className="min-w-0">
                                                                 <p className="font-medium text-sm truncate">{label}</p>
-                                                                <div className="mt-1 flex items-center gap-2">
+                                                                <div className="mt-1 flex items-center gap-2 flex-wrap">
                                                                     {editMode ? (
-                                                                        <input
-                                                                            type="time"
-                                                                            className="h-7 rounded border border-input bg-background px-2 text-xs"
-                                                                            value={startTimes[expId] || ""}
-                                                                            onChange={(e) => setStartTimes((prev) => ({ ...prev, [expId]: e.target.value }))}
-                                                                        />
+                                                                        <label className="flex items-center gap-1 text-xs text-muted-foreground">
+                                                                            <span>{t("routes.startTime", "Start")}:</span>
+                                                                            <input
+                                                                                type="time"
+                                                                                className="h-7 rounded border border-input bg-background px-2 text-xs"
+                                                                                value={startTimes[expId] || ""}
+                                                                                onChange={(e) => setStartTimes((prev) => ({ ...prev, [expId]: e.target.value }))}
+                                                                            />
+                                                                        </label>
                                                                     ) : startTimes[expId] ? (
                                                                         <span className="text-xs text-muted-foreground">
                                                                             {t("routes.startTime", "Start")}: {startTimes[expId]}
                                                                         </span>
                                                                     ) : null}
-                                                                    {startTimes[expId] && (
+                                                                    {computedEnd ? (
                                                                         <span className="text-xs text-muted-foreground">
-                                                                            {t("routes.endTime", "End")}: {secondsToTime((parseTimeToSeconds(startTimes[expId]) || 0) + parseDurationToSeconds(exp?.event_duration)) || "—"}
+                                                                            {t("routes.endTime", "End")}: {computedEnd}
+                                                                            <span className="ml-1 italic opacity-70">({t("routes.endAuto", "auto")})</span>
                                                                         </span>
-                                                                    )}
+                                                                    ) : isHotel && startTimes[expId] ? (
+                                                                        <span className="text-xs text-muted-foreground italic">
+                                                                            {t("routes.hotelStayHint", "Hotel stay (no fixed end time)")}
+                                                                        </span>
+                                                                    ) : null}
+                                                                    {exp ? (
+                                                                        <span className="text-xs text-muted-foreground">
+                                                                            {t("routes.routePriceUnit", "Route Price")}: ${Number(unitPrice).toLocaleString()}
+                                                                        </span>
+                                                                    ) : null}
                                                                 </div>
                                                             </div>
                                                         </div>
