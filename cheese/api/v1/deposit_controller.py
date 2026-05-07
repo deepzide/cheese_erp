@@ -344,6 +344,9 @@ def get_payment_link_or_instructions(ticket_id=None, deposit_id=None, payment_ty
 					deposit_id_from_result = instructions_result.get("data", {}).get("deposit_id")
 					if deposit_id_from_result:
 						deposit_doc = frappe.get_doc("Cheese Deposit", deposit_id_from_result)
+					else:
+						# No deposit needed (e.g. deposit_required=False and payment_type=Deposit)
+						return instructions_result
 
 		if not deposit_doc:
 			return not_found("Deposit", deposit_id or f"for ticket {ticket_id}")
@@ -422,7 +425,9 @@ def get_deposit_instructions(ticket_id, payment_type=None):
 		ticket = frappe.get_doc("Cheese Ticket", ticket_id)
 		bank_account = _bank_accounts_for_ticket(ticket)
 
-		if not ticket.deposit_required:
+		# For Balance, always proceed even when deposit_required is False,
+		# because the remaining balance is always owed regardless of the seña.
+		if not ticket.deposit_required and payment_type != "Balance":
 			return success(
 				"No deposit required for this ticket",
 				{
@@ -453,8 +458,13 @@ def get_deposit_instructions(ticket_id, payment_type=None):
 				if payment_type == "Balance":
 					# Before creating, check if a Balance deposit already exists (any status).
 					# This covers the case where it was already paid/reconciled.
+					# When deposit_required is False there is no Deposit-phase deposit, so
+					# ALL existing deposits are Balance deposits (start from index 0).
+					balance_start_idx = 1 if ticket.deposit_required else 0
 					existing_balance = [
-						d for d in existing_deps[1:] if d.status not in IGNORED_DEPOSIT_STATUSES
+						d
+						for d in existing_deps[balance_start_idx:]
+						if d.status not in IGNORED_DEPOSIT_STATUSES
 					]
 					if existing_balance:
 						deposit_doc = frappe.get_doc("Cheese Deposit", existing_balance[-1].name)
