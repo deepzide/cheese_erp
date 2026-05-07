@@ -8,6 +8,57 @@ from cheese.api.common.responses import success, error, validation_error
 from cheese.api.v1.user_controller import _get_current_user_company
 
 
+def _ticket_status_counts_with_effective_date(start_date, end_date, company=None):
+	"""
+	Count ticket statuses for period using booking date OR creation date.
+	Booking date is COALESCE(ticket.selected_date, slot.date_from).
+	"""
+	conditions = [
+		"""(
+			(
+				COALESCE(t.selected_date, s.date_from) >= %(start_date)s
+				AND COALESCE(t.selected_date, s.date_from) <= %(end_date)s
+			)
+			OR (
+				DATE(t.creation) >= %(start_date)s
+				AND DATE(t.creation) <= %(end_date)s
+			)
+		)""",
+	]
+	params = {"start_date": start_date, "end_date": end_date}
+	if company:
+		conditions.append("t.company = %(company)s")
+		params["company"] = company
+
+	rows = frappe.db.sql(
+		f"""
+		SELECT t.status AS status, COUNT(*) AS count
+		FROM `tabCheese Ticket` t
+		LEFT JOIN `tabCheese Experience Slot` s ON s.name = t.slot
+		WHERE {" AND ".join(conditions)}
+		GROUP BY t.status
+		""",
+		params,
+		as_dict=True,
+	)
+	return {r.status: cint(r.count) for r in rows}
+
+
+def _ticket_in_period(ticket, start_date, end_date):
+	"""Match ticket when booking date OR creation date falls in period."""
+	creation_date = getdate(ticket.creation) if getattr(ticket, "creation", None) else None
+	if creation_date and start_date <= creation_date <= end_date:
+		return True
+
+	booking_date = getdate(ticket.selected_date) if getattr(ticket, "selected_date", None) else None
+	if not booking_date and getattr(ticket, "slot", None):
+		slot_date = frappe.db.get_value("Cheese Experience Slot", ticket.slot, "date_from")
+		if slot_date:
+			booking_date = getdate(slot_date)
+
+	return bool(booking_date and start_date <= booking_date <= end_date)
+
+
 @frappe.whitelist()
 def get_central_dashboard(period="today", date_from=None, date_to=None):
 	"""
@@ -31,10 +82,10 @@ def get_central_dashboard(period="today", date_from=None, date_to=None):
 			date_from = add_days(today(), -1)
 			date_to = add_days(today(), -1)
 		elif period == "7":
-			date_from = add_days(today(), -7)
+			date_from = add_days(today(), -6)
 			date_to = today()
 		elif period == "30":
-			date_from = add_days(today(), -30)
+			date_from = add_days(today(), -29)
 			date_to = today()
 		elif period == "range":
 			if not date_from or not date_to:
@@ -52,44 +103,8 @@ def get_central_dashboard(period="today", date_from=None, date_to=None):
 		prev_date_from = add_days(date_from_obj, -days_diff)
 		prev_date_to = add_days(date_from_obj, -1)
 		
-		# Get tickets by status
-		def get_tickets_by_status(start_date, end_date):
-			slot_filters = {
-				"date_from": [">=", start_date],
-				"date_to": ["<=", end_date]
-			}
-			
-			if user_company:
-				experiences = frappe.get_all("Cheese Experience", filters={"company": user_company}, pluck="name")
-				if not experiences:
-					return {}
-				slot_filters["experience"] = ["in", experiences]
-
-			slots = frappe.get_all(
-				"Cheese Experience Slot",
-				filters=slot_filters,
-				fields=["name"]
-			)
-			
-			if not slots:
-				return {}
-			
-			slot_ids = [s.name for s in slots]
-			tickets = frappe.get_all(
-				"Cheese Ticket",
-				filters={"slot": ["in", slot_ids]},
-				fields=["status"]
-			)
-			
-			status_counts = {}
-			for ticket in tickets:
-				status = ticket.status
-				status_counts[status] = status_counts.get(status, 0) + 1
-			
-			return status_counts
-		
-		current_counts = get_tickets_by_status(date_from_obj, date_to_obj)
-		previous_counts = get_tickets_by_status(prev_date_from, prev_date_to)
+		current_counts = _ticket_status_counts_with_effective_date(date_from_obj, date_to_obj, user_company)
+		previous_counts = _ticket_status_counts_with_effective_date(prev_date_from, prev_date_to, user_company)
 		
 		# Calculate KPIs
 		confirmed = current_counts.get("CONFIRMED", 0)
@@ -203,10 +218,10 @@ def get_establishment_dashboard(establishment_id, period="today", date_from=None
 			date_from = add_days(today(), -1)
 			date_to = add_days(today(), -1)
 		elif period == "7":
-			date_from = add_days(today(), -7)
+			date_from = add_days(today(), -6)
 			date_to = today()
 		elif period == "30":
-			date_from = add_days(today(), -30)
+			date_from = add_days(today(), -29)
 			date_to = today()
 		elif period == "range":
 			if not date_from or not date_to:
@@ -216,41 +231,14 @@ def get_establishment_dashboard(establishment_id, period="today", date_from=None
 		
 		date_from_obj = getdate(date_from)
 		date_to_obj = getdate(date_to)
-		
-		# Get tickets for this establishment
-		slots = frappe.get_all(
-			"Cheese Experience Slot",
-			filters={
-				"date_from": [">=", date_from_obj],
-				"date_to": ["<=", date_to_obj]
-			},
-			fields=["name", "experience"]
-		)
-		
-		# Filter by establishment experiences
-		experiences = frappe.get_all(
-			"Cheese Experience",
+
+		status_counts = _ticket_status_counts_with_effective_date(date_from_obj, date_to_obj, establishment_id)
+		tickets = frappe.get_all(
+			"Cheese Ticket",
 			filters={"company": establishment_id},
-			fields=["name"]
+			fields=["name", "status", "party_size", "slot", "selected_date", "creation"],
 		)
-		exp_ids = [e.name for e in experiences]
-		
-		establishment_slots = [s for s in slots if s.experience in exp_ids]
-		slot_ids = [s.name for s in establishment_slots]
-		
-		tickets = []
-		if slot_ids:
-			tickets = frappe.get_all(
-				"Cheese Ticket",
-				filters={"slot": ["in", slot_ids]},
-				fields=["name", "status", "party_size", "slot"]
-			)
-		
-		# Group by status
-		status_counts = {}
-		for ticket in tickets:
-			status = ticket.status
-			status_counts[status] = status_counts.get(status, 0) + 1
+		tickets = [t for t in tickets if _ticket_in_period(t, date_from_obj, date_to_obj)]
 		
 		# Get pending confirmations, excluding TTL-expired pending tickets.
 		now_dt = now_datetime()
@@ -263,30 +251,19 @@ def get_establishment_dashboard(establishment_id, period="today", date_from=None
 				continue
 			pending_confirmations.append(t)
 		
-		# Get today's agenda
+		# Get today's agenda — confirmed/checked-in tickets booked for today
+		# at this establishment.
 		today_date = today()
-		today_slots = frappe.get_all(
-			"Cheese Experience Slot",
+		today_tickets = frappe.get_all(
+			"Cheese Ticket",
 			filters={
-				"date_from": ["<=", today_date],
-				"date_to": [">=", today_date],
-				"experience": ["in", exp_ids]
+				"company": establishment_id,
+				"selected_date": today_date,
+				"status": ["in", ["CONFIRMED", "CHECKED_IN"]],
 			},
-			fields=["name", "time_from", "date_from", "date_to"]
+			fields=["name", "status", "party_size", "slot"],
+			order_by="slot",
 		)
-		
-		today_tickets = []
-		if today_slots:
-			today_slot_ids = [s.name for s in today_slots]
-			today_tickets = frappe.get_all(
-				"Cheese Ticket",
-				filters={
-					"slot": ["in", today_slot_ids],
-					"status": ["in", ["CONFIRMED", "CHECKED_IN"]]
-				},
-				fields=["name", "status", "party_size", "slot"],
-				order_by="slot"
-			)
 		
 		return success(
 			"Establishment dashboard retrieved successfully",
@@ -330,10 +307,10 @@ def get_dashboard_kpis(establishment_id=None, period="today"):
 			date_from = add_days(today(), -1)
 			date_to = add_days(today(), -1)
 		elif period == "7":
-			date_from = add_days(today(), -7)
+			date_from = add_days(today(), -6)
 			date_to = today()
 		elif period == "30":
-			date_from = add_days(today(), -30)
+			date_from = add_days(today(), -29)
 			date_to = today()
 		else:
 			date_from = today()
@@ -342,61 +319,18 @@ def get_dashboard_kpis(establishment_id=None, period="today"):
 		date_from_obj = getdate(date_from)
 		date_to_obj = getdate(date_to)
 		
-		# Build filters
+		# Resolve effective establishment scope
 		user_company = _get_current_user_company()
 		if user_company:
 			establishment_id = user_company
 
-		filters = {}
-		if establishment_id:
-			# Get experiences for this establishment
-			experiences = frappe.get_all(
-				"Cheese Experience",
-				filters={"company": establishment_id},
-				fields=["name"]
-			)
-			exp_ids = [e.name for e in experiences]
-			if exp_ids:
-				filters["experience"] = ["in", exp_ids]
-			else:
-				# No experiences, return empty KPIs
-				return success("KPIs retrieved successfully", {
-					"establishment_id": establishment_id,
-					"period": period,
-					"conversion_rates": {},
-					"attendance_rates": {},
-					"no_show_rates": {},
-					"deposit_collection_rates": {},
-					"average_satisfaction": 0
-				})
-		
-		# Get slots in date range
-		slots = frappe.get_all(
-			"Cheese Experience Slot",
-			filters={
-				"date_from": [">=", date_from_obj],
-				"date_to": ["<=", date_to_obj]
-			},
-			fields=["name", "experience"]
-		)
-		
-		if establishment_id and filters.get("experience"):
-			slots = [s for s in slots if s.experience in filters["experience"][1]]
-		
-		slot_ids = [s.name for s in slots] if slots else []
-		
-		# Get tickets
-		ticket_filters = {}
-		if slot_ids:
-			ticket_filters["slot"] = ["in", slot_ids]
-		if establishment_id and filters.get("experience"):
-			ticket_filters["experience"] = filters["experience"]
-		
+		ticket_filters = {"company": establishment_id} if establishment_id else {}
 		tickets = frappe.get_all(
 			"Cheese Ticket",
 			filters=ticket_filters,
-			fields=["name", "status", "experience"]
-		) if ticket_filters else []
+			fields=["name", "status", "experience", "slot", "selected_date", "creation"],
+		)
+		tickets = [t for t in tickets if _ticket_in_period(t, date_from_obj, date_to_obj)]
 		
 		# Calculate conversion rates (leads → tickets → confirmed)
 		leads = frappe.get_all(

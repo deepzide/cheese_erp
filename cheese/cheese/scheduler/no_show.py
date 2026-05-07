@@ -5,6 +5,19 @@ import frappe
 from frappe.utils import now_datetime, get_datetime, getdate
 
 
+def _has_unpaid_deposit(ticket_name: str) -> bool:
+	"""Return True when ticket still has open (unpaid) deposit(s)."""
+	open_deposit = frappe.db.exists(
+		"Cheese Deposit",
+		{
+			"entity_type": "Cheese Ticket",
+			"entity_id": ticket_name,
+			"status": ["in", ["PENDING", "OVERDUE"]],
+		},
+	)
+	return bool(open_deposit)
+
+
 def process_no_shows():
 	"""
 	Process CONFIRMED tickets that are past their slot start time without check-in.
@@ -49,12 +62,15 @@ def process_no_shows():
 			continue
 
 		try:
+			# If deposit is still unpaid, cancellation takes precedence over no-show.
+			# This keeps overdue unpaid bookings out of NO_SHOW analytics.
+			next_status = "CANCELLED" if _has_unpaid_deposit(row.name) else "NO_SHOW"
 			# Use db.set_value so we do not re-run capacity validation (party may already
 			# equal slot max). Document hooks are skipped — notify the bot explicitly.
-			frappe.db.set_value("Cheese Ticket", row.name, "status", "NO_SHOW")
+			frappe.db.set_value("Cheese Ticket", row.name, "status", next_status)
 			from cheese.cheese.utils.notifications import enqueue_ticket_status_webhook
 
-			enqueue_ticket_status_webhook(row.name, "NO_SHOW")
+			enqueue_ticket_status_webhook(row.name, next_status)
 			no_show_count += 1
 			slots_to_update.add(row.slot)
 		except Exception as e:
