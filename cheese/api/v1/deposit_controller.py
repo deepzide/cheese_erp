@@ -379,7 +379,7 @@ def get_payment_link_or_instructions(ticket_id=None, deposit_id=None, payment_ty
 			amount_remaining = _amount_remaining_for_deposit(deposit_doc)
 
 		if amount_remaining > 0 and deposit_doc.status in OPEN_DEPOSIT_STATUSES:
-			instructions = _instructions_for_deposit(amount_required, bank_account)
+			instructions = _instructions_for_deposit(amount_remaining, bank_account)
 		else:
 			instructions = _("Payment for this deposit has been completed")
 
