@@ -19,10 +19,10 @@ import { supportService } from "@/api/supportService";
 import FrappeSearchSelect from "@/components/FrappeSearchSelect";
 
 const STATUS_CONFIG = {
-    OPEN: { label: "Open", badge: "bg-red-500/15 text-red-700 dark:text-red-400" },
-    IN_PROGRESS: { label: "In Progress", badge: "bg-yellow-500/15 text-yellow-700 dark:text-yellow-400" },
-    RESOLVED: { label: "Resolved", badge: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400" },
-    CLOSED: { label: "Closed", badge: "bg-gray-500/15 text-gray-600 dark:text-gray-400" },
+    OPEN: { label: "Abierto", badge: "bg-red-500/15 text-red-700 dark:text-red-400" },
+    IN_PROGRESS: { label: "En progreso", badge: "bg-yellow-500/15 text-yellow-700 dark:text-yellow-400" },
+    RESOLVED: { label: "Resuelto", badge: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400" },
+    CLOSED: { label: "Cerrado", badge: "bg-gray-500/15 text-gray-600 dark:text-gray-400" },
 };
 
 const PRIORITY_BADGE = {
@@ -116,7 +116,7 @@ export default function Support() {
                         <FrappeSearchSelect doctype="Cheese Route" label="name" value={routeId} onChange={setRouteId} placeholder={t("nav.routes", "Route...")} />
                     </div>
                     <div className="w-48">
-                        <FrappeSearchSelect doctype="Company" label="name" value={companyId} onChange={setCompanyId} placeholder={t("experiences.establishment", "Establishment...")} />
+                        <FrappeSearchSelect doctype="Company" label="name" value={companyId} onChange={setCompanyId} placeholder={t("experiences.establishment", "Establecimiento...")} />
                     </div>
                     <Button className="cheese-gradient text-black font-semibold border-0 h-9" onClick={() => navigate("/cheese/support/new")}><Plus className="w-4 h-4 mr-1" /> {t("support.newCase", "New Case")}</Button>
                     <Button variant="ghost" size="icon" onClick={() => refetch()} className="h-9 w-9"><RefreshCw className="w-4 h-4" /></Button>

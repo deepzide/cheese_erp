@@ -57,8 +57,8 @@ export default function SurveyResponses() {
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="p-6 space-y-6">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
-                    <h1 className="text-2xl font-bold text-foreground flex items-center gap-2"><Star className="w-6 h-6 text-cheese-600" /> {t("surveyResponses.title", "Survey Responses")}</h1>
-                    <p className="text-sm text-muted-foreground mt-1">{isLoading ? '...' : `${filtered.length} ${t("surveyResponses.responses", "responses")} • ${t("surveyResponses.avg", "Avg")}: ${avgRating}/5`}</p>
+                    <h1 className="text-2xl font-bold text-foreground flex items-center gap-2"><Star className="w-6 h-6 text-cheese-600" /> {t("surveyResponses.title", "Respuestas de Encuestas")}</h1>
+                    <p className="text-sm text-muted-foreground mt-1">{isLoading ? '...' : `${filtered.length} ${t("surveyResponses.responses", "respuestas")} • ${t("surveyResponses.avg", "Prom")}: ${avgRating}/5`}</p>
                 </div>
                 <div className="flex gap-2 flex-wrap">
                     <div className="relative"><Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" /><Input placeholder={t("surveyResponses.searchTicket", "Buscar ticket...")} value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-9 w-56 h-9" /></div>
@@ -111,15 +111,15 @@ export default function SurveyResponses() {
                                         {[1, 2, 3, 4, 5].map(i => <Star key={i} className={`w-3.5 h-3.5 ${i <= (resp.rating || 0) ? 'text-cheese-500 fill-cheese-500' : 'text-muted-foreground/20'}`} />)}
                                     </div>
                                     <div className="flex-1 min-w-0">
-                                        <p className="text-xs text-muted-foreground mb-1"><Ticket className="w-3 h-3 inline mr-1" />{resp.ticket || '—'} • {resp.contact ? `${t("surveyResponses.customer", "Customer")}: ${resp.contact}` : ''} • {resp.answered_at || resp.creation || '—'}</p>
+                                        <p className="text-xs text-muted-foreground mb-1"><Ticket className="w-3 h-3 inline mr-1" />{resp.ticket || '—'} • {resp.contact ? `${t("surveyResponses.customer", "Cliente")}: ${resp.contact}` : ''} • {resp.answered_at || resp.creation || '—'}</p>
                                         {resp.comment && <p className="text-sm text-foreground">{resp.comment}</p>}
                                         {!resp.comment && !resp.answered_at && <p className="text-sm text-muted-foreground italic">{t("surveyResponses.awaitingResponse", "Encuesta enviada, esperando respuesta")}</p>}
                                     </div>
                                     <DropdownMenu>
                                         <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8 opacity-0 group-hover:opacity-100"><MoreHorizontal className="w-4 h-4" /></Button></DropdownMenuTrigger>
                                         <DropdownMenuContent align="end">
-                                            <DropdownMenuItem onClick={() => setSelected(resp)}><MessageSquare className="w-3 h-3 mr-2" /> {t("common.viewDetails", "View Details")}</DropdownMenuItem>
-                                            <DropdownMenuItem onClick={() => navigate(`/cheese/tickets/${resp.ticket}`)}><Ticket className="w-3 h-3 mr-2" /> {t("support.viewTicket", "View Ticket")}</DropdownMenuItem>
+                                            <DropdownMenuItem onClick={() => setSelected(resp)}><MessageSquare className="w-3 h-3 mr-2" /> {t("common.viewDetails", "Ver Detalles")}</DropdownMenuItem>
+                                            <DropdownMenuItem onClick={() => navigate(`/cheese/tickets/${resp.ticket}`)}><Ticket className="w-3 h-3 mr-2" /> {t("support.viewTicket", "Ver Ticket")}</DropdownMenuItem>
                                         </DropdownMenuContent>
                                     </DropdownMenu>
                                 </div>
@@ -139,12 +139,12 @@ export default function SurveyResponses() {
                         <div className="space-y-2 text-sm">
                             <p><span className="text-muted-foreground">{t("common.customer", "Cliente")}:</span> {selected.contact || "—"}</p>
                             <p><span className="text-muted-foreground">{t("ticket.newTicket", "Ticket")}:</span> {selected.ticket || "—"}</p>
-                            <p><span className="text-muted-foreground">{t("routes.route", "Route")}:</span> {selected.route || "—"}</p>
-                            <p><span className="text-muted-foreground">{t("nav.establishments", "Establishment")}:</span> {selected.company || "—"}</p>
-                            <p><span className="text-muted-foreground">{t("surveyResponses.ratingLabel", "Rating")}:</span> {selected.rating || "—"}</p>
-                            <p><span className="text-muted-foreground">{t("surveyResponses.commentLabel", "Comment")}:</span> {selected.comment || t("survey.noComment", "No comment")}</p>
+                            <p><span className="text-muted-foreground">{t("routes.route", "Ruta")}:</span> {selected.route || "—"}</p>
+                            <p><span className="text-muted-foreground">{t("nav.establishments", "Establecimiento")}:</span> {selected.company || "—"}</p>
+                            <p><span className="text-muted-foreground">{t("surveyResponses.ratingLabel", "Calificacion")}:</span> {selected.rating || "—"}</p>
+                            <p><span className="text-muted-foreground">{t("surveyResponses.commentLabel", "Comentario")}:</span> {selected.comment || t("survey.noComment", "Sin comentario")}</p>
                             <div className="pt-2 flex gap-2">
-                                <Button size="sm" variant="outline" onClick={() => navigate(`/cheese/tickets/${selected.ticket}`)}>{t("support.viewTicket", "View Ticket")}</Button>
+                                <Button size="sm" variant="outline" onClick={() => navigate(`/cheese/tickets/${selected.ticket}`)}>{t("support.viewTicket", "Ver Ticket")}</Button>
                             </div>
                         </div>
                     )}

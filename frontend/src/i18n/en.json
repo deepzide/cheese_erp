@@ -104,6 +104,7 @@
     "UNPAID": "UNPAID",
     "OPEN": "Open",
     "IN_PROGRESS": "In Progress",
+    "RESOLVED": "Resolved",
     "CONVERTED": "Converted",
     "LOST": "Lost",
     "DISCARDED": "Discarded",

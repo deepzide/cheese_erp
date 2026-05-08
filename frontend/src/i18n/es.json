@@ -158,6 +158,7 @@
     "UNPAID": "No Pagado",
     "OPEN": "Abierto",
     "IN_PROGRESS": "En Progreso",
+    "RESOLVED": "Resuelto",
     "CONVERTED": "Convertido",
     "LOST": "Perdido",
     "DISCARDED": "Descartado",

@@ -1,6 +1,7 @@
 import React from "react";
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { ArrowLeft, Loader2 } from "lucide-react";
@@ -28,6 +29,7 @@ export default function CreatePageLayout({
     submitLabel = "Create",
     children,
 }) {
+    const { t } = useTranslation();
     const navigate = useNavigate();
 
     return (
@@ -42,7 +44,7 @@ export default function CreatePageLayout({
                 className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors mb-6 group"
             >
                 <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
-                <span>Back</span>
+                <span>{t("common.back", "Volver")}</span>
             </button>
 
             <Card className="border-0 shadow-xl">
@@ -74,7 +76,7 @@ export default function CreatePageLayout({
                                 variant="outline"
                                 onClick={() => navigate(backPath)}
                             >
-                                Cancel
+                                {t("common.cancel", "Cancelar")}
                             </Button>
                             <Button
                                 type="submit"
@@ -82,7 +84,7 @@ export default function CreatePageLayout({
                                 disabled={isSubmitting}
                             >
                                 {isSubmitting ? (
-                                    <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Creating...</>
+                                    <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> {t("common.loading", "Cargando...")}</>
                                 ) : (
                                     submitLabel
                                 )}

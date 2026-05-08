@@ -12,10 +12,10 @@ import { Button } from "@/components/ui/button";
 import { Shield, Users, Ticket, MessageSquare, CheckCircle, AlertTriangle, Clock } from "lucide-react";
 
 const STATUS_CONFIG = {
-    OPEN: { label: "Open", class: "bg-blue-500/15 text-blue-700 border-blue-300 dark:text-blue-400 dark:border-blue-700" },
-    IN_PROGRESS: { label: "In Progress", class: "bg-yellow-500/15 text-yellow-700 border-yellow-300 dark:text-yellow-400 dark:border-yellow-700" },
-    RESOLVED: { label: "Resolved", class: "bg-emerald-500/15 text-emerald-700 border-emerald-300 dark:text-emerald-400 dark:border-emerald-700" },
-    CLOSED: { label: "Closed", class: "bg-slate-500/15 text-slate-700 border-slate-300 dark:text-slate-400 dark:border-slate-700" },
+    OPEN: { label: "Abierto", class: "bg-blue-500/15 text-blue-700 border-blue-300 dark:text-blue-400 dark:border-blue-700" },
+    IN_PROGRESS: { label: "En progreso", class: "bg-yellow-500/15 text-yellow-700 border-yellow-300 dark:text-yellow-400 dark:border-yellow-700" },
+    RESOLVED: { label: "Resuelto", class: "bg-emerald-500/15 text-emerald-700 border-emerald-300 dark:text-emerald-400 dark:border-emerald-700" },
+    CLOSED: { label: "Cerrado", class: "bg-slate-500/15 text-slate-700 border-slate-300 dark:text-slate-400 dark:border-slate-700" },
 };
 
 const PRIORITY_CONFIG = {

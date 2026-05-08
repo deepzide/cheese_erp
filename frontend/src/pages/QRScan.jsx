@@ -164,7 +164,7 @@ export default function QRScan() {
                 </div>
                 <h1 className="text-2xl font-bold text-foreground">{t("qrScan.title", "Registro QR")}</h1>
                 <p className="text-sm text-muted-foreground mt-1">
-                    {t("qrScan.scanDescription", "Scan a guest's QR code to verify attendance")}
+                    {t("qrScan.scanDescription", "Escanear el codigo QR de un huesped para verificar asistencia")}
                 </p>
             </div>
 
@@ -207,7 +207,7 @@ export default function QRScan() {
                                             ) : (
                                                 <Camera className="w-5 h-5 mr-2" />
                                             )}
-                                            {t("qrScan.openCamera", "Open Camera Scanner")}
+                                            {t("qrScan.openCamera", "Abrir Escaner de Camara")}
                                         </Button>
                                     </div>
                                 )}

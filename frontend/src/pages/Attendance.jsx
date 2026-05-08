@@ -15,7 +15,7 @@ import FrappeSearchSelect from "@/components/FrappeSearchSelect";
 import { useTranslation } from "react-i18next";
 
 const STATUS_CONFIG = {
-    PRESENT: { label: "Present", badge: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400" },
+    PRESENT: { label: "Presente", badge: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400" },
     NO_SHOW: { label: "No-Show", badge: "bg-red-500/15 text-red-700 dark:text-red-400" },
 };
 const METHOD_BADGE = {
@@ -89,7 +89,7 @@ export default function Attendance() {
                 </div>
             </div>
             <p className="text-xs text-muted-foreground">
-                {t("attendance.recordAttendance", "Record attendance by scanning QR from reservation details, or use manual check-in in Operations.")}
+                {t("attendance.recordAttendance", "Registre asistencia escaneando QR desde los detalles de reserva, o use el registro manual en Operaciones.")}
             </p>
 
             <div className="space-y-3">
@@ -109,7 +109,7 @@ export default function Attendance() {
                                     <p className="text-xs text-muted-foreground flex items-center gap-2">
                                         <Ticket className="w-3 h-3" /> {rec.ticket || '—'}
                                         <Clock className="w-3 h-3 ml-2" /> {rec.checked_in_at || '—'}
-                                        {rec.route_id && <> • Route: {rec.route_id}</>}
+                                        {rec.route_id && <> • {t("routes.route", "Ruta")}: {rec.route_id}</>}
                                         {rec.company_id && <> • Est: {rec.company_id}</>}
                                     </p>
                                 </div>
@@ -118,7 +118,7 @@ export default function Attendance() {
                                 <DropdownMenu>
                                     <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8 opacity-0 group-hover:opacity-100"><MoreHorizontal className="w-4 h-4" /></Button></DropdownMenuTrigger>
                                     <DropdownMenuContent align="end">
-                                        <DropdownMenuItem onClick={() => navigate(`/cheese/tickets?search=${rec.ticket}`)}><Ticket className="w-3 h-3 mr-2" /> {t("support.viewTicket", "View Ticket")}</DropdownMenuItem>
+                                        <DropdownMenuItem onClick={() => navigate(`/cheese/tickets?search=${rec.ticket}`)}><Ticket className="w-3 h-3 mr-2" /> {t("support.viewTicket", "Ver Ticket")}</DropdownMenuItem>
                                         <DropdownMenuItem onClick={() => navigate(`/cheese/qr-tokens?ticket=${rec.ticket}`)}><QrCode className="w-3 h-3 mr-2" /> {t("nav.qrTokens", "QR Tokens")}</DropdownMenuItem>
                                     </DropdownMenuContent>
                                 </DropdownMenu>
@@ -129,7 +129,7 @@ export default function Attendance() {
             </div>
 
             {!isLoading && filtered.length === 0 && (
-                <div className="text-center py-16"><UserCheck className="w-16 h-16 text-muted-foreground/20 mx-auto mb-4" /><p className="text-muted-foreground">No attendance {t("attendance.records", "registros")}</p></div>
+                <div className="text-center py-16"><UserCheck className="w-16 h-16 text-muted-foreground/20 mx-auto mb-4" /><p className="text-muted-foreground">{t("attendance.noRecords", "No hay registros de asistencia")}</p></div>
             )}
         </motion.div>
     );

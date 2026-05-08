@@ -114,10 +114,10 @@ export default function Documents() {
                                 </div>
                                 <div className="flex-1 min-w-0">
                                     <h3 className="font-semibold text-sm text-foreground">{doc.title || doc.name}</h3>
-                                    <p className="text-xs text-muted-foreground">{doc.entity_type}: {doc.entity_id || '—'} {doc.language ? `• ${doc.language}` : ''} {doc.version ? `• v${doc.version}` : ''}</p>
+                                    <p className="text-xs text-muted-foreground">{doc.entity_type}: {doc.entity_id || '—'} {doc.language ? `• ${doc.language === "English" ? "Ingles" : doc.language === "Spanish" ? "Espanol" : doc.language}` : ''} {doc.version ? `• v${doc.version}` : ''}</p>
                                 </div>
                                 <Badge className={TYPE_BADGE[doc.document_type] || TYPE_BADGE.PDF}>{doc.document_type || '—'}</Badge>
-                                <Badge className={STATUS_BADGE[doc.status] || STATUS_BADGE.DRAFT}>{doc.status || 'DRAFT'}</Badge>
+                                <Badge className={STATUS_BADGE[doc.status] || STATUS_BADGE.DRAFT}>{doc.status ? t(`documents.${String(doc.status).toLowerCase()}`, doc.status) : t("documents.draft", "Borrador")}</Badge>
                                 {doc.validity_date && <span className="text-[10px] text-muted-foreground hidden sm:block">{t("quotations.validUntil", "Valid")}: {doc.validity_date}</span>}
                                 <DropdownMenu>
                                     <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8 opacity-0 group-hover:opacity-100"><MoreHorizontal className="w-4 h-4" /></Button></DropdownMenuTrigger>
