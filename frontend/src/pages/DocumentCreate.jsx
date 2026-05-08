@@ -40,7 +40,7 @@ export default function DocumentCreate() {
         // The File doctype needs a valid `attached_to_name` (docname) and doctype.
         // We attach uploaded documents directly to the selected Route/Experience.
         if (!form.entity_type || !form.entity_id) {
-            toast.error("Select an entity (type + ID) before uploading a file");
+            toast.error(t("common.selectTypeFirst", "Select an entity (type + ID) before uploading a file"));
             return;
         }
         setUploading(true);
@@ -54,49 +54,49 @@ export default function DocumentCreate() {
             const url = result?.data?.message?.file_url || result?.data?.file_url;
             if (url) {
                 setForm(f => ({ ...f, file_url: url }));
-                toast.success("File uploaded");
+                toast.success(t("documents.documentCreated", "File uploaded"));
             } else {
-                toast.error("Upload succeeded but no file URL returned");
+                toast.error(t("documents.createError", "Upload succeeded but no file URL returned"));
             }
         } catch (err) {
-            toast.error(err?.message || "Upload failed");
+            toast.error(err?.message || t("documents.createError", "Upload failed"));
         }
         setUploading(false);
     };
 
     const handleSubmit = () => {
-        if (!form.entity_type || !form.entity_id || !form.title) { toast.error("Entity type, entity, and title are required"); return; }
+        if (!form.entity_type || !form.entity_id || !form.title) { toast.error(t("documents.createError", "Entity type, entity, and title are required")); return; }
         // Cheese Document supports: DRAFT / PUBLISHED / ARCHIVED
         createMutation.mutate({ ...form, status: "PUBLISHED" }, {
-            onSuccess: () => { toast.success("Document created"); navigate("/cheese/documents"); },
-            onError: (err) => toast.error(err?.message || "Failed"),
+            onSuccess: () => { toast.success(t("documents.documentCreated", "Document created")); navigate("/cheese/documents"); },
+            onError: (err) => toast.error(err?.message || t("common.failed", "Failed")),
         });
     };
 
     return (
         <CreatePageLayout
-            title="Upload Document"
-            description="Attach a document to a route or experience"
+            title={t("documents.uploadDocument", "Upload Document")}
+            description={t("documents.attachDocument", "Attach a document to a route or experience")}
             icon={FileText}
             backPath="/cheese/documents"
             onSubmit={handleSubmit}
             isSubmitting={createMutation.isPending}
-            submitLabel="Upload Document"
+            submitLabel={t("documents.uploadDocument", "Upload Document")}
         >
             <div className="space-y-5">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                     <div className="space-y-2">
-                        <Label>Entity Type <span className="text-red-500">*</span></Label>
+                        <Label>{t("deposits.entityType", "Entity Type")} <span className="text-red-500">*</span></Label>
                         <Select value={form.entity_type} onValueChange={(v) => setForm(f => ({ ...f, entity_type: v, entity_id: "" }))}>
-                            <SelectTrigger><SelectValue placeholder="Select type" /></SelectTrigger>
+                            <SelectTrigger><SelectValue placeholder={t("common.selectType", "Select type")} /></SelectTrigger>
                             <SelectContent>
-                                <SelectItem value="Cheese Route">Route</SelectItem>
-                                <SelectItem value="Cheese Experience">Experience</SelectItem>
+                                <SelectItem value="Cheese Route">{t("routes.route", "Route")}</SelectItem>
+                                <SelectItem value="Cheese Experience">{t("experiences.experience", "Experience")}</SelectItem>
                             </SelectContent>
                         </Select>
                     </div>
                     <div className="space-y-2">
-                        <Label>Related {form.entity_type || 'Entity'} <span className="text-red-500">*</span></Label>
+                        <Label>{t("documents.relatedTo", "Related")} {form.entity_type || t("deposits.entityType", "Entity")} <span className="text-red-500">*</span></Label>
                         {entityConfig ? (
                             <FrappeSearchSelect
                                 doctype={entityConfig.doctype}
@@ -106,17 +106,17 @@ export default function DocumentCreate() {
                                 placeholder={`Select ${form.entity_type.toLowerCase()}...`}
                             />
                         ) : (
-                            <Input placeholder="Select entity type first" disabled />
+                            <Input placeholder={t("common.selectTypeFirst", "Select entity type first")} disabled />
                         )}
                     </div>
                 </div>
                 <div className="space-y-2">
-                    <Label>Document Title <span className="text-red-500">*</span></Label>
-                    <Input placeholder="e.g. Insurance Certificate" value={form.title} onChange={(e) => setForm(f => ({ ...f, title: e.target.value }))} />
+                    <Label>{t("documents.title", "Document Title")} <span className="text-red-500">*</span></Label>
+                    <Input placeholder={t("documents.title", "e.g. Insurance Certificate")} value={form.title} onChange={(e) => setForm(f => ({ ...f, title: e.target.value }))} />
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
                     <div className="space-y-2">
-                        <Label>Document Type</Label>
+                        <Label>{t("documents.type", "Document Type")}</Label>
                         <Select value={form.document_type} onValueChange={(v) => setForm(f => ({ ...f, document_type: v }))}>
                             <SelectTrigger><SelectValue /></SelectTrigger>
                             <SelectContent>
@@ -127,7 +127,7 @@ export default function DocumentCreate() {
                         </Select>
                     </div>
                     <div className="space-y-2">
-                        <Label>Language</Label>
+                        <Label>{t("documents.language", "Language")}</Label>
                         <Select value={form.language} onValueChange={(v) => setForm(f => ({ ...f, language: v }))}>
                             <SelectTrigger><SelectValue /></SelectTrigger>
                             <SelectContent>
@@ -137,22 +137,22 @@ export default function DocumentCreate() {
                         </Select>
                     </div>
                     <div className="space-y-2">
-                        <Label>Version</Label>
+                        <Label>{t("documents.version", "Version")}</Label>
                         <Input placeholder="1.0" value={form.version} onChange={(e) => setForm(f => ({ ...f, version: e.target.value }))} />
                     </div>
                 </div>
 
                 {/* File Upload */}
                 <div className="space-y-3 p-4 rounded-lg border-2 border-dashed border-border bg-muted/30">
-                    <Label className="font-semibold">{form.document_type === "Link" ? "Link URL" : "Attachment"}</Label>
+                    <Label className="font-semibold">{form.document_type === "Link" ? t("documents.linkUrl", "Link URL") : t("documents.attachment", "Attachment")}</Label>
                     {form.document_type !== "Link" && (
                         <div className="flex items-center gap-3">
                             <label className="flex items-center gap-2 px-4 py-2 rounded-md bg-background border border-input hover:bg-muted cursor-pointer transition-colors text-sm">
                                 <Upload className="w-4 h-4" />
-                                {uploading ? "Uploading..." : "Choose File"}
+                                {uploading ? t("common.loading", "Uploading...") : t("documents.upload", "Choose File")}
                                 <input type="file" className="hidden" onChange={handleFileUpload} disabled={uploading} />
                             </label>
-                            <span className="text-xs text-muted-foreground">or paste a URL below</span>
+                            <span className="text-xs text-muted-foreground">{t("documents.orPasteUrl", "or paste a URL below")}</span>
                         </div>
                     )}
                     <Input

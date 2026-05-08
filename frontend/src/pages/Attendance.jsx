@@ -56,8 +56,8 @@ export default function Attendance() {
         return (
             <div className="p-6 flex flex-col items-center justify-center min-h-[400px] text-center">
                 <AlertCircle className="w-12 h-12 text-red-400 mb-4" />
-                <h2 className="text-lg font-semibold mb-2">Failed to load attendance</h2>
-                <Button onClick={() => refetch()} variant="outline"><RefreshCw className="w-4 h-4 mr-2" /> Retry</Button>
+                <h2 className="text-lg font-semibold mb-2">{t("attendance.loadFailed", "Failed to load attendance")}</h2>
+                <Button onClick={() => refetch()} variant="outline"><RefreshCw className="w-4 h-4 mr-2" /> {t("common.retry", "Retry")}</Button>
             </div>
         );
     }
@@ -66,17 +66,17 @@ export default function Attendance() {
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="p-6 space-y-6">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
-                    <h1 className="text-2xl font-bold text-foreground flex items-center gap-2"><UserCheck className="w-6 h-6 text-cheese-600" /> Attendance</h1>
-                    <p className="text-sm text-muted-foreground mt-1">{isLoading ? '...' : `${filtered.length} records`}</p>
+                    <h1 className="text-2xl font-bold text-foreground flex items-center gap-2"><UserCheck className="w-6 h-6 text-cheese-600" /> {t("attendance.title", "Attendance")}</h1>
+                    <p className="text-sm text-muted-foreground mt-1">{isLoading ? '...' : `${filtered.length} ${t("attendance.records", "records")}`}</p>
                 </div>
                 <div className="flex gap-2 flex-wrap">
                     <div className="relative"><Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" /><Input placeholder={t("attendance.searchTicket", "Buscar ticket...")} value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-9 w-56 h-9" /></div>
                     <Select value={filterStatus} onValueChange={setFilterStatus}>
                         <SelectTrigger className="w-36 h-9"><Filter className="w-3 h-3 mr-1" /><SelectValue /></SelectTrigger>
                         <SelectContent>
-                            <SelectItem value="all">All</SelectItem>
-                            <SelectItem value="PRESENT">Present</SelectItem>
-                            <SelectItem value="NO_SHOW">No-Show</SelectItem>
+                            <SelectItem value="all">{t("attendance.all", "All")}</SelectItem>
+                            <SelectItem value="PRESENT">{t("attendance.present", "Present")}</SelectItem>
+                            <SelectItem value="NO_SHOW">{t("status.NO_SHOW", "No-Show")}</SelectItem>
                         </SelectContent>
                     </Select>
                     <div className="w-48">
@@ -89,7 +89,7 @@ export default function Attendance() {
                 </div>
             </div>
             <p className="text-xs text-muted-foreground">
-                Record attendance by scanning QR from reservation details, or use manual check-in in Operations.
+                {t("attendance.recordAttendance", "Record attendance by scanning QR from reservation details, or use manual check-in in Operations.")}
             </p>
 
             <div className="space-y-3">
@@ -118,8 +118,8 @@ export default function Attendance() {
                                 <DropdownMenu>
                                     <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8 opacity-0 group-hover:opacity-100"><MoreHorizontal className="w-4 h-4" /></Button></DropdownMenuTrigger>
                                     <DropdownMenuContent align="end">
-                                        <DropdownMenuItem onClick={() => navigate(`/cheese/tickets?search=${rec.ticket}`)}><Ticket className="w-3 h-3 mr-2" /> View Ticket</DropdownMenuItem>
-                                        <DropdownMenuItem onClick={() => navigate(`/cheese/qr-tokens?ticket=${rec.ticket}`)}><QrCode className="w-3 h-3 mr-2" /> QR Tokens</DropdownMenuItem>
+                                        <DropdownMenuItem onClick={() => navigate(`/cheese/tickets?search=${rec.ticket}`)}><Ticket className="w-3 h-3 mr-2" /> {t("support.viewTicket", "View Ticket")}</DropdownMenuItem>
+                                        <DropdownMenuItem onClick={() => navigate(`/cheese/qr-tokens?ticket=${rec.ticket}`)}><QrCode className="w-3 h-3 mr-2" /> {t("nav.qrTokens", "QR Tokens")}</DropdownMenuItem>
                                     </DropdownMenuContent>
                                 </DropdownMenu>
                             </CardContent>

@@ -91,11 +91,11 @@ export default function Documents() {
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
                     <h1 className="text-2xl font-bold text-foreground flex items-center gap-2"><FileText className="w-6 h-6 text-cheese-600" /> {t("documents.title", "Documents")}</h1>
-                    <p className="text-sm text-muted-foreground mt-1">{isLoading ? '...' : `${filtered.length} documents`}</p>
+                    <p className="text-sm text-muted-foreground mt-1">{isLoading ? '...' : `${filtered.length} ${t("documents.documents", "documents")}`}</p>
                 </div>
                 <div className="flex gap-2">
                     <div className="relative"><Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" /><Input placeholder={t("common.search", "Buscar...")} value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-9 w-56 h-9" /></div>
-                    <Button className="cheese-gradient text-black font-semibold border-0 h-9" onClick={() => navigate("/cheese/documents/new")}><Plus className="w-4 h-4 mr-1" /> Upload</Button>
+                    <Button className="cheese-gradient text-black font-semibold border-0 h-9" onClick={() => navigate("/cheese/documents/new")}><Plus className="w-4 h-4 mr-1" /> {t("documents.upload", "Upload")}</Button>
                     <Button variant="ghost" size="icon" onClick={() => refetch()} className="h-9 w-9"><RefreshCw className="w-4 h-4" /></Button>
                 </div>
             </div>
@@ -118,16 +118,16 @@ export default function Documents() {
                                 </div>
                                 <Badge className={TYPE_BADGE[doc.document_type] || TYPE_BADGE.PDF}>{doc.document_type || '—'}</Badge>
                                 <Badge className={STATUS_BADGE[doc.status] || STATUS_BADGE.DRAFT}>{doc.status || 'DRAFT'}</Badge>
-                                {doc.validity_date && <span className="text-[10px] text-muted-foreground hidden sm:block">Valid: {doc.validity_date}</span>}
+                                {doc.validity_date && <span className="text-[10px] text-muted-foreground hidden sm:block">{t("quotations.validUntil", "Valid")}: {doc.validity_date}</span>}
                                 <DropdownMenu>
                                     <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8 opacity-0 group-hover:opacity-100"><MoreHorizontal className="w-4 h-4" /></Button></DropdownMenuTrigger>
                                     <DropdownMenuContent align="end">
-                                        {doc.file_url && <DropdownMenuItem onClick={() => window.open(doc.file_url, '_blank')}><ExternalLink className="w-3 h-3 mr-2" /> Open File</DropdownMenuItem>}
+                                        {doc.file_url && <DropdownMenuItem onClick={() => window.open(doc.file_url, '_blank')}><ExternalLink className="w-3 h-3 mr-2" /> {t("documents.openFile", "Open File")}</DropdownMenuItem>}
                                         {doc.entity_type === 'Cheese Route' && (
-                                            <DropdownMenuItem onClick={() => navigate(`/cheese/routes/${doc.entity_id}`)}>View Route</DropdownMenuItem>
+                                            <DropdownMenuItem onClick={() => navigate(`/cheese/routes/${doc.entity_id}`)}>{t("bankAccounts.viewRoute", "View Route")}</DropdownMenuItem>
                                         )}
                                         {doc.entity_type === 'Cheese Experience' && (
-                                            <DropdownMenuItem onClick={() => navigate(`/cheese/experiences/${doc.entity_id}`)}>View Experience</DropdownMenuItem>
+                                            <DropdownMenuItem onClick={() => navigate(`/cheese/experiences/${doc.entity_id}`)}>{t("documents.viewExperience", "View Experience")}</DropdownMenuItem>
                                         )}
                                     </DropdownMenuContent>
                                 </DropdownMenu>
@@ -138,32 +138,32 @@ export default function Documents() {
             </div>
 
             {!isLoading && filtered.length === 0 && (
-                <div className="text-center py-16"><FileText className="w-16 h-16 text-muted-foreground/20 mx-auto mb-4" /><p className="text-muted-foreground">No documents found</p></div>
+                <div className="text-center py-16"><FileText className="w-16 h-16 text-muted-foreground/20 mx-auto mb-4" /><p className="text-muted-foreground">{t("documents.noDocuments", "No documents found")}</p></div>
             )}
 
             <Dialog open={createOpen} onOpenChange={setCreateOpen}>
                 <DialogContent className="max-w-md">
-                    <DialogHeader><DialogTitle className="flex items-center gap-2"><Plus className="w-5 h-5 text-cheese-600" /> Upload Document</DialogTitle><DialogDescription>Attach a document</DialogDescription></DialogHeader>
+                    <DialogHeader><DialogTitle className="flex items-center gap-2"><Plus className="w-5 h-5 text-cheese-600" /> {t("documents.uploadDocument", "Upload Document")}</DialogTitle><DialogDescription>{t("documents.attachDocument", "Attach a document")}</DialogDescription></DialogHeader>
                     <div className="space-y-4">
                         <div className="grid grid-cols-2 gap-4">
-                            <div className="space-y-2"><Label>Entity Type *</Label><Input placeholder="Route / Experience" value={form.entity_type} onChange={(e) => setForm(f => ({ ...f, entity_type: e.target.value }))} /></div>
-                            <div className="space-y-2"><Label>Entity ID *</Label><Input placeholder="ID" value={form.entity_id} onChange={(e) => setForm(f => ({ ...f, entity_id: e.target.value }))} /></div>
+                            <div className="space-y-2"><Label>{t("deposits.entityType", "Entity Type")} *</Label><Input placeholder={t("common.selectType", "Route / Experience")} value={form.entity_type} onChange={(e) => setForm(f => ({ ...f, entity_type: e.target.value }))} /></div>
+                            <div className="space-y-2"><Label>{t("deposits.entityId", "Entity ID")} *</Label><Input placeholder={t("deposits.entityId", "ID")} value={form.entity_id} onChange={(e) => setForm(f => ({ ...f, entity_id: e.target.value }))} /></div>
                         </div>
-                        <div className="space-y-2"><Label>Title *</Label><Input value={form.title} onChange={(e) => setForm(f => ({ ...f, title: e.target.value }))} /></div>
+                        <div className="space-y-2"><Label>{t("documents.title", "Title")} *</Label><Input value={form.title} onChange={(e) => setForm(f => ({ ...f, title: e.target.value }))} /></div>
                         <div className="grid grid-cols-2 gap-4">
-                            <div className="space-y-2"><Label>Type</Label>
+                            <div className="space-y-2"><Label>{t("documents.type", "Type")}</Label>
                                 <Select value={form.document_type} onValueChange={(v) => setForm(f => ({ ...f, document_type: v }))}>
                                     <SelectTrigger><SelectValue /></SelectTrigger>
                                     <SelectContent><SelectItem value="PDF">PDF</SelectItem><SelectItem value="Image">Image</SelectItem><SelectItem value="Link">Link</SelectItem></SelectContent>
                                 </Select>
                             </div>
-                            <div className="space-y-2"><Label>File URL</Label><Input value={form.file_url} onChange={(e) => setForm(f => ({ ...f, file_url: e.target.value }))} /></div>
+                            <div className="space-y-2"><Label>{t("documents.content", "File URL")}</Label><Input value={form.file_url} onChange={(e) => setForm(f => ({ ...f, file_url: e.target.value }))} /></div>
                         </div>
                     </div>
                     <DialogFooter>
-                        <Button variant="outline" onClick={() => setCreateOpen(false)}>Cancel</Button>
-                        <Button className="cheese-gradient text-black font-semibold border-0" onClick={() => createMutation.mutate(form, { onSuccess: () => { setCreateOpen(false); toast.success("Document uploaded"); } })} disabled={createMutation.isPending}>
-                            {createMutation.isPending ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Plus className="w-4 h-4 mr-1" />} Upload
+                        <Button variant="outline" onClick={() => setCreateOpen(false)}>{t("common.cancel", "Cancel")}</Button>
+                        <Button className="cheese-gradient text-black font-semibold border-0" onClick={() => createMutation.mutate(form, { onSuccess: () => { setCreateOpen(false); toast.success(t("documents.documentCreated", "Document uploaded")); } })} disabled={createMutation.isPending}>
+                            {createMutation.isPending ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Plus className="w-4 h-4 mr-1" />} {t("documents.upload", "Upload")}
                         </Button>
                     </DialogFooter>
                 </DialogContent>

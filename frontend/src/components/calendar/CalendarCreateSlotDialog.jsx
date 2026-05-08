@@ -10,12 +10,14 @@ import { useFrappeCreate } from "@/lib/useApiData";
 import FrappeSearchSelect from "@/components/FrappeSearchSelect";
 import { format } from "./calendarUtils";
 import { experienceService } from "@/api/experienceService";
+import { useTranslation } from "react-i18next";
 
 /**
  * Dialog for admins to create a new experience slot.
  * Pre-populates date/time from the clicked grid cell.
  */
 export default function CalendarCreateSlotDialog({ open, onClose, prefillDate, prefillHour, onCreated }) {
+    const { t } = useTranslation();
     const [experience, setExperience] = useState("");
     const [dateFrom, setDateFrom] = useState("");
     const [dateTo, setDateTo] = useState("");
@@ -95,15 +97,15 @@ export default function CalendarCreateSlotDialog({ open, onClose, prefillDate, p
     const handleSubmit = async (e) => {
         e.preventDefault();
         if (!experience) {
-            toast.error("Please select an experience");
+            toast.error(t("bookingPolicy.experienceRequired", "Please select an experience"));
             return;
         }
         if (!dateFrom) {
-            toast.error("Please select a date");
+            toast.error(t("calendar.selectDate", "Please select a date"));
             return;
         }
         if (dateFrom < todayStr || (dateTo && dateTo < todayStr)) {
-            toast.error("Cannot create slots on past dates.");
+            toast.error(t("tickets.pastDatesError", "Cannot create slots on past dates."));
             return;
         }
         
@@ -125,7 +127,7 @@ export default function CalendarCreateSlotDialog({ open, onClose, prefillDate, p
                 });
                 
                 const count = result?.message?.data?.slots_created || 0;
-                toast.success(`Created ${count} slot${count !== 1 ? 's' : ''} successfully`);
+                toast.success(`${count} ${t("calendar.slot", "slot")}${count !== 1 ? "s" : ""} ${t("common.saved", "created successfully")}`);
             } else {
                 // Single slot creation
                 await createMutation.mutateAsync({
@@ -137,12 +139,12 @@ export default function CalendarCreateSlotDialog({ open, onClose, prefillDate, p
                     max_capacity: parseInt(maxCapacity, 10) || 10,
                     slot_status: "OPEN",
                 });
-                toast.success("Slot created successfully");
+                toast.success(t("calendar.slotUpdated", "Slot created successfully"));
             }
             onCreated?.();
             onClose?.();
         } catch (err) {
-            toast.error(err?.message || "Failed to create slot");
+            toast.error(err?.message || t("calendar.failedToLoadSlots", "Failed to create slot"));
         }
     };
 
@@ -152,22 +154,22 @@ export default function CalendarCreateSlotDialog({ open, onClose, prefillDate, p
                 <DialogHeader>
                     <DialogTitle className="flex items-center gap-2">
                         <Plus className="w-4 h-4 text-cheese-600" />
-                        Create Time Slot
+                        {t("calendar.createTimeSlot", "Create Time Slot")}
                     </DialogTitle>
                     <DialogDescription>
-                        Add a new availability slot to the calendar
+                        {t("calendar.createTimeSlotDesc", "Add a new availability slot to the calendar")}
                     </DialogDescription>
                 </DialogHeader>
 
                 <form onSubmit={handleSubmit} className="space-y-4">
                     {/* Experience */}
                     <div className="space-y-1.5">
-                        <Label className="text-xs">Experience *</Label>
+                        <Label className="text-xs">{t("ticket.experience", "Experience")} *</Label>
                         <FrappeSearchSelect
                             doctype="Cheese Experience"
                             value={experience}
                             onChange={setExperience}
-                            placeholder="Select experience..."
+                            placeholder={t("tickets.selectExperience", "Select experience...")}
                             labelField="experience_info"
                         />
                     </div>
@@ -175,7 +177,7 @@ export default function CalendarCreateSlotDialog({ open, onClose, prefillDate, p
                     {/* Date Range */}
                     <div className="grid grid-cols-2 gap-3">
                         <div className="space-y-1.5">
-                            <Label className="text-xs">Date From *</Label>
+                            <Label className="text-xs">{t("hotelAvailability.dateFrom", "Date From")} *</Label>
                             <Input
                                 type="date"
                                 value={dateFrom}
@@ -189,7 +191,7 @@ export default function CalendarCreateSlotDialog({ open, onClose, prefillDate, p
                             />
                         </div>
                         <div className="space-y-1.5">
-                            <Label className="text-xs">Date To</Label>
+                            <Label className="text-xs">{t("hotelAvailability.dateTo", "Date To")}</Label>
                             <Input
                                 type="date"
                                 value={dateTo}
@@ -203,7 +205,7 @@ export default function CalendarCreateSlotDialog({ open, onClose, prefillDate, p
                     {/* Time Range */}
                     <div className="grid grid-cols-2 gap-3">
                         <div className="space-y-1.5">
-                            <Label className="text-xs">Time From</Label>
+                            <Label className="text-xs">{t("calendar.time", "Time From")}</Label>
                             <Input
                                 type="time"
                                 value={timeFrom}
@@ -212,7 +214,7 @@ export default function CalendarCreateSlotDialog({ open, onClose, prefillDate, p
                             />
                         </div>
                         <div className="space-y-1.5">
-                            <Label className="text-xs">Time To</Label>
+                            <Label className="text-xs">{t("calendar.time", "Time To")}</Label>
                             <Input
                                 type="time"
                                 value={timeTo}
@@ -224,7 +226,7 @@ export default function CalendarCreateSlotDialog({ open, onClose, prefillDate, p
 
                     {/* Capacity */}
                     <div className="space-y-1.5">
-                        <Label className="text-xs">Max Capacity *</Label>
+                        <Label className="text-xs">{t("calendar.maxCapacity", "Max Capacity")} *</Label>
                         <Input
                             type="number"
                             value={maxCapacity}
@@ -237,7 +239,7 @@ export default function CalendarCreateSlotDialog({ open, onClose, prefillDate, p
 
                     {/* Recurrence */}
                     <div className="space-y-1.5">
-                        <Label className="text-xs">Repeat</Label>
+                        <Label className="text-xs">{t("calendar.repeat", "Repeat")}</Label>
                         <Select value={repeatType} onValueChange={(value) => {
                             setRepeatType(value);
                             if (value === "custom") {
@@ -245,21 +247,21 @@ export default function CalendarCreateSlotDialog({ open, onClose, prefillDate, p
                             }
                         }}>
                             <SelectTrigger className="h-9">
-                                <SelectValue placeholder="Does not repeat" />
+                                <SelectValue placeholder={t("calendar.doesNotRepeat", "Does not repeat")} />
                             </SelectTrigger>
                             <SelectContent>
-                                <SelectItem value="none">Does not repeat</SelectItem>
-                                <SelectItem value="daily">Every day</SelectItem>
-                                <SelectItem value="weekly">Every week, on {dateFrom ? new Date(dateFrom).toLocaleDateString('en-US', { weekday: 'long' }) : 'selected day'}</SelectItem>
-                                <SelectItem value="weekdays">Every weekday (Monday to Friday)</SelectItem>
-                                <SelectItem value="custom">Custom...</SelectItem>
+                                <SelectItem value="none">{t("calendar.doesNotRepeat", "Does not repeat")}</SelectItem>
+                                <SelectItem value="daily">{t("calendar.everyDay", "Every day")}</SelectItem>
+                                <SelectItem value="weekly">{t("calendar.everyWeekOn", "Every week, on")} {dateFrom ? new Date(dateFrom).toLocaleDateString('en-US', { weekday: 'long' }) : t("calendar.selectedDay", "selected day")}</SelectItem>
+                                <SelectItem value="weekdays">{t("calendar.everyWeekday", "Every weekday (Monday to Friday)")}</SelectItem>
+                                <SelectItem value="custom">{t("calendar.custom", "Custom...")}</SelectItem>
                             </SelectContent>
                         </Select>
                     </div>
 
                     <DialogFooter>
                         <Button type="button" variant="outline" onClick={onClose} size="sm">
-                            Cancel
+                            {t("common.cancel", "Cancel")}
                         </Button>
                         <Button
                             type="submit"
@@ -272,7 +274,7 @@ export default function CalendarCreateSlotDialog({ open, onClose, prefillDate, p
                             ) : (
                                 <Plus className="w-3.5 h-3.5 mr-1.5" />
                             )}
-                            Create Slot
+                            {t("calendar.createTimeSlot", "Create Slot")}
                         </Button>
                     </DialogFooter>
                 </form>
@@ -282,16 +284,16 @@ export default function CalendarCreateSlotDialog({ open, onClose, prefillDate, p
             <Dialog open={showCustomDialog} onOpenChange={setShowCustomDialog}>
                 <DialogContent className="max-w-md">
                     <DialogHeader>
-                        <DialogTitle>Custom Recurrence</DialogTitle>
+                        <DialogTitle>{t("calendar.customRecurrence", "Custom Recurrence")}</DialogTitle>
                         <DialogDescription>
-                            Set up a custom recurrence pattern for this slot
+                            {t("calendar.customRecurrenceDesc", "Set up a custom recurrence pattern for this slot")}
                         </DialogDescription>
                     </DialogHeader>
                     
                     <div className="space-y-4">
                         {/* Repeat Every */}
                         <div className="space-y-1.5">
-                            <Label className="text-xs">Repeat every</Label>
+                            <Label className="text-xs">{t("calendar.repeatEvery", "Repeat every")}</Label>
                             <div className="flex items-center gap-2">
                                 <Input
                                     type="number"
@@ -305,9 +307,9 @@ export default function CalendarCreateSlotDialog({ open, onClose, prefillDate, p
                                         <SelectValue />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        <SelectItem value="day">day(s)</SelectItem>
-                                        <SelectItem value="week">week(s)</SelectItem>
-                                        <SelectItem value="month">month(s)</SelectItem>
+                                        <SelectItem value="day">{t("calendar.dayUnit", "day(s)")}</SelectItem>
+                                        <SelectItem value="week">{t("calendar.weekUnit", "week(s)")}</SelectItem>
+                                        <SelectItem value="month">{t("calendar.monthUnit", "month(s)")}</SelectItem>
                                     </SelectContent>
                                 </Select>
                             </div>
@@ -316,7 +318,7 @@ export default function CalendarCreateSlotDialog({ open, onClose, prefillDate, p
                         {/* Repeat On (for weekly) */}
                         {customRepeatFrequency === "week" && (
                             <div className="space-y-1.5">
-                                <Label className="text-xs">Repeat on</Label>
+                                <Label className="text-xs">{t("calendar.repeatOn", "Repeat on")}</Label>
                                 <div className="flex gap-1">
                                     {[
                                         { key: "sunday", label: "D" },
@@ -344,7 +346,7 @@ export default function CalendarCreateSlotDialog({ open, onClose, prefillDate, p
 
                         {/* Ends */}
                         <div className="space-y-1.5">
-                            <Label className="text-xs">Ends</Label>
+                            <Label className="text-xs">{t("calendar.ends", "Ends")}</Label>
                             <div className="space-y-2">
                                 <div className="flex items-center gap-2">
                                     <input
@@ -355,7 +357,7 @@ export default function CalendarCreateSlotDialog({ open, onClose, prefillDate, p
                                         onChange={() => setCustomEndType("never")}
                                         className="w-4 h-4"
                                     />
-                                    <Label htmlFor="end-never" className="text-xs font-normal cursor-pointer">Never</Label>
+                                    <Label htmlFor="end-never" className="text-xs font-normal cursor-pointer">{t("calendar.never", "Never")}</Label>
                                 </div>
                                 <div className="flex items-center gap-2">
                                     <input
@@ -367,7 +369,7 @@ export default function CalendarCreateSlotDialog({ open, onClose, prefillDate, p
                                         className="w-4 h-4"
                                     />
                                     <Label htmlFor="end-date" className="text-xs font-normal cursor-pointer flex items-center gap-2">
-                                        On
+                                        {t("calendar.on", "On")}
                                         <Input
                                             type="date"
                                             value={customEndDate}
@@ -388,7 +390,7 @@ export default function CalendarCreateSlotDialog({ open, onClose, prefillDate, p
                                         className="w-4 h-4"
                                     />
                                     <Label htmlFor="end-occurrences" className="text-xs font-normal cursor-pointer flex items-center gap-2">
-                                        After
+                                        {t("calendar.after", "After")}
                                         <Input
                                             type="number"
                                             value={customEndOccurrences}
@@ -397,7 +399,7 @@ export default function CalendarCreateSlotDialog({ open, onClose, prefillDate, p
                                             disabled={customEndType !== "occurrences"}
                                             className="h-8 w-20"
                                         />
-                                        occurrences
+                                        {t("calendar.occurrences", "occurrences")}
                                     </Label>
                                 </div>
                             </div>
@@ -406,7 +408,7 @@ export default function CalendarCreateSlotDialog({ open, onClose, prefillDate, p
 
                     <DialogFooter>
                         <Button type="button" variant="outline" onClick={() => setShowCustomDialog(false)} size="sm">
-                            Cancel
+                            {t("common.cancel", "Cancel")}
                         </Button>
                         <Button
                             type="button"
@@ -414,13 +416,13 @@ export default function CalendarCreateSlotDialog({ open, onClose, prefillDate, p
                             className="bg-cheese-500 hover:bg-cheese-600 text-black"
                             onClick={() => {
                                 if (customRepeatFrequency === "week" && !Object.values(customRepeatDays).some(v => v)) {
-                                    toast.error("Please select at least one day");
+                                    toast.error(t("calendar.selectAtLeastOneDay", "Please select at least one day"));
                                     return;
                                 }
                                 setShowCustomDialog(false);
                             }}
                         >
-                            Done
+                            {t("common.save", "Done")}
                         </Button>
                     </DialogFooter>
                 </DialogContent>

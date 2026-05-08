@@ -10,11 +10,13 @@ import { Users, Clock, Ticket, Pencil, Trash2, ExternalLink, Save, X } from "luc
 import { toast } from "sonner";
 import { experienceService } from "@/api/experienceService";
 import { getOccupancy, getOccupancyColor, formatTimeRange, format } from "./calendarUtils";
+import { useTranslation } from "react-i18next";
 
 /**
  * Dialog showing full details of a selected slot, with Edit & Delete.
  */
 export default function CalendarSlotDetail({ slot, open, onClose }) {
+    const { t } = useTranslation();
     const navigate = useNavigate();
     const queryClient = useQueryClient();
     const [editing, setEditing] = useState(false);
@@ -25,23 +27,23 @@ export default function CalendarSlotDetail({ slot, open, onClose }) {
             return experienceService.updateTimeSlot(slot?.name, editForm);
         },
         onSuccess: () => {
-            toast.success("Slot updated");
+            toast.success(t("calendar.slotUpdated", "Slot updated"));
             queryClient.invalidateQueries(["calendar-slots"]);
             queryClient.invalidateQueries(["frappe-search"]);
             setEditing(false);
             onClose?.();
         },
-        onError: (err) => toast.error(err?.message || "Failed to update slot"),
+        onError: (err) => toast.error(err?.message || t("calendar.updateSlotFailed", "Failed to update slot")),
     });
 
     const deleteMutation = useMutation({
         mutationFn: async () => experienceService.deleteTimeSlot(slot?.name),
         onSuccess: () => {
-            toast.success("Slot deleted");
+            toast.success(t("calendar.slotDeleted", "Slot deleted"));
             queryClient.invalidateQueries(["calendar-slots"]);
             onClose?.();
         },
-        onError: (err) => toast.error(err?.message || "Failed to delete slot"),
+        onError: (err) => toast.error(err?.message || t("calendar.deleteSlotFailed", "Failed to delete slot")),
     });
 
     if (!slot) return null;
@@ -51,9 +53,9 @@ export default function CalendarSlotDetail({ slot, open, onClose }) {
     const available = Math.max(0, (slot.max_capacity || 0) - (slot.reserved_capacity || 0));
 
     const statusBadge = {
-        OPEN: { label: "Open", className: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400" },
-        CLOSED: { label: "Closed", className: "bg-gray-500/15 text-gray-600 dark:text-gray-400" },
-        BLOCKED: { label: "Blocked", className: "bg-red-500/15 text-red-700 dark:text-red-400" },
+        OPEN: { label: t("hotelAvailability.open", "Open"), className: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400" },
+        CLOSED: { label: t("status.CLOSED", "Closed"), className: "bg-gray-500/15 text-gray-600 dark:text-gray-400" },
+        BLOCKED: { label: t("hotelAvailability.blocked", "Blocked"), className: "bg-red-500/15 text-red-700 dark:text-red-400" },
     };
     const badge = statusBadge[slot.slot_status] || statusBadge.OPEN;
 
@@ -70,7 +72,7 @@ export default function CalendarSlotDetail({ slot, open, onClose }) {
     };
 
     const handleDelete = () => {
-        if (window.confirm(`Delete slot ${slot.name}? This cannot be undone.`)) {
+        if (window.confirm(t("calendar.deleteSlotConfirm", "Delete slot {{name}}? This cannot be undone.", { name: slot.name }))) {
             deleteMutation.mutate();
         }
     };
@@ -96,32 +98,32 @@ export default function CalendarSlotDetail({ slot, open, onClose }) {
                         /* Edit mode */
                         <div className="space-y-3">
                             <div className="space-y-1.5">
-                                <Label className="text-xs">Max Capacity</Label>
+                                <Label className="text-xs">{t("calendar.maxCapacity", "Max Capacity")}</Label>
                                 <Input type="number" min="1" value={editForm.max_capacity} onChange={(e) => setEditForm(f => ({ ...f, max_capacity: parseInt(e.target.value) || 1 }))} />
                             </div>
                             <div className="space-y-1.5">
-                                <Label className="text-xs">Status</Label>
+                                <Label className="text-xs">{t("common.status", "Status")}</Label>
                                 <select value={editForm.slot_status} onChange={(e) => setEditForm(f => ({ ...f, slot_status: e.target.value }))} className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-2 text-sm">
-                                    <option value="OPEN">Open</option>
-                                    <option value="CLOSED">Closed</option>
-                                    <option value="BLOCKED">Blocked</option>
+                                    <option value="OPEN">{t("hotelAvailability.open", "Open")}</option>
+                                    <option value="CLOSED">{t("status.CLOSED", "Closed")}</option>
+                                    <option value="BLOCKED">{t("hotelAvailability.blocked", "Blocked")}</option>
                                 </select>
                             </div>
                             <div className="space-y-1.5">
-                                <Label className="text-xs">Date From</Label>
+                                <Label className="text-xs">{t("hotelAvailability.dateFrom", "Date From")}</Label>
                                 <Input type="date" value={editForm.date_from} onChange={(e) => setEditForm(f => ({ ...f, date_from: e.target.value }))} />
                             </div>
                             <div className="space-y-1.5">
-                                <Label className="text-xs">Date To</Label>
+                                <Label className="text-xs">{t("hotelAvailability.dateTo", "Date To")}</Label>
                                 <Input type="date" value={editForm.date_to} onChange={(e) => setEditForm(f => ({ ...f, date_to: e.target.value }))} />
                             </div>
                             <div className="grid grid-cols-2 gap-3">
                                 <div className="space-y-1.5">
-                                    <Label className="text-xs">Time From</Label>
+                                    <Label className="text-xs">{t("calendar.time", "Time From")}</Label>
                                     <Input type="time" value={editForm.time_from} onChange={(e) => setEditForm(f => ({ ...f, time_from: e.target.value }))} />
                                 </div>
                                 <div className="space-y-1.5">
-                                    <Label className="text-xs">Time To</Label>
+                                    <Label className="text-xs">{t("calendar.time", "Time To")}</Label>
                                     <Input type="time" value={editForm.time_to} onChange={(e) => setEditForm(f => ({ ...f, time_to: e.target.value }))} />
                                 </div>
                             </div>
@@ -130,12 +132,12 @@ export default function CalendarSlotDetail({ slot, open, onClose }) {
                         /* View mode */
                         <>
                             <div className="flex items-center justify-between">
-                                <span className="text-xs text-muted-foreground">Status</span>
+                                <span className="text-xs text-muted-foreground">{t("common.status", "Status")}</span>
                                 <Badge className={badge.className}>{badge.label}</Badge>
                             </div>
                             <div className="space-y-2">
                                 <div className="flex items-center justify-between">
-                                    <span className="text-xs text-muted-foreground">Capacity</span>
+                                    <span className="text-xs text-muted-foreground">{t("calendar.capacity", "Capacity")}</span>
                                     <span className="text-sm font-semibold flex items-center gap-1">
                                         <Users className="w-3.5 h-3.5" />
                                         {slot.reserved_capacity || 0} / {slot.max_capacity || "—"}
@@ -145,12 +147,12 @@ export default function CalendarSlotDetail({ slot, open, onClose }) {
                                     <div className={`h-2 rounded-full transition-all ${colors.bar}`} style={{ width: `${Math.min(occ, 100)}%` }} />
                                 </div>
                                 <div className="flex justify-between text-[10px] text-muted-foreground">
-                                    <span>{occ}% occupied</span>
-                                    <span>{available} available</span>
+                                    <span>{occ}% {t("calendar.occupied", "occupied")}</span>
+                                    <span>{available} {t("hotelAvailability.available", "available")}</span>
                                 </div>
                             </div>
                             <div className="flex items-center justify-between">
-                                <span className="text-xs text-muted-foreground">Slot ID</span>
+                                <span className="text-xs text-muted-foreground">{t("calendar.slot", "Slot ID")}</span>
                                 <span className="text-xs font-mono text-muted-foreground">{slot.name}</span>
                             </div>
                         </>
@@ -161,27 +163,27 @@ export default function CalendarSlotDetail({ slot, open, onClose }) {
                     {editing ? (
                         <>
                             <Button size="sm" variant="ghost" onClick={() => setEditing(false)}>
-                                <X className="w-3.5 h-3.5 mr-1" /> Cancel
+                                <X className="w-3.5 h-3.5 mr-1" /> {t("common.cancel", "Cancel")}
                             </Button>
                             <Button size="sm" className="bg-cheese-500 hover:bg-cheese-600 text-black" onClick={() => updateMutation.mutate()} disabled={updateMutation.isPending}>
-                                <Save className="w-3.5 h-3.5 mr-1" /> Save
+                                <Save className="w-3.5 h-3.5 mr-1" /> {t("common.save", "Save")}
                             </Button>
                         </>
                     ) : (
                         <div className="grid grid-cols-2 gap-2 w-full">
                             {slot.slot_status === "OPEN" && available > 0 && (
                                 <Button size="sm" className="bg-cheese-500 hover:bg-cheese-600 text-black" onClick={() => navigate(`/cheese/tickets/new?experience=${encodeURIComponent(slot.experience || "")}&slot=${encodeURIComponent(slot.name)}&date=${encodeURIComponent(slot._viewDate || slot.date_from || "")}`)}>
-                                    <Ticket className="w-3.5 h-3.5 mr-1.5" /> Create Ticket
+                                    <Ticket className="w-3.5 h-3.5 mr-1.5" /> {t("ticket.createTicket", "Create Ticket")}
                                 </Button>
                             )}
                             <Button variant="outline" size="sm" onClick={() => navigate(`/cheese/tickets?slot=${slot.name}`)}>
-                                <ExternalLink className="w-3.5 h-3.5 mr-1.5" /> View Tickets
+                                <ExternalLink className="w-3.5 h-3.5 mr-1.5" /> {t("experiences.viewTickets", "View Tickets")}
                             </Button>
                             <Button variant="outline" size="sm" onClick={startEditing}>
-                                <Pencil className="w-3.5 h-3.5 mr-1" /> Edit
+                                <Pencil className="w-3.5 h-3.5 mr-1" /> {t("common.edit", "Edit")}
                             </Button>
                             <Button variant="destructive" size="sm" onClick={handleDelete} disabled={deleteMutation.isPending}>
-                                <Trash2 className="w-3.5 h-3.5 mr-1" /> Delete
+                                <Trash2 className="w-3.5 h-3.5 mr-1" /> {t("common.delete", "Delete")}
                             </Button>
                         </div>
                     )}

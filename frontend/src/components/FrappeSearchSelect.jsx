@@ -4,6 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Search, X, Loader2, ChevronDown } from "lucide-react";
 import { apiRequest } from "@/api/client";
+import { useTranslation } from "react-i18next";
 
 /**
  * FrappeSearchSelect — A searchable select that fetches live Frappe doctype records.
@@ -23,9 +24,10 @@ export default function FrappeSearchSelect({
     value,
     onChange,
     filters = {},
-    placeholder = "Search...",
+    placeholder = "",
     disabled = false,
 }) {
+    const { t } = useTranslation();
     const [open, setOpen] = useState(false);
     const [searchTerm, setSearchTerm] = useState("");
     const ref = useRef(null);
@@ -102,7 +104,7 @@ export default function FrappeSearchSelect({
                     ${open ? 'border-cheese-400 ring-2 ring-ring ring-offset-2' : ''}`}
             >
                 <span className={value ? "text-foreground" : "text-muted-foreground"}>
-                    {value ? displayLabel : placeholder}
+                    {value ? displayLabel : (placeholder || t("common.search", "Search") + "...")}
                 </span>
                 <div className="flex items-center gap-1">
                     {value && !disabled && (
@@ -125,7 +127,7 @@ export default function FrappeSearchSelect({
                         <div className="relative">
                             <Search className="w-4 h-4 absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
                             <Input
-                                placeholder={`Search ${doctype.replace('Cheese ', '')}...`}
+                                placeholder={t("common.search", "Search") + ` ${doctype.replace('Cheese ', '')}...`}
                                 value={searchTerm}
                                 onChange={(e) => setSearchTerm(e.target.value)}
                                 className="pl-8 h-8 text-sm"
@@ -139,7 +141,7 @@ export default function FrappeSearchSelect({
                         {isLoading ? (
                             <div className="flex items-center justify-center py-4">
                                 <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
-                                <span className="ml-2 text-sm text-muted-foreground">Loading...</span>
+                                <span className="ml-2 text-sm text-muted-foreground">{t("common.loading", "Loading...")}</span>
                             </div>
                         ) : options.length > 0 ? (
                             options.map((opt) => {
@@ -160,12 +162,12 @@ export default function FrappeSearchSelect({
                                                 <span className="ml-2 text-[10px] font-mono text-muted-foreground">{opt.name}</span>
                                             )}
                                         </span>
-                                        {isSelected && <Badge className="text-[9px] bg-cheese-500/20 text-cheese-700 dark:text-cheese-400">selected</Badge>}
+                                        {isSelected && <Badge className="text-[9px] bg-cheese-500/20 text-cheese-700 dark:text-cheese-400">{t("common.selected", "Selected")}</Badge>}
                                     </button>
                                 );
                             })
                         ) : (
-                            <p className="text-sm text-muted-foreground text-center py-4">No results found</p>
+                            <p className="text-sm text-muted-foreground text-center py-4">{t("common.noResults", "No results found")}</p>
                         )}
                     </div>
                 </div>

@@ -231,16 +231,19 @@ def create_pending_ticket(contact_id, experience_id, slot_id, party_size=1, sele
 			if party_size > available:
 				return validation_error(f"Cannot book {party_size} tickets. Only {available} slots available.")
 
-		# Validate booking policy using the same date resolver as modification endpoints.
-		try:
-			_run_booking_policy(
-				experience_id,
-				slot_datetime,
-				action="booking",
-				event_end_datetime=event_end_datetime,
-			)
-		except frappe.ValidationError as e:
-			return validation_error(str(e))
+		# Activities use Cheese Booking Policy lead-time rules.
+		# Hotels use dedicated hotel policy fields and should not be blocked
+		# by activity min_hours_before_booking rules.
+		if experience.experience_type != "HOTEL":
+			try:
+				_run_booking_policy(
+					experience_id,
+					slot_datetime,
+					action="booking",
+					event_end_datetime=event_end_datetime,
+				)
+			except frappe.ValidationError as e:
+				return validation_error(str(e))
 
 		# Calculate price
 		party_size_for_price = rooms_requested if experience.experience_type == "HOTEL" else party_size

@@ -41,8 +41,10 @@
     "filter": "Filter",
     "create": "Create",
     "save": "Save",
+    "saved": "Saved",
     "cancel": "Cancel",
     "delete": "Delete",
+    "deleted": "Deleted",
     "edit": "Edit",
     "back": "Back",
     "loading": "Loading...",
@@ -64,6 +66,7 @@
     "yes": "Yes",
     "no": "No",
     "unknown": "Unknown",
+    "with": "with",
     "at": "at",
     "night": "Night",
     "nights": "Nights",
@@ -80,7 +83,9 @@
     "notProvided": "Not provided",
     "totalPrice": "Total Price",
     "documents": "Documents",
-    "bankAccounts": "Bank Accounts"
+    "bankAccounts": "Bank Accounts",
+    "failed": "Failed",
+    "selected": "Selected"
   },
   "status": {
     "ONLINE": "Online",
@@ -101,7 +106,9 @@
     "IN_PROGRESS": "In Progress",
     "CONVERTED": "Converted",
     "LOST": "Lost",
-    "DISCARDED": "Discarded"
+    "DISCARDED": "Discarded",
+    "CLOSED": "Closed",
+    "INACTIVE": "Inactive"
   },
   "ticket": {
     "board": "Ticket Board",
@@ -324,7 +331,9 @@
     "modifyBeforeHours": "Modify Before (hours)",
     "modifyBeforeHint": "Guests can modify up to this many hours before",
     "minLeadHours": "Min Booking Lead (hours)",
-    "minLeadHoursHint": "Minimum hours in advance to book"
+    "minLeadHoursHint": "Minimum hours in advance to book",
+    "editTimes": "Edit Times",
+    "noneFound": "No policies found"
   },
   "booking": {
     "title": "Bookings"
@@ -631,7 +640,16 @@
     "deleteDocument": "Delete Document",
     "deleteConfirm": "Delete this document?",
     "deleteSuccess": "Document deleted",
-    "deleteError": "Failed to delete document"
+    "deleteError": "Failed to delete document",
+    "openFile": "Open File",
+    "viewExperience": "View Experience",
+    "uploadDocument": "Upload Document",
+    "attachDocument": "Attach a document to a route or experience",
+    "language": "Language",
+    "version": "Version",
+    "linkUrl": "Link URL",
+    "attachment": "Attachment",
+    "orPasteUrl": "or paste a URL below"
   },
   "support": {
     "newCase": "New Support Case",
@@ -703,6 +721,76 @@
     "noUsersFound": "No users found",
     "emailPlaceholder": "user@company.com",
     "fullNamePlaceholder": "John Doe"
+  },
+  "attendance": {
+    "loadFailed": "Failed to load attendance",
+    "present": "Present",
+    "title": "Attendance",
+    "records": "records",
+    "searchTicket": "Search ticket...",
+    "all": "All",
+    "route": "Route...",
+    "establishment": "Establishment...",
+    "recordAttendance": "Record attendance by scanning QR from reservation details, or use manual check-in in Operations."
+  },
+  "qrTokens": {
+    "viewAttendance": "View Attendance",
+    "title": "QR Tokens",
+    "tokens": "tokens",
+    "searchTicket": "Search ticket...",
+    "all": "All",
+    "active": "Active",
+    "used": "Used",
+    "expired": "Expired",
+    "noTokens": "No tokens found"
+  },
+  "calendar": {
+    "createTimeSlot": "Create Time Slot",
+    "createTimeSlotDesc": "Add a new availability slot to the calendar",
+    "doesNotRepeat": "Does not repeat",
+    "everyDay": "Every day",
+    "everyWeekOn": "Every week, on",
+    "selectedDay": "selected day",
+    "everyWeekday": "Every weekday (Monday to Friday)",
+    "custom": "Custom...",
+    "slotUpdated": "Slot updated",
+    "updateSlotFailed": "Failed to update slot",
+    "slotDeleted": "Slot deleted",
+    "deleteSlotFailed": "Failed to delete slot",
+    "deleteSlotConfirm": "Delete slot {{name}}? This cannot be undone.",
+    "maxCapacity": "Max Capacity",
+    "capacity": "Capacity",
+    "occupied": "occupied"
+    ,"repeat": "Repeat"
+    ,"customRecurrence": "Custom Recurrence"
+    ,"customRecurrenceDesc": "Set up a custom recurrence pattern for this slot"
+    ,"repeatEvery": "Repeat every"
+    ,"dayUnit": "day(s)"
+    ,"weekUnit": "week(s)"
+    ,"monthUnit": "month(s)"
+    ,"repeatOn": "Repeat on"
+    ,"ends": "Ends"
+    ,"never": "Never"
+    ,"on": "On"
+    ,"after": "After"
+    ,"occurrences": "occurrences"
+    ,"selectAtLeastOneDay": "Please select at least one day"
+  },
+  "qrScan": {
+    "cameraDenied": "Camera access denied or not available. Use manual token entry below.",
+    "invalidQr": "Invalid QR code",
+    "validationFailed": "Failed to validate QR code",
+    "enterToken": "Enter a QR token",
+    "completeFailed": "Failed to complete ticket",
+    "ticketCompleted": "Ticket marked as COMPLETED!",
+    "scanError": "Scan Error",
+    "checkInSuccess": "Check-In Successful",
+    "qrValidated": "QR Validated",
+    "previous": "Previous",
+    "checkedInAt": "Checked In At",
+    "markCompleted": "Mark as Completed",
+    "submitSurvey": "Submit Survey",
+    "scanAnother": "Scan Another QR"
   },
   "systemEvents": {
     "title": "System Events",

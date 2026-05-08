@@ -66,7 +66,7 @@ export default function QRScan() {
                 }
             );
         } catch (err) {
-            setError("Camera access denied or not available. Use manual token entry below.");
+            setError(t("qrScan.cameraDenied", "Camera access denied or not available. Use manual token entry below."));
             setScanning(false);
         }
     };
@@ -100,7 +100,7 @@ export default function QRScan() {
 
             const payload = res?.data?.message || res?.data || res;
             if (payload?.success === false) {
-                throw new Error(payload?.error?.message || payload?.message || "Invalid QR code");
+                throw new Error(payload?.error?.message || payload?.message || t("qrScan.invalidQr", "Invalid QR code"));
             }
 
             const data = payload?.data || payload;
@@ -108,10 +108,10 @@ export default function QRScan() {
                 ...data,
                 token,
             });
-            toast.success("Check-in successful!");
+            toast.success(t("qrScan.scanSuccess", "Check-in successful!"));
         } catch (err) {
-            setError(err?.message || "Failed to validate QR code");
-            toast.error(err?.message || "Invalid QR code");
+            setError(err?.message || t("qrScan.validationFailed", "Failed to validate QR code"));
+            toast.error(err?.message || t("qrScan.invalidQr", "Invalid QR code"));
         } finally {
             setProcessing(false);
         }
@@ -119,7 +119,7 @@ export default function QRScan() {
 
     const handleManualSubmit = () => {
         if (!manualToken.trim()) {
-            toast.error("Enter a QR token");
+            toast.error(t("qrScan.enterToken", "Enter a QR token"));
             return;
         }
         handleScan(manualToken.trim());
@@ -138,12 +138,12 @@ export default function QRScan() {
             });
             const payload = res?.data?.message || res?.data || res;
             if (payload?.success === false) {
-                throw new Error(payload?.error?.message || payload?.message || "Failed to complete ticket");
+                throw new Error(payload?.error?.message || payload?.message || t("qrScan.completeFailed", "Failed to complete ticket"));
             }
             setScanResult(prev => ({ ...prev, new_status: "COMPLETED" }));
-            toast.success("Ticket marked as COMPLETED!");
+            toast.success(t("qrScan.ticketCompleted", "Ticket marked as COMPLETED!"));
         } catch (err) {
-            toast.error(err?.message || "Failed to complete ticket");
+            toast.error(err?.message || t("qrScan.completeFailed", "Failed to complete ticket"));
         } finally {
             setCompleting(false);
         }
@@ -164,7 +164,7 @@ export default function QRScan() {
                 </div>
                 <h1 className="text-2xl font-bold text-foreground">{t("qrScan.title", "Registro QR")}</h1>
                 <p className="text-sm text-muted-foreground mt-1">
-                    Scan a guest's QR code to verify attendance
+                    {t("qrScan.scanDescription", "Scan a guest's QR code to verify attendance")}
                 </p>
             </div>
 
@@ -189,7 +189,7 @@ export default function QRScan() {
                                             className="absolute top-3 right-3 z-10"
                                             onClick={stopScanner}
                                         >
-                                            <XCircle className="w-4 h-4 mr-1" /> Stop
+                                            <XCircle className="w-4 h-4 mr-1" /> {t("common.cancel", "Stop")}
                                         </Button>
                                     </div>
                                 ) : (
@@ -207,7 +207,7 @@ export default function QRScan() {
                                             ) : (
                                                 <Camera className="w-5 h-5 mr-2" />
                                             )}
-                                            Open Camera Scanner
+                                            {t("qrScan.openCamera", "Open Camera Scanner")}
                                         </Button>
                                     </div>
                                 )}
@@ -244,7 +244,7 @@ export default function QRScan() {
                                     <CardContent className="p-4 flex items-start gap-3">
                                         <AlertTriangle className="w-5 h-5 text-red-500 shrink-0 mt-0.5" />
                                         <div>
-                                            <p className="text-sm font-medium text-red-700 dark:text-red-400">Scan Error</p>
+                                            <p className="text-sm font-medium text-red-700 dark:text-red-400">{t("qrScan.scanError", "Scan Error")}</p>
                                             <p className="text-xs text-red-600 dark:text-red-400/80 mt-1">{error}</p>
                                         </div>
                                     </CardContent>
@@ -264,31 +264,31 @@ export default function QRScan() {
                                         <CheckCircle className="w-7 h-7 text-emerald-600" />
                                     </div>
                                     <h2 className="text-lg font-bold text-foreground">
-                                        {scanResult.checked_in ? "Check-In Successful" : "QR Validated"}
+                                        {scanResult.checked_in ? t("qrScan.checkInSuccess", "Check-In Successful") : t("qrScan.qrValidated", "QR Validated")}
                                     </h2>
                                 </div>
 
                                 {/* Ticket info */}
                                 <div className="grid grid-cols-2 gap-4 bg-muted/30 rounded-xl p-4">
                                     <div>
-                                        <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Ticket</p>
+                                        <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">{t("ticket.newTicket", "Ticket")}</p>
                                         <p className="text-sm font-mono font-bold text-foreground mt-0.5">{scanResult.ticket_id}</p>
                                     </div>
                                     <div>
-                                        <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Status</p>
+                                        <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">{t("common.status", "Status")}</p>
                                         <Badge className={`mt-1 ${STATUS_COLORS[scanResult.new_status] || STATUS_COLORS.CONFIRMED}`}>
                                             {scanResult.new_status}
                                         </Badge>
                                     </div>
                                     {scanResult.old_status && (
                                         <div>
-                                            <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Previous</p>
+                                            <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">{t("qrScan.previous", "Previous")}</p>
                                             <p className="text-sm text-muted-foreground mt-0.5">{scanResult.old_status}</p>
                                         </div>
                                     )}
                                     {scanResult.checked_in_at && (
                                         <div>
-                                            <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Checked In At</p>
+                                            <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">{t("qrScan.checkedInAt", "Checked In At")}</p>
                                             <p className="text-sm text-muted-foreground mt-0.5">
                                                 {new Date(scanResult.checked_in_at).toLocaleTimeString()}
                                             </p>
@@ -309,7 +309,7 @@ export default function QRScan() {
                                             ) : (
                                                 <CheckCircle className="w-4 h-4 mr-2" />
                                             )}
-                                            Mark as Completed
+                                            {t("qrScan.markCompleted", "Mark as Completed")}
                                         </Button>
                                     )}
                                     {(scanResult.new_status === "COMPLETED" || scanResult.new_status === "CHECKED_IN") && (
@@ -319,7 +319,7 @@ export default function QRScan() {
                                             onClick={() => window.open(`/api/method/cheese.api.v1.survey_controller.get_survey_link?ticket_id=${scanResult.ticket_id}`, "_blank")}
                                         >
                                             <Star className="w-4 h-4 mr-2" />
-                                            Submit Survey
+                                            {t("survey.title", "Submit Survey")}
                                         </Button>
                                     )}
                                     <Button
@@ -328,7 +328,7 @@ export default function QRScan() {
                                         onClick={resetScan}
                                     >
                                         <RefreshCw className="w-4 h-4 mr-2" />
-                                        Scan Another QR
+                                        {t("qrScan.scanAnother", "Scan Another QR")}
                                     </Button>
                                 </div>
                             </CardContent>

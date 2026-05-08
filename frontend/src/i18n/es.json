@@ -68,6 +68,7 @@
     "yes": "Sí",
     "no": "No",
     "unknown": "Desconocido",
+    "with": "con",
     "at": "en",
     "night": "Noche",
     "nights": "Noches",
@@ -137,7 +138,8 @@
     "systemInfo": "Información del Sistema",
     "takeOffline": "Desconectar",
     "to": "Hasta",
-    "type": "Tipo"
+    "type": "Tipo",
+    "selected": "Seleccionado"
   },
   "status": {
     "ONLINE": "En Línea",
@@ -167,7 +169,9 @@
     "PARTIAL": "Parcial",
     "DRAFT": "Borrador",
     "SENT": "Enviado",
-    "ACCEPTED": "Aceptado"
+    "ACCEPTED": "Aceptado",
+    "CLOSED": "Cerrado",
+    "INACTIVE": "Inactivo"
   },
   "ticket": {
     "board": "Tablero de Tickets",
@@ -577,7 +581,37 @@
     "time": "Hora",
     "timeSlot": "Franja Horaria",
     "today": "Hoy",
-    "week": "Semana"
+    "week": "Semana",
+    "createTimeSlot": "Crear Franja Horaria",
+    "createTimeSlotDesc": "Agregar una nueva franja de disponibilidad al calendario",
+    "doesNotRepeat": "No se repite",
+    "everyDay": "Cada día",
+    "everyWeekOn": "Cada semana, en",
+    "selectedDay": "día seleccionado",
+    "everyWeekday": "Cada día laboral (lunes a viernes)",
+    "custom": "Personalizado...",
+    "slotUpdated": "Horario actualizado",
+    "updateSlotFailed": "No se pudo actualizar el horario",
+    "slotDeleted": "Horario eliminado",
+    "deleteSlotFailed": "No se pudo eliminar el horario",
+    "deleteSlotConfirm": "¿Eliminar el horario {{name}}? Esta acción no se puede deshacer.",
+    "maxCapacity": "Capacidad máxima",
+    "capacity": "Capacidad",
+    "occupied": "ocupado",
+    "repeat": "Repetir",
+    "customRecurrence": "Recurrencia personalizada",
+    "customRecurrenceDesc": "Configura un patrón de recurrencia personalizado para este horario",
+    "repeatEvery": "Repetir cada",
+    "dayUnit": "día(s)",
+    "weekUnit": "semana(s)",
+    "monthUnit": "mes(es)",
+    "repeatOn": "Repetir en",
+    "ends": "Termina",
+    "never": "Nunca",
+    "on": "En",
+    "after": "Después de",
+    "occurrences": "ocurrencias",
+    "selectAtLeastOneDay": "Seleccione al menos un día"
   },
   "bookings": {
     "title": "Reservas",
@@ -625,7 +659,9 @@
     "modifyBeforeHours": "Modificar antes (horas)",
     "modifyBeforeHint": "Los huéspedes pueden modificar hasta esta cantidad de horas antes",
     "minLeadHours": "Anticipación mínima (horas)",
-    "minLeadHoursHint": "Horas mínimas de anticipación para reservar"
+    "minLeadHoursHint": "Horas mínimas de anticipación para reservar",
+    "editTimes": "Editar horarios",
+    "noneFound": "No se encontraron políticas"
   },
   "booking": {
     "title": "Reservas"
@@ -1085,7 +1121,16 @@
     "published": "Publicado",
     "draft": "Borrador",
     "noDocuments": "No se encontraron documentos",
-    "loadFailed": "No se pudieron cargar los documentos"
+    "loadFailed": "No se pudieron cargar los documentos",
+    "openFile": "Abrir archivo",
+    "viewExperience": "Ver experiencia",
+    "uploadDocument": "Subir documento",
+    "attachDocument": "Adjunta un documento a una ruta o experiencia",
+    "language": "Idioma",
+    "version": "Versión",
+    "linkUrl": "URL del enlace",
+    "attachment": "Adjunto",
+    "orPasteUrl": "o pega una URL abajo"
   },
   "support": {
     "newCase": "Nuevo Caso de Soporte",
@@ -1290,7 +1335,21 @@
     "pasteToken": "Pegar token QR...",
     "validate": "Validar",
     "scanSuccess": "Escaneo exitoso",
-    "scanFailed": "Error al escanear"
+    "scanFailed": "Error al escanear",
+    "cameraDenied": "Acceso a la cámara denegado o no disponible. Use el ingreso manual del token abajo.",
+    "invalidQr": "Código QR inválido",
+    "validationFailed": "No se pudo validar el código QR",
+    "enterToken": "Ingrese un token QR",
+    "completeFailed": "No se pudo completar el ticket",
+    "ticketCompleted": "¡Ticket marcado como COMPLETADO!",
+    "scanError": "Error de escaneo",
+    "checkInSuccess": "Check-in exitoso",
+    "qrValidated": "QR validado",
+    "previous": "Anterior",
+    "checkedInAt": "Registrado en",
+    "markCompleted": "Marcar como completado",
+    "submitSurvey": "Enviar encuesta",
+    "scanAnother": "Escanear otro QR"
   },
   "qrTokens": {
     "title": "Tokens QR",
@@ -1300,7 +1359,8 @@
     "active": "Activo",
     "used": "Usado",
     "expired": "Expirado",
-    "noTokens": "No se encontraron tokens"
+    "noTokens": "No se encontraron tokens",
+    "viewAttendance": "Ver asistencia"
   },
   "attendance": {
     "title": "Asistencia",
@@ -1310,7 +1370,9 @@
     "route": "Ruta...",
     "establishment": "Establecimiento...",
     "noRecords": "No hay registros de asistencia",
-    "recordAttendance": "Registre asistencia escaneando QR desde los detalles de reserva, o use el registro manual en Operaciones."
+    "recordAttendance": "Registre asistencia escaneando QR desde los detalles de reserva, o use el registro manual en Operaciones.",
+    "present": "Presente",
+    "loadFailed": "No se pudo cargar la asistencia"
   },
   "conversations": {
     "title": "Conversaciones",

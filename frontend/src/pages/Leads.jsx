@@ -158,7 +158,7 @@ export default function Leads() {
                                 <Badge className={LEAD_STATUSES[lead.status] || LEAD_STATUSES.OPEN}>{lead.status ? t(`status.${lead.status}`, lead.status) : t("status.OPEN", "OPEN")}</Badge>
                                 {lead.interest_type && <p className="text-sm text-muted-foreground mt-2">{t("leads.interest", "Interest:")} <span className="font-medium text-foreground">{lead.interest_type}</span></p>}
                                 <div className="flex items-center justify-between mt-3 pt-3 border-t border-border text-xs text-muted-foreground">
-                                    <span>{lead.lost_reason ? `${t("leads.lostReason", "Lost:")} ${lead.lost_reason}` : ''}</span><span>{lead.last_interaction_at || '—'}</span>
+                                    <span>{lead.lost_reason ? `${t("leads.lostReason", "Lost:")} ${lead.lost_reason === "No Response" ? t("leads.lostReasonNoResponse", "No Response") : lead.lost_reason === "Price Too High" ? t("leads.lostReasonPrice", "Price Too High") : lead.lost_reason === "Not Interested" ? t("leads.lostReasonNotInterested", "Not Interested") : lead.lost_reason === "Other" ? t("leads.lostReasonOther", "Other") : lead.lost_reason}` : ''}</span><span>{lead.last_interaction_at || '—'}</span>
                                 </div>
                             </CardContent>
                         </Card>

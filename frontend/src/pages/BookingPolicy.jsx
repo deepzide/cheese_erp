@@ -45,15 +45,15 @@ export default function BookingPolicy() {
     });
 
     const handleCreate = () => {
-        if (!form.experience) { toast.error("Experience is required"); return; }
+        if (!form.experience) { toast.error(t("bookingPolicy.experienceRequired", "Experience is required")); return; }
         createMutation.mutate({
             experience: form.experience,
             cancel_until_hours_before: parseHours(form.cancel_until_hours_before, 24),
             modify_until_hours_before: parseHours(form.modify_until_hours_before, 12),
             min_hours_before_booking: parseHours(form.min_hours_before_booking, 2),
         }, {
-            onSuccess: () => { setCreateOpen(false); toast.success("Policy created"); },
-            onError: (err) => toast.error(err?.message || "Failed"),
+            onSuccess: () => { setCreateOpen(false); toast.success(t("bookingPolicy.created", "Policy created")); },
+            onError: (err) => toast.error(err?.message || t("common.failed", "Failed")),
         });
     };
 
@@ -78,11 +78,11 @@ export default function BookingPolicy() {
                     min_hours_before_booking: parseHours(editForm.min_hours_before_booking, 2),
                 }),
             });
-            toast.success("Policy updated");
+            toast.success(t("common.saved", "Policy updated"));
             setEditPolicy(null);
             refetch();
         } catch (err) {
-            toast.error(err?.message || "Failed to update");
+            toast.error(err?.message || t("common.failedToUpdate", "Failed to update"));
         }
     };
 
@@ -90,9 +90,9 @@ export default function BookingPolicy() {
         return (
             <div className="p-6 flex flex-col items-center justify-center min-h-[400px] text-center">
                 <AlertCircle className="w-12 h-12 text-red-400 mb-4" />
-                <h2 className="text-lg font-semibold mb-2">Failed to load booking policies</h2>
+                <h2 className="text-lg font-semibold mb-2">{t("bookings.loadFailed", "Failed to load booking policies")}</h2>
                 <p className="text-sm text-muted-foreground mb-4">{error?.message}</p>
-                <Button onClick={() => refetch()} variant="outline"><RefreshCw className="w-4 h-4 mr-2" /> Retry</Button>
+                <Button onClick={() => refetch()} variant="outline"><RefreshCw className="w-4 h-4 mr-2" /> {t("common.retry", "Retry")}</Button>
             </div>
         );
     }
@@ -104,7 +104,7 @@ export default function BookingPolicy() {
                     <h1 className="text-2xl font-bold text-foreground flex items-center gap-2"><Shield className="w-6 h-6 text-cheese-600" /> {t("nav.bookingPolicy", "Booking Policies")}</h1>
                     <p className="text-sm text-muted-foreground mt-1">{isLoading ? '...' : `${filtered.length} ${t("bookingPolicy.items", "policies")}`}</p>
                     {experienceFilter && (
-                        <p className="text-xs text-muted-foreground mt-1">Filtered by Experience: {experienceFilter}</p>
+                        <p className="text-xs text-muted-foreground mt-1">{t("common.filteredBy", "Filtered by")} {t("nav.experiences", "Experience")}: {experienceFilter}</p>
                     )}
                 </div>
                 <div className="flex gap-2">
@@ -124,22 +124,22 @@ export default function BookingPolicy() {
                                 <div className="flex items-start justify-between mb-3">
                                     <div>
                                         <h3 className="font-semibold text-foreground">{policy.name}</h3>
-                                        <span className="text-xs text-muted-foreground">Experience: {policy.experience || '—'}</span>
+                                        <span className="text-xs text-muted-foreground">{t("ticket.experience", "Experience")}: {policy.experience || '—'}</span>
                                     </div>
                                     <DropdownMenu>
                                         <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8 opacity-0 group-hover:opacity-100"><MoreHorizontal className="w-4 h-4" /></Button></DropdownMenuTrigger>
                                         <DropdownMenuContent align="end">
                                             <DropdownMenuItem onClick={() => openEdit(policy)}>
-                                                <Clock className="w-3 h-3 mr-2" /> Edit Times
+                                                <Clock className="w-3 h-3 mr-2" /> {t("bookingPolicy.editTimes", "Edit Times")}
                                             </DropdownMenuItem>
-                                            <DropdownMenuItem onClick={() => navigate(`/cheese/experiences?search=${policy.experience}`)}><Sparkles className="w-3 h-3 mr-2" /> View Experience</DropdownMenuItem>
+                                            <DropdownMenuItem onClick={() => navigate(`/cheese/experiences?search=${policy.experience}`)}><Sparkles className="w-3 h-3 mr-2" /> {t("documents.viewExperience", "View Experience")}</DropdownMenuItem>
                                         </DropdownMenuContent>
                                     </DropdownMenu>
                                 </div>
                                 <div className="space-y-2">
-                                    <div className="flex items-center gap-2 text-sm"><Clock className="w-3.5 h-3.5 text-muted-foreground" /><span>Cancel before: <strong>{policy.cancel_until_hours_before || 0}h</strong></span></div>
-                                    <div className="flex items-center gap-2 text-sm"><Clock className="w-3.5 h-3.5 text-muted-foreground" /><span>Modify before: <strong>{policy.modify_until_hours_before || 0}h</strong></span></div>
-                                    <div className="flex items-center gap-2 text-sm"><Clock className="w-3.5 h-3.5 text-muted-foreground" /><span>Min booking: <strong>{policy.min_hours_before_booking || 0}h</strong> ahead</span></div>
+                                    <div className="flex items-center gap-2 text-sm"><Clock className="w-3.5 h-3.5 text-muted-foreground" /><span>{t("bookingPolicy.cancelBeforeHours", "Cancel before (hours)")}: <strong>{policy.cancel_until_hours_before || 0}h</strong></span></div>
+                                    <div className="flex items-center gap-2 text-sm"><Clock className="w-3.5 h-3.5 text-muted-foreground" /><span>{t("bookingPolicy.modifyBeforeHours", "Modify before (hours)")}: <strong>{policy.modify_until_hours_before || 0}h</strong></span></div>
+                                    <div className="flex items-center gap-2 text-sm"><Clock className="w-3.5 h-3.5 text-muted-foreground" /><span>{t("bookingPolicy.minLeadHours", "Min booking lead (hours)")}: <strong>{policy.min_hours_before_booking || 0}h</strong></span></div>
                                 </div>
                             </CardContent>
                         </Card>
@@ -148,14 +148,14 @@ export default function BookingPolicy() {
             </div>
 
             {!isLoading && filtered.length === 0 && (
-                <div className="text-center py-16"><Shield className="w-16 h-16 text-muted-foreground/20 mx-auto mb-4" /><p className="text-muted-foreground">No policies found</p></div>
+                <div className="text-center py-16"><Shield className="w-16 h-16 text-muted-foreground/20 mx-auto mb-4" /><p className="text-muted-foreground">{t("bookingPolicy.noneFound", "No policies found")}</p></div>
             )}
 
             <Dialog open={createOpen} onOpenChange={setCreateOpen}>
                 <DialogContent className="max-w-md">
-                    <DialogHeader><DialogTitle className="flex items-center gap-2"><Plus className="w-5 h-5 text-cheese-600" /> New Booking Policy</DialogTitle><DialogDescription>Set booking rules for an experience</DialogDescription></DialogHeader>
+                    <DialogHeader><DialogTitle className="flex items-center gap-2"><Plus className="w-5 h-5 text-cheese-600" /> {t("bookingPolicy.newPolicy", "New Booking Policy")}</DialogTitle><DialogDescription>{t("bookingPolicy.newPolicyDescription", "Set booking rules for an experience")}</DialogDescription></DialogHeader>
                     <div className="space-y-4">
-                        <div className="space-y-2"><Label>Experience *</Label><Input placeholder="Experience ID" value={form.experience} onChange={(e) => setForm(f => ({ ...f, experience: e.target.value }))} /></div>
+                        <div className="space-y-2"><Label>{t("ticket.experience", "Experience")} *</Label><Input placeholder={t("experiences.experienceNameId", "Experience ID")} value={form.experience} onChange={(e) => setForm(f => ({ ...f, experience: e.target.value }))} /></div>
                         <div className="grid grid-cols-3 gap-3">
                             <div className="space-y-2"><Label className="text-xs">Cancel (hrs)</Label><Input type="number" min="0" value={form.cancel_until_hours_before} onChange={(e) => setForm(f => ({ ...f, cancel_until_hours_before: e.target.value }))} /></div>
                             <div className="space-y-2"><Label className="text-xs">Modify (hrs)</Label><Input type="number" min="0" value={form.modify_until_hours_before} onChange={(e) => setForm(f => ({ ...f, modify_until_hours_before: e.target.value }))} /></div>
@@ -163,9 +163,9 @@ export default function BookingPolicy() {
                         </div>
                     </div>
                     <DialogFooter>
-                        <Button variant="outline" onClick={() => setCreateOpen(false)}>Cancel</Button>
+                        <Button variant="outline" onClick={() => setCreateOpen(false)}>{t("common.cancel", "Cancel")}</Button>
                         <Button className="cheese-gradient text-black font-semibold border-0" onClick={handleCreate} disabled={createMutation.isPending}>
-                            {createMutation.isPending ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Plus className="w-4 h-4 mr-1" />} Create
+                            {createMutation.isPending ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Plus className="w-4 h-4 mr-1" />} {t("common.create", "Create")}
                         </Button>
                     </DialogFooter>
                 </DialogContent>
@@ -174,14 +174,14 @@ export default function BookingPolicy() {
             <Dialog open={!!editPolicy} onOpenChange={(open) => !open && setEditPolicy(null)}>
                 <DialogContent className="max-w-md">
                     <DialogHeader>
-                        <DialogTitle>Edit Booking Policy</DialogTitle>
+                        <DialogTitle>{t("bookingPolicy.editTimes", "Edit Booking Policy")}</DialogTitle>
                         <DialogDescription>
-                            Updating times for experience {editPolicy?.experience || "—"}
+                            {t("bookingPolicy.editTimes", "Updating times")} {t("common.for", "for")} {t("ticket.experience", "experience")} {editPolicy?.experience || "—"}
                         </DialogDescription>
                     </DialogHeader>
                     <div className="space-y-4">
                         <div className="space-y-2">
-                            <Label>Experience</Label>
+                            <Label>{t("ticket.experience", "Experience")}</Label>
                             <Input value={editPolicy?.experience || ""} disabled />
                         </div>
                         <div className="grid grid-cols-3 gap-3">
@@ -191,9 +191,9 @@ export default function BookingPolicy() {
                         </div>
                     </div>
                     <DialogFooter>
-                        <Button variant="outline" onClick={() => setEditPolicy(null)}>Cancel</Button>
+                        <Button variant="outline" onClick={() => setEditPolicy(null)}>{t("common.cancel", "Cancel")}</Button>
                         <Button onClick={handleEditSave}>
-                            Save changes
+                            {t("common.save", "Save changes")}
                         </Button>
                     </DialogFooter>
                 </DialogContent>

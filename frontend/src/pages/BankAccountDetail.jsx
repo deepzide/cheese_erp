@@ -73,8 +73,8 @@ export default function BankAccountDetail() {
         }
 
         updateMutation.mutate({ name: id, data: changes }, {
-            onSuccess: () => { toast.success("Bank account updated"); setEditMode(false); },
-            onError: (err) => toast.error(err?.message || "Failed to update"),
+            onSuccess: () => { toast.success(t("bankAccounts.updateSuccess", "Bank account updated")); setEditMode(false); },
+            onError: (err) => toast.error(err?.message || t("bankAccounts.updateError", "Failed to update")),
         });
     };
 
@@ -89,7 +89,7 @@ export default function BankAccountDetail() {
     return (
         <DetailPageLayout
             title={account?.holder || id}
-            subtitle={`Bank Account • ${account?.bank || ""}`}
+            subtitle={`${t("nav.bankAccounts", "Bank Accounts")} • ${account?.bank || ""}`}
             backPath="/cheese/bank-accounts"
             isLoading={isLoading}
             statusBadge={statusBadge}
@@ -104,15 +104,15 @@ export default function BankAccountDetail() {
                     <Card className="border-border/60 shadow-sm">
                         <CardHeader className="border-b bg-muted/20 pb-4">
                             <CardTitle className="text-sm font-semibold text-muted-foreground uppercase flex items-center">
-                                <Landmark className="w-4 h-4 mr-2" /> Account Details
+                                <Landmark className="w-4 h-4 mr-2" /> {t("common.details", "Account Details")}
                             </CardTitle>
                         </CardHeader>
                         <CardContent className="p-6">
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-6 gap-x-8">
-                                <EditableField label="Account Holder" value={form.holder} onChange={(v) => setForm(f => ({ ...f, holder: v }))} editMode={editMode} />
-                                <EditableField label="Bank" value={form.bank} onChange={(v) => setForm(f => ({ ...f, bank: v }))} editMode={editMode} />
-                                <EditableField label="Account Number" value={form.account} onChange={(v) => setForm(f => ({ ...f, account: v }))} editMode={editMode} />
-                                <EditableField label="Description" value={form.description} onChange={(v) => setForm(f => ({ ...f, description: v }))} editMode={editMode} />
+                                <EditableField label={t("bankAccounts.holder", "Account Holder")} value={form.holder} onChange={(v) => setForm(f => ({ ...f, holder: v }))} editMode={editMode} />
+                                <EditableField label={t("bankAccounts.bank", "Bank")} value={form.bank} onChange={(v) => setForm(f => ({ ...f, bank: v }))} editMode={editMode} />
+                                <EditableField label={t("bankAccounts.account", "Account Number")} value={form.account} onChange={(v) => setForm(f => ({ ...f, account: v }))} editMode={editMode} />
+                                <EditableField label={t("common.description", "Description")} value={form.description} onChange={(v) => setForm(f => ({ ...f, description: v }))} editMode={editMode} />
                                 <EditableField label="IBAN" value={form.iban} onChange={(v) => setForm(f => ({ ...f, iban: v }))} editMode={editMode} />
                                 {editMode ? (
                                     <div className="space-y-1.5">
@@ -140,9 +140,9 @@ export default function BankAccountDetail() {
                                             onChange={(e) => setForm(f => ({ ...f, status: e.target.value }))}
                                             className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm"
                                         >
-                                            <option value="PENDING">Pending</option>
-                                            <option value="ACTIVE">Active</option>
-                                            <option value="INACTIVE">Inactive</option>
+                                            <option value="PENDING">{t("status.PENDING", "Pending")}</option>
+                                            <option value="ACTIVE">{t("status.ACTIVE", "Active")}</option>
+                                            <option value="INACTIVE">{t("status.INACTIVE", "Inactive")}</option>
                                         </select>
                                     </div>
                                 ) : (
