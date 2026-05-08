@@ -130,9 +130,9 @@ export default function BookingPolicy() {
                                         <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8 opacity-0 group-hover:opacity-100"><MoreHorizontal className="w-4 h-4" /></Button></DropdownMenuTrigger>
                                         <DropdownMenuContent align="end">
                                             <DropdownMenuItem onClick={() => openEdit(policy)}>
-                                                <Clock className="w-3 h-3 mr-2" /> {t("bookingPolicy.editTimes", "Edit Times")}
+                                                <Clock className="w-3 h-3 mr-2" /> {t("bookingPolicy.editTimes", "Editar horarios")}
                                             </DropdownMenuItem>
-                                            <DropdownMenuItem onClick={() => navigate(`/cheese/experiences?search=${policy.experience}`)}><Sparkles className="w-3 h-3 mr-2" /> {t("documents.viewExperience", "View Experience")}</DropdownMenuItem>
+                                            <DropdownMenuItem onClick={() => navigate(`/cheese/experiences?search=${policy.experience}`)}><Sparkles className="w-3 h-3 mr-2" /> {t("documents.viewExperience", "Ver experiencia")}</DropdownMenuItem>
                                         </DropdownMenuContent>
                                     </DropdownMenu>
                                 </div>

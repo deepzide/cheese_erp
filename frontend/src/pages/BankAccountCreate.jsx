@@ -40,34 +40,34 @@ export default function BankAccountCreate() {
 
     return (
         <CreatePageLayout
-            title={t("bankAccounts.newBankAccount", "New Bank Account")}
-            description={t("bankAccounts.linkDescription", "Link a bank account to a route or establishment")}
+            title={t("bankAccounts.newBankAccount", "Nueva Cuenta Bancaria")}
+            description={t("bankAccounts.linkDescription", "Vincular una cuenta bancaria a una ruta o establecimiento")}
             icon={Landmark}
             backPath="/cheese/bank-accounts"
             onSubmit={handleSubmit}
             isSubmitting={createMutation.isPending}
-            submitLabel={t("bankAccounts.addBankAccount", "Add Bank Account")}
+            submitLabel={t("bankAccounts.addBankAccount", "Agregar Cuenta Bancaria")}
         >
             <div className="space-y-5">
                 <div className="space-y-2">
-                    <Label>{t("bankAccounts.linkTo", "Link To")} <span className="text-red-500">*</span></Label>
+                    <Label>{t("bankAccounts.linkTo", "Vincular A")} <span className="text-red-500">*</span></Label>
                     <Select value={form.entity_type} onValueChange={(v) => setForm(f => ({ ...f, entity_type: v, entity_id: "" }))}>
                         <SelectTrigger><SelectValue /></SelectTrigger>
                         <SelectContent>
-                            <SelectItem value="Cheese Route">{t("bankAccounts.route", "Route")}</SelectItem>
-                            <SelectItem value="Company">{t("bankAccounts.establishment", "Establishment")}</SelectItem>
+                            <SelectItem value="Cheese Route">{t("bankAccounts.route", "Ruta")}</SelectItem>
+                            <SelectItem value="Company">{t("bankAccounts.establishment", "Establecimiento")}</SelectItem>
                         </SelectContent>
                     </Select>
                 </div>
                 <div className="space-y-2">
-                    <Label>{form.entity_type === "Company" ? t("bankAccounts.establishmentLabel", "Establishment") : t("bankAccounts.routeLabel", "Route")} <span className="text-red-500">*</span></Label>
+                    <Label>{form.entity_type === "Company" ? t("bankAccounts.establishmentLabel", "Establecimiento") : t("bankAccounts.routeLabel", "Ruta")} <span className="text-red-500">*</span></Label>
                     {form.entity_type === "Company" ? (
                         <FrappeSearchSelect
                             doctype="Company"
                             label="name"
                             value={form.entity_id}
                             onChange={(v) => setForm(f => ({ ...f, entity_id: v }))}
-                            placeholder={t("bankAccounts.establishmentLabel", "Select an establishment...")}
+                            placeholder={t("bankAccounts.establishmentLabel", "Seleccionar establecimiento...")}
                         />
                     ) : (
                         <FrappeSearchSelect
@@ -75,18 +75,18 @@ export default function BankAccountCreate() {
                             label="name"
                             value={form.entity_id}
                             onChange={(v) => setForm(f => ({ ...f, entity_id: v }))}
-                            placeholder={t("bankAccounts.routeLabel", "Select a route...")}
+                            placeholder={t("bankAccounts.routeLabel", "Seleccionar ruta...")}
                         />
                     )}
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                     <div className="space-y-2">
-                        <Label>{t("bankAccounts.holderLabel", "Account Holder")}</Label>
-                        <Input placeholder={t("bankAccounts.holderLabel", "Company Name")} value={form.holder} onChange={(e) => setForm(f => ({ ...f, holder: e.target.value }))} />
+                        <Label>{t("bankAccounts.holderLabel", "Titular")}</Label>
+                        <Input placeholder={t("bankAccounts.holderLabel", "Nombre de empresa")} value={form.holder} onChange={(e) => setForm(f => ({ ...f, holder: e.target.value }))} />
                     </div>
                     <div className="space-y-2">
-                        <Label>{t("bankAccounts.bankLabel", "Bank")}</Label>
-                        <Input placeholder={t("bankAccounts.bankLabel", "Bank name")} value={form.bank} onChange={(e) => setForm(f => ({ ...f, bank: e.target.value }))} />
+                        <Label>{t("bankAccounts.bankLabel", "Banco")}</Label>
+                        <Input placeholder={t("bankAccounts.bankLabel", "Nombre del banco")} value={form.bank} onChange={(e) => setForm(f => ({ ...f, bank: e.target.value }))} />
                     </div>
                 </div>
                 <div className="space-y-2">
@@ -95,17 +95,17 @@ export default function BankAccountCreate() {
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                     <div className="space-y-2">
-                        <Label>{t("bankAccounts.account", "Account Number")}</Label>
-                        <Input placeholder={t("bankAccounts.account", "Account number")} value={form.account} onChange={(e) => setForm(f => ({ ...f, account: e.target.value }))} className="font-mono" />
+                        <Label>{t("bankAccounts.account", "Numero de cuenta")}</Label>
+                        <Input placeholder={t("bankAccounts.account", "Numero de cuenta")} value={form.account} onChange={(e) => setForm(f => ({ ...f, account: e.target.value }))} className="font-mono" />
                     </div>
                     <div className="space-y-2">
-                        <Label>{t("bankAccounts.description", "Description")}</Label>
-                        <Input placeholder={t("bankAccounts.descriptionPlaceholder", "e.g. Primary Account")} value={form.description} onChange={(e) => setForm(f => ({ ...f, description: e.target.value }))} />
+                        <Label>{t("bankAccounts.description", "Descripcion")}</Label>
+                        <Input placeholder={t("bankAccounts.descriptionPlaceholder", "ej. Cuenta principal")} value={form.description} onChange={(e) => setForm(f => ({ ...f, description: e.target.value }))} />
                     </div>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                     <div className="space-y-2">
-                        <Label>{t("bankAccounts.currency", "Currency")}</Label>
+                        <Label>{t("bankAccounts.currency", "Moneda")}</Label>
                         <Select value={form.currency} onValueChange={(v) => setForm(f => ({ ...f, currency: v }))}>
                             <SelectTrigger><SelectValue /></SelectTrigger>
                             <SelectContent>

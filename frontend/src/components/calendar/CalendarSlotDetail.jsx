@@ -53,8 +53,8 @@ export default function CalendarSlotDetail({ slot, open, onClose }) {
     const available = Math.max(0, (slot.max_capacity || 0) - (slot.reserved_capacity || 0));
 
     const statusBadge = {
-        OPEN: { label: t("hotelAvailability.open", "Open"), className: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400" },
-        CLOSED: { label: t("status.CLOSED", "Closed"), className: "bg-gray-500/15 text-gray-600 dark:text-gray-400" },
+        OPEN: { label: t("hotelAvailability.open", "Abierto"), className: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400" },
+        CLOSED: { label: t("status.CLOSED", "Cerrado"), className: "bg-gray-500/15 text-gray-600 dark:text-gray-400" },
         BLOCKED: { label: t("hotelAvailability.blocked", "Blocked"), className: "bg-red-500/15 text-red-700 dark:text-red-400" },
     };
     const badge = statusBadge[slot.slot_status] || statusBadge.OPEN;
@@ -83,7 +83,7 @@ export default function CalendarSlotDetail({ slot, open, onClose }) {
                 <DialogHeader>
                     <DialogTitle className="flex items-center gap-2 text-base">
                         <div className={`w-3 h-3 rounded-full ${colors.dot}`} />
-                        {slot.experience || "Slot"}
+                        {slot.experience || "Horario"}
                     </DialogTitle>
                     <DialogDescription className="flex items-center gap-2 text-xs">
                         <Clock className="w-3 h-3" />
@@ -104,9 +104,9 @@ export default function CalendarSlotDetail({ slot, open, onClose }) {
                             <div className="space-y-1.5">
                                 <Label className="text-xs">{t("common.status", "Status")}</Label>
                                 <select value={editForm.slot_status} onChange={(e) => setEditForm(f => ({ ...f, slot_status: e.target.value }))} className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-2 text-sm">
-                                    <option value="OPEN">{t("hotelAvailability.open", "Open")}</option>
-                                    <option value="CLOSED">{t("status.CLOSED", "Closed")}</option>
-                                    <option value="BLOCKED">{t("hotelAvailability.blocked", "Blocked")}</option>
+                                    <option value="OPEN">{t("hotelAvailability.open", "Abierto")}</option>
+                                    <option value="CLOSED">{t("status.CLOSED", "Cerrado")}</option>
+                                    <option value="BLOCKED">{t("hotelAvailability.blocked", "Bloqueado")}</option>
                                 </select>
                             </div>
                             <div className="space-y-1.5">
@@ -147,12 +147,12 @@ export default function CalendarSlotDetail({ slot, open, onClose }) {
                                     <div className={`h-2 rounded-full transition-all ${colors.bar}`} style={{ width: `${Math.min(occ, 100)}%` }} />
                                 </div>
                                 <div className="flex justify-between text-[10px] text-muted-foreground">
-                                    <span>{occ}% {t("calendar.occupied", "occupied")}</span>
-                                    <span>{available} {t("hotelAvailability.available", "available")}</span>
+                                    <span>{occ}% {t("calendar.occupied", "ocupado")}</span>
+                                    <span>{available} {t("hotelAvailability.available", "disponible")}</span>
                                 </div>
                             </div>
                             <div className="flex items-center justify-between">
-                                <span className="text-xs text-muted-foreground">{t("calendar.slot", "Slot ID")}</span>
+                                <span className="text-xs text-muted-foreground">{t("calendar.slot", "ID del Horario")}</span>
                                 <span className="text-xs font-mono text-muted-foreground">{slot.name}</span>
                             </div>
                         </>
@@ -173,17 +173,17 @@ export default function CalendarSlotDetail({ slot, open, onClose }) {
                         <div className="grid grid-cols-2 gap-2 w-full">
                             {slot.slot_status === "OPEN" && available > 0 && (
                                 <Button size="sm" className="bg-cheese-500 hover:bg-cheese-600 text-black" onClick={() => navigate(`/cheese/tickets/new?experience=${encodeURIComponent(slot.experience || "")}&slot=${encodeURIComponent(slot.name)}&date=${encodeURIComponent(slot._viewDate || slot.date_from || "")}`)}>
-                                    <Ticket className="w-3.5 h-3.5 mr-1.5" /> {t("ticket.createTicket", "Create Ticket")}
+                                    <Ticket className="w-3.5 h-3.5 mr-1.5" /> {t("ticket.createTicket", "Crear Ticket")}
                                 </Button>
                             )}
                             <Button variant="outline" size="sm" onClick={() => navigate(`/cheese/tickets?slot=${slot.name}`)}>
-                                <ExternalLink className="w-3.5 h-3.5 mr-1.5" /> {t("experiences.viewTickets", "View Tickets")}
+                                <ExternalLink className="w-3.5 h-3.5 mr-1.5" /> {t("experiences.viewTickets", "Ver Tickets")}
                             </Button>
                             <Button variant="outline" size="sm" onClick={startEditing}>
-                                <Pencil className="w-3.5 h-3.5 mr-1" /> {t("common.edit", "Edit")}
+                                <Pencil className="w-3.5 h-3.5 mr-1" /> {t("common.edit", "Editar")}
                             </Button>
                             <Button variant="destructive" size="sm" onClick={handleDelete} disabled={deleteMutation.isPending}>
-                                <Trash2 className="w-3.5 h-3.5 mr-1" /> {t("common.delete", "Delete")}
+                                <Trash2 className="w-3.5 h-3.5 mr-1" /> {t("common.delete", "Eliminar")}
                             </Button>
                         </div>
                     )}

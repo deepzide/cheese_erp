@@ -48,7 +48,7 @@ export default function Hotels() {
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
                     <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
-                        <Hotel className="w-6 h-6 text-cheese-600" /> {t("hotels.title", "Hotels")}
+                        <Hotel className="w-6 h-6 text-cheese-600" /> {t("hotels.title", "Hoteles")}
                     </h1>
                     <p className="text-sm text-muted-foreground mt-1">
                         {isLoading ? "…" : t("hotels.establishmentsCount", { count: filtered.length, defaultValue: `${filtered.length} hotel establishments` })}
@@ -57,10 +57,10 @@ export default function Hotels() {
                 <div className="flex flex-wrap gap-2 items-center">
                     <div className="relative">
                         <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-                        <Input placeholder={t("hotels.search", "Search hotels…")} value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-9 w-56 h-9" />
+                        <Input placeholder={t("hotels.search", "Buscar hoteles...")} value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-9 w-56 h-9" />
                     </div>
                     <Button variant="outline" className="h-9" onClick={() => navigate("/cheese/hotels/rooms/new")}>
-                        <Plus className="w-4 h-4 mr-1" /> {t("hotelReservations.newRoomType", "New Room Type")}
+                        <Plus className="w-4 h-4 mr-1" /> {t("hotelReservations.newRoomType", "Nuevo Tipo de Habitacion")}
                     </Button>
                     <Button variant="ghost" size="icon" onClick={() => refetch()} className="h-9 w-9">
                         <RefreshCw className="w-4 h-4" />
@@ -105,11 +105,11 @@ export default function Hotels() {
                                         {hotel.cheese_operating_hours && (
                                             <div className="flex items-center gap-2">
                                                 <Calendar className="w-3.5 h-3.5" />
-                                                {hotel.cheese_operating_hours}
+                                                {String(hotel.cheese_operating_hours).toLowerCase() === "weekly" ? "Semanal" : hotel.cheese_operating_hours}
                                             </div>
                                         )}
                                         {hotel.administrator_contact && (
-                                            <p className="truncate">{t("hotels.contactLabel", "Contact")}: {hotel.administrator_contact}</p>
+                                            <p className="truncate">{t("hotels.contactLabel", "Contacto")}: {hotel.administrator_contact}</p>
                                         )}
                                     </div>
                                 </CardContent>

@@ -56,7 +56,7 @@ export default function Conversations() {
     if (error) {
         return (
             <div className="p-6 flex flex-col items-center justify-center min-h-[400px] text-center">
-                <AlertCircle className="w-12 h-12 text-red-400 mb-4" /><h2 className="text-lg font-semibold mb-2">Failed to load {t("conversations.conversations", "conversaciones")}</h2>
+                <AlertCircle className="w-12 h-12 text-red-400 mb-4" /><h2 className="text-lg font-semibold mb-2">{t("conversations.loadFailed", "No se pudieron cargar las conversaciones")}</h2>
                 <Button onClick={() => refetch()} variant="outline"><RefreshCw className="w-4 h-4 mr-2" /> {t("common.retry", "Retry")}</Button>
             </div>
         );
@@ -66,15 +66,15 @@ export default function Conversations() {
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="p-6 space-y-6">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
-                    <h1 className="text-2xl font-bold text-foreground flex items-center gap-2"><MessageSquare className="w-6 h-6 text-cheese-600" /> {t("conversations.title", "Conversations")}</h1>
-                    <p className="text-sm text-muted-foreground mt-1">{isLoading ? '...' : `${filtered.length} ${t("conversations.conversations", "conversations")}`}</p>
+                    <h1 className="text-2xl font-bold text-foreground flex items-center gap-2"><MessageSquare className="w-6 h-6 text-cheese-600" /> {t("conversations.title", "Conversaciones")}</h1>
+                    <p className="text-sm text-muted-foreground mt-1">{isLoading ? '...' : `${filtered.length} ${t("conversations.conversations", "conversaciones")}`}</p>
                 </div>
                 <div className="flex gap-2">
                     <div className="relative"><Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" /><Input placeholder={t("common.search", "Buscar...")} value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-9 w-56 h-9" /></div>
                     <Select value={filterChannel} onValueChange={setFilterChannel}>
                         <SelectTrigger className="w-40 h-9"><Filter className="w-3 h-3 mr-1" /><SelectValue /></SelectTrigger>
                         <SelectContent>
-                            <SelectItem value="all">{t("conversations.allChannels", "All Channels")}</SelectItem>
+                            <SelectItem value="all">{t("conversations.allChannels", "Todos los Canales")}</SelectItem>
                             {Object.keys(CHANNEL_BADGE).map(ch => <SelectItem key={ch} value={ch}>{ch}</SelectItem>)}
                         </SelectContent>
                     </Select>
@@ -97,7 +97,7 @@ export default function Conversations() {
                                         <h3 className="font-semibold text-sm text-foreground">{convo.contact || t("common.unknown", "Unknown")}</h3>
                                         <Badge className={CHANNEL_BADGE[convo.channel] || CHANNEL_BADGE.WEB}>{convo.channel || '—'}</Badge>
                                     </div>
-                                    <p className="text-xs text-muted-foreground truncate">{convo.summary || t("contacts.noSummary", "No summary")}</p>
+                                    <p className="text-xs text-muted-foreground truncate">{convo.summary || t("contacts.noSummary", "Sin resumen")}</p>
                                 </div>
                                 <Badge className={STATUS_CONFIG[convo.status]?.badge || STATUS_CONFIG.OPEN.badge}>{t(`status.${convo.status}`, convo.status || STATUS_CONFIG.OPEN.label)}</Badge>
                                 <span className="text-xs text-muted-foreground hidden sm:block">{convo.modified || convo.creation || '—'}</span>
@@ -123,7 +123,7 @@ export default function Conversations() {
             </div>
 
             {!isLoading && filtered.length === 0 && (
-                <div className="text-center py-16"><MessageSquare className="w-16 h-16 text-muted-foreground/20 mx-auto mb-4" /><p className="text-muted-foreground">{t("conversations.noConversations", "No conversations found")}</p></div>
+                <div className="text-center py-16"><MessageSquare className="w-16 h-16 text-muted-foreground/20 mx-auto mb-4" /><p className="text-muted-foreground">{t("conversations.noConversations", "No se encontraron conversaciones")}</p></div>
             )}
 
             {/* Detail Dialog */}

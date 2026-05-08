@@ -143,10 +143,10 @@ export default function Documents() {
 
             <Dialog open={createOpen} onOpenChange={setCreateOpen}>
                 <DialogContent className="max-w-md">
-                    <DialogHeader><DialogTitle className="flex items-center gap-2"><Plus className="w-5 h-5 text-cheese-600" /> {t("documents.uploadDocument", "Upload Document")}</DialogTitle><DialogDescription>{t("documents.attachDocument", "Attach a document")}</DialogDescription></DialogHeader>
+                    <DialogHeader><DialogTitle className="flex items-center gap-2"><Plus className="w-5 h-5 text-cheese-600" /> {t("documents.uploadDocument", "Subir documento")}</DialogTitle><DialogDescription>{t("documents.attachDocument", "Adjunta un documento")}</DialogDescription></DialogHeader>
                     <div className="space-y-4">
                         <div className="grid grid-cols-2 gap-4">
-                            <div className="space-y-2"><Label>{t("deposits.entityType", "Entity Type")} *</Label><Input placeholder={t("common.selectType", "Route / Experience")} value={form.entity_type} onChange={(e) => setForm(f => ({ ...f, entity_type: e.target.value }))} /></div>
+                            <div className="space-y-2"><Label>{t("deposits.entityType", "Tipo de entidad")} *</Label><Input placeholder={t("common.selectType", "Ruta / Experiencia")} value={form.entity_type} onChange={(e) => setForm(f => ({ ...f, entity_type: e.target.value }))} /></div>
                             <div className="space-y-2"><Label>{t("deposits.entityId", "Entity ID")} *</Label><Input placeholder={t("deposits.entityId", "ID")} value={form.entity_id} onChange={(e) => setForm(f => ({ ...f, entity_id: e.target.value }))} /></div>
                         </div>
                         <div className="space-y-2"><Label>{t("documents.title", "Title")} *</Label><Input value={form.title} onChange={(e) => setForm(f => ({ ...f, title: e.target.value }))} /></div>

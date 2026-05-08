@@ -100,13 +100,13 @@ export default function Contacts() {
                                     <DropdownMenu>
                                         <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8 opacity-0 group-hover:opacity-100"><MoreHorizontal className="w-4 h-4" /></Button></DropdownMenuTrigger>
                                         <DropdownMenuContent align="end">
-                                            <DropdownMenuItem onClick={() => navigate(`/cheese/contacts/${contact.name}`)}><Eye className="w-3 h-3 mr-2" /> {t("common.viewDetails", "View Details")}</DropdownMenuItem>
-                                            <DropdownMenuItem onClick={() => navigate(`/cheese/tickets/new?contact=${contact.name}`)}><Ticket className="w-3 h-3 mr-2" /> {t("contacts.createTicket", "Create Ticket")}</DropdownMenuItem>
-                                            <DropdownMenuItem onClick={() => navigate(`/cheese/leads/new?contact=${contact.name}`)}>{t("contacts.createLeadForContact", "Create Lead")}</DropdownMenuItem>
+                                            <DropdownMenuItem onClick={() => navigate(`/cheese/contacts/${contact.name}`)}><Eye className="w-3 h-3 mr-2" /> {t("common.viewDetails", "Ver Detalles")}</DropdownMenuItem>
+                                            <DropdownMenuItem onClick={() => navigate(`/cheese/tickets/new?contact=${contact.name}`)}><Ticket className="w-3 h-3 mr-2" /> {t("contacts.createTicket", "Crear Ticket")}</DropdownMenuItem>
+                                            <DropdownMenuItem onClick={() => navigate(`/cheese/leads/new?contact=${contact.name}`)}>{t("contacts.createLeadForContact", "Crear Prospecto")}</DropdownMenuItem>
                                             <DropdownMenuSeparator />
-                                            <DropdownMenuItem onClick={() => navigate(`/cheese/tickets?contact=${contact.name}`)}><Ticket className="w-3 h-3 mr-2" /> {t("experiences.viewTickets", "View Tickets")}</DropdownMenuItem>
-                                            <DropdownMenuItem onClick={() => navigate(`/cheese/conversations?contact=${contact.name}`)}><MessageSquare className="w-3 h-3 mr-2" /> {t("nav.conversations", "Conversations")}</DropdownMenuItem>
-                                            <DropdownMenuItem onClick={() => navigate(`/cheese/support/new?contact=${contact.name}`)}>{t("support.createSupportCase", "Create Support Case")}</DropdownMenuItem>
+                                            <DropdownMenuItem onClick={() => navigate(`/cheese/tickets?contact=${contact.name}`)}><Ticket className="w-3 h-3 mr-2" /> {t("experiences.viewTickets", "Ver Tickets")}</DropdownMenuItem>
+                                            <DropdownMenuItem onClick={() => navigate(`/cheese/conversations?contact=${contact.name}`)}><MessageSquare className="w-3 h-3 mr-2" /> {t("nav.conversations", "Conversaciones")}</DropdownMenuItem>
+                                            <DropdownMenuItem onClick={() => navigate(`/cheese/support/new?contact=${contact.name}`)}>{t("support.createSupportCase", "Crear Caso de Soporte")}</DropdownMenuItem>
                                             <DropdownMenuSeparator />
                                             <DropdownMenuItem className="text-red-600" onClick={() => handleDelete(contact.name)}><Trash2 className="w-3 h-3 mr-2" /> {t("common.delete", "Delete")}</DropdownMenuItem>
                                         </DropdownMenuContent>

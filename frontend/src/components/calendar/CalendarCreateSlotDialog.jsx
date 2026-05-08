@@ -154,22 +154,22 @@ export default function CalendarCreateSlotDialog({ open, onClose, prefillDate, p
                 <DialogHeader>
                     <DialogTitle className="flex items-center gap-2">
                         <Plus className="w-4 h-4 text-cheese-600" />
-                        {t("calendar.createTimeSlot", "Create Time Slot")}
+                        {t("calendar.createTimeSlot", "Crear Franja Horaria")}
                     </DialogTitle>
                     <DialogDescription>
-                        {t("calendar.createTimeSlotDesc", "Add a new availability slot to the calendar")}
+                        {t("calendar.createTimeSlotDesc", "Agregar una nueva franja de disponibilidad al calendario")}
                     </DialogDescription>
                 </DialogHeader>
 
                 <form onSubmit={handleSubmit} className="space-y-4">
                     {/* Experience */}
                     <div className="space-y-1.5">
-                        <Label className="text-xs">{t("ticket.experience", "Experience")} *</Label>
+                        <Label className="text-xs">{t("ticket.experience", "Experiencia")} *</Label>
                         <FrappeSearchSelect
                             doctype="Cheese Experience"
                             value={experience}
                             onChange={setExperience}
-                            placeholder={t("tickets.selectExperience", "Select experience...")}
+                            placeholder={t("tickets.selectExperience", "Seleccionar experiencia...")}
                             labelField="experience_info"
                         />
                     </div>
@@ -247,13 +247,13 @@ export default function CalendarCreateSlotDialog({ open, onClose, prefillDate, p
                             }
                         }}>
                             <SelectTrigger className="h-9">
-                                <SelectValue placeholder={t("calendar.doesNotRepeat", "Does not repeat")} />
+                                <SelectValue placeholder={t("calendar.doesNotRepeat", "No se repite")} />
                             </SelectTrigger>
                             <SelectContent>
-                                <SelectItem value="none">{t("calendar.doesNotRepeat", "Does not repeat")}</SelectItem>
-                                <SelectItem value="daily">{t("calendar.everyDay", "Every day")}</SelectItem>
-                                <SelectItem value="weekly">{t("calendar.everyWeekOn", "Every week, on")} {dateFrom ? new Date(dateFrom).toLocaleDateString('en-US', { weekday: 'long' }) : t("calendar.selectedDay", "selected day")}</SelectItem>
-                                <SelectItem value="weekdays">{t("calendar.everyWeekday", "Every weekday (Monday to Friday)")}</SelectItem>
+                                <SelectItem value="none">{t("calendar.doesNotRepeat", "No se repite")}</SelectItem>
+                                <SelectItem value="daily">{t("calendar.everyDay", "Cada dia")}</SelectItem>
+                                <SelectItem value="weekly">{t("calendar.everyWeekOn", "Cada semana, en")} {dateFrom ? new Date(dateFrom).toLocaleDateString('es-ES', { weekday: 'long' }) : t("calendar.selectedDay", "dia seleccionado")}</SelectItem>
+                                <SelectItem value="weekdays">{t("calendar.everyWeekday", "Cada dia laboral (lunes a viernes)")}</SelectItem>
                                 <SelectItem value="custom">{t("calendar.custom", "Custom...")}</SelectItem>
                             </SelectContent>
                         </Select>
