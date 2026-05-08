@@ -123,6 +123,39 @@ class CheeseTicket(Document):
 		# Only consider tickets that are not terminal/cancelled
 		excluded_statuses = ["CANCELLED", "EXPIRED", "REJECTED", "NO_SHOW"]
 
+		experience_type = frappe.db.get_value("Cheese Experience", self.experience, "experience_type")
+		if experience_type == "HOTEL":
+			# Hotel reservations should only conflict when the stay windows overlap.
+			# Same contact can book the same room type again for a different date range.
+			if not (self.check_in_date and self.check_out_date):
+				return
+
+			new_check_in = getdate(self.check_in_date)
+			new_check_out = getdate(self.check_out_date)
+			candidates = frappe.get_all(
+				"Cheese Ticket",
+				filters={
+					"contact": self.contact,
+					"experience": self.experience,
+					"name": ["!=", self.name] if self.name else ["!=", ""],
+					"status": ["not in", excluded_statuses],
+				},
+				fields=["name", "check_in_date", "check_out_date"],
+			)
+
+			for row in candidates:
+				if not row.check_in_date or not row.check_out_date:
+					continue
+				existing_check_in = getdate(row.check_in_date)
+				existing_check_out = getdate(row.check_out_date)
+				# Half-open ranges [check_in, check_out): overlap only when windows intersect.
+				if new_check_in < existing_check_out and new_check_out > existing_check_in:
+					frappe.throw(
+						_("A ticket already exists for this contact, experience, and overlapping dates: {0}").format(row.name),
+						frappe.ValidationError,
+					)
+			return
+
 		filters = {
 			"contact": self.contact,
 			"experience": self.experience,
