@@ -209,11 +209,25 @@
         cmd: timedatectl set-timezone UTC
       ignore_errors: yes
 
-    - name: Add TZ=UTC environment to pwd.yml containers
-      ansible.builtin.replace:
-        path: "{{ project_dir }}/frappe_docker/pwd.yml"
-        regexp: '^(  backend:|  frontend:|  db:|  redis-cache:|  redis-queue:|  configurator:|  scheduler:|  websocket:)\s*$'
-        replace: '\1\n    environment:\n      TZ: "UTC"\n      PGTZ: "UTC"'
+    - name: Add TZ/PGTZ UTC environment to all services in pwd.yml
+      ansible.builtin.shell: |
+        python3 -c "
+        import yaml
+        with open('{{ project_dir }}/frappe_docker/pwd.yml') as f:
+            cfg = yaml.safe_load(f)
+        for name, svc in cfg.get('services', {}).items():
+            env = svc.setdefault('environment', {})
+            if isinstance(env, dict):
+                env.setdefault('TZ', 'UTC')
+                env.setdefault('PGTZ', 'UTC')
+        with open('{{ project_dir }}/frappe_docker/pwd.yml', 'w') as f:
+            yaml.dump(cfg, f, default_flow_style=False, allow_unicode=True, sort_keys=False)
+        print('TZ/PGTZ added to all services')
+        "
+      args:
+        executable: /bin/bash
+        chdir: "{{ project_dir }}/frappe_docker"
+      ignore_errors: yes
 
     # ------------------------------------------------------------------------
     # ⚡ Crear sitio si no existe
