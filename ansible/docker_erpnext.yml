@@ -201,6 +201,19 @@
       args:
         chdir: "{{ project_dir }}/frappe_docker"
 
+    # ------------------------------------------------------------------------
+    # 🕐 Timezone — forzar UTC en host y containers
+    # ------------------------------------------------------------------------
+    - name: Set host timezone to UTC
+      ansible.builtin.command:
+        cmd: timedatectl set-timezone UTC
+      ignore_errors: yes
+
+    - name: Add TZ=UTC environment to pwd.yml containers
+      ansible.builtin.replace:
+        path: "{{ project_dir }}/frappe_docker/pwd.yml"
+        regexp: '^(  backend:|  frontend:|  db:|  redis-cache:|  redis-queue:|  configurator:|  scheduler:|  websocket:)\s*$'
+        replace: '\1\n    environment:\n      TZ: "UTC"\n      PGTZ: "UTC"'
 
     # ------------------------------------------------------------------------
     # ⚡ Crear sitio si no existe
@@ -241,6 +254,12 @@
         chdir: "{{ project_dir }}/frappe_docker"
       when: site_check.rc == 0 or create_site_output.rc == 0
 
+    - name: Set site timezone to UTC
+      ansible.builtin.command:
+        cmd: docker compose -f pwd.yml exec -T backend bench set-config -g time_zone UTC
+      args:
+        chdir: "{{ project_dir }}/frappe_docker"
+      when: site_check.rc == 0 or create_site_output.rc == 0
 
     # ------------------------------------------------------------------------
     # 🧩 Apps already pre-installed in image (via v2.2.3 APPS_JSON_BASE64)
