@@ -3,8 +3,8 @@
 
 import frappe
 from frappe import _
-from frappe.utils import now_datetime
 from cheese.cheese.utils.capacity import update_slot_capacity
+from cheese.cheese.utils.time import utcnow
 
 
 def process_overdue_deposits():
@@ -17,7 +17,7 @@ def process_overdue_deposits():
 		"Cheese Deposit",
 		filters={
 			"status": "PENDING",
-			"due_at": ["<=", now_datetime()]
+			"due_at": ["<=", utcnow()]
 		},
 		fields=["name", "entity_type", "entity_id", "amount_required", "due_at"]
 	)

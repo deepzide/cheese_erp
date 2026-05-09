@@ -2,7 +2,9 @@
 # License: MIT
 
 import frappe
-from frappe.utils import now_datetime, get_datetime, getdate
+from frappe.utils import getdate
+
+from cheese.cheese.utils.time import utcnow, uy_slot_time_to_utc
 
 
 def _has_unpaid_deposit(ticket_name: str) -> bool:
@@ -31,7 +33,7 @@ def process_no_shows():
 
 	no_show_count = 0
 	slots_to_update = set()
-	now = now_datetime()
+	now = utcnow()
 
 	for row in confirmed:
 		if frappe.db.exists("Cheese Attendance", {"ticket": row.name}):
@@ -54,8 +56,10 @@ def process_no_shows():
 		if len(time_part) == 5:
 			time_part = f"{time_part}:00"
 		try:
-			slot_start = get_datetime(f"{getdate(event_date)} {time_part}")
+			slot_start = uy_slot_time_to_utc(getdate(event_date), time_part)
 		except Exception:
+			continue
+		if slot_start is None:
 			continue
 
 		if slot_start >= now:

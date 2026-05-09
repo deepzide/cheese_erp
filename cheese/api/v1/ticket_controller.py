@@ -4,6 +4,7 @@
 import frappe
 from frappe import _
 from frappe.utils import now_datetime, get_datetime, cint, getdate, add_to_date
+from cheese.cheese.utils.time import to_iso
 from cheese.cheese.utils.pricing import calculate_ticket_price, calculate_deposit_amount
 from cheese.cheese.utils.validation import validate_booking_policy
 from cheese.cheese.utils.capacity import update_slot_capacity, get_available_capacity
@@ -294,7 +295,7 @@ def create_pending_ticket(contact_id, experience_id, slot_id, party_size=1, sele
 				"total_price": price_data["total_price"],
 				"deposit_required": ticket.deposit_required,
 				"deposit_amount": ticket.deposit_amount,
-				"expires_at": str(ticket.expires_at) if ticket.expires_at else None
+				"expires_at": to_iso(ticket.expires_at) if ticket.expires_at else None
 			}
 		)
 	except frappe.ValidationError as e:
@@ -684,7 +685,7 @@ def get_ticket_summary(ticket_id):
 				"party_size": ticket.party_size,
 				"deposit_required": ticket.deposit_required,
 				"deposit_amount": ticket.deposit_amount,
-				"expires_at": str(ticket.expires_at) if ticket.expires_at else None,
+				"expires_at": to_iso(ticket.expires_at) if ticket.expires_at else None,
 				"conversation_id": ticket.conversation if ticket.conversation else None
 			}
 		)

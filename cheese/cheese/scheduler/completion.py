@@ -1,5 +1,7 @@
 import frappe
-from frappe.utils import now_datetime, get_datetime
+from frappe.utils import getdate
+
+from cheese.cheese.utils.time import utcnow, uy_slot_time_to_utc
 
 
 def auto_complete_checked_in_tickets():
@@ -37,7 +39,9 @@ def auto_complete_checked_in_tickets():
 			if not effective_date:
 				continue
 			effective_time = slot_data.time_to or "23:59:59"
-			effective_end = get_datetime(f"{effective_date} {effective_time}")
+			effective_end = uy_slot_time_to_utc(getdate(effective_date), effective_time)
+			if effective_end is None:
+				continue
 			if (now - effective_end).total_seconds() < grace_minutes * 60:
 				continue
 

@@ -2,7 +2,9 @@
 # License: MIT
 
 import frappe
-from frappe.utils import now_datetime, add_to_date
+from frappe.utils import add_to_date
+
+from cheese.cheese.utils.time import utcnow
 
 
 def send_deposit_reminders():
@@ -13,7 +15,7 @@ def send_deposit_reminders():
 	# Get deposits due in next 24 hours that are still PENDING
 	reminder_hours = 24  # Send reminder 24 hours before due
 	
-	now_dt = now_datetime()
+	now_dt = utcnow()
 	window_end = add_to_date(now_dt, hours=reminder_hours, as_string=False)
 	upcoming_deposits = frappe.get_all(
 		"Cheese Deposit",

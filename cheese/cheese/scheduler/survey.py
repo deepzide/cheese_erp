@@ -2,7 +2,9 @@
 # License: MIT
 
 import frappe
-from frappe.utils import now_datetime, add_to_date
+from frappe.utils import add_to_date
+
+from cheese.cheese.utils.time import utcnow
 
 
 def send_post_completion_surveys():
@@ -21,7 +23,7 @@ def send_post_completion_surveys():
 	# Only send surveys for tickets that have been COMPLETED for at least 30 minutes
 	# AND whose slot end time has definitively passed
 	survey_delay_minutes = 30
-	now = now_datetime()
+	now = utcnow()
 
 	effective_date = fn.Coalesce(ticket.selected_date, slot.date_to, slot.date_from)
 	effective_end = fn.Concat(effective_date, " ", fn.Coalesce(slot.time_to, "23:59:59"))

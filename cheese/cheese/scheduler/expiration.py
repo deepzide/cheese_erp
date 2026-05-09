@@ -2,8 +2,9 @@
 # License: MIT
 
 import frappe
-from frappe.utils import now_datetime, getdate
+from frappe.utils import getdate
 from cheese.cheese.utils.capacity import update_slot_capacity
+from cheese.cheese.utils.time import utcnow
 
 
 def _expire_ticket(ticket_name: str) -> str | None:
@@ -22,7 +23,7 @@ def expire_pending_tickets():
 	Expire PENDING tickets that have passed their expires_at time
 	Run every 15 minutes via cron
 	"""
-	current_dt = now_datetime()
+	current_dt = utcnow()
 	current_date = getdate(current_dt)
 
 	pending_tickets = frappe.get_all(

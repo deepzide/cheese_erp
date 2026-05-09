@@ -5,6 +5,7 @@ import frappe
 from frappe import _
 from frappe.utils import add_to_date, flt, now_datetime
 
+from cheese.cheese.utils.time import to_iso
 from cheese.api.common.responses import created, error, not_found, success, validation_error
 from cheese.api.v1.bank_account_controller import get_active_company_bank_accounts_list
 from cheese.api.v1.user_controller import _get_current_user_company
@@ -254,7 +255,7 @@ def _build_deposit_payload(deposit):
 		"amount_remaining": _amount_remaining_for_deposit(deposit),
 		"status": deposit.status,
 		"payment_type": _get_deposit_phase(deposit.name),
-		"due_at": str(deposit.due_at) if deposit.due_at else None,
+		"due_at": to_iso(deposit.due_at) if deposit.due_at else None,
 		"paid_at": str(deposit.paid_at) if deposit.paid_at else None,
 		"verification_method": deposit.verification_method,
 		"bank_account": getattr(deposit, "bank_account", None),
@@ -406,7 +407,7 @@ def get_payment_link_or_instructions(ticket_id=None, deposit_id=None, payment_ty
 				"amount_required": amount_required,
 				"amount_paid": amount_paid,
 				"amount_remaining": amount_remaining,
-				"due_at": str(deposit_doc.due_at) if deposit_doc.due_at else None,
+				"due_at": to_iso(deposit_doc.due_at) if deposit_doc.due_at else None,
 				"status": deposit_doc.status,
 				"payment_type": effective_payment_type,
 				"bank_account": bank_account,
@@ -582,7 +583,7 @@ def get_deposit_instructions(ticket_id, payment_type=None):
 				"amount_required": deposit_doc.amount_required,
 				"amount_paid": deposit_doc.amount_paid or 0,
 				"amount_remaining": _amount_remaining_for_deposit(deposit_doc),
-				"due_at": str(deposit_doc.due_at) if deposit_doc.due_at else None,
+				"due_at": to_iso(deposit_doc.due_at) if deposit_doc.due_at else None,
 				"status": deposit_doc.status,
 				"bank_account": bank_account,
 				"contact": contact_info,
@@ -928,7 +929,7 @@ def get_deposit_status(deposit_id):
 				"amount_remaining": _amount_remaining_for_deposit(deposit),
 				"status": deposit.status,
 				"payment_type": _get_deposit_phase(deposit.name),
-				"due_at": str(deposit.due_at) if deposit.due_at else None,
+				"due_at": to_iso(deposit.due_at) if deposit.due_at else None,
 				"paid_at": str(deposit.paid_at) if deposit.paid_at else None,
 				"verification_method": deposit.verification_method,
 				"is_overdue": deposit.due_at
