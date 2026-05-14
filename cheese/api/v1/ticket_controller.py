@@ -103,7 +103,17 @@ def _run_booking_policy(experience_id, slot_datetime, action, event_end_datetime
 
 
 def _recalculate_ticket_financials(ticket):
-	price_data = calculate_ticket_price(ticket.experience, ticket.party_size, route_id=ticket.route)
+	experience = frappe.get_doc("Cheese Experience", ticket.experience)
+	if experience.experience_type == "HOTEL":
+		party_size_for_price = ticket.rooms_requested or 1
+	else:
+		party_size_for_price = ticket.party_size
+	price_data = calculate_ticket_price(
+		ticket.experience, party_size_for_price, route_id=ticket.route,
+		ticket=ticket,
+		check_in_date=getattr(ticket, "check_in_date", None),
+		check_out_date=getattr(ticket, "check_out_date", None),
+	)
 	total_price = price_data.get("total_price", 0)
 	deposit_amount = calculate_deposit_amount(ticket.experience, total_price, route_id=ticket.route)
 	ticket.total_price = total_price
@@ -248,7 +258,7 @@ def create_pending_ticket(contact_id, experience_id, slot_id, party_size=1, sele
 
 		# Calculate price
 		party_size_for_price = rooms_requested if experience.experience_type == "HOTEL" else party_size
-		price_data = calculate_ticket_price(experience_id, party_size_for_price, route_id=route_id)
+		price_data = calculate_ticket_price(experience_id, party_size_for_price, route_id=route_id, check_in_date=check_in_date, check_out_date=check_out_date)
 		
 		# Calculate deposit
 		deposit_amount = calculate_deposit_amount(experience_id, price_data["total_price"], route_id=route_id)

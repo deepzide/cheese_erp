@@ -4,7 +4,7 @@
 import frappe
 
 
-def calculate_ticket_price(experience_id, party_size, route_id=None, ticket=None):
+def calculate_ticket_price(experience_id, party_size, route_id=None, ticket=None, check_in_date=None, check_out_date=None):
 	"""
 	Calculate price for a ticket.
 	
@@ -14,10 +14,21 @@ def calculate_ticket_price(experience_id, party_size, route_id=None, ticket=None
 	- Route ticket, Sum mode: use experience.route_price (or individual_price) * party_size
 	- HOTEL ticket: price_per_night * nights * rooms_requested
 	"""
+	from frappe.utils import getdate, date_diff
+
 	experience = frappe.get_doc("Cheese Experience", experience_id)
 	
 	if experience.experience_type == "HOTEL":
-		nights = ticket.nights if ticket else 1
+		# Calculate nights from explicit dates first, then fall back to ticket.nights
+		nights = 1
+		if check_in_date and check_out_date:
+			nights = date_diff(getdate(check_out_date), getdate(check_in_date))
+		elif ticket and getattr(ticket, "nights", None):
+			nights = ticket.nights
+		elif ticket and getattr(ticket, "check_in_date", None) and getattr(ticket, "check_out_date", None):
+			nights = date_diff(getdate(ticket.check_out_date), getdate(ticket.check_in_date))
+		if nights < 1:
+			nights = 1
 		rooms = party_size  # For HOTEL, party_size passed is actually rooms_requested
 		price_per_night = experience.price_per_night or 0
 		return {
