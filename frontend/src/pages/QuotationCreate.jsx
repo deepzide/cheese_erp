@@ -5,17 +5,19 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
-import { FileText, Plus, Trash2 } from "lucide-react";
+import { FileText, Plus, Trash2, Building2 } from "lucide-react";
 import { toast } from "sonner";
 import { useFrappeCreate, useFrappeDoc, useFrappeList } from "@/lib/useApiData";
 import CreatePageLayout from "@/components/CreatePageLayout";
 import FrappeSearchSelect from "@/components/FrappeSearchSelect";
 import { experienceService } from "@/api/experienceService";
+import { useAuth } from "@/components/auth/AuthProvider";
 
 export default function QuotationCreate() {
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
     const { t } = useTranslation();
+    const { isAdmin, userCompany } = useAuth();
     const todayStr = new Date().toISOString().slice(0, 10);
 
     const toDatetimeLocal = (d) => {
@@ -28,7 +30,7 @@ export default function QuotationCreate() {
 
     const [form, setForm] = useState({
         lead: searchParams.get("lead") || "",
-        establishment: searchParams.get("establishment") || "",
+        establishment: searchParams.get("establishment") || userCompany || "",
         route: searchParams.get("route") || "",
         conversation: searchParams.get("conversation") || "",
         valid_until: searchParams.get("valid_until") || defaultValidUntil,
@@ -315,13 +317,20 @@ export default function QuotationCreate() {
                     </div>
                     <div className="space-y-2">
                         <Label>{t("experiences.establishment", "Establishment")}</Label>
-                        <FrappeSearchSelect
-                            doctype="Company"
-                            label="name"
-                            value={form.establishment}
-                            onChange={(v) => setForm(f => ({ ...f, establishment: v }))}
-                            placeholder={t("quotations.selectCompany", "Select company...")}
-                        />
+                        {isAdmin ? (
+                            <FrappeSearchSelect
+                                doctype="Company"
+                                label="name"
+                                value={form.establishment}
+                                onChange={(v) => setForm(f => ({ ...f, establishment: v }))}
+                                placeholder={t("quotations.selectCompany", "Select company...")}
+                            />
+                        ) : (
+                            <div className="flex h-10 items-center gap-2 rounded-md border border-input bg-muted/50 px-3">
+                                <Building2 className="w-4 h-4 text-muted-foreground" />
+                                <span className="text-sm font-medium">{form.establishment}</span>
+                            </div>
+                        )}
                     </div>
                 </div>
 

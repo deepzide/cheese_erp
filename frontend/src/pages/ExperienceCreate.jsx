@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { Sparkles, MapPin } from "lucide-react";
+import { Sparkles, MapPin, Building2 } from "lucide-react";
 import { toast } from "sonner";
 import { useFrappeCreate } from "@/lib/useApiData";
 import CreatePageLayout from "@/components/CreatePageLayout";
@@ -9,16 +9,18 @@ import FrappeSearchSelect from "@/components/FrappeSearchSelect";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { useAuth } from "@/components/auth/AuthProvider";
 
 export default function ExperienceCreate() {
     const navigate = useNavigate();
     const { t } = useTranslation();
+    const { isAdmin, userCompany } = useAuth();
     const createMutation = useFrappeCreate("Cheese Experience");
 
     const [form, setForm] = useState({
         experience_info: "",
         experience_type: "ACTIVITY",
-        company: "",
+        company: userCompany || "",
         status: "OFFLINE",
         package_mode: "Both",
         individual_price: "",
@@ -106,13 +108,20 @@ export default function ExperienceCreate() {
                     </div>
                     <div className="space-y-2">
                         <Label>{t("experiences.providerCompany", "Provider Company")} <span className="text-red-500">*</span></Label>
-                        <FrappeSearchSelect
-                            doctype="Company"
-                            label="name"
-                            value={form.company}
-                            onChange={(v) => handleChange("company", v)}
-                            placeholder={t("experiences.selectProvider", "Select provider company...")}
-                        />
+                        {isAdmin ? (
+                            <FrappeSearchSelect
+                                doctype="Company"
+                                label="name"
+                                value={form.company}
+                                onChange={(v) => handleChange("company", v)}
+                                placeholder={t("experiences.selectProvider", "Select provider company...")}
+                            />
+                        ) : (
+                            <div className="flex h-10 items-center gap-2 rounded-md border border-input bg-muted/50 px-3">
+                                <Building2 className="w-4 h-4 text-muted-foreground" />
+                                <span className="text-sm font-medium">{form.company}</span>
+                            </div>
+                        )}
                     </div>
                 </div>
 

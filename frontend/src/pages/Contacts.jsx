@@ -9,10 +9,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Users, Search, Plus, Phone, Mail, MoreHorizontal, Eye, Trash2, Ticket, AlertCircle, RefreshCw, Loader2, MessageSquare } from "lucide-react";
+import { Users, Search, Plus, Phone, Mail, MoreHorizontal, Eye, Trash2, Ticket, AlertCircle, RefreshCw, Loader2, MessageSquare, Building2 } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
-import { useFrappeList, useFrappeCreate, useFrappeDelete } from "@/lib/useApiData";
+import { useApiQuery, useFrappeCreate, useFrappeDelete } from "@/lib/useApiData";
+import { contactService } from "@/api/contactService";
+import { useAuth } from "@/components/auth/AuthProvider";
 import { useTranslation } from "react-i18next";
 
 export default function Contacts() {
@@ -23,11 +25,14 @@ export default function Contacts() {
     const [searchTerm, setSearchTerm] = useState(searchParams.get("search") || "");
     const [createOpen, setCreateOpen] = useState(false);
     const [form, setForm] = useState({ full_name: "", phone: "", email: "" });
+    const { isAdmin, userCompanyName } = useAuth();
 
-    const { data: contacts = [], isLoading, error, refetch } = useFrappeList("Cheese Contact", {
-        fields: ["name", "full_name", "phone", "email", "creation", "modified"],
-        pageSize: 100,
-    });
+    const { data: contactsRaw, isLoading, error, refetch } = useApiQuery(
+        ['contacts-list'],
+        () => contactService.listContacts({ page_size: 500 }),
+    );
+    const contacts = contactsRaw?.data || [];
+
 
     const createMutation = useFrappeCreate("Cheese Contact");
     const deleteMutation = useFrappeDelete("Cheese Contact");
@@ -71,7 +76,11 @@ export default function Contacts() {
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="p-6 space-y-6">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
-                    <h1 className="text-2xl font-bold text-foreground flex items-center gap-2"><Users className="w-6 h-6 text-cheese-600" /> {t("contacts.title", "Contacts")}</h1>
+                    <h1 className="text-2xl font-bold text-foreground flex items-center gap-2"><Users className="w-6 h-6 text-cheese-600" /> {t("contacts.title", "Contacts")}
+                        {!isAdmin && userCompanyName && (
+                            <Badge variant="outline" className="ml-2 text-xs font-normal"><Building2 className="w-3 h-3 mr-1" />{userCompanyName}</Badge>
+                        )}
+                    </h1>
                     <p className="text-sm text-muted-foreground mt-1">{isLoading ? '...' : `${filtered.length} ${t("contacts.contacts", "contacts")}`}</p>
                 </div>
                 <div className="flex gap-2">

@@ -3,19 +3,21 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Landmark } from "lucide-react";
+import { Landmark, Building2 } from "lucide-react";
 import { toast } from "sonner";
 import { useFrappeCreate } from "@/lib/useApiData";
 import CreatePageLayout from "@/components/CreatePageLayout";
 import FrappeSearchSelect from "@/components/FrappeSearchSelect";
 import { useTranslation } from "react-i18next";
+import { useAuth } from "@/components/auth/AuthProvider";
 
 export default function BankAccountCreate() {
     const { t } = useTranslation();
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
+    const { isAdmin, userCompany } = useAuth();
     const initialRoute = searchParams.get('route') || "";
-    const initialCompany = searchParams.get('company') || "";
+    const initialCompany = searchParams.get('company') || (!isAdmin ? userCompany : "") || "";
     const [form, setForm] = useState({
         entity_type: initialCompany ? "Company" : "Cheese Route",
         entity_id: initialCompany || initialRoute,
@@ -62,13 +64,20 @@ export default function BankAccountCreate() {
                 <div className="space-y-2">
                     <Label>{form.entity_type === "Company" ? t("bankAccounts.establishmentLabel", "Establecimiento") : t("bankAccounts.routeLabel", "Ruta")} <span className="text-red-500">*</span></Label>
                     {form.entity_type === "Company" ? (
-                        <FrappeSearchSelect
-                            doctype="Company"
-                            label="name"
-                            value={form.entity_id}
-                            onChange={(v) => setForm(f => ({ ...f, entity_id: v }))}
-                            placeholder={t("bankAccounts.establishmentLabel", "Seleccionar establecimiento...")}
-                        />
+                        isAdmin ? (
+                            <FrappeSearchSelect
+                                doctype="Company"
+                                label="name"
+                                value={form.entity_id}
+                                onChange={(v) => setForm(f => ({ ...f, entity_id: v }))}
+                                placeholder={t("bankAccounts.establishmentLabel", "Seleccionar establecimiento...")}
+                            />
+                        ) : (
+                            <div className="flex h-10 items-center gap-2 rounded-md border border-input bg-muted/50 px-3">
+                                <Building2 className="w-4 h-4 text-muted-foreground" />
+                                <span className="text-sm font-medium">{form.entity_id}</span>
+                            </div>
+                        )
                     ) : (
                         <FrappeSearchSelect
                             doctype="Cheese Route"

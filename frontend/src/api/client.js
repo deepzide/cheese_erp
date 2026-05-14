@@ -36,9 +36,11 @@ const normalizeCredentials = (payload = {}) => {
         role_profile_name: payload?.role_profile_name || '',
         custom_role_profile_name: payload?.custom_role_profile_name || '',
         roles: payload?.roles || [],
+        companies: payload?.companies || [],
+        is_admin: payload?.is_admin ?? false,
         ...Object.fromEntries(
             Object.entries(payload || {}).filter(([key]) =>
-                !['api_key', 'api_secret', 'user', 'name', 'full_name', 'email', 'permissions'].includes(key)
+                !['api_key', 'api_secret', 'user', 'name', 'full_name', 'email', 'permissions', 'companies', 'is_admin', 'roles'].includes(key)
             )
         ),
     };

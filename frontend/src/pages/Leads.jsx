@@ -10,10 +10,12 @@ import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
-import { UserPlus, Search, Plus, ArrowRight, Trash2, AlertCircle, RefreshCw, Loader2, Eye, FileText } from "lucide-react";
+import { UserPlus, Search, Plus, ArrowRight, Trash2, AlertCircle, RefreshCw, Loader2, Eye, FileText, Building2 } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
-import { useFrappeList, useFrappeCreate, useFrappeUpdate, useFrappeDelete } from "@/lib/useApiData";
+import { useApiQuery, useFrappeCreate, useFrappeUpdate, useFrappeDelete } from "@/lib/useApiData";
+import { leadService } from "@/api/leadService";
+import { useAuth } from "@/components/auth/AuthProvider";
 
 const LEAD_STATUSES = {
     OPEN: "bg-blue-500/15 text-blue-700 dark:text-blue-400",
@@ -31,11 +33,13 @@ export default function Leads() {
     const [searchTerm, setSearchTerm] = useState("");
     const [createOpen, setCreateOpen] = useState(false);
     const [form, setForm] = useState({ contact: "", interest_type: "", status: "OPEN" });
+    const { isAdmin, userCompanyName } = useAuth();
 
-    const { data: leads = [], isLoading, error, refetch } = useFrappeList("Cheese Lead", {
-        fields: ["name", "contact", "conversation", "status", "interest_type", "lost_reason", "last_interaction_at"],
-        pageSize: 100,
-    });
+    const { data: leadsRaw, isLoading, error, refetch } = useApiQuery(
+        ['leads-list'],
+        () => leadService.listLeads({ page_size: 100 }),
+    );
+    const leads = leadsRaw?.data || [];
 
     const createMutation = useFrappeCreate("Cheese Lead");
     const updateMutation = useFrappeUpdate("Cheese Lead");
@@ -90,7 +94,11 @@ export default function Leads() {
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="p-6 space-y-6">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
-                    <h1 className="text-2xl font-bold text-foreground flex items-center gap-2"><UserPlus className="w-6 h-6 text-cheese-600" /> {t("nav.leads", "Leads")}</h1>
+                    <h1 className="text-2xl font-bold text-foreground flex items-center gap-2"><UserPlus className="w-6 h-6 text-cheese-600" /> {t("nav.leads", "Leads")}
+                        {!isAdmin && userCompanyName && (
+                            <Badge variant="outline" className="ml-2 text-xs font-normal"><Building2 className="w-3 h-3 mr-1" />{userCompanyName}</Badge>
+                        )}
+                    </h1>
                     <p className="text-sm text-muted-foreground mt-1">{isLoading ? '...' : `${filtered.length} ${t("leads.items", "leads")}`}</p>
                 </div>
                 <div className="flex gap-2">

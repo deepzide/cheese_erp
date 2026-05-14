@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { createPageUrl } from "@/utils";
@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { getStoredCredentials } from "@/api/client";
 import { useTheme } from "@/components/ThemeProvider";
+import { useAuth } from "@/components/auth/AuthProvider";
 
 const URL_ESTABLISHMENTS = createPageUrl("establishments");
 const URL_ESTABLISHMENTS_NEW = createPageUrl("establishments/new");
@@ -40,7 +41,7 @@ const navigationItems = [
     { titleKey: "nav.routes", url: createPageUrl("routes"), icon: Route, section: "flow" },
     { titleKey: "nav.bookings", url: createPageUrl("bookings"), icon: ShoppingCart, section: "flow" },
     { titleKey: "nav.experiences", url: createPageUrl("experiences"), icon: Sparkles, section: "catalog" },
-    { titleKey: "nav.establishments", url: URL_ESTABLISHMENTS, icon: Building2, section: "catalog" },
+    { titleKey: "nav.establishments", url: URL_ESTABLISHMENTS, icon: Building2, section: "catalog", adminOnly: true },
     { titleKey: "nav.calendar", url: createPageUrl("calendar"), icon: CalendarDays, section: "catalog" },
     { titleKey: "nav.bookingPolicy", url: createPageUrl("booking-policy"), icon: Shield, section: "catalog" },
     { titleKey: "nav.hotels", url: createPageUrl("hotels"), icon: Hotel, section: "hotel" },
@@ -58,8 +59,8 @@ const navigationItems = [
     { titleKey: "nav.qrScan", url: createPageUrl("scan"), icon: ScanLine, section: "operations" },
     { titleKey: "nav.documents", url: createPageUrl("documents"), icon: FileText, section: "operations" },
     { titleKey: "nav.surveys", url: createPageUrl("surveys"), icon: Star, section: "operations" },
-    { titleKey: "nav.users", url: createPageUrl("users"), icon: Users, section: "system" },
-    { titleKey: "nav.systemEvents", url: createPageUrl("events"), icon: Activity, section: "system" },
+    { titleKey: "nav.users", url: createPageUrl("users"), icon: Users, section: "system", adminOnly: true },
+    { titleKey: "nav.systemEvents", url: createPageUrl("events"), icon: Activity, section: "system", adminOnly: true },
 ];
 
 const sectionDefs = {
@@ -80,9 +81,26 @@ export default function Layout({ children }) {
     const [sidebarOpen, setSidebarOpen] = useState(false);
     const [collapsedSections, setCollapsedSections] = useState({});
     const { theme, setTheme, resolvedTheme } = useTheme();
+    const { isAdmin, userCompanyName } = useAuth();
 
     const currentUser = getStoredCredentials();
     const user = currentUser || { full_name: "Cheese Admin", role: "admin" };
+
+    // Filter navigation items based on admin status
+    const filteredNavItems = useMemo(() => {
+        if (isAdmin) return navigationItems;
+        return navigationItems.filter(item => !item.adminOnly);
+    }, [isAdmin]);
+
+    // Filter section defs to hide empty sections after filtering
+    const visibleSections = useMemo(() => {
+        const sections = {};
+        for (const [key, def] of Object.entries(sectionDefs)) {
+            const items = filteredNavItems.filter(item => item.section === key);
+            if (items.length > 0) sections[key] = def;
+        }
+        return sections;
+    }, [filteredNavItems]);
 
     const toggleLanguage = () => {
         const next = i18n.language === "es" ? "en" : "es";
@@ -120,12 +138,18 @@ export default function Layout({ children }) {
                         <p className="text-[11px] text-white/40 font-medium">{t("sections.commandCenter")}</p>
                     </div>
                 </div>
+                {userCompanyName && (
+                    <div className="mt-3 flex items-center gap-2">
+                        <Building2 className="w-3 h-3 text-cheese-400/60" />
+                        <span className="text-[11px] text-cheese-400/80 font-medium truncate">{userCompanyName}</span>
+                    </div>
+                )}
             </div>
 
             {/* Navigation */}
             <ScrollArea className="flex-1 px-3 py-4">
-                {Object.entries(sectionDefs).map(([key, section]) => {
-                    const items = navigationItems.filter(item => item.section === key);
+                {Object.entries(visibleSections).map(([key, section]) => {
+                    const items = filteredNavItems.filter(item => item.section === key);
                     if (items.length === 0) return null;
                     const isGroupActive = items.some(item => isNavItemActive(item, location.pathname));
                     const isCollapsed = collapsedSections[key] && !isGroupActive;
@@ -183,6 +207,12 @@ export default function Layout({ children }) {
                     <div className="flex-1 min-w-0">
                         <p className="font-medium text-white/90 text-sm truncate">{user?.full_name || 'User'}</p>
                         <p className="text-[11px] text-white/40 truncate">{user?.email || ''}</p>
+                        {!isAdmin && userCompanyName && (
+                            <Badge variant="outline" className="mt-1 text-[9px] px-1.5 py-0 border-cheese-500/30 text-cheese-400/80">
+                                <Building2 className="w-2.5 h-2.5 mr-1" />
+                                {userCompanyName}
+                            </Badge>
+                        )}
                     </div>
                 </div>
                 <Button

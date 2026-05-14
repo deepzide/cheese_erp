@@ -4,24 +4,26 @@ import { useTranslation } from "react-i18next";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Ticket } from "lucide-react";
+import { Ticket, Building2 } from "lucide-react";
 import { toast } from "sonner";
 import { useFrappeCreate, useFrappeDoc, extractData } from "@/lib/useApiData";
 import CreatePageLayout from "@/components/CreatePageLayout";
 import FrappeSearchSelect from "@/components/FrappeSearchSelect";
 import { routeService } from "@/api/routeService";
+import { useAuth } from "@/components/auth/AuthProvider";
 
 export default function TicketCreate() {
     const navigate = useNavigate();
     const queryClient = useQueryClient();
     const [searchParams] = useSearchParams();
     const { t } = useTranslation();
+    const { isAdmin, userCompany } = useAuth();
     const contactId = searchParams.get("contact") || "";
     const backPath = contactId ? `/cheese/contacts/${contactId}` : "/cheese/tickets";
     
     const [form, setForm] = useState({
         contact: searchParams.get("contact") || "",
-        company: searchParams.get("company") || "",
+        company: searchParams.get("company") || userCompany || "",
         experience: searchParams.get("experience") || "",
         route: searchParams.get("route") || "",
         slot: searchParams.get("slot") || "",
@@ -55,11 +57,16 @@ export default function TicketCreate() {
 
     // Experience filter: restrict to route's experiences when a route is selected
     const experienceFilters = useMemo(() => {
+        const filters = {};
         if (form.route && routeExperiences && routeExperiences.length > 0) {
-            return { name: ["in", routeExperiences] };
+            filters.name = ["in", routeExperiences];
         }
-        return {};
-    }, [form.route, routeExperiences]);
+        // Scope experiences to user's company for non-admin
+        if (!isAdmin && userCompany) {
+            filters.company = userCompany;
+        }
+        return filters;
+    }, [form.route, routeExperiences, isAdmin, userCompany]);
 
     const handleSubmit = () => {
         if (!form.contact || !form.experience || !form.slot) {
@@ -139,13 +146,20 @@ export default function TicketCreate() {
                     </div>
                     <div className="space-y-2">
                         <Label>{t("common.company", "Company")}</Label>
-                        <FrappeSearchSelect
-                            doctype="Company"
-                            label="name"
-                            value={form.company}
-                            onChange={(v) => setForm(f => ({ ...f, company: v }))}
-                            placeholder={t("tickets.selectCompany", "Select company...")}
-                        />
+                        {isAdmin ? (
+                            <FrappeSearchSelect
+                                doctype="Company"
+                                label="name"
+                                value={form.company}
+                                onChange={(v) => setForm(f => ({ ...f, company: v }))}
+                                placeholder={t("tickets.selectCompany", "Select company...")}
+                            />
+                        ) : (
+                            <div className="flex h-10 items-center gap-2 rounded-md border border-input bg-muted/50 px-3">
+                                <Building2 className="w-4 h-4 text-muted-foreground" />
+                                <span className="text-sm font-medium">{form.company}</span>
+                            </div>
+                        )}
                     </div>
                 </div>
 

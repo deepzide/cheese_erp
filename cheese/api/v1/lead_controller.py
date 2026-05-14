@@ -5,6 +5,7 @@ import frappe
 from frappe import _
 from frappe.utils import now_datetime, cint
 from cheese.api.common.responses import success, created, error, not_found, validation_error, paginated_response
+from cheese.api.v1.user_controller import _get_current_user_company
 
 
 @frappe.whitelist()
@@ -320,6 +321,26 @@ def list_leads(page=1, page_size=20, status=None, contact_id=None, interest_type
 			filters["contact"] = contact_id
 		if interest_type:
 			filters["interest_type"] = interest_type
+
+		# Company scoping: restrict leads to contacts that have tickets in the user's company
+		user_company = _get_current_user_company()
+		if user_company:
+			company_contacts = frappe.get_all(
+				"Cheese Ticket",
+				filters={"company": user_company},
+				pluck="contact",
+				distinct=True,
+			)
+			company_contacts = list(set(c for c in company_contacts if c))
+			if company_contacts:
+				if "contact" in filters:
+					# If contact_id is already filtered, ensure it's in the company's contacts
+					if filters["contact"] not in company_contacts:
+						return paginated_response([], "Leads retrieved successfully", page=page, page_size=page_size, total=0)
+				else:
+					filters["contact"] = ["in", company_contacts]
+			else:
+				return paginated_response([], "Leads retrieved successfully", page=page, page_size=page_size, total=0)
 		
 		leads = frappe.get_all(
 			"Cheese Lead",

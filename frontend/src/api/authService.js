@@ -32,6 +32,9 @@ const normalizeTokenPayload = (response = {}, defaults = {}) => {
         full_name: data?.full_name || defaults?.full_name || '',
         email: data?.email || defaults?.email || '',
         permissions: data?.permissions || defaults?.permissions || [],
+        companies: data?.companies || defaults?.companies || [],
+        roles: data?.roles || defaults?.roles || [],
+        is_admin: data?.is_admin ?? defaults?.is_admin ?? false,
     };
 };
 

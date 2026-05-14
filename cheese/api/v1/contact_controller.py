@@ -4,8 +4,75 @@
 import frappe
 import json
 from frappe import _
-from cheese.api.common.responses import success, created, validation_error, error, not_found
+from frappe.utils import cint
+from cheese.api.common.responses import success, created, validation_error, error, not_found, paginated_response
+from cheese.api.v1.user_controller import _get_current_user_company
 
+
+@frappe.whitelist()
+def list_contacts(page=1, page_size=100, search=None):
+	"""
+	List contacts with optional company scoping.
+	Non-admin users only see contacts that have tickets in their company.
+
+	Args:
+		page: Page number
+		page_size: Items per page
+		search: Search term (searches full_name, phone, email)
+
+	Returns:
+		Paginated response with contacts list
+	"""
+	try:
+		page = cint(page) or 1
+		page_size = cint(page_size) or 100
+
+		filters = {}
+		or_filters = []
+		if search:
+			or_filters = [
+				["full_name", "like", f"%{search}%"],
+				["phone", "like", f"%{search}%"],
+				["email", "like", f"%{search}%"],
+			]
+
+		# Company scoping: restrict contacts to those that have tickets in the user's company
+		user_company = _get_current_user_company()
+		if user_company:
+			company_contacts = frappe.get_all(
+				"Cheese Ticket",
+				filters={"company": user_company},
+				pluck="contact",
+				distinct=True,
+			)
+			company_contacts = list(set(c for c in company_contacts if c))
+			if company_contacts:
+				filters["name"] = ["in", company_contacts]
+			else:
+				return paginated_response([], "Contacts retrieved successfully", page=page, page_size=page_size, total=0)
+
+		contacts = frappe.get_all(
+			"Cheese Contact",
+			filters=filters,
+			or_filters=or_filters if or_filters else None,
+			fields=["name", "full_name", "phone", "email", "creation", "modified"],
+			limit_start=(page - 1) * page_size,
+			limit_page_length=page_size,
+			order_by="modified desc",
+		)
+
+		total = frappe.db.count("Cheese Contact", filters=filters)
+
+		return paginated_response(
+			contacts,
+			"Contacts retrieved successfully",
+			page=page,
+			page_size=page_size,
+			total=total,
+		)
+	except Exception as e:
+		frappe.log_error(f"Error in list_contacts: {str(e)}")
+		return error("Failed to list contacts", "SERVER_ERROR", {"error": str(e)}, 500)
 
 @frappe.whitelist()
 def find_or_create_contact(phone=None, email=None, name=None):

@@ -4,18 +4,20 @@ import { useTranslation } from "react-i18next";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Shield } from "lucide-react";
+import { Shield, Building2 } from "lucide-react";
 import { toast } from "sonner";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supportService } from "@/api/supportService";
 import CreatePageLayout from "@/components/CreatePageLayout";
 import FrappeSearchSelect from "@/components/FrappeSearchSelect";
+import { useAuth } from "@/components/auth/AuthProvider";
 
 export default function SupportCreate() {
     const navigate = useNavigate();
     const queryClient = useQueryClient();
     const [searchParams] = useSearchParams();
     const { t } = useTranslation();
+    const { isAdmin, userCompany } = useAuth();
     const contactId = searchParams.get('contact') || '';
     const backPath = contactId ? `/cheese/contacts/${contactId}` : "/cheese/support";
     const [form, setForm] = useState({
@@ -25,7 +27,7 @@ export default function SupportCreate() {
         priority: "Medium",
         incident_type: "GENERAL",
         route_id: "",
-        company_id: "",
+        company_id: userCompany || "",
     });
 
     const createMutation = useMutation({
@@ -99,13 +101,20 @@ export default function SupportCreate() {
                     </div>
                     <div className="space-y-2">
                         <Label>{t("support.establishmentOptional", "Establishment (optional)")}</Label>
-                        <FrappeSearchSelect
-                            doctype="Company"
-                            label="name"
-                            value={form.company_id}
-                            onChange={(v) => setForm(f => ({ ...f, company_id: v }))}
-                            placeholder={t("support.filterByEstablishment", "Filter context by establishment...")}
-                        />
+                        {isAdmin ? (
+                            <FrappeSearchSelect
+                                doctype="Company"
+                                label="name"
+                                value={form.company_id}
+                                onChange={(v) => setForm(f => ({ ...f, company_id: v }))}
+                                placeholder={t("support.filterByEstablishment", "Filter context by establishment...")}
+                            />
+                        ) : (
+                            <div className="flex h-10 items-center gap-2 rounded-md border border-input bg-muted/50 px-3">
+                                <Building2 className="w-4 h-4 text-muted-foreground" />
+                                <span className="text-sm font-medium">{form.company_id}</span>
+                            </div>
+                        )}
                     </div>
                 </div>
                 <div className="space-y-2">

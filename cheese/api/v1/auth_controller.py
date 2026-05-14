@@ -1,6 +1,7 @@
 import frappe
 from frappe.utils.password import check_password, get_decrypted_password
 from cheese.api.common.responses import success, error, validation_error, unauthorized
+from cheese.api.v1.user_controller import _get_user_companies
 
 @frappe.whitelist(allow_guest=True, methods=["POST"])
 def token():
@@ -17,7 +18,8 @@ def token():
         password: User password
         
     Returns:
-        Success response with api_key, api_secret, user info, and permissions
+        Success response with api_key, api_secret, user info, permissions,
+        companies, roles, and is_admin flag
     """
     data = frappe.form_dict
     grant_type = data.get("grant_type")
@@ -60,7 +62,7 @@ def token():
         
         api_key = user_doc.api_key
 
-        # Get user permissions
+        # Get user roles and permissions
         roles = frappe.get_roles(username)
         permissions = []
         
@@ -73,6 +75,20 @@ def token():
                 permissions.extend(role_permission_map[role])
         permissions = list(dict.fromkeys(permissions))
 
+        # Get user's assigned companies (via User Permission)
+        companies = _get_user_companies(username)
+
+        # Resolve company names for display
+        companies_with_names = []
+        for company_id in companies:
+            company_name = frappe.db.get_value("Company", company_id, "company_name")
+            companies_with_names.append({
+                "id": company_id,
+                "name": company_name or company_id,
+            })
+
+        is_admin = "System Manager" in roles or username == "Administrator"
+
         return success(
             "Authentication successful",
             {
@@ -82,6 +98,9 @@ def token():
                 "full_name": user_doc.full_name,
                 "email": user_doc.email,
                 "permissions": permissions,
+                "companies": companies_with_names,
+                "roles": roles,
+                "is_admin": is_admin,
             }
         )
     except Exception as e:

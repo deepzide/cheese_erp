@@ -1086,6 +1086,12 @@ def get_ticket_board(filters=None, status=None, route_id=None, establishment_id=
 			filter_dict["status"] = status
 		if route_id:
 			filter_dict["route"] = route_id
+
+		# Company scoping: force user's company for non-admin users
+		user_company = _get_current_user_company()
+		if user_company:
+			establishment_id = user_company
+
 		if establishment_id:
 			filter_dict["company"] = establishment_id
 		if experience_id:

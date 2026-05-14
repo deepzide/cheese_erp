@@ -7,14 +7,16 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { LayoutDashboard, Ticket, Users, DollarSign, Clock, TrendingUp, AlertCircle, RefreshCw, CalendarDays, Shield, Sparkles } from "lucide-react";
+import { LayoutDashboard, Ticket, Users, DollarSign, Clock, TrendingUp, AlertCircle, RefreshCw, CalendarDays, Shield, Sparkles, Building2 } from "lucide-react";
 import { dashboardService } from "@/api/dashboardService";
+import { useAuth } from "@/components/auth/AuthProvider";
 import { useTranslation } from "react-i18next";
 
 export default function Dashboard() {
     const navigate = useNavigate();
     const { t } = useTranslation();
     const [period, setPeriod] = useState("today");
+    const { isAdmin, userCompanyName } = useAuth();
 
     const { dateFrom, dateTo } = useMemo(() => {
         const now = new Date();
@@ -127,6 +129,9 @@ export default function Dashboard() {
                 <div>
                     <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
                         <LayoutDashboard className="w-6 h-6 text-cheese-600" /> {t("nav.dashboard", "Dashboard")}
+                        {!isAdmin && userCompanyName && (
+                            <Badge variant="outline" className="ml-2 text-xs font-normal"><Building2 className="w-3 h-3 mr-1" />{userCompanyName}</Badge>
+                        )}
                     </h1>
                     <p className="text-sm text-muted-foreground mt-1">{t("dashboard.overview", "Overview of your cheese operations")}</p>
                 </div>
