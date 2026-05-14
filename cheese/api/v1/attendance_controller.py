@@ -5,6 +5,7 @@ import frappe
 from frappe import _
 from frappe.utils import now_datetime, getdate, cint, get_datetime
 from cheese.api.common.responses import success, created, error, not_found, validation_error, paginated_response
+from cheese.api.v1.user_controller import _get_current_user_company
 
 
 @frappe.whitelist()
@@ -183,6 +184,7 @@ def list_attendance(
 	company_id=None,
 	route_id=None,
 	experience_id=None,
+	status=None,
 ):
 	"""
 	List attendance records with filters
@@ -202,9 +204,15 @@ def list_attendance(
 	try:
 		page = cint(page) or 1
 		page_size = cint(page_size) or 20
-		
+
+		user_company = _get_current_user_company()
+		if user_company:
+			company_id = user_company
+
 		# Build filters
 		filters = {}
+		if status:
+			filters["status"] = status
 		
 		# Get tickets matching filters first
 		ticket_filters = {}

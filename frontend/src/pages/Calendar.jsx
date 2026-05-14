@@ -1,14 +1,16 @@
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useMemo } from "react";
 import { motion } from "framer-motion";
 import { useSearchParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { CalendarDays, ChevronLeft, ChevronRight, Filter, RefreshCw, Plus, AlertCircle } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useFrappeList } from "@/lib/useApiData";
+import { experienceService } from "@/api/experienceService";
+import { useEstablishmentScope } from "@/hooks/useEstablishmentScope";
 import {
     format, navigate as nav, startOfWeek, endOfWeek, startOfMonth, endOfMonth,
 } from "@/components/calendar/calendarUtils";
@@ -61,23 +63,47 @@ export default function CalendarPage() {
     };
 
     const { from, to } = getDateRange();
+    const {
+        establishmentFilter,
+        setEstablishmentFilter,
+        scopeCompanyId,
+        showEstablishmentFilter,
+    } = useEstablishmentScope();
 
-    // Fetch experiences
-    const { data: experiences = [] } = useFrappeList("Cheese Experience", {
-        fields: ["name", "experience_info"],
-        pageSize: 100,
+    const { data: experiencesRaw = [] } = useQuery({
+        queryKey: ["calendar-experiences", scopeCompanyId],
+        queryFn: async () => {
+            const params = { page_size: 500 };
+            if (scopeCompanyId) {
+                params.company = scopeCompanyId;
+            }
+            const result = await experienceService.listExperiences(params);
+            const payload = result?.data?.message || result?.data || result;
+            return payload?.data || [];
+        },
     });
 
+    const experiences = Array.isArray(experiencesRaw) ? experiencesRaw : [];
+    const scopedExperienceIds = useMemo(
+        () => new Set(experiences.map((experience) => experience.name).filter(Boolean)),
+        [experiences]
+    );
+
     // Fetch slots for current range
-    const slotFilters = {};
-    if (selectedExperience && selectedExperience !== "all") slotFilters.experience = selectedExperience;
+    const slotFilters = {
+        date_from: ["<=", to],
+        date_to: [">=", from],
+    };
+    if (selectedExperience && selectedExperience !== "all") {
+        slotFilters.experience = selectedExperience;
+    } else if (scopeCompanyId && scopedExperienceIds.size > 0) {
+        slotFilters.experience = ["in", Array.from(scopedExperienceIds)];
+    } else if (scopeCompanyId && scopedExperienceIds.size === 0) {
+        slotFilters.experience = ["in", ["__none__"]];
+    }
 
     const { data: slotsRaw = [], isLoading, error, refetch } = useFrappeList("Cheese Experience Slot", {
-        filters: {
-            ...slotFilters,
-            date_from: ["<=", to],
-            date_to: [">=", from],
-        },
+        filters: slotFilters,
         fields: ["name", "experience", "date_from", "date_to", "time_from", "time_to", "max_capacity", "reserved_capacity", "slot_status"],
         pageSize: 500,
     });
@@ -143,6 +169,20 @@ export default function CalendarPage() {
                         </TabsList>
                     </Tabs>
 
+                    {showEstablishmentFilter && (
+                        <Select value={establishmentFilter} onValueChange={setEstablishmentFilter}>
+                            <SelectTrigger className="w-44 h-8 text-xs">
+                                <SelectValue placeholder={t("bookings.allEstablishments", "All Establishments")} />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="all">{t("bookings.allEstablishments", "All Establishments")}</SelectItem>
+                                {Array.from(new Set(experiences.map((experience) => experience.company).filter(Boolean))).map((company) => (
+                                    <SelectItem key={company} value={company}>{company}</SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    )}
+
                     {/* Experience filter */}
                     <Select value={selectedExperience || "all"} onValueChange={(v) => setSelectedExperience(v === "all" ? null : v)}>
                         <SelectTrigger className="w-44 h-8 text-xs">
@@ -151,7 +191,7 @@ export default function CalendarPage() {
                         </SelectTrigger>
                         <SelectContent>
                             <SelectItem value="all">{t("calendar.allActivities", "All Activities")}</SelectItem>
-                            {(Array.isArray(experiences) ? experiences : []).map((exp) => (
+                            {experiences.map((exp) => (
                                 <SelectItem key={exp.name} value={exp.name}>
                                     {exp.experience_info || exp.name}
                                 </SelectItem>

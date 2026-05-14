@@ -13,6 +13,7 @@ import { Landmark, Search, Plus, AlertCircle, RefreshCw, Loader2, MoreHorizontal
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
 import { useFrappeList, useFrappeCreate } from "@/lib/useApiData";
+import { useEstablishmentScope } from "@/hooks/useEstablishmentScope";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useTranslation } from "react-i18next";
 import { bankAccountService } from "@/api/bankAccountService";
@@ -33,10 +34,26 @@ export default function BankAccounts() {
     const [deleteTarget, setDeleteTarget] = useState(null);
     const [form, setForm] = useState({ entity_type: "Cheese Route", entity_id: searchParams.get('route') || "", holder: "", bank: "", account: "", iban: "", currency: "EUR" });
     const routeFilter = searchParams.get('route');
+    const companyQuery = searchParams.get('company');
+    const {
+        establishmentFilter,
+        setEstablishmentFilter,
+        scopeCompanyId,
+        showEstablishmentFilter,
+        matchesScope,
+    } = useEstablishmentScope(companyQuery || "all");
+
+    const listFilters = {};
+    if (routeFilter) {
+        listFilters.entity_id = routeFilter;
+    } else if (scopeCompanyId) {
+        listFilters.entity_type = "Company";
+        listFilters.entity_id = scopeCompanyId;
+    }
 
     const { data: accounts = [], isLoading, error, refetch } = useFrappeList("Cheese Bank Account", {
         fields: ["name", "entity_type", "entity_id", "route", "status", "holder", "bank", "account", "iban", "currency", "creation"],
-        filters: routeFilter ? { entity_id: routeFilter } : undefined,
+        filters: Object.keys(listFilters).length ? listFilters : undefined,
         pageSize: 100,
     });
 
@@ -58,6 +75,11 @@ export default function BankAccounts() {
     });
 
     const filtered = (Array.isArray(accounts) ? accounts : []).filter(a => {
+        if (scopeCompanyId) {
+            if (a.entity_type === "Company" && !matchesScope(a.entity_id)) return false;
+            if (a.entity_type === "Cheese Route" && routeFilter) return true;
+            if (a.entity_type === "Cheese Route" && !routeFilter) return false;
+        }
         if (searchTerm) {
             const term = searchTerm.toLowerCase();
             return (a.holder || '').toLowerCase().includes(term)

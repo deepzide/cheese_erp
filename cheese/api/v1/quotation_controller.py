@@ -5,6 +5,7 @@ import frappe
 from frappe import _
 from frappe.utils import add_to_date, now_datetime, cint, get_datetime, getdate
 from cheese.api.common.responses import success, created, error, not_found, validation_error, paginated_response
+from cheese.api.v1.user_controller import _get_current_user_company
 from cheese.cheese.utils.pricing import calculate_ticket_price, calculate_deposit_amount
 import json
 
@@ -324,7 +325,7 @@ def accept_quotation(quotation_id):
 
 
 @frappe.whitelist()
-def list_quotations(page=1, page_size=20, lead_id=None, status=None):
+def list_quotations(page=1, page_size=20, lead_id=None, status=None, establishment_id=None):
 	"""
 	List quotations with filters
 	
@@ -340,17 +341,23 @@ def list_quotations(page=1, page_size=20, lead_id=None, status=None):
 	try:
 		page = cint(page) or 1
 		page_size = cint(page_size) or 20
-		
+
+		user_company = _get_current_user_company()
+		if user_company:
+			establishment_id = user_company
+
 		filters = {}
 		if lead_id:
 			filters["lead"] = lead_id
 		if status:
 			filters["status"] = status
-		
+		if establishment_id:
+			filters["establishment"] = establishment_id
+
 		quotations = frappe.get_all(
 			"Cheese Quotation",
 			filters=filters,
-			fields=["name", "lead", "conversation", "total_price", "deposit_amount", "status", "valid_until", "modified"],
+			fields=["name", "lead", "establishment", "route", "conversation", "total_price", "deposit_amount", "status", "valid_until", "modified"],
 			limit_start=(page - 1) * page_size,
 			limit_page_length=page_size,
 			order_by="modified desc"

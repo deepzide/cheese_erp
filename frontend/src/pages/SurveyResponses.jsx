@@ -12,6 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { useFrappeList } from "@/lib/useApiData";
 import FrappeSearchSelect from "@/components/FrappeSearchSelect";
 import { useTranslation } from "react-i18next";
+import { useEstablishmentScope } from "@/hooks/useEstablishmentScope";
 
 export default function SurveyResponses() {
     const { t } = useTranslation();
@@ -23,9 +24,12 @@ export default function SurveyResponses() {
     const [companyId, setCompanyId] = useState("");
     const [ratingFilter, setRatingFilter] = useState("all");
     const [selected, setSelected] = useState(null);
+    const { scopeCompanyId, showEstablishmentFilter } = useEstablishmentScope();
+    const effectiveCompanyId = companyId || scopeCompanyId || "";
 
     const serverFilters = {};
     if (ticketParam) serverFilters.ticket = ticketParam;
+    if (effectiveCompanyId) serverFilters.company = effectiveCompanyId;
 
     const { data: responses = [], isLoading, error, refetch } = useFrappeList("Cheese Survey Response", {
         filters: serverFilters,
@@ -37,7 +41,7 @@ export default function SurveyResponses() {
     const filtered = (Array.isArray(responses) ? responses : []).filter(r => {
         if (searchTerm && !(r.ticket || r.name || r.comment || '').toLowerCase().includes(searchTerm.toLowerCase())) return false;
         if (routeId && r.route !== routeId) return false;
-        if (companyId && r.company !== companyId) return false;
+        if (effectiveCompanyId && r.company !== effectiveCompanyId) return false;
         if (ratingFilter !== "all" && String(r.rating || "") !== ratingFilter) return false;
         return true;
     });
@@ -63,7 +67,9 @@ export default function SurveyResponses() {
                 <div className="flex gap-2 flex-wrap">
                     <div className="relative"><Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" /><Input placeholder={t("surveyResponses.searchTicket", "Buscar ticket...")} value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-9 w-56 h-9" /></div>
                     <div className="w-44"><FrappeSearchSelect doctype="Cheese Route" label="name" value={routeId} onChange={setRouteId} placeholder={t("surveyResponses.route", "Ruta...")} /></div>
-                    <div className="w-44"><FrappeSearchSelect doctype="Company" label="name" value={companyId} onChange={setCompanyId} placeholder={t("surveyResponses.establishment", "Establecimiento...")} /></div>
+                    {showEstablishmentFilter && (
+                        <div className="w-44"><FrappeSearchSelect doctype="Company" label="name" value={companyId} onChange={setCompanyId} placeholder={t("surveyResponses.establishment", "Establecimiento...")} /></div>
+                    )}
                     <Input placeholder={t("surveyResponses.ratingRange", "Calificación 1-5")} value={ratingFilter === "all" ? "" : ratingFilter} onChange={(e) => setRatingFilter(e.target.value ? e.target.value : "all")} className="w-24 h-9" />
                     <Button variant="ghost" size="icon" onClick={() => refetch()} className="h-9 w-9"><RefreshCw className="w-4 h-4" /></Button>
                 </div>

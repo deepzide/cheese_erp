@@ -14,6 +14,9 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { toast } from "sonner";
 import { useFrappeList, useFrappeCreate } from "@/lib/useApiData";
 import { useTranslation } from "react-i18next";
+import { useEstablishmentScope } from "@/hooks/useEstablishmentScope";
+import { useQuery } from "@tanstack/react-query";
+import { experienceService } from "@/api/experienceService";
 
 const TYPE_BADGE = { PDF: "bg-red-500/15 text-red-700", Image: "bg-blue-500/15 text-blue-700", Link: "bg-purple-500/15 text-purple-700" };
 const STATUS_BADGE = { DRAFT: "bg-yellow-500/15 text-yellow-700", PUBLISHED: "bg-emerald-500/15 text-emerald-700", ARCHIVED: "bg-gray-500/15 text-gray-600" };
@@ -26,6 +29,20 @@ export default function Documents() {
     const includeCompanyDocs = searchParams.get("include_company_docs") !== "0";
     const [searchTerm, setSearchTerm] = useState("");
     const [createOpen, setCreateOpen] = useState(false);
+    const { scopeCompanyId, matchesScope } = useEstablishmentScope(companyFromQuery || "all");
+
+    const { data: scopedExperiences = [] } = useQuery({
+        queryKey: ["documents-experiences", scopeCompanyId],
+        queryFn: async () => {
+            const params = { page_size: 500 };
+            if (scopeCompanyId) params.company = scopeCompanyId;
+            const result = await experienceService.listExperiences(params);
+            const payload = result?.data?.message || result?.data || result;
+            return payload?.data || [];
+        },
+    });
+    const scopedExperienceIds = new Set((Array.isArray(scopedExperiences) ? scopedExperiences : []).map((experience) => experience.name));
+
     const [form, setForm] = useState({
         entity_type: searchParams.get('entity_type') || "", entity_id: searchParams.get('entity_id') || "",
         title: "", document_type: "PDF", file_url: "",
@@ -70,6 +87,10 @@ export default function Documents() {
     }, [docs, companyDocs]);
 
     const filtered = mergedDocs.filter(d => {
+        if (scopeCompanyId) {
+            if (d.entity_type === "Company" && !matchesScope(d.entity_id)) return false;
+            if (d.entity_type === "Cheese Experience" && !scopedExperienceIds.has(d.entity_id)) return false;
+        }
         if (searchTerm) {
             const term = searchTerm.toLowerCase();
             return (d.title || d.name || '').toLowerCase().includes(term) || (d.entity_id || '').toLowerCase().includes(term);

@@ -11,6 +11,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { ShoppingCart, Search, Filter, DollarSign, AlertCircle, RefreshCw, Users, Route, Ticket, MoreHorizontal, Eye, Wallet, Building2, TicketIcon } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { useFrappeList } from "@/lib/useApiData";
+import { useEstablishmentScope } from "@/hooks/useEstablishmentScope";
 
 const STATUS_CONFIG = {
     PENDING: { label: "Pending", badge: "bg-yellow-500/15 text-yellow-700 dark:text-yellow-400" },
@@ -27,7 +28,14 @@ export default function Bookings() {
     const { t } = useTranslation();
     const [searchTerm, setSearchTerm] = useState("");
     const [filterStatus, setFilterStatus] = useState("all");
-    const [filterEstablishment, setFilterEstablishment] = useState("all");
+    const {
+        establishmentFilter,
+        setEstablishmentFilter,
+        scopeCompanyId,
+        showEstablishmentFilter,
+    } = useEstablishmentScope();
+
+    const activeCompanyFilter = establishmentFilter !== "all" ? establishmentFilter : scopeCompanyId;
 
     // Fetch Establishments (Companies)
     const { data: companies = [] } = useFrappeList("Company", {
@@ -43,8 +51,13 @@ export default function Bookings() {
     });
 
     // 2. Fetch Tickets (representing single experiences)
+    const ticketFilters = { status: "CONFIRMED" };
+    if (scopeCompanyId) {
+        ticketFilters.company = scopeCompanyId;
+    }
+
     const { data: tickets = [], isLoading: tLoading, error: tError, refetch: tRefetch } = useFrappeList("Cheese Ticket", {
-        filters: { status: "CONFIRMED" },
+        filters: ticketFilters,
         fields: ["name", "contact", "experience", "route", "company", "status", "deposit_amount", "creation"],
         pageSize: 200,
         orderBy: "creation desc"
@@ -93,11 +106,7 @@ export default function Bookings() {
         // Status filter
         if (filterStatus !== "all" && b.status !== filterStatus) return false;
 
-        // Establishment filter
-        if (filterEstablishment !== "all") {
-            // For route bookings, if they don't have a company mapped, they are hidden if an establishment is selected.
-            if (b.company !== filterEstablishment) return false;
-        }
+        if (activeCompanyFilter && b.company !== activeCompanyFilter) return false;
 
         // Search filter
         if (searchTerm) {
@@ -138,7 +147,8 @@ export default function Bookings() {
                         <Input placeholder={t("bookings.search", "Search bookings...")} value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-9 w-48 h-9" />
                     </div>
 
-                    <Select value={filterEstablishment} onValueChange={setFilterEstablishment}>
+                    {showEstablishmentFilter && (
+                    <Select value={establishmentFilter} onValueChange={setEstablishmentFilter}>
                         <SelectTrigger className="w-48 h-9">
                             <Building2 className="w-3 h-3 mr-1 text-muted-foreground" />
                             <SelectValue placeholder={t("bookings.allEstablishments", "All Establishments")} />
@@ -150,6 +160,7 @@ export default function Bookings() {
                             ))}
                         </SelectContent>
                     </Select>
+                    )}
 
                     <Select value={filterStatus} onValueChange={setFilterStatus}>
                         <SelectTrigger className="w-36 h-9">

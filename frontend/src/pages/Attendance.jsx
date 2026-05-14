@@ -13,6 +13,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { apiRequest } from "@/api/client";
 import FrappeSearchSelect from "@/components/FrappeSearchSelect";
 import { useTranslation } from "react-i18next";
+import { useEstablishmentScope } from "@/hooks/useEstablishmentScope";
 
 const STATUS_CONFIG = {
     PRESENT: { label: "Presente", badge: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400" },
@@ -29,15 +30,17 @@ export default function Attendance() {
     const [filterStatus, setFilterStatus] = useState("all");
     const [routeId, setRouteId] = useState("");
     const [companyId, setCompanyId] = useState("");
+    const { scopeCompanyId, showEstablishmentFilter } = useEstablishmentScope();
+    const effectiveCompanyId = companyId || scopeCompanyId || "";
 
     const { data: records = [], isLoading, error, refetch } = useQuery({
-        queryKey: ["attendance", filterStatus, routeId, companyId],
+        queryKey: ["attendance", filterStatus, routeId, effectiveCompanyId],
         queryFn: async () => {
             const payload = {};
             payload.page_size = 100;
             if (filterStatus !== "all") payload.status = filterStatus;
             if (routeId) payload.route_id = routeId;
-            if (companyId) payload.company_id = companyId;
+            if (effectiveCompanyId) payload.company_id = effectiveCompanyId;
             const res = await apiRequest("/api/method/cheese.api.v1.attendance_controller.list_attendance", {
                 method: "POST",
                 body: JSON.stringify(payload),
@@ -82,9 +85,11 @@ export default function Attendance() {
                     <div className="w-48">
                         <FrappeSearchSelect doctype="Cheese Route" label="name" value={routeId} onChange={setRouteId} placeholder={t("attendance.route", "Ruta...")} />
                     </div>
-                    <div className="w-48">
-                        <FrappeSearchSelect doctype="Company" label="name" value={companyId} onChange={setCompanyId} placeholder={t("attendance.establishment", "Establecimiento...")} />
-                    </div>
+                    {showEstablishmentFilter && (
+                        <div className="w-48">
+                            <FrappeSearchSelect doctype="Company" label="name" value={companyId} onChange={setCompanyId} placeholder={t("attendance.establishment", "Establecimiento...")} />
+                        </div>
+                    )}
                     <Button variant="ghost" size="icon" onClick={() => refetch()} className="h-9 w-9"><RefreshCw className="w-4 h-4" /></Button>
                 </div>
             </div>

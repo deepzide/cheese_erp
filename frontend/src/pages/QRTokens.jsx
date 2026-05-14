@@ -11,6 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { QrCode, Search, Filter, Clock, AlertCircle, RefreshCw, Ticket, MoreHorizontal } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { useFrappeList } from "@/lib/useApiData";
+import { useEstablishmentScope } from "@/hooks/useEstablishmentScope";
 import { getBaseUrl } from "@/api/client";
 import { useTranslation } from "react-i18next";
 
@@ -27,9 +28,18 @@ export default function QRTokens() {
     const [searchParams] = useSearchParams();
     const [searchTerm, setSearchTerm] = useState(searchParams.get('ticket') || "");
     const [filterStatus, setFilterStatus] = useState("all");
+    const { scopeCompanyId } = useEstablishmentScope();
 
     const statusFilter = filterStatus !== "all" ? { status: filterStatus } : {};
     const [selectedToken, setSelectedToken] = useState(null);
+
+    const { data: scopedTickets = [] } = useFrappeList("Cheese Ticket", {
+        enabled: !!scopeCompanyId,
+        filters: scopeCompanyId ? { company: scopeCompanyId } : undefined,
+        fields: ["name"],
+        pageSize: 500,
+    });
+    const scopedTicketIds = new Set((Array.isArray(scopedTickets) ? scopedTickets : []).map((ticket) => ticket.name));
 
     const { data: tokens = [], isLoading, error, refetch } = useFrappeList("Cheese QR Token", {
         filters: statusFilter,
@@ -37,8 +47,9 @@ export default function QRTokens() {
         pageSize: 100,
     });
 
-    const filtered = (Array.isArray(tokens) ? tokens : []).filter(t => {
-        if (searchTerm) return (t.ticket || t.name || t.token || '').toLowerCase().includes(searchTerm.toLowerCase());
+    const filtered = (Array.isArray(tokens) ? tokens : []).filter(token => {
+        if (scopeCompanyId && token.ticket && !scopedTicketIds.has(token.ticket)) return false;
+        if (searchTerm) return (token.ticket || token.name || token.token || '').toLowerCase().includes(searchTerm.toLowerCase());
         return true;
     });
 

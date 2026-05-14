@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
@@ -13,6 +14,9 @@ import { FileText, Search, Plus, DollarSign, Eye, MoreHorizontal, Trash2, Send, 
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
 import { useFrappeList, useFrappeCreate, useFrappeUpdate, useFrappeDelete } from "@/lib/useApiData";
+import { quotationService } from "@/api/quotationService";
+import { useEstablishmentScope } from "@/hooks/useEstablishmentScope";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 const QT_STATUS = {
     DRAFT: "bg-slate-500/15 text-slate-700 border-slate-300 dark:text-slate-300 dark:border-slate-700",
@@ -27,11 +31,25 @@ export default function Quotations() {
     const [searchTerm, setSearchTerm] = useState("");
     const [createOpen, setCreateOpen] = useState(false);
     const [form, setForm] = useState({ lead: "", route: "", total_price: "" });
+    const {
+        establishmentFilter,
+        setEstablishmentFilter,
+        scopeCompanyId,
+        showEstablishmentFilter,
+    } = useEstablishmentScope();
 
-    const { data: quotations = [], isLoading, error, refetch } = useFrappeList("Cheese Quotation", {
-        fields: ["name", "lead", "route", "total_price", "deposit_amount", "status", "valid_until"],
-        pageSize: 100,
+    const { data: quotationsRaw = [], isLoading, error, refetch } = useQuery({
+        queryKey: ["quotations", scopeCompanyId, establishmentFilter],
+        queryFn: async () => {
+            const params = { page_size: 100 };
+            const establishment = establishmentFilter !== "all" ? establishmentFilter : scopeCompanyId;
+            if (establishment) params.establishment_id = establishment;
+            const result = await quotationService.listQuotations(params);
+            const payload = result?.data?.message || result?.data || result;
+            return payload?.data || [];
+        },
     });
+    const quotations = Array.isArray(quotationsRaw) ? quotationsRaw : [];
 
     // Fetch routes for create form
     const { data: routes = [] } = useFrappeList("Cheese Route", {
@@ -91,6 +109,16 @@ export default function Quotations() {
                     <p className="text-sm text-muted-foreground mt-1">{isLoading ? '...' : `${filtered.length} ${t("quotations.items", "quotations")}`}</p>
                 </div>
                 <div className="flex gap-2">
+                    {showEstablishmentFilter && (
+                        <Select value={establishmentFilter} onValueChange={setEstablishmentFilter}>
+                            <SelectTrigger className="w-48 h-9">
+                                <SelectValue placeholder={t("bookings.allEstablishments", "All Establishments")} />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="all">{t("bookings.allEstablishments", "All Establishments")}</SelectItem>
+                            </SelectContent>
+                        </Select>
+                    )}
                     <div className="relative"><Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" /><Input placeholder={t("common.search", "Search") + "..."} value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-9 w-56 h-9" /></div>
                     <Button className="cheese-gradient text-black font-semibold border-0 h-9" onClick={() => navigate("/cheese/quotations/new")}><Plus className="w-4 h-4 mr-1" /> {t("quotations.newQuote", "New Quote")}</Button>
                     <Button variant="ghost" size="icon" onClick={() => refetch()} className="h-9 w-9"><RefreshCw className="w-4 h-4" /></Button>

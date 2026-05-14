@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
@@ -10,7 +11,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { MessageSquare, Search, Filter, Clock, AlertCircle, RefreshCw, User, Ticket, ExternalLink, MoreHorizontal, ShoppingCart } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
-import { useFrappeList } from "@/lib/useApiData";
+import { conversationService } from "@/api/conversationService";
 import { useTranslation } from "react-i18next";
 
 const STATUS_CONFIG = {
@@ -33,16 +34,16 @@ export default function Conversations() {
     const [filterChannel, setFilterChannel] = useState("all");
     const [selectedConvo, setSelectedConvo] = useState(null);
 
-    const serverFilters = {};
-    if (filterChannel !== "all") serverFilters.channel = filterChannel;
-    if (contactParam) serverFilters.contact = contactParam;
-    if (leadParam) serverFilters.lead = leadParam;
-
-    const { data: convos = [], isLoading, error, refetch } = useFrappeList("Conversation", {
-        filters: serverFilters,
-        fields: ["name", "contact", "channel", "status", "summary", "highlights_json", "transcript_url", "lead", "ticket", "route_booking", "creation", "modified"],
-        pageSize: 100,
-        orderBy: "modified desc",
+    const { data: convos = [], isLoading, error, refetch } = useQuery({
+        queryKey: ["conversations", filterChannel, contactParam, leadParam],
+        queryFn: async () => {
+            const params = { page_size: 100 };
+            if (filterChannel !== "all") params.channel = filterChannel;
+            if (contactParam) params.contact_id = contactParam;
+            const result = await conversationService.listConversations(params);
+            const payload = result?.data?.message || result?.data || result;
+            return payload?.data || [];
+        },
     });
 
     const filtered = (Array.isArray(convos) ? convos : []).filter(c => {

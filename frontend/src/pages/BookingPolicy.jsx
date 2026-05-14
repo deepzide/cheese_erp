@@ -1,18 +1,22 @@
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import { useNavigate, useSearchParams } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Shield, Search, AlertCircle, RefreshCw, Loader2, Plus, Clock, MoreHorizontal, Sparkles } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
 import { useFrappeList, useFrappeCreate } from "@/lib/useApiData";
 import { apiRequest } from "@/api/client";
+import { experienceService } from "@/api/experienceService";
+import { useEstablishmentScope } from "@/hooks/useEstablishmentScope";
 import { useTranslation } from "react-i18next";
 
 const parseHours = (value, fallback) => {
@@ -30,6 +34,30 @@ export default function BookingPolicy() {
     const [editPolicy, setEditPolicy] = useState(null);
     const [form, setForm] = useState({ experience: searchParams.get('experience') || "", cancel_until_hours_before: "24", modify_until_hours_before: "12", min_hours_before_booking: "2" });
     const [editForm, setEditForm] = useState({ cancel_until_hours_before: "24", modify_until_hours_before: "12", min_hours_before_booking: "2" });
+    const {
+        establishmentFilter,
+        setEstablishmentFilter,
+        scopeCompanyId,
+        showEstablishmentFilter,
+    } = useEstablishmentScope();
+
+    const { data: experiencesRaw = [] } = useQuery({
+        queryKey: ["booking-policy-experiences", scopeCompanyId],
+        queryFn: async () => {
+            const params = { page_size: 500 };
+            if (scopeCompanyId) {
+                params.company = scopeCompanyId;
+            }
+            const result = await experienceService.listExperiences(params);
+            const payload = result?.data?.message || result?.data || result;
+            return payload?.data || [];
+        },
+    });
+
+    const scopedExperienceIds = useMemo(
+        () => new Set((Array.isArray(experiencesRaw) ? experiencesRaw : []).map((experience) => experience.name).filter(Boolean)),
+        [experiencesRaw]
+    );
 
     const { data: policies = [], isLoading, error, refetch } = useFrappeList("Cheese Booking Policy", {
         fields: ["name", "experience", "cancel_until_hours_before", "modify_until_hours_before", "min_hours_before_booking", "creation", "modified"],
@@ -39,6 +67,7 @@ export default function BookingPolicy() {
     const createMutation = useFrappeCreate("Cheese Booking Policy");
 
     const filtered = (Array.isArray(policies) ? policies : []).filter(p => {
+        if (scopeCompanyId && !scopedExperienceIds.has(p.experience)) return false;
         if (experienceFilter && p.experience !== experienceFilter) return false;
         if (searchTerm) return (p.experience || p.name || '').toLowerCase().includes(searchTerm.toLowerCase());
         return true;
@@ -108,6 +137,19 @@ export default function BookingPolicy() {
                     )}
                 </div>
                 <div className="flex gap-2">
+                    {showEstablishmentFilter && (
+                        <Select value={establishmentFilter} onValueChange={setEstablishmentFilter}>
+                            <SelectTrigger className="w-48 h-9">
+                                <SelectValue placeholder={t("bookings.allEstablishments", "All Establishments")} />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="all">{t("bookings.allEstablishments", "All Establishments")}</SelectItem>
+                                {Array.from(new Set((Array.isArray(experiencesRaw) ? experiencesRaw : []).map((experience) => experience.company).filter(Boolean))).map((company) => (
+                                    <SelectItem key={company} value={company}>{company}</SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    )}
                     <div className="relative"><Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" /><Input placeholder={t("common.search", "Search") + "..."} value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-9 w-56 h-9" /></div>
                     <Button className="cheese-gradient text-black font-semibold border-0 h-9" onClick={() => navigate("/cheese/booking-policy/new")}><Plus className="w-4 h-4 mr-1" /> {t("bookingPolicy.new", "New Policy")}</Button>
                     <Button variant="ghost" size="icon" onClick={() => refetch()} className="h-9 w-9"><RefreshCw className="w-4 h-4" /></Button>
