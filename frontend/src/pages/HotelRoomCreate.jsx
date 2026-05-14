@@ -3,17 +3,19 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { BedDouble } from "lucide-react";
+import { BedDouble, Building2 } from "lucide-react";
 import { toast } from "sonner";
 import { useFrappeCreate } from "@/lib/useApiData";
 import CreatePageLayout from "@/components/CreatePageLayout";
 import FrappeSearchSelect from "@/components/FrappeSearchSelect";
+import { useAuth } from "@/components/auth/AuthProvider";
 
 export default function HotelRoomCreate() {
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
     const { t } = useTranslation();
-    const hotelFilter = searchParams.get("hotel") || "";
+    const { isAdmin, userCompany } = useAuth();
+    const hotelFilter = searchParams.get("hotel") || (!isAdmin ? userCompany : "") || "";
 
     const [form, setForm] = useState({
         name: "",
@@ -83,14 +85,21 @@ export default function HotelRoomCreate() {
                 <div className="space-y-5">
                     <div className="space-y-2">
                         <Label>{t("hotelReservations.hotel", "Hotel")} <span className="text-red-500">*</span></Label>
-                        <FrappeSearchSelect
-                            doctype="Company"
-                            label="company_name"
-                            value={form.company}
-                            onChange={(v) => handleChange("company", v)}
-                            filters={{ cheese_is_hotel: 1 }}
-                            placeholder={t("hotelReservations.selectHotel", "Select hotel...")}
-                        />
+                        {isAdmin ? (
+                            <FrappeSearchSelect
+                                doctype="Company"
+                                label="company_name"
+                                value={form.company}
+                                onChange={(v) => handleChange("company", v)}
+                                filters={{ cheese_is_hotel: 1 }}
+                                placeholder={t("hotelReservations.selectHotel", "Select hotel...")}
+                            />
+                        ) : (
+                            <div className="flex h-10 items-center gap-2 rounded-md border border-input bg-muted/50 px-3">
+                                <Building2 className="w-4 h-4 text-muted-foreground" />
+                                <span className="text-sm font-medium">{form.company}</span>
+                            </div>
+                        )}
                     </div>
                     <div className="space-y-2">
                         <Label>{t("hotelReservations.roomTypeName", "Room Type Name")} <span className="text-red-500">*</span></Label>
