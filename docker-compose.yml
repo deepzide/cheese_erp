@@ -6,6 +6,7 @@ services:
     restart: unless-stopped
     volumes:
       - sites:/home/frappe/frappe-bench/sites
+      - sites-assets:/home/frappe/frappe-bench/sites/assets
       - logs:/home/frappe/frappe-bench/logs
     environment:
       DB_HOST: db
@@ -42,6 +43,7 @@ services:
       PGTZ: UTC
     volumes:
       - sites:/home/frappe/frappe-bench/sites
+      - sites-assets:/home/frappe/frappe-bench/sites/assets
       - logs:/home/frappe/frappe-bench/logs
 
   create-site:
@@ -51,6 +53,7 @@ services:
     restart: "no"
     volumes:
       - sites:/home/frappe/frappe-bench/sites
+      - sites-assets:/home/frappe/frappe-bench/sites/assets
       - logs:/home/frappe/frappe-bench/logs
     entrypoint:
       - bash
@@ -123,6 +126,7 @@ services:
       PGTZ: UTC
     volumes:
       - sites:/home/frappe/frappe-bench/sites
+      - sites-assets:/home/frappe/frappe-bench/sites/assets
       - logs:/home/frappe/frappe-bench/logs
     ports:
       - "8080:8080"
@@ -139,6 +143,7 @@ services:
       - long,default,short
     volumes:
       - sites:/home/frappe/frappe-bench/sites
+      - sites-assets:/home/frappe/frappe-bench/sites/assets
       - logs:/home/frappe/frappe-bench/logs
     environment:
       FRAPPE_REDIS_CACHE: redis://redis-cache:6379
@@ -158,6 +163,7 @@ services:
       - short,default
     volumes:
       - sites:/home/frappe/frappe-bench/sites
+      - sites-assets:/home/frappe/frappe-bench/sites/assets
       - logs:/home/frappe/frappe-bench/logs
     environment:
       FRAPPE_REDIS_CACHE: redis://redis-cache:6379
@@ -189,6 +195,7 @@ services:
       - schedule
     volumes:
       - sites:/home/frappe/frappe-bench/sites
+      - sites-assets:/home/frappe/frappe-bench/sites/assets
       - logs:/home/frappe/frappe-bench/logs
     environment:
       TZ: UTC
@@ -209,6 +216,7 @@ services:
       PGTZ: UTC
     volumes:
       - sites:/home/frappe/frappe-bench/sites
+      - sites-assets:/home/frappe/frappe-bench/sites/assets
       - logs:/home/frappe/frappe-bench/logs
 
   alloy:
@@ -227,6 +235,7 @@ volumes:
   db-data:
   redis-queue-data:
   sites:
+  sites-assets:
   logs:
 
 networks:
