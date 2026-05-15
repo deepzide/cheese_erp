@@ -96,8 +96,6 @@ jobs:
             fi
             echo '>>> Running migrations...'
             docker compose exec -T backend bench --site frontend migrate
-            echo '>>> Rebuilding assets...'
-            docker compose exec -T backend bench build || docker compose exec -T backend bench clear-cache
             echo '>>> Clearing cache...'
             docker compose exec -T backend bench --site frontend clear-cache
             docker compose exec -T backend bench --site frontend clear-website-cache
