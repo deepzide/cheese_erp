@@ -12,6 +12,7 @@
         "lead_info",
         "contact",
         "conversation",
+        "company",
         "status",
         "interest_type",
         "column_break_1",
@@ -38,6 +39,14 @@
             "fieldtype": "Link",
             "label": "Conversation",
             "options": "Conversation"
+        },
+        {
+            "fieldname": "company",
+            "fieldtype": "Link",
+            "in_list_view": 1,
+            "in_standard_filter": 1,
+            "label": "Establishment",
+            "options": "Company"
         },
         {
             "fieldname": "status",

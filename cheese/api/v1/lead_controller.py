@@ -5,20 +5,34 @@ import frappe
 from frappe import _
 from frappe.utils import now_datetime, cint
 from cheese.api.common.responses import success, created, error, not_found, validation_error, paginated_response
+from cheese.api.common.company_scope import resolve_company_id, apply_company, validate_company_matches_experience
 from cheese.api.v1.user_controller import _get_current_user_company
 
 
 @frappe.whitelist()
-def upsert_lead(contact_id, conversation_id=None, interest_type=None, status=None):
+def upsert_lead(
+	contact_id,
+	conversation_id=None,
+	interest_type=None,
+	status=None,
+	company_id=None,
+	establishment_id=None,
+	company=None,
+	experience_id=None,
+):
 	"""
 	Create or consolidate lead per contact; status "not converted/converted"
-	Detects intent and records it. Creates/consolidates lead per contact.
+	Detects intent and records it. Creates/consolidates lead per contact+establishment.
 	
 	Args:
 		contact_id: Contact ID (required)
 		conversation_id: Conversation ID (optional)
 		interest_type: Interest type (Route/Experience)
 		status: Status (if not provided, defaults to OPEN for new, keeps existing for update)
+		company_id: Establishment / Company ID (required)
+		establishment_id: Alias for company_id
+		company: Alias for company_id
+		experience_id: Optional; used to infer company when company_id is omitted
 		
 	Returns:
 		Success response with lead data
@@ -29,14 +43,26 @@ def upsert_lead(contact_id, conversation_id=None, interest_type=None, status=Non
 		
 		if not frappe.db.exists("Cheese Contact", contact_id):
 			return not_found("Contact", contact_id)
+
+		resolved_company = resolve_company_id(
+			company_id=company_id,
+			establishment_id=establishment_id,
+			company=company,
+			experience_id=experience_id,
+			required=True,
+		)
+		if experience_id:
+			validate_company_matches_experience(resolved_company, experience_id)
 		
-		# Check for existing lead (any status except DISCARDED)
+		# Check for existing lead (any status except DISCARDED) scoped to establishment
+		existing_filters = {
+			"contact": contact_id,
+			"status": ["!=", "DISCARDED"],
+			"company": resolved_company,
+		}
 		existing_lead = frappe.db.get_value(
 			"Cheese Lead",
-			{
-				"contact": contact_id,
-				"status": ["!=", "DISCARDED"]
-			},
+			existing_filters,
 			"name",
 			order_by="modified desc"
 		)
@@ -50,6 +76,7 @@ def upsert_lead(contact_id, conversation_id=None, interest_type=None, status=Non
 				lead.interest_type = interest_type
 			if status:
 				lead.status = status
+			apply_company(lead, resolved_company)
 			lead.last_interaction_at = now_datetime()
 			lead.save()
 			frappe.db.commit()
@@ -59,6 +86,7 @@ def upsert_lead(contact_id, conversation_id=None, interest_type=None, status=Non
 				{
 					"lead_id": lead.name,
 					"contact_id": contact_id,
+					"company_id": lead.company,
 					"status": lead.status,
 					"is_new": False
 				}
@@ -70,6 +98,7 @@ def upsert_lead(contact_id, conversation_id=None, interest_type=None, status=Non
 			"doctype": "Cheese Lead",
 			"contact": contact_id,
 			"conversation": conversation_id,
+			"company": resolved_company,
 			"interest_type": interest_type,
 			"status": lead_status,
 			"last_interaction_at": now_datetime()
@@ -82,6 +111,7 @@ def upsert_lead(contact_id, conversation_id=None, interest_type=None, status=Non
 			{
 				"lead_id": lead.name,
 				"contact_id": contact_id,
+				"company_id": lead.company,
 				"status": lead.status,
 				"is_new": True
 			}
@@ -94,7 +124,16 @@ def upsert_lead(contact_id, conversation_id=None, interest_type=None, status=Non
 
 
 @frappe.whitelist()
-def create_lead(contact_id, conversation_id=None, interest_type=None, status="OPEN"):
+def create_lead(
+	contact_id,
+	conversation_id=None,
+	interest_type=None,
+	status="OPEN",
+	company_id=None,
+	establishment_id=None,
+	company=None,
+	experience_id=None,
+):
 	"""
 	Create or update a lead (idempotent - reuses existing active lead)
 	Legacy endpoint - use upsert_lead instead
@@ -104,11 +143,24 @@ def create_lead(contact_id, conversation_id=None, interest_type=None, status="OP
 		conversation_id: Conversation ID (optional)
 		interest_type: Interest type (Route/Experience)
 		status: Status (OPEN/IN_PROGRESS/CONVERTED/LOST/DISCARDED)
+		company_id: Establishment / Company ID (required)
+		establishment_id: Alias for company_id
+		company: Alias for company_id
+		experience_id: Optional; used to infer company when company_id is omitted
 		
 	Returns:
 		Success response with lead data
 	"""
-	return upsert_lead(contact_id, conversation_id, interest_type, status)
+	return upsert_lead(
+		contact_id,
+		conversation_id,
+		interest_type,
+		status,
+		company_id=company_id,
+		establishment_id=establishment_id,
+		company=company,
+		experience_id=experience_id,
+	)
 	try:
 		if not contact_id:
 			return validation_error("contact_id is required")
@@ -296,7 +348,16 @@ def get_lead_details(lead_id):
 
 
 @frappe.whitelist()
-def list_leads(page=1, page_size=20, status=None, contact_id=None, interest_type=None):
+def list_leads(
+	page=1,
+	page_size=20,
+	status=None,
+	contact_id=None,
+	interest_type=None,
+	company_id=None,
+	establishment_id=None,
+	company=None,
+):
 	"""
 	List leads with filters
 	
@@ -306,6 +367,9 @@ def list_leads(page=1, page_size=20, status=None, contact_id=None, interest_type
 		status: Filter by status
 		contact_id: Filter by contact
 		interest_type: Filter by interest type
+		company_id: Filter by establishment
+		establishment_id: Alias for company_id
+		company: Alias for company_id
 		
 	Returns:
 		Paginated response with leads list
@@ -322,30 +386,21 @@ def list_leads(page=1, page_size=20, status=None, contact_id=None, interest_type
 		if interest_type:
 			filters["interest_type"] = interest_type
 
-		# Company scoping: restrict leads to contacts that have tickets in the user's company
+		resolved_company = resolve_company_id(
+			company_id=company_id,
+			establishment_id=establishment_id,
+			company=company,
+		)
 		user_company = _get_current_user_company()
 		if user_company:
-			company_contacts = frappe.get_all(
-				"Cheese Ticket",
-				filters={"company": user_company},
-				pluck="contact",
-				distinct=True,
-			)
-			company_contacts = list(set(c for c in company_contacts if c))
-			if company_contacts:
-				if "contact" in filters:
-					# If contact_id is already filtered, ensure it's in the company's contacts
-					if filters["contact"] not in company_contacts:
-						return paginated_response([], "Leads retrieved successfully", page=page, page_size=page_size, total=0)
-				else:
-					filters["contact"] = ["in", company_contacts]
-			else:
-				return paginated_response([], "Leads retrieved successfully", page=page, page_size=page_size, total=0)
+			resolved_company = user_company
+		if resolved_company:
+			filters["company"] = resolved_company
 		
 		leads = frappe.get_all(
 			"Cheese Lead",
 			filters=filters,
-			fields=["name", "contact", "conversation", "status", "interest_type", "lost_reason", "last_interaction_at", "modified"],
+			fields=["name", "contact", "conversation", "company", "status", "interest_type", "lost_reason", "last_interaction_at", "modified"],
 			limit_start=(page - 1) * page_size,
 			limit_page_length=page_size,
 			order_by="modified desc"

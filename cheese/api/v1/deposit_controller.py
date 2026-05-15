@@ -7,6 +7,7 @@ from frappe.utils import add_to_date, flt, now_datetime
 
 from cheese.cheese.utils.time import to_iso
 from cheese.api.common.responses import created, error, not_found, success, validation_error
+from cheese.api.common.company_scope import resolve_company_id
 from cheese.api.v1.bank_account_controller import get_active_company_bank_accounts_list
 from cheese.api.v1.user_controller import _get_current_user_company
 
@@ -644,6 +645,9 @@ def record_deposit_payment(
 	attach_receipt=True,
 	deposit_id=None,
 	payment_type=None,
+	company_id=None,
+	establishment_id=None,
+	company=None,
 ):
 	"""
 	Record a deposit payment
@@ -655,6 +659,9 @@ def record_deposit_payment(
 		ocr_payload: Optional OCR payload JSON
 		attach_receipt: If true (default), accept multipart file field receipt/payment_receipt/file
 		deposit_id: Deposit ID (optional - if provided, looks up deposit directly)
+		company_id: Establishment / Company ID (optional; validated against ticket/booking)
+		establishment_id: Alias for company_id
+		company: Alias for company_id
 
 	Returns:
 		Success response with updated deposit data
@@ -662,6 +669,13 @@ def record_deposit_payment(
 	try:
 		if not ticket_id and not deposit_id:
 			return validation_error("Either ticket_id or deposit_id is required")
+
+		resolved_company = resolve_company_id(
+			company_id=company_id,
+			establishment_id=establishment_id,
+			company=company,
+			ticket_id=ticket_id if frappe.db.exists("Cheese Ticket", ticket_id or "") else None,
+		)
 		json_body = {}
 		if getattr(frappe, "request", None):
 			json_body = frappe.request.get_json(silent=True) or {}
@@ -685,6 +699,10 @@ def record_deposit_payment(
 				return not_found("Deposit", deposit_id)
 			deposit = frappe.get_doc("Cheese Deposit", deposit_id)
 			ticket_id = ticket_id or (deposit.entity_id if deposit.entity_type == "Cheese Ticket" else None)
+			if resolved_company and deposit.entity_type == "Cheese Ticket" and ticket_id:
+				ticket_company = frappe.db.get_value("Cheese Ticket", ticket_id, "company")
+				if ticket_company and ticket_company != resolved_company:
+					return validation_error("company_id does not match the ticket establishment")
 		else:
 			entity_type = "Cheese Ticket"
 			if frappe.db.exists("Cheese Route Booking", ticket_id):
@@ -694,6 +712,10 @@ def record_deposit_payment(
 
 			# Get or auto-create deposit for this ticket
 			ticket_doc = frappe.get_doc(entity_type, ticket_id)
+			if resolved_company and entity_type == "Cheese Ticket":
+				ticket_company = frappe.db.get_value("Cheese Ticket", ticket_id, "company")
+				if ticket_company and ticket_company != resolved_company:
+					return validation_error("company_id does not match the ticket establishment")
 			deposit_name = None
 
 			deposit_name = _select_open_deposit(entity_type, ticket_id, payment_type=payment_type)

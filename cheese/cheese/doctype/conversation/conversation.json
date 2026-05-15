@@ -12,6 +12,7 @@
   "conversation_info",
   "contact",
   "channel",
+  "company",
   "status",
   "column_break_1",
   "summary",
@@ -47,6 +48,13 @@
    "label": "Channel",
    "options": "WhatsApp\nWeb\nAgent",
    "reqd": 1
+  },
+  {
+   "fieldname": "company",
+   "fieldtype": "Link",
+   "in_standard_filter": 1,
+   "label": "Establishment",
+   "options": "Company"
   },
   {
    "fieldname": "status",

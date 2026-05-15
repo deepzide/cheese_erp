@@ -12,6 +12,7 @@
         "full_name",
         "phone",
         "email",
+        "company",
         "column_break_1",
         "preferences_section",
         "preferred_language",
@@ -55,6 +56,13 @@
             "in_standard_filter": 1,
             "label": "Email",
             "options": "Email"
+        },
+        {
+            "fieldname": "company",
+            "fieldtype": "Link",
+            "in_standard_filter": 1,
+            "label": "Establishment",
+            "options": "Company"
         },
         {
             "fieldname": "column_break_1",

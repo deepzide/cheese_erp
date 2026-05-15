@@ -5,12 +5,20 @@ import frappe
 from frappe import _
 from frappe.utils import now_datetime, cint, add_to_date
 from cheese.api.common.responses import success, created, error, not_found, validation_error, paginated_response
+from cheese.api.common.company_scope import resolve_company_id, apply_company
 from cheese.api.v1.user_controller import _get_current_user_company
 import json
 
 
 @frappe.whitelist()
-def open_or_resume_conversation(contact_id, channel, status="ACTIVE"):
+def open_or_resume_conversation(
+	contact_id,
+	channel,
+	status="ACTIVE",
+	company_id=None,
+	establishment_id=None,
+	company=None,
+):
 	"""
 	Open or resume a persistent conversation, returns conversation_id
 	Creates or resumes conversation (one active per channel+contact within time window)
@@ -19,6 +27,9 @@ def open_or_resume_conversation(contact_id, channel, status="ACTIVE"):
 		contact_id: Contact ID
 		channel: Channel (WhatsApp/Web/Agent)
 		status: Status (ACTIVE/PAUSED/CLOSED)
+		company_id: Establishment / Company ID (required)
+		establishment_id: Alias for company_id
+		company: Alias for company_id
 		
 	Returns:
 		Success response with conversation_id
@@ -34,13 +45,21 @@ def open_or_resume_conversation(contact_id, channel, status="ACTIVE"):
 		
 		if not frappe.db.exists("Cheese Contact", contact_id):
 			return not_found("Contact", contact_id)
+
+		resolved_company = resolve_company_id(
+			company_id=company_id,
+			establishment_id=establishment_id,
+			company=company,
+			required=True,
+		)
 		
 		existing = frappe.db.get_value(
 			"Conversation",
 			{
 				"contact": contact_id,
 				"channel": channel,
-				"status": "ACTIVE"
+				"status": "ACTIVE",
+				"company": resolved_company,
 			},
 			"name",
 			order_by="modified desc"
@@ -49,11 +68,16 @@ def open_or_resume_conversation(contact_id, channel, status="ACTIVE"):
 		if existing:
 			# Resume existing conversation
 			conversation = frappe.get_doc("Conversation", existing)
+			apply_company(conversation, resolved_company)
+			if conversation.has_value_changed("company"):
+				conversation.save(ignore_permissions=True)
+				frappe.db.commit()
 			return success(
 				"Conversation resumed",
 				{
 					"conversation_id": conversation.name,
 					"contact_id": contact_id,
+					"company_id": conversation.company,
 					"channel": conversation.channel,
 					"status": conversation.status,
 					"is_new": False
@@ -65,6 +89,7 @@ def open_or_resume_conversation(contact_id, channel, status="ACTIVE"):
 			"doctype": "Conversation",
 			"contact": contact_id,
 			"channel": channel,
+			"company": resolved_company,
 			"status": status
 		})
 		try:
@@ -79,6 +104,7 @@ def open_or_resume_conversation(contact_id, channel, status="ACTIVE"):
 					"contact": contact_id,
 					"channel": channel,
 					"status": "ACTIVE",
+					"company": resolved_company,
 				},
 				"name",
 				order_by="modified desc"
@@ -90,6 +116,7 @@ def open_or_resume_conversation(contact_id, channel, status="ACTIVE"):
 					{
 						"conversation_id": conversation.name,
 						"contact_id": contact_id,
+						"company_id": conversation.company,
 						"channel": conversation.channel,
 						"status": conversation.status,
 						"is_new": False
@@ -103,6 +130,7 @@ def open_or_resume_conversation(contact_id, channel, status="ACTIVE"):
 			{
 				"conversation_id": conversation.name,
 				"contact_id": contact_id,
+				"company_id": conversation.company,
 				"channel": conversation.channel,
 				"status": conversation.status,
 				"is_new": True
@@ -116,7 +144,14 @@ def open_or_resume_conversation(contact_id, channel, status="ACTIVE"):
 
 
 @frappe.whitelist()
-def create_conversation(contact_id, channel, status="ACTIVE"):
+def create_conversation(
+	contact_id,
+	channel,
+	status="ACTIVE",
+	company_id=None,
+	establishment_id=None,
+	company=None,
+):
 	"""
 	Create or reuse conversation (one active per channel+contact within time window)
 	Legacy endpoint - use open_or_resume_conversation instead
@@ -129,7 +164,14 @@ def create_conversation(contact_id, channel, status="ACTIVE"):
 	Returns:
 		Success response with conversation data
 	"""
-	return open_or_resume_conversation(contact_id, channel, status)
+	return open_or_resume_conversation(
+		contact_id,
+		channel,
+		status,
+		company_id=company_id,
+		establishment_id=establishment_id,
+		company=company,
+	)
 	try:
 		if not contact_id:
 			return validation_error("contact_id is required")
@@ -199,7 +241,16 @@ def create_conversation(contact_id, channel, status="ACTIVE"):
 
 
 @frappe.whitelist()
-def update_conversation_summary(conversation_id, summary=None, highlights_json=None, transcript_url=None, transcript_reference=None):
+def update_conversation_summary(
+	conversation_id,
+	summary=None,
+	highlights_json=None,
+	transcript_url=None,
+	transcript_reference=None,
+	company_id=None,
+	establishment_id=None,
+	company=None,
+):
 	"""
 	Update conversation summary, highlights, and transcript references
 	
@@ -221,6 +272,14 @@ def update_conversation_summary(conversation_id, summary=None, highlights_json=N
 			return not_found("Conversation", conversation_id)
 		
 		conversation = frappe.get_doc("Conversation", conversation_id)
+
+		resolved_company = resolve_company_id(
+			company_id=company_id,
+			establishment_id=establishment_id,
+			company=company,
+		)
+		if resolved_company:
+			apply_company(conversation, resolved_company, overwrite=True)
 		
 		if summary is not None:
 			conversation.summary = summary
@@ -247,6 +306,7 @@ def update_conversation_summary(conversation_id, summary=None, highlights_json=N
 			"Conversation summary updated successfully",
 			{
 				"conversation_id": conversation.name,
+				"company_id": conversation.company,
 				"summary": conversation.summary,
 				"transcript_url": conversation.transcript_url,
 				"transcript_reference": conversation.transcript_reference

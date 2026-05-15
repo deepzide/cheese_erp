@@ -10,6 +10,7 @@ from frappe import _
 from frappe.utils import add_to_date, get_datetime, getdate, now_datetime
 
 from cheese.api.common.responses import created, error, not_found, success, validation_error
+from cheese.api.common.company_scope import resolve_company_id, validate_company_matches_experience
 from cheese.api.v1.ticket_controller import create_pending_ticket
 from cheese.cheese.utils.capacity import (
 	get_available_capacity,
@@ -386,6 +387,9 @@ def create_route_reservation(
 	time_from=None,
 	time_to=None,
 	combination_id=None,
+	company_id=None,
+	establishment_id=None,
+	company=None,
 ):
 	"""
 	Create pending route reservation.
@@ -404,6 +408,9 @@ def create_route_reservation(
 		time_from: Preferred slot start time in HH:MM[:SS] for auto slot selection (optional)
 		time_to: Preferred slot end time in HH:MM[:SS] for auto slot selection (optional)
 		combination_id: Pre-validated combination identifier from get_route_combinations (optional)
+		company_id: Establishment / Company ID (required)
+		establishment_id: Alias for company_id
+		company: Alias for company_id
 
 	Returns:
 		Created response with route booking data
@@ -420,6 +427,14 @@ def create_route_reservation(
 		if not route_id:
 			return validation_error("route_id is required")
 
+		resolved_company = resolve_company_id(
+			company_id=company_id,
+			establishment_id=establishment_id,
+			company=company,
+			route_id=route_id,
+			required=True,
+		)
+
 		try:
 			party_size = int(party_size)
 		except (ValueError, TypeError):
@@ -435,6 +450,8 @@ def create_route_reservation(
 			return not_found("Route", route_id)
 
 		route = frappe.get_doc("Cheese Route", route_id)
+		for exp_row in route.experiences:
+			validate_company_matches_experience(resolved_company, exp_row.experience)
 
 		if route.status != "ONLINE":
 			return validation_error(f"Route {route_id} is not ONLINE. Current status: {route.status}")
@@ -774,6 +791,7 @@ def create_route_reservation(
 				check_in_date=check_in,
 				check_out_date=check_out,
 				rooms_requested=rooms,
+				company_id=resolved_company,
 			)
 
 			if not ticket_result.get("success"):
@@ -1431,6 +1449,7 @@ def confirm_add_activities_to_route(route_booking_id, activities):
 				slot_id,
 				party_size,
 				selected_date=selected_date,
+				company_id=frappe.db.get_value("Cheese Experience", experience_id, "company"),
 			)
 			if not ticket_result.get("success"):
 				# Rollback

@@ -13,6 +13,7 @@
   "conversation",
   "contact",
   "phone_number",
+  "company",
   "role",
   "content",
   "message_order",
@@ -49,6 +50,13 @@
    "label": "Phone Number",
    "options": "Phone",
    "reqd": 1
+  },
+  {
+   "fieldname": "company",
+   "fieldtype": "Link",
+   "in_standard_filter": 1,
+   "label": "Establishment",
+   "options": "Company"
   },
   {
    "fieldname": "role",

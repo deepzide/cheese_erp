@@ -6,6 +6,7 @@ import json
 from frappe import _
 from frappe.utils import cint
 from cheese.api.common.responses import success, created, validation_error, error, not_found, paginated_response
+from cheese.api.common.company_scope import resolve_company_id, apply_company
 from cheese.api.v1.user_controller import _get_current_user_company
 
 
@@ -36,16 +37,21 @@ def list_contacts(page=1, page_size=100, search=None):
 				["email", "like", f"%{search}%"],
 			]
 
-		# Company scoping: restrict contacts to those that have tickets in the user's company
+		# Company scoping: prefer direct contact.company, fall back to ticket-linked contacts
 		user_company = _get_current_user_company()
 		if user_company:
 			company_contacts = frappe.get_all(
+				"Cheese Contact",
+				filters={"company": user_company},
+				pluck="name",
+			)
+			ticket_contacts = frappe.get_all(
 				"Cheese Ticket",
 				filters={"company": user_company},
 				pluck="contact",
 				distinct=True,
 			)
-			company_contacts = list(set(c for c in company_contacts if c))
+			company_contacts = list(set(c for c in (company_contacts + ticket_contacts) if c))
 			if company_contacts:
 				filters["name"] = ["in", company_contacts]
 			else:
@@ -55,7 +61,7 @@ def list_contacts(page=1, page_size=100, search=None):
 			"Cheese Contact",
 			filters=filters,
 			or_filters=or_filters if or_filters else None,
-			fields=["name", "full_name", "phone", "email", "creation", "modified"],
+			fields=["name", "full_name", "phone", "email", "company", "creation", "modified"],
 			limit_start=(page - 1) * page_size,
 			limit_page_length=page_size,
 			order_by="modified desc",
@@ -75,7 +81,7 @@ def list_contacts(page=1, page_size=100, search=None):
 		return error("Failed to list contacts", "SERVER_ERROR", {"error": str(e)}, 500)
 
 @frappe.whitelist()
-def find_or_create_contact(phone=None, email=None, name=None):
+def find_or_create_contact(phone=None, email=None, name=None, company_id=None, establishment_id=None, company=None):
 	"""
 	Find or create a contact (idempotent)
 	
@@ -83,6 +89,9 @@ def find_or_create_contact(phone=None, email=None, name=None):
 		phone: Phone number (optional)
 		email: Email address (optional)
 		name: Full name (optional)
+		company_id: Establishment / Company ID (required when creating a new contact)
+		establishment_id: Alias for company_id
+		company: Alias for company_id
 		
 	Returns:
 		Success response with contact data
@@ -92,32 +101,49 @@ def find_or_create_contact(phone=None, email=None, name=None):
 		if not phone:
 			return validation_error("phone is required")
 
+		resolved_company = resolve_company_id(
+			company_id=company_id,
+			establishment_id=establishment_id,
+			company=company,
+		)
+
 		# Search for existing contact by phone
 		existing = frappe.get_all(
 			"Cheese Contact",
 			filters={"phone": phone},
-			fields=["name", "full_name", "phone", "email"],
+			fields=["name", "full_name", "phone", "email", "company"],
 			limit=1
 		)
 
 		if existing:
-			contact = existing[0]
+			contact_row = existing[0]
+			if resolved_company and not contact_row.company:
+				contact_doc = frappe.get_doc("Cheese Contact", contact_row.name)
+				apply_company(contact_doc, resolved_company)
+				contact_doc.save(ignore_permissions=True)
+				frappe.db.commit()
+				contact_row.company = resolved_company
 			return success(
 				"Contact found",
 				{
-					"contact_id": contact.name,
-					"full_name": contact.full_name,
-					"phone": contact.phone,
-					"email": contact.email,
+					"contact_id": contact_row.name,
+					"full_name": contact_row.full_name,
+					"phone": contact_row.phone,
+					"email": contact_row.email,
+					"company_id": contact_row.company,
 					"is_new": False
 				}
 			)
+
+		if not resolved_company:
+			return validation_error("company_id is required when creating a new contact")
 
 		# Create new contact
 		contact_data = {
 			"doctype": "Cheese Contact",
 			"phone": phone,
-			"email": email
+			"email": email,
+			"company": resolved_company,
 		}
 		
 		# Set full name only if name is explicitly provided, otherwise leave it empty
@@ -135,6 +161,7 @@ def find_or_create_contact(phone=None, email=None, name=None):
 				"full_name": contact.full_name,
 				"phone": contact.phone,
 				"email": contact.email,
+				"company_id": contact.company,
 				"is_new": True
 			}
 		)
@@ -146,7 +173,7 @@ def find_or_create_contact(phone=None, email=None, name=None):
 
 
 @frappe.whitelist()
-def resolve_or_create_contact(phone=None, email=None, name=None):
+def resolve_or_create_contact(phone=None, email=None, name=None, company_id=None, establishment_id=None, company=None):
 	"""
 	Resolve or create a unique contact (deduplication by phone/email)
 	Alias for find_or_create_contact to match ERP specification
@@ -155,11 +182,21 @@ def resolve_or_create_contact(phone=None, email=None, name=None):
 		phone: Phone number (optional)
 		email: Email address (optional)
 		name: Full name (optional)
+		company_id: Establishment / Company ID (required when creating a new contact)
+		establishment_id: Alias for company_id
+		company: Alias for company_id
 		
 	Returns:
 		Success response with contact_id
 	"""
-	return find_or_create_contact(phone=phone, email=email, name=name)
+	return find_or_create_contact(
+		phone=phone,
+		email=email,
+		name=name,
+		company_id=company_id,
+		establishment_id=establishment_id,
+		company=company,
+	)
 
 
 @frappe.whitelist()

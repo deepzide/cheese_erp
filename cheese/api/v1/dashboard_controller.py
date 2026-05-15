@@ -120,9 +120,7 @@ def get_central_dashboard(period="today", date_from=None, date_to=None):
 		# Get leads
 		lead_filters = {"creation": ["between", [f"{date_from_obj} 00:00:00", f"{date_to_obj} 23:59:59"]]}
 		if user_company:
-			# Only leads that have interest in the user's company (requires company field on Lead, assuming it exists or skip if not supported. Lead doesn't have company typically, but let's check).
-			# Actually, leads might not be company-scoped. Skip lead filter or filter if lead has company field.
-			pass
+			lead_filters["company"] = user_company
 
 		leads = frappe.get_all(
 			"Cheese Lead",
@@ -336,9 +334,12 @@ def get_dashboard_kpis(establishment_id=None, period="today"):
 		tickets = [t for t in tickets if _ticket_in_period(t, date_from_obj, date_to_obj)]
 		
 		# Calculate conversion rates (leads → tickets → confirmed)
+		lead_kpi_filters = {"creation": ["between", [f"{date_from_obj} 00:00:00", f"{date_to_obj} 23:59:59"]]}
+		if establishment_id:
+			lead_kpi_filters["company"] = establishment_id
 		leads = frappe.get_all(
 			"Cheese Lead",
-			filters={"creation": ["between", [f"{date_from_obj} 00:00:00", f"{date_to_obj} 23:59:59"]]},
+			filters=lead_kpi_filters,
 			fields=["name", "status"]
 		)
 		

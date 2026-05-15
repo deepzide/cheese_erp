@@ -5,11 +5,19 @@ import frappe
 from frappe import _
 from frappe.utils import now_datetime
 from cheese.api.common.responses import success, created, error, not_found, validation_error
+from cheese.api.common.company_scope import resolve_company_id, apply_company
 import json
 
 
 @frappe.whitelist()
-def upload_message_transcript(phone_number, messages, conversation_id=None):
+def upload_message_transcript(
+	phone_number,
+	messages,
+	conversation_id=None,
+	company_id=None,
+	establishment_id=None,
+	company=None,
+):
 	"""
 	Upload message transcript - stores individual messages from a conversation
 	
@@ -18,6 +26,9 @@ def upload_message_transcript(phone_number, messages, conversation_id=None):
 		messages: Array of message objects with role and content
 			Example: [{"role": "user", "content": "hello"}, {"role": "assistant", "content": "Nice to meet you"}]
 		conversation_id: Optional conversation ID to link messages to
+		company_id: Establishment / Company ID (required)
+		establishment_id: Alias for company_id
+		company: Alias for company_id
 		
 	Returns:
 		Created response with message IDs
@@ -27,6 +38,13 @@ def upload_message_transcript(phone_number, messages, conversation_id=None):
 			return validation_error("phone_number is required")
 		if not messages:
 			return validation_error("messages array is required")
+
+		resolved_company = resolve_company_id(
+			company_id=company_id,
+			establishment_id=establishment_id,
+			company=company,
+			required=True,
+		)
 		
 		# Parse messages if string
 		if isinstance(messages, str):
@@ -56,27 +74,35 @@ def upload_message_transcript(phone_number, messages, conversation_id=None):
 		contact = frappe.get_all(
 			"Cheese Contact",
 			filters={"phone": phone_number},
-			fields=["name"],
+			fields=["name", "company"],
 			limit=1
 		)
 		
 		if not contact:
-			# Create new contact
 			contact_doc = frappe.get_doc({
 				"doctype": "Cheese Contact",
 				"phone": phone_number,
-				"full_name": f"Contact {phone_number}"
+				"full_name": f"Contact {phone_number}",
+				"company": resolved_company,
 			})
 			contact_doc.insert()
 			frappe.db.commit()
 			contact_id = contact_doc.name
 		else:
 			contact_id = contact[0].name
+			if not contact[0].company:
+				contact_doc = frappe.get_doc("Cheese Contact", contact_id)
+				apply_company(contact_doc, resolved_company)
+				contact_doc.save(ignore_permissions=True)
+				frappe.db.commit()
 		
 		# Validate conversation if provided
 		if conversation_id:
 			if not frappe.db.exists("Conversation", conversation_id):
 				return not_found("Conversation", conversation_id)
+			conv_company = frappe.db.get_value("Conversation", conversation_id, "company")
+			if conv_company and conv_company != resolved_company:
+				return validation_error("conversation_id does not belong to the provided company_id")
 		
 		# Create message records
 		message_ids = []
@@ -87,6 +113,7 @@ def upload_message_transcript(phone_number, messages, conversation_id=None):
 				"doctype": "Cheese Message",
 				"contact": contact_id,
 				"phone_number": phone_number,
+				"company": resolved_company,
 				"role": msg["role"],
 				"content": msg["content"],
 				"message_order": idx + 1,
@@ -102,6 +129,7 @@ def upload_message_transcript(phone_number, messages, conversation_id=None):
 			"Message transcript uploaded successfully",
 			{
 				"contact_id": contact_id,
+				"company_id": resolved_company,
 				"conversation_id": conversation_id,
 				"message_count": len(message_ids),
 				"message_ids": message_ids

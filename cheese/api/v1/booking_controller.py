@@ -5,6 +5,7 @@ import frappe
 from frappe import _
 from frappe.utils import now_datetime, add_to_date
 from cheese.api.common.responses import success, created, error, not_found, validation_error
+from cheese.api.common.company_scope import resolve_company_id, validate_company_matches_experience
 from cheese.cheese.utils.pricing import calculate_ticket_price, calculate_deposit_amount
 from cheese.api.v1.ticket_controller import create_pending_ticket
 from cheese.api.v1.route_booking_controller import create_route_reservation, get_route_status
@@ -12,7 +13,15 @@ import json
 
 
 @frappe.whitelist()
-def create_pending_booking(contact_id, items, preferred_dates=None, conversation_id=None):
+def create_pending_booking(
+	contact_id,
+	items,
+	preferred_dates=None,
+	conversation_id=None,
+	company_id=None,
+	establishment_id=None,
+	company=None,
+):
 	"""
 	Create pending booking (recommended single entity)
 	Creates aggregator entity containing:
@@ -27,6 +36,9 @@ def create_pending_booking(contact_id, items, preferred_dates=None, conversation
 		       {"type": "experience", "experience_id": "EXP-001", "slot_id": "SLOT-001", "party_size": 2}]
 		preferred_dates: JSON array of preferred dates (if not in items)
 		conversation_id: Conversation ID (optional)
+		company_id: Establishment / Company ID (required)
+		establishment_id: Alias for company_id
+		company: Alias for company_id
 		
 	Returns:
 		Success response with booking_id, components, pricing preview, expirations
@@ -39,6 +51,13 @@ def create_pending_booking(contact_id, items, preferred_dates=None, conversation
 		
 		if not frappe.db.exists("Cheese Contact", contact_id):
 			return not_found("Contact", contact_id)
+
+		resolved_company = resolve_company_id(
+			company_id=company_id,
+			establishment_id=establishment_id,
+			company=company,
+			required=True,
+		)
 		
 		# Parse items
 		if isinstance(items, str):
@@ -73,6 +92,9 @@ def create_pending_booking(contact_id, items, preferred_dates=None, conversation
 				route_id = item.get("route_id")
 				if not route_id:
 					return validation_error("route_id is required for route items")
+				route_doc = frappe.get_doc("Cheese Route", route_id)
+				for exp_row in route_doc.experiences:
+					validate_company_matches_experience(resolved_company, exp_row.experience)
 				
 				# Get experiences_with_slots from item or preferred_dates
 				experiences_with_slots = item.get("experiences_with_slots")
@@ -121,6 +143,7 @@ def create_pending_booking(contact_id, items, preferred_dates=None, conversation
 					conversation_id=conversation_id,
 					date_from=route_date,
 					date_to=route_date,
+					company_id=resolved_company,
 				)
 				
 				if not route_result.get("success"):
@@ -153,6 +176,8 @@ def create_pending_booking(contact_id, items, preferred_dates=None, conversation
 				
 				if not experience_id or not slot_id:
 					return validation_error("experience_id and slot_id are required for experience items")
+
+				validate_company_matches_experience(resolved_company, experience_id)
 				
 				# Create individual reservation
 				ticket_result = create_pending_ticket(
@@ -161,6 +186,7 @@ def create_pending_booking(contact_id, items, preferred_dates=None, conversation
 					slot_id,
 					party_size,
 					selected_date=item_selected_date,
+					company_id=resolved_company,
 				)
 				
 				if not ticket_result.get("success"):

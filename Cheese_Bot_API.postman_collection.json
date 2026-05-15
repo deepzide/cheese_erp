@@ -136,7 +136,7 @@
                         ],
                         "body": {
                             "mode": "raw",
-                            "raw": "{\n  \"phone\": \"+1234567890\",\n  \"email\": \"customer@example.com\",\n  \"name\": \"John Doe\"\n}"
+                            "raw": "{\n  \"phone\": \"+1234567890\",\n  \"email\": \"customer@example.com\",\n  \"name\": \"John Doe\",\n  \"company_id\": \"COMPANY-001\"\n}"
                         },
                         "url": {
                             "raw": "{{base_url}}/api/method/cheese.api.v1.contact_controller.resolve_or_create_contact",
@@ -240,7 +240,7 @@
                         ],
                         "body": {
                             "mode": "raw",
-                            "raw": "{\n  \"contact_id\": \"CONTACT-001\",\n  \"channel\": \"WhatsApp\",\n  \"status\": \"ACTIVE\"\n}"
+                            "raw": "{\n  \"contact_id\": \"CONTACT-001\",\n  \"channel\": \"WhatsApp\",\n  \"status\": \"ACTIVE\",\n  \"company_id\": \"COMPANY-001\"\n}"
                         },
                         "url": {
                             "raw": "{{base_url}}/api/method/cheese.api.v1.conversation_controller.open_or_resume_conversation",
@@ -306,7 +306,7 @@
                         ],
                         "body": {
                             "mode": "raw",
-                            "raw": "{\n  \"phone_number\": \"+1234567890\",\n  \"messages\": [\n    {\"role\": \"user\", \"content\": \"hello\"},\n    {\"role\": \"assistant\", \"content\": \"Nice to meet you\"}\n  ],\n  \"conversation_id\": \"CONV-001\"\n}"
+                            "raw": "{\n  \"phone_number\": \"+1234567890\",\n  \"messages\": [\n    {\"role\": \"user\", \"content\": \"hello\"},\n    {\"role\": \"assistant\", \"content\": \"Nice to meet you\"}\n  ],\n  \"conversation_id\": \"CONV-001\",\n  \"company_id\": \"COMPANY-001\"\n}"
                         },
                         "url": {
                             "raw": "{{base_url}}/api/method/cheese.api.v1.message_controller.upload_message_transcript",
@@ -344,7 +344,7 @@
                         ],
                         "body": {
                             "mode": "raw",
-                            "raw": "{\n  \"contact_id\": \"CONTACT-001\",\n  \"conversation_id\": \"CONV-001\",\n  \"interest_type\": \"Experience\",\n  \"status\": \"OPEN\"\n}"
+                            "raw": "{\n  \"contact_id\": \"CONTACT-001\",\n  \"conversation_id\": \"CONV-001\",\n  \"interest_type\": \"Experience\",\n  \"status\": \"OPEN\",\n  \"company_id\": \"COMPANY-001\"\n}"
                         },
                         "url": {
                             "raw": "{{base_url}}/api/method/cheese.api.v1.lead_controller.upsert_lead",
@@ -524,7 +524,7 @@
                         ],
                         "body": {
                             "mode": "raw",
-                            "raw": "{\n  \"experience_id\": \"EXP-001\",\n  \"date\": \"2024-12-31\",\n  \"date_from\": \"2024-12-31\",\n  \"date_to\": \"2024-12-31\",\n  \"guests\": 2,\n  \"rooms_requested\": 1\n}"
+                            "raw": "{\n  \"experience_id\": \"EXP-001\",\n  \"date\": \"2024-12-31\",\n  \"date_from\": \"2024-12-31\",\n  \"date_to\": \"2024-12-31\",\n  \"guests\": 2,\n  \"rooms_requested\": 1,\n  \"company_id\": \"COMPANY-001\"\n}"
                         },
                         "url": {
                             "raw": "{{base_url}}/api/method/cheese.api.v1.availability_controller.get_availability",
@@ -557,7 +557,7 @@
                         ],
                         "body": {
                             "mode": "raw",
-                            "raw": "{\n  \"experience_id\": \"EXP-001\",\n  \"date\": \"2024-12-31\",\n  \"date_from\": \"2024-12-31\",\n  \"date_to\": \"2024-12-31\",\n  \"guests\": 2,\n  \"rooms_requested\": 1\n}"
+                            "raw": "{\n  \"experience_id\": \"EXP-001\",\n  \"date\": \"2024-12-31\",\n  \"date_from\": \"2024-12-31\",\n  \"date_to\": \"2024-12-31\",\n  \"guests\": 2,\n  \"rooms_requested\": 1,\n  \"company_id\": \"COMPANY-001\"\n}"
                         },
                         "url": {
                             "raw": "{{base_url}}/api/method/cheese.api.v1.availability_controller.get_available_slots",
@@ -623,7 +623,7 @@
                         ],
                         "body": {
                             "mode": "raw",
-                            "raw": "{\n  \"experience_id\": \"EXP-HOTEL-001\",\n  \"check_in_date\": \"2026-05-05\",\n  \"check_out_date\": \"2026-05-08\",\n  \"guests\": 2,\n  \"rooms_requested\": 1\n}"
+                            "raw": "{\n  \"experience_id\": \"EXP-HOTEL-001\",\n  \"check_in_date\": \"2026-05-05\",\n  \"check_out_date\": \"2026-05-08\",\n  \"guests\": 2,\n  \"rooms_requested\": 1,\n  \"company_id\": \"COMPANY-001\"\n}"
                         },
                         "url": {
                             "raw": "{{base_url}}/api/method/cheese.api.v1.availability_controller.get_hotel_availability",
@@ -765,7 +765,7 @@
                         ],
                         "body": {
                             "mode": "raw",
-                            "raw": "{\n  \"contact_id\": \"CONTACT-001\",\n  \"experience_id\": \"EXP-HOTEL-001\",\n  \"slot_id\": \"SLOT-001\",\n  \"party_size\": 4,\n  \"check_in_date\": \"2026-05-05\",\n  \"check_out_date\": \"2026-05-08\",\n  \"rooms_requested\": 1\n}"
+                            "raw": "{\n  \"contact_id\": \"CONTACT-001\",\n  \"experience_id\": \"EXP-HOTEL-001\",\n  \"slot_id\": \"SLOT-001\",\n  \"party_size\": 4,\n  \"check_in_date\": \"2026-05-05\",\n  \"check_out_date\": \"2026-05-08\",\n  \"rooms_requested\": 1,\n  \"company_id\": \"COMPANY-001\"\n}"
                         },
                         "url": {
                             "raw": "{{base_url}}/api/method/cheese.api.v1.ticket_controller.create_pending_reservation",
@@ -963,7 +963,7 @@
                         ],
                         "body": {
                             "mode": "raw",
-                            "raw": "{\n  \"contact_id\": \"CONTACT-001\",\n  \"experience_id\": \"EXP-HOTEL-001\",\n  \"slot_id\": \"SLOT-001\",\n  \"party_size\": 4,\n  \"check_in_date\": \"2026-05-05\",\n  \"check_out_date\": \"2026-05-08\",\n  \"rooms_requested\": 1\n}"
+                            "raw": "{\n  \"contact_id\": \"CONTACT-001\",\n  \"experience_id\": \"EXP-HOTEL-001\",\n  \"slot_id\": \"SLOT-001\",\n  \"party_size\": 4,\n  \"check_in_date\": \"2026-05-05\",\n  \"check_out_date\": \"2026-05-08\",\n  \"rooms_requested\": 1,\n  \"company_id\": \"COMPANY-001\"\n}"
                         },
                         "url": {
                             "raw": "{{base_url}}/api/method/cheese.api.v1.ticket_controller.create_pending_ticket",
@@ -1336,7 +1336,7 @@
                         ],
                         "body": {
                             "mode": "raw",
-                            "raw": "{\n  \"contact_id\": \"CONTACT-001\",\n  \"items\": [\n    {\"type\": \"route\", \"route_id\": \"ROUTE-001\", \"date\": \"2024-12-31\", \"party_size\": 2},\n    {\"type\": \"experience\", \"experience_id\": \"EXP-001\", \"slot_id\": \"SLOT-001\", \"party_size\": 2}\n  ],\n  \"conversation_id\": \"CONV-001\"\n}"
+                            "raw": "{\n  \"contact_id\": \"CONTACT-001\",\n  \"company_id\": \"COMPANY-001\",\n  \"items\": [\n    {\"type\": \"route\", \"route_id\": \"ROUTE-001\", \"date\": \"2024-12-31\", \"party_size\": 2},\n    {\"type\": \"experience\", \"experience_id\": \"EXP-001\", \"slot_id\": \"SLOT-001\", \"party_size\": 2}\n  ],\n  \"conversation_id\": \"CONV-001\"\n}"
                         },
                         "url": {
                             "raw": "{{base_url}}/api/method/cheese.api.v1.booking_controller.create_pending_booking",
@@ -2332,7 +2332,7 @@
                         ],
                         "body": {
                             "mode": "raw",
-                            "raw": "{\n  \"experience_id\": \"EXP-HOTEL-001\",\n  \"date_from\": \"2026-05-05\",\n  \"date_to\": \"2026-05-08\",\n  \"guests\": 2,\n  \"rooms_requested\": 1\n}"
+                            "raw": "{\n  \"experience_id\": \"EXP-HOTEL-001\",\n  \"date_from\": \"2026-05-05\",\n  \"date_to\": \"2026-05-08\",\n  \"guests\": 2,\n  \"rooms_requested\": 1,\n  \"company_id\": \"COMPANY-001\"\n}"
                         },
                         "url": {
                             "raw": "{{base_url}}/api/method/cheese.api.v1.hotel_controller.get_hotel_availability",
@@ -2365,7 +2365,7 @@
                         ],
                         "body": {
                             "mode": "raw",
-                            "raw": "{\n  \"room_id\": \"EXP-HOTEL-001\",\n  \"date_from\": \"2026-05-05\",\n  \"date_to\": \"2026-05-08\",\n  \"guests\": 2,\n  \"rooms_requested\": 1\n}"
+                            "raw": "{\n  \"room_id\": \"EXP-HOTEL-001\",\n  \"date_from\": \"2026-05-05\",\n  \"date_to\": \"2026-05-08\",\n  \"guests\": 2,\n  \"rooms_requested\": 1,\n  \"company_id\": \"COMPANY-001\"\n}"
                         },
                         "url": {
                             "raw": "{{base_url}}/api/method/cheese.api.v1.hotel_controller.bot_check_hotel_availability",

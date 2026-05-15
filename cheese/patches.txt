@@ -11,3 +11,4 @@ cheese.patches.v1_0.fix_cheese_complaint_doctype_module
 cheese.patches.v1_0.add_company_cheese_establishment_fields
 cheese.patches.v1_0.set_spanish_company_cheese_field_labels
 cheese.patches.v1_0.add_route_experience_start_time
+cheese.patches.v1_0.add_company_link_to_bot_entities

@@ -9,6 +9,7 @@ from cheese.cheese.utils.pricing import calculate_ticket_price, calculate_deposi
 from cheese.cheese.utils.validation import validate_booking_policy
 from cheese.cheese.utils.capacity import update_slot_capacity, get_available_capacity
 from cheese.api.common.responses import success, created, error, not_found, validation_error
+from cheese.api.common.company_scope import resolve_company_id, validate_company_matches_experience
 from cheese.api.v1.user_controller import _get_current_user_company
 import json
 
@@ -127,7 +128,20 @@ def _initial_ticket_status(experience_doc) -> str:
 
 
 @frappe.whitelist()
-def create_pending_reservation(contact_id, experience_id, slot_id, party_size=1, selected_date=None, route_id=None, check_in_date=None, check_out_date=None, rooms_requested=None):
+def create_pending_reservation(
+	contact_id,
+	experience_id,
+	slot_id,
+	party_size=1,
+	selected_date=None,
+	route_id=None,
+	check_in_date=None,
+	check_out_date=None,
+	rooms_requested=None,
+	company_id=None,
+	establishment_id=None,
+	company=None,
+):
 	"""
 	Create pending reservation (individual) - alias for create_pending_ticket
 	
@@ -142,10 +156,26 @@ def create_pending_reservation(contact_id, experience_id, slot_id, party_size=1,
 		check_in_date: Check in date (for hotels)
 		check_out_date: Check out date (for hotels)
 		rooms_requested: Number of rooms (for hotels)
+		company_id: Establishment / Company ID (optional; validated against experience)
+		establishment_id: Alias for company_id
+		company: Alias for company_id
 	Returns:
 		Success response with reservation data
 	"""
-	return create_pending_ticket(contact_id, experience_id, slot_id, party_size, selected_date=selected_date, route_id=route_id, check_in_date=check_in_date, check_out_date=check_out_date, rooms_requested=rooms_requested)
+	return create_pending_ticket(
+		contact_id,
+		experience_id,
+		slot_id,
+		party_size,
+		selected_date=selected_date,
+		route_id=route_id,
+		check_in_date=check_in_date,
+		check_out_date=check_out_date,
+		rooms_requested=rooms_requested,
+		company_id=company_id,
+		establishment_id=establishment_id,
+		company=company,
+	)
 
 
 @frappe.whitelist()
@@ -163,7 +193,20 @@ def get_reservation_status(reservation_id):
 
 
 @frappe.whitelist()
-def create_pending_ticket(contact_id, experience_id, slot_id, party_size=1, selected_date=None, route_id=None, check_in_date=None, check_out_date=None, rooms_requested=None):
+def create_pending_ticket(
+	contact_id,
+	experience_id,
+	slot_id,
+	party_size=1,
+	selected_date=None,
+	route_id=None,
+	check_in_date=None,
+	check_out_date=None,
+	rooms_requested=None,
+	company_id=None,
+	establishment_id=None,
+	company=None,
+):
 	"""
 	Create a pending ticket with TTL
 	
@@ -173,6 +216,9 @@ def create_pending_ticket(contact_id, experience_id, slot_id, party_size=1, sele
 		slot_id: ID of the slot
 		party_size: Number of people
 		selected_date: Optional date selected by the user (YYYY-MM-DD). If provided, stored in ticket.selected_date
+		company_id: Establishment / Company ID (optional; validated against experience.company)
+		establishment_id: Alias for company_id
+		company: Alias for company_id
 		
 	Returns:
 		Success response with ticket data
@@ -204,6 +250,16 @@ def create_pending_ticket(contact_id, experience_id, slot_id, party_size=1, sele
 		# Get slot and experience
 		slot = frappe.get_doc("Cheese Experience Slot", slot_id)
 		experience = frappe.get_doc("Cheese Experience", experience_id)
+
+		resolved_company = resolve_company_id(
+			company_id=company_id,
+			establishment_id=establishment_id,
+			company=company,
+			experience_id=experience_id,
+		) or experience.company
+		if resolved_company:
+			validate_company_matches_experience(resolved_company, experience_id)
+		ticket_company = resolved_company or experience.company
 
 		try:
 			selected_date_obj, slot_datetime, event_end_datetime = _resolve_slot_policy_datetimes(
@@ -266,7 +322,7 @@ def create_pending_ticket(contact_id, experience_id, slot_id, party_size=1, sele
 		ticket_data = {
 			"doctype": "Cheese Ticket",
 			"contact": contact_id,
-			"company": experience.company,
+			"company": ticket_company,
 			"experience": experience_id,
 			"slot": slot_id,
 			"route": route_id,
@@ -278,7 +334,7 @@ def create_pending_ticket(contact_id, experience_id, slot_id, party_size=1, sele
 			"check_in_date": check_in_date,
 			"check_out_date": check_out_date,
 			"rooms_requested": rooms_requested,
-			"currency": frappe.db.get_value("Company", experience.company, "default_currency") or "UYU"
+			"currency": frappe.db.get_value("Company", ticket_company, "default_currency") or "UYU"
 		}
 		
 		# Store selected_date if provided
@@ -299,6 +355,7 @@ def create_pending_ticket(contact_id, experience_id, slot_id, party_size=1, sele
 				"ticket_id": ticket.name,
 				"status": ticket.status,
 				"contact_id": contact_id,
+				"company_id": ticket.company,
 				"experience_id": experience_id,
 				"slot_id": slot_id,
 				"party_size": party_size,
