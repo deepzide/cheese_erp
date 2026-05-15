@@ -14,6 +14,7 @@ import { DollarSign, Ticket, Users, CreditCard, CheckCircle, XCircle, AlertTrian
 import FrappeSearchSelect from "@/components/FrappeSearchSelect";
 import { useFrappeList } from "@/lib/useApiData";
 import { depositService } from "@/api/depositService";
+import { openFile } from "@/lib/fileUtils";
 
 const STATUS_CONFIG = {
     PENDING: { labelKey: "status.PENDING", defaultLabel: "Pending", class: "bg-yellow-500/15 text-yellow-700 border-yellow-300 dark:text-yellow-400 dark:border-yellow-700" },
@@ -245,7 +246,17 @@ export default function DepositDetail() {
                                                     <p className="text-xs text-muted-foreground">{t("deposits.attachedReceipt", "Attached Receipt")}</p>
                                                 </div>
                                             </div>
-                                            <Button variant="outline" size="sm" onClick={() => window.open(file.file_url, '_blank')}>
+                                            <Button
+                                                variant="outline"
+                                                size="sm"
+                                                onClick={async () => {
+                                                    try {
+                                                        await openFile(file);
+                                                    } catch (err) {
+                                                        toast.error(err?.message || t("deposits.openFileFailed", "Could not open file"));
+                                                    }
+                                                }}
+                                            >
                                                 <Download className="w-4 h-4 mr-2" /> {t("common.viewDetails", "View")}
                                             </Button>
                                         </div>

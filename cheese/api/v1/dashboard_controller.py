@@ -134,6 +134,8 @@ def get_central_dashboard(period="today", date_from=None, date_to=None):
 		for lead in leads:
 			status = lead.status
 			lead_counts[status] = lead_counts.get(status, 0) + 1
+
+		total_leads = frappe.db.count("Cheese Lead")
 		
 		# Get deposits
 		deposit_filters = {"creation": ["between", [f"{date_from_obj} 00:00:00", f"{date_to_obj} 23:59:59"]]}
@@ -177,6 +179,7 @@ def get_central_dashboard(period="today", date_from=None, date_to=None):
 					"completed_change": completed - prev_completed
 				},
 				"leads": lead_counts,
+				"total_leads": total_leads,
 				"deposits": {
 					"pending": deposit_counts.get("PENDING", 0),
 					"paid": deposit_counts.get("PAID", 0),
