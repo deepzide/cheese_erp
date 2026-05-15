@@ -4,13 +4,15 @@ The only files that you need to init change is `apps.json` and `custom.txt`.
 
 ## Tree
 ```
-├── .github // Don't touch
-├── ansible // Don;t touch
+├── .github/workflows/   ← CI/CD (build-push + restore)
+├── scripts/             ← Server scripts (setup, backup, restore, alloy)
+├── Dockerfile           ← Container image definition
+├── docker-compose.yml   ← Full stack compose file
+├── .env.example         ← Environment config reference
 ├── apps.json
-├── derma_group // Custom app -> You must create that dir
-├── custom.txt // Add all the name of the modules of frappe (include your)
-├── pyproject.toml // DEbes crearla
-
+├── derma_group          ← Custom app -> You must create that dir
+├── custom.txt           ← Add all the name of the modules of frappe (include your)
+├── pyproject.toml       ← DEbes crearla
 ```
 
 ## Configuration Files

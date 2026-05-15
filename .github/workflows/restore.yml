@@ -16,8 +16,8 @@ on:
         type: string
 
 env:
-  SERVER_IP: ${{ github.event.inputs.environment == 'production' && '144.91.95.172' || '62.171.181.244' }}
-  RESTORE_PATH: /opt/erpnext/frappe_docker
+  SERVER_IP: ${{ github.event.inputs.environment == 'production' && '144.91.95.172' || (github.event.inputs.environment == 'refactor' && '217.76.58.119' || '62.171.181.244') }}
+  RESTORE_PATH: /opt/erpnext
 
 jobs:
   restore:

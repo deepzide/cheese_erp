@@ -1,17 +1,19 @@
 #!/usr/bin/env bash
+# Frappe Restore Script — cheese_erp
+# Usage: /opt/erpnext/restore.sh [YYYY-MM-DD_HHMMSS]
+#   If no timestamp provided, restores the most recent backup.
 set -euo pipefail
 
-# Frappe Restore Script — {{ project_name }} ({{ deploy_env }})
-# Usage: /opt/restore.sh [YYYY-MM-DD]
-#   If no date provided, restores the most recent backup.
-
-S3_PREFIX="s3://{{ s3_bucket }}/backups/{{ project_name }}/{{ deploy_env }}"
+COMPOSE_DIR="/opt/erpnext"
+S3_BUCKET="${S3_BUCKET:-deepzide-backups}"
+DEPLOY_ENV="${DEPLOY_ENV:-staging}"
+S3_PREFIX="s3://${S3_BUCKET}/backups/cheese_erp/${DEPLOY_ENV}"
 RESTORE_DIR="/tmp/frappe-restore"
-SITE="{{ site_name }}"
+SITE="frontend"
 
-echo "=== Frappe Restore — {{ project_name }} ({{ deploy_env }}) ==="
+echo "=== Frappe Restore — cheese_erp (${DEPLOY_ENV}) ==="
 
-# 1. Determine which date to restore
+# 1. Determine which backup to restore
 if [ -n "${1:-}" ]; then
   RESTORE_DATE="$1"
   echo "Restoring from date: $RESTORE_DATE"
@@ -47,17 +49,17 @@ echo "Private files: $(basename "${PRIVATE_FILES:-none}")"
 
 # 4. Copy backup files into the container
 echo "Copying files to container..."
-cd {{ compose_dir }}
-docker compose -f {{ compose_file }} exec -T backend mkdir -p /tmp/restore/
-docker compose -f {{ compose_file }} cp "$RESTORE_DIR/." backend:/tmp/restore/
+cd "${COMPOSE_DIR}"
+docker compose exec -T backend mkdir -p /tmp/restore/
+docker compose cp "$RESTORE_DIR/." backend:/tmp/restore/
 
-# 6. Wait for MariaDB to be ready
+# 5. Wait for MariaDB to be ready
 echo "Waiting for MariaDB..."
-until docker compose -f {{ compose_file }} exec -T db mysqladmin ping -h db --silent 2>/dev/null; do
+until docker compose exec -T db mysqladmin ping -h db --silent 2>/dev/null; do
   sleep 2
 done
 
-# 7. Run bench restore
+# 6. Run bench restore
 echo "Restoring database..."
 RESTORE_CMD="bench --site $SITE restore /tmp/restore/$(basename "$DB_FILE")"
 
@@ -69,23 +71,21 @@ if [ -n "${PRIVATE_FILES:-}" ]; then
   RESTORE_CMD="$RESTORE_CMD --with-private-files /tmp/restore/$(basename "$PRIVATE_FILES")"
 fi
 
-RESTORE_CMD="$RESTORE_CMD --db-root-password {{ db_root_password }} --force"
+RESTORE_CMD="$RESTORE_CMD --db-root-password admin --force"
 
-docker compose -f {{ compose_file }} exec -T backend $RESTORE_CMD
+docker compose exec -T backend $RESTORE_CMD
 
-# 8. Run migrations
+# 7. Run migrations
 echo "Running migrations..."
-docker compose -f {{ compose_file }} exec -T backend \
-  bench --site "$SITE" migrate
+docker compose exec -T backend bench --site "$SITE" migrate
 
-# 9. Clear cache
+# 8. Clear cache
 echo "Clearing cache..."
-docker compose -f {{ compose_file }} exec -T backend \
-  bench --site "$SITE" clear-cache
+docker compose exec -T backend bench --site "$SITE" clear-cache
 
-# 10. Clean up
+# 9. Clean up
 echo "Cleaning up..."
-docker compose -f {{ compose_file }} exec -T backend rm -rf /tmp/restore/
+docker compose exec -T backend rm -rf /tmp/restore/
 rm -rf "$RESTORE_DIR"
 
 echo "=== Restore completed successfully ==="

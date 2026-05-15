@@ -1,10 +1,11 @@
-// Grafana Alloy - Frappe log collector for cheese_erp ({{ deploy_env }})
+// Grafana Alloy — Frappe log collector for cheese_erp
+// DEPLOY_ENV is injected via container environment variable
 
 local.file_match "frappe_logs" {
   path_targets = [{
     __path__    = "/var/log/frappe/*.log",
     job         = "cheese_erp",
-    environment = "{{ deploy_env }}",
+    environment = env("DEPLOY_ENV"),
   }]
 }
 

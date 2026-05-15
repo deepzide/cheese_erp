@@ -1,0 +1,98 @@
+name: Build, Push & Deploy
+
+on:
+  push:
+    branches: [main, prod, refactor/simplify-cicd]
+  workflow_dispatch:
+
+env:
+  SERVER_IP: ${{ github.ref_name == 'refactor/simplify-cicd' && '217.76.58.119' || (github.ref_name == 'prod' && '144.91.95.172' || '62.171.181.244') }}
+  IMAGE_TAG: ${{ github.ref_name == 'refactor/simplify-cicd' && 'refactor' || (github.ref_name == 'prod' && 'latest' || 'demo') }}
+  DEPLOY_ENV: ${{ github.ref_name == 'prod' && 'production' || 'staging' }}
+
+jobs:
+  build-push:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Inject PAT into apps.json for private repos
+        run: |
+          jq --arg token "${{ secrets.GH_PAT }}" '
+            map(
+              if (.url | test("deepzide/cheese_erp"))
+              then .url = "https://x-access-token:" + $token + "@github.com/deepzide/cheese_erp.git"
+              else .
+              end
+            )
+          ' apps.json > apps.json.tmp && mv apps.json.tmp apps.json
+          echo "APPS_JSON_BASE64=$(base64 -w 0 apps.json)" >> $GITHUB_ENV
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: ghcr.io/deepzide/cheese:${{ env.IMAGE_TAG }}
+          build-args: |
+            FRAPPE_PATH=https://github.com/frappe/frappe
+            FRAPPE_BRANCH=version-15
+            APPS_JSON_BASE64=${{ env.APPS_JSON_BASE64 }}
+
+  deploy:
+    needs: build-push
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Setup SSH key
+        run: |
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          echo "${{ secrets.SSH_KEY_PRIVATE }}" | base64 --decode > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H ${{ env.SERVER_IP }} >> ~/.ssh/known_hosts 2>/dev/null
+
+      - name: Test SSH connection
+        run: |
+          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no root@${{ env.SERVER_IP }} "echo 'SSH OK'"
+
+      - name: Deploy
+        run: |
+          ssh -i ~/.ssh/deploy_key root@${{ env.SERVER_IP }} "
+            set -e
+            cd /opt/erpnext
+            echo '>>> Pulling image ghcr.io/deepzide/cheese:${{ env.IMAGE_TAG }}...'
+            TAG=${{ env.IMAGE_TAG }} docker compose pull
+            echo '>>> Restarting stack...'
+            TAG=${{ env.IMAGE_TAG }} docker compose up -d
+            echo '>>> Waiting for backend...'
+            for i in \$(seq 1 60); do
+              if docker compose exec -T backend bench --version >/dev/null 2>&1; then
+                break
+              fi
+              sleep 5
+            done
+            echo '>>> Running migrations...'
+            docker compose exec -T backend bench --site frontend migrate
+            echo '>>> Rebuilding assets...'
+            docker compose exec -T backend bench build || docker compose exec -T backend bench clear-cache
+            echo '>>> Clearing cache...'
+            docker compose exec -T backend bench --site frontend clear-cache
+            docker compose exec -T backend bench --site frontend clear-website-cache
+            echo '>>> Deploy complete!'
+          "
