@@ -89,6 +89,11 @@ jobs:
               fi
               sleep 5
             done
+            echo '>>> Checking if site exists...'
+            if ! docker compose exec -T backend bench --site frontend list-apps >/dev/null 2>&1; then
+              echo '>>> Creating site...'
+              docker compose run --rm create-site
+            fi
             echo '>>> Running migrations...'
             docker compose exec -T backend bench --site frontend migrate
             echo '>>> Rebuilding assets...'
