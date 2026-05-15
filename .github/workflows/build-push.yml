@@ -76,6 +76,8 @@ jobs:
           ssh -i ~/.ssh/deploy_key root@${{ env.SERVER_IP }} "
             set -e
             cd /opt/erpnext
+            echo '>>> Logging in to ghcr.io...'
+            echo '${{ secrets.GITHUB_TOKEN }}' | docker login ghcr.io -u ${{ github.actor }} --password-stdin
             echo '>>> Pulling image ghcr.io/deepzide/cheese:${{ env.IMAGE_TAG }}...'
             TAG=${{ env.IMAGE_TAG }} docker compose pull
             echo '>>> Restarting stack...'
