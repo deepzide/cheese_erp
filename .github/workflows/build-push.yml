@@ -66,7 +66,7 @@ jobs:
         run: |
           mkdir -p ~/.ssh
           chmod 700 ~/.ssh
-          echo "${{ secrets.SSH_KEY_PRIVATE }}" | base64 --decode > ~/.ssh/deploy_key
+          echo "${{ github.ref_name == 'refactor/simplify-cicd' && secrets.SSH_KEY_REFACTOR || secrets.SSH_KEY_PRIVATE }}" | base64 --decode > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
           ssh-keyscan -H ${{ env.SERVER_IP }} >> ~/.ssh/known_hosts 2>/dev/null
 
