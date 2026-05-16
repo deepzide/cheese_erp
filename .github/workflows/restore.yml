@@ -10,6 +10,7 @@ on:
         options:
           - staging
           - production
+          - refactor
       backup_id:
         description: 'Backup timestamp folder (e.g. 2026-04-05_120000). Leave empty for latest.'
         required: false
@@ -17,6 +18,8 @@ on:
 
 env:
   SERVER_IP: ${{ github.event.inputs.environment == 'production' && '144.91.95.172' || (github.event.inputs.environment == 'refactor' && '217.76.58.119' || '62.171.181.244') }}
+  IMAGE_TAG: ${{ github.event.inputs.environment == 'refactor' && 'refactor' || (github.event.inputs.environment == 'production' && 'latest' || 'demo') }}
+  DEPLOY_ENV: ${{ github.event.inputs.environment == 'refactor' && 'staging' || github.event.inputs.environment }}
   RESTORE_PATH: /opt/erpnext
 
 jobs:
@@ -24,22 +27,55 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
       - name: Setup SSH key
         run: |
           mkdir -p ~/.ssh
           chmod 700 ~/.ssh
-          echo "${{ secrets.SSH_KEY_PRIVATE }}" | base64 --decode > ~/.ssh/erpnext_deploy_key
-          chmod 600 ~/.ssh/erpnext_deploy_key
+          echo "${{ secrets.SSH_KEY_PRIVATE }}" | base64 --decode > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
           ssh-keyscan -H ${{ env.SERVER_IP }} >> ~/.ssh/known_hosts 2>/dev/null
 
       - name: Test SSH connection
         run: |
-          ssh -i ~/.ssh/erpnext_deploy_key -o StrictHostKeyChecking=no root@${{ env.SERVER_IP }} "echo 'SSH OK'"
+          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no root@${{ env.SERVER_IP }} "echo 'SSH OK'"
 
-      - name: Run restore
+      - name: Sync scripts to server
+        run: |
+          scp scripts/restore.sh root@${{ env.SERVER_IP }}:${{ env.RESTORE_PATH }}/restore.sh
+          scp scripts/backup.sh root@${{ env.SERVER_IP }}:${{ env.RESTORE_PATH }}/backup.sh
+
+      - name: Restore
         run: |
           BACKUP_ID="${{ github.event.inputs.backup_id }}"
           echo "Restoring on ${{ github.event.inputs.environment }} (${{ env.SERVER_IP }})"
           echo "Backup ID: ${BACKUP_ID:-latest}"
-          ssh -i ~/.ssh/erpnext_deploy_key root@${{ env.SERVER_IP }} \
-            "${{ env.RESTORE_PATH }}/restore.sh ${BACKUP_ID}"
+          ssh -i ~/.ssh/deploy_key root@${{ env.SERVER_IP }} "
+            set -e
+            cd ${{ env.RESTORE_PATH }}
+
+            echo '>>> Ensuring stack is running...'
+            echo '${{ secrets.GITHUB_TOKEN }}' | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+            TAG=${{ env.IMAGE_TAG }} docker compose up -d
+
+            echo '>>> Waiting for MariaDB...'
+            for i in \$(seq 1 60); do
+              if docker compose exec -T db mysqladmin ping -h db --silent 2>/dev/null; then
+                break
+              fi
+              sleep 5
+            done
+
+            echo '>>> Waiting for backend...'
+            for i in \$(seq 1 60); do
+              if docker compose exec -T backend bench --version >/dev/null 2>&1; then
+                break
+              fi
+              sleep 5
+            done
+
+            echo '>>> Running restore...'
+            DEPLOY_ENV=${{ env.DEPLOY_ENV }} bash restore.sh ${BACKUP_ID}
+          "
