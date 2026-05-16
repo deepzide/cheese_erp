@@ -44,8 +44,8 @@ jobs:
 
       - name: Sync scripts to server
         run: |
-          scp scripts/restore.sh root@${{ env.SERVER_IP }}:${{ env.RESTORE_PATH }}/restore.sh
-          scp scripts/backup.sh root@${{ env.SERVER_IP }}:${{ env.RESTORE_PATH }}/backup.sh
+          scp -i ~/.ssh/deploy_key scripts/restore.sh root@${{ env.SERVER_IP }}:${{ env.RESTORE_PATH }}/restore.sh
+          scp -i ~/.ssh/deploy_key scripts/backup.sh root@${{ env.SERVER_IP }}:${{ env.RESTORE_PATH }}/backup.sh
 
       - name: Restore
         run: |

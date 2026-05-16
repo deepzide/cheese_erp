@@ -76,8 +76,8 @@ jobs:
 
       - name: Sync scripts to server
         run: |
-          scp scripts/backup.sh root@${{ env.SERVER_IP }}:/opt/erpnext/backup.sh
-          scp scripts/restore.sh root@${{ env.SERVER_IP }}:/opt/erpnext/restore.sh
+          scp -i ~/.ssh/deploy_key scripts/backup.sh root@${{ env.SERVER_IP }}:/opt/erpnext/backup.sh
+          scp -i ~/.ssh/deploy_key scripts/restore.sh root@${{ env.SERVER_IP }}:/opt/erpnext/restore.sh
 
       - name: Deploy
         run: |
