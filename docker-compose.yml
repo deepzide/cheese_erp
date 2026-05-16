@@ -129,7 +129,13 @@ services:
       - sites-assets:/home/frappe/frappe-bench/sites/assets
       - logs:/home/frappe/frappe-bench/logs
     ports:
-      - "8080:8080"
+      - "127.0.0.1:8080:8080"
+    labels:
+      - traefik.enable=true
+      - traefik.http.services.frontend.loadbalancer.server.port=8080
+      - traefik.http.routers.frontend-http.entrypoints=websecure
+      - traefik.http.routers.frontend-http.tls.certresolver=main-resolver
+      - traefik.http.routers.frontend-http.rule=${SITES_RULE:-Host(`localhost`)}
 
   queue-long:
     image: ghcr.io/deepzide/cheese:${TAG:-latest}
@@ -231,7 +237,32 @@ services:
     environment:
       DEPLOY_ENV: ${DEPLOY_ENV:-staging}
 
+  proxy:
+    image: traefik:v3.6
+    networks:
+      - frappe_network
+    restart: unless-stopped
+    command:
+      - --providers.docker=true
+      - --providers.docker.exposedbydefault=false
+      - --providers.docker.network=frappe_network
+      - --entrypoints.web.address=:80
+      - --entrypoints.web.http.redirections.entrypoint.to=websecure
+      - --entrypoints.web.http.redirections.entrypoint.scheme=https
+      - --entrypoints.websecure.address=:443
+      - --certificatesResolvers.main-resolver.acme.httpChallenge=true
+      - --certificatesResolvers.main-resolver.acme.httpChallenge.entrypoint=web
+      - --certificatesResolvers.main-resolver.acme.email=${LETSENCRYPT_EMAIL:-admin@example.com}
+      - --certificatesResolvers.main-resolver.acme.storage=/letsencrypt/acme.json
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - cert-data:/letsencrypt
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+
 volumes:
+  cert-data:
   db-data:
   redis-queue-data:
   sites:

@@ -61,6 +61,9 @@ ssh root@"${SERVER_IP}" "
   export AWS_SECRET_KEY='${AWS_SECRET_ACCESS_KEY:-}'
   export S3_BUCKET='${AWS_S3_BUCKET:-deepzide-backups}'
   export TAG_OVERRIDE='${TAG_OVERRIDE}'
+  export DOMAIN='${DOMAIN:-}'
+  export LETSENCRYPT_EMAIL='${LETSENCRYPT_EMAIL:-}'
+  export SITES_RULE='${SITES_RULE:-}'
   bash ${PROJECT_DIR}/setup-server.sh ${DEPLOY_ENV}
 "
 

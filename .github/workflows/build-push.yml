@@ -9,6 +9,9 @@ env:
   SERVER_IP: ${{ github.ref_name == 'refactor/simplify-cicd' && '217.76.58.119' || (github.ref_name == 'prod' && '144.91.95.172' || '62.171.181.244') }}
   IMAGE_TAG: ${{ github.ref_name == 'refactor/simplify-cicd' && 'refactor' || (github.ref_name == 'prod' && 'latest' || 'demo') }}
   DEPLOY_ENV: ${{ github.ref_name == 'prod' && 'production' || 'staging' }}
+  DOMAIN: ${{ github.ref_name == 'refactor/simplify-cicd' && 'erp-cheese.deepzide.com' || '' }}
+  LETSENCRYPT_EMAIL: lesterdprez.work@gmail.com
+  SITES_RULE: ${{ github.ref_name == 'refactor/simplify-cicd' && 'Host(`erp-cheese.deepzide.com`)' || '' }}
 
 jobs:
   build-push:
@@ -74,8 +77,9 @@ jobs:
         run: |
           ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no root@${{ env.SERVER_IP }} "echo 'SSH OK'"
 
-      - name: Sync scripts to server
+      - name: Sync files to server
         run: |
+          scp -i ~/.ssh/deploy_key docker-compose.yml root@${{ env.SERVER_IP }}:/opt/erpnext/docker-compose.yml
           scp -i ~/.ssh/deploy_key scripts/backup.sh root@${{ env.SERVER_IP }}:/opt/erpnext/backup.sh
           scp -i ~/.ssh/deploy_key scripts/restore.sh root@${{ env.SERVER_IP }}:/opt/erpnext/restore.sh
 
@@ -86,10 +90,18 @@ jobs:
             cd /opt/erpnext
             echo '>>> Logging in to ghcr.io...'
             echo '${{ secrets.GITHUB_TOKEN }}' | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+            echo '>>> Writing .env...'
+            cat > .env <<ENVEOF
+          TAG=${{ env.IMAGE_TAG }}
+          DEPLOY_ENV=${{ env.DEPLOY_ENV }}
+          SITES_RULE=${{ env.SITES_RULE }}
+          LETSENCRYPT_EMAIL=${{ env.LETSENCRYPT_EMAIL }}
+          DOMAIN=${{ env.DOMAIN }}
+          ENVEOF
             echo '>>> Pulling image ghcr.io/deepzide/cheese:${{ env.IMAGE_TAG }}...'
-            TAG=${{ env.IMAGE_TAG }} docker compose pull
+            docker compose pull
             echo '>>> Restarting stack...'
-            TAG=${{ env.IMAGE_TAG }} docker compose up -d
+            docker compose up -d
             echo '>>> Waiting for backend...'
             for i in \$(seq 1 60); do
               if docker compose exec -T backend bench --version >/dev/null 2>&1; then

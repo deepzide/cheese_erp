@@ -21,6 +21,9 @@ env:
   IMAGE_TAG: ${{ github.event.inputs.environment == 'refactor' && 'refactor' || (github.event.inputs.environment == 'production' && 'latest' || 'demo') }}
   DEPLOY_ENV: ${{ github.event.inputs.environment == 'refactor' && 'staging' || github.event.inputs.environment }}
   RESTORE_PATH: /opt/erpnext
+  DOMAIN: ${{ github.event.inputs.environment == 'refactor' && 'erp-cheese.deepzide.com' || '' }}
+  LETSENCRYPT_EMAIL: lesterdprez.work@gmail.com
+  SITES_RULE: ${{ github.event.inputs.environment == 'refactor' && 'Host(`erp-cheese.deepzide.com`)' || '' }}
 
 jobs:
   restore:
@@ -42,8 +45,9 @@ jobs:
         run: |
           ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no root@${{ env.SERVER_IP }} "echo 'SSH OK'"
 
-      - name: Sync scripts to server
+      - name: Sync files to server
         run: |
+          scp -i ~/.ssh/deploy_key docker-compose.yml root@${{ env.SERVER_IP }}:${{ env.RESTORE_PATH }}/docker-compose.yml
           scp -i ~/.ssh/deploy_key scripts/restore.sh root@${{ env.SERVER_IP }}:${{ env.RESTORE_PATH }}/restore.sh
           scp -i ~/.ssh/deploy_key scripts/backup.sh root@${{ env.SERVER_IP }}:${{ env.RESTORE_PATH }}/backup.sh
 
@@ -56,9 +60,18 @@ jobs:
             set -e
             cd ${{ env.RESTORE_PATH }}
 
+            echo '>>> Writing .env...'
+            cat > .env <<ENVEOF
+          TAG=${{ env.IMAGE_TAG }}
+          DEPLOY_ENV=${{ env.DEPLOY_ENV }}
+          SITES_RULE=${{ env.SITES_RULE }}
+          LETSENCRYPT_EMAIL=${{ env.LETSENCRYPT_EMAIL }}
+          DOMAIN=${{ env.DOMAIN }}
+          ENVEOF
+
             echo '>>> Ensuring stack is running...'
             echo '${{ secrets.GITHUB_TOKEN }}' | docker login ghcr.io -u ${{ github.actor }} --password-stdin
-            TAG=${{ env.IMAGE_TAG }} docker compose up -d
+            docker compose up -d
 
             echo '>>> Configuring AWS credentials...'
             mkdir -p /root/.aws

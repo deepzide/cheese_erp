@@ -12,6 +12,9 @@ GH_PAT="${GH_PAT:-}"
 S3_BUCKET="${S3_BUCKET:-deepzide-backups}"
 AWS_ACCESS_KEY="${AWS_ACCESS_KEY:-}"
 AWS_SECRET_KEY="${AWS_SECRET_KEY:-}"
+DOMAIN="${DOMAIN:-}"
+LETSENCRYPT_EMAIL="${LETSENCRYPT_EMAIL:-}"
+SITES_RULE="${SITES_RULE:-}"
 
 echo "=== cheese_erp server setup (${DEPLOY_ENV}) ==="
 
@@ -39,11 +42,14 @@ if [ -n "${GH_PAT}" ]; then
 fi
 
 # 4. Create/update .env file
-cat > .env <<EOF
+  cat > .env <<EOF
 TAG=${IMAGE_TAG}
 DEPLOY_ENV=${DEPLOY_ENV}
+SITES_RULE=${SITES_RULE}
+LETSENCRYPT_EMAIL=${LETSENCRYPT_EMAIL}
+DOMAIN=${DOMAIN}
 EOF
-echo ">>> .env created (TAG=${IMAGE_TAG}, DEPLOY_ENV=${DEPLOY_ENV})"
+echo ">>> .env created (TAG=${IMAGE_TAG}, DEPLOY_ENV=${DEPLOY_ENV}, DOMAIN=${DOMAIN})"
 
 # 5. Make scripts executable
 chmod +x "${PROJECT_DIR}/backup.sh" 2>/dev/null || true
