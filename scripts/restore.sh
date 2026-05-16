@@ -13,6 +13,16 @@ SITE="frontend"
 
 echo "=== Frappe Restore — cheese_erp (${DEPLOY_ENV}) ==="
 
+if ! command -v aws &>/dev/null; then
+  echo ">>> Installing AWS CLI..."
+  apt-get update -qq && apt-get install -y -qq unzip
+  curl -fsSL "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o /tmp/awscliv2.zip
+  cd /tmp && unzip -qo awscliv2.zip
+  /tmp/aws/install
+  rm -rf /tmp/aws /tmp/awscliv2.zip
+  cd "${COMPOSE_DIR}"
+fi
+
 # 1. Determine which backup to restore
 if [ -n "${1:-}" ]; then
   RESTORE_DATE="$1"

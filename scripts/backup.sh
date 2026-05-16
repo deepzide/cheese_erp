@@ -13,6 +13,16 @@ S3_PREFIX="s3://${S3_BUCKET}/backups/cheese_erp/${DEPLOY_ENV}/${TIMESTAMP}"
 
 log() { echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*" >> "$LOG"; }
 
+if ! command -v aws &>/dev/null; then
+  log "Installing AWS CLI..."
+  apt-get update -qq && apt-get install -y -qq unzip
+  curl -fsSL "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o /tmp/awscliv2.zip
+  cd /tmp && unzip -qo awscliv2.zip
+  /tmp/aws/install
+  rm -rf /tmp/aws /tmp/awscliv2.zip
+  cd "${COMPOSE_DIR}"
+fi
+
 log "=== Starting backup ==="
 
 # 1. Run bench backup inside the backend container
