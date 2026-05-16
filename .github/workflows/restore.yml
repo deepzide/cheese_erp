@@ -60,6 +60,21 @@ jobs:
             echo '${{ secrets.GITHUB_TOKEN }}' | docker login ghcr.io -u ${{ github.actor }} --password-stdin
             TAG=${{ env.IMAGE_TAG }} docker compose up -d
 
+            echo '>>> Configuring AWS credentials...'
+            mkdir -p /root/.aws
+            chmod 700 /root/.aws
+            cat > /root/.aws/credentials <<CREDS
+          [default]
+          aws_access_key_id = ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws_secret_access_key = ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          CREDS
+            chmod 600 /root/.aws/credentials
+            cat > /root/.aws/config <<CFG
+          [default]
+          region = us-east-1
+          CFG
+            chmod 600 /root/.aws/config
+
             echo '>>> Waiting for MariaDB...'
             for i in \$(seq 1 60); do
               if docker compose exec -T db mysqladmin ping -h db --silent 2>/dev/null; then
