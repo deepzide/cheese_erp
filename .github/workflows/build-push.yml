@@ -24,38 +24,32 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Inject PAT into apps.json for private repos
-        run: |
-          jq --arg token "${{ secrets.GH_PAT }}" '
-            map(
-              if (.url | test("deepzide/cheese_erp"))
-              then .url = "https://x-access-token:" + $token + "@github.com/deepzide/cheese_erp.git"
-              else .
-              end
-            )
-          ' apps.json > apps.json.tmp && mv apps.json.tmp apps.json
-          echo "APPS_JSON_BASE64=$(base64 -w 0 apps.json)" >> $GITHUB_ENV
-
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@v4
 
       - name: Login to GitHub Container Registry
-        uses: docker/login-action@v3
+        uses: docker/login-action@v4
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build and push
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v7
         with:
           context: .
           push: true
           tags: ghcr.io/deepzide/cheese:${{ env.IMAGE_TAG }}
           build-args: |
-            FRAPPE_PATH=https://github.com/frappe/frappe
             FRAPPE_BRANCH=version-15
-            APPS_JSON_BASE64=${{ env.APPS_JSON_BASE64 }}
+          secrets: |
+            CHEESE_ERP_URL=https://x-access-token:${{ secrets.GH_PAT }}@github.com/deepzide/cheese_erp.git
+          cache-from: |
+            type=gha
+            type=registry,ref=ghcr.io/deepzide/cheese:buildcache
+          cache-to: |
+            type=gha,mode=max
+            type=registry,ref=ghcr.io/deepzide/cheese:buildcache,mode=max
 
   deploy:
     needs: build-push

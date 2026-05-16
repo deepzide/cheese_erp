@@ -1,34 +1,13 @@
 ARG FRAPPE_BRANCH=version-15
 
-FROM frappe/build:${FRAPPE_BRANCH} AS builder
-
-ARG FRAPPE_BRANCH=version-15
-ARG FRAPPE_PATH=https://github.com/frappe/frappe
-ARG APPS_JSON_BASE64
-
-USER root
-
-RUN if [ -n "${APPS_JSON_BASE64}" ]; then \
-    mkdir /opt/frappe && echo "${APPS_JSON_BASE64}" | base64 -d > /opt/frappe/apps.json; \
-  fi
+FROM ghcr.io/deepzide/cheese-base:${FRAPPE_BRANCH} AS builder
 
 USER frappe
+WORKDIR /home/frappe/frappe-bench
 
-RUN export APP_INSTALL_ARGS="" && \
-  if [ -n "${APPS_JSON_BASE64}" ]; then \
-    export APP_INSTALL_ARGS="--apps_path=/opt/frappe/apps.json"; \
-  fi && \
-  bench init ${APP_INSTALL_ARGS}\
-    --frappe-branch=${FRAPPE_BRANCH} \
-    --frappe-path=${FRAPPE_PATH} \
-    --no-procfile \
-    --no-backups \
-    --skip-redis-config-generation \
-    --verbose \
-    /home/frappe/frappe-bench && \
-  cd /home/frappe/frappe-bench && \
-  echo "{}" > sites/common_site_config.json && \
-  find apps -mindepth 1 -path "*/.git" | xargs rm -fr
+RUN --mount=type=secret,id=CHEESE_ERP_URL \
+    bench get-app "$(cat /run/secrets/CHEESE_ERP_URL)" && \
+    find apps -mindepth 1 -path "*/.git" | xargs rm -fr
 
 FROM frappe/base:${FRAPPE_BRANCH} AS backend
 
