@@ -2,16 +2,16 @@ name: Build, Push & Deploy
 
 on:
   push:
-    branches: [main, prod, refactor/simplify-cicd]
+    branches: [develop, main]
   workflow_dispatch:
 
 env:
-  SERVER_IP: ${{ github.ref_name == 'refactor/simplify-cicd' && '217.76.58.119' || (github.ref_name == 'prod' && '144.91.95.172' || '62.171.181.244') }}
-  IMAGE_TAG: ${{ github.ref_name == 'refactor/simplify-cicd' && 'refactor' || (github.ref_name == 'prod' && 'latest' || 'demo') }}
-  DEPLOY_ENV: ${{ github.ref_name == 'prod' && 'production' || 'staging' }}
-  DOMAIN: ${{ github.ref_name == 'refactor/simplify-cicd' && 'erp-cheese.deepzide.com' || '' }}
+  SERVER_IP: ${{ github.ref_name == 'main' && '217.76.58.119' || '62.171.181.244' }}
+  IMAGE_TAG: ${{ github.ref_name == 'main' && 'latest' || 'demo' }}
+  DEPLOY_ENV: ${{ github.ref_name == 'main' && 'production' || 'staging' }}
+  DOMAIN: ${{ github.ref_name == 'main' && 'erp-cheese.deepzide.com' || 'erp-cheese-dev.deepzide.com' }}
   LETSENCRYPT_EMAIL: lesterdprez.work@gmail.com
-  SITES_RULE: ${{ github.ref_name == 'refactor/simplify-cicd' && 'Host(`erp-cheese.deepzide.com`)' || '' }}
+  SITES_RULE: ${{ github.ref_name == 'main' && 'Host(`erp-cheese.deepzide.com`)' || 'Host(`erp-cheese-dev.deepzide.com`)' }}
 
 jobs:
   build-push:
@@ -54,6 +54,7 @@ jobs:
   deploy:
     needs: build-push
     runs-on: ubuntu-latest
+    environment: ${{ github.ref_name == 'main' && 'production' || '' }}
 
     steps:
       - name: Checkout
@@ -63,7 +64,7 @@ jobs:
         run: |
           mkdir -p ~/.ssh
           chmod 700 ~/.ssh
-          echo "${{ github.ref_name == 'refactor/simplify-cicd' && secrets.SSH_KEY_REFACTOR || secrets.SSH_KEY_PRIVATE }}" | base64 --decode > ~/.ssh/deploy_key
+          echo "${{ github.ref_name == 'main' && secrets.SSH_KEY_REFACTOR || secrets.SSH_KEY_PRIVATE }}" | base64 --decode > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
           ssh-keyscan -H ${{ env.SERVER_IP }} >> ~/.ssh/known_hosts 2>/dev/null
 

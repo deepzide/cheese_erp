@@ -5,7 +5,7 @@
 #
 # Examples:
 #   ./scripts/init-server.sh 62.171.181.244 staging
-#   ./scripts/init-server.sh 217.76.58.119 staging refactor
+#   ./scripts/init-server.sh 217.76.58.119 production
 #
 # Reads from your shell env:
 #   GH_PAT            — GitHub PAT for ghcr.io login (required)

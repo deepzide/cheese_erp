@@ -10,20 +10,19 @@ on:
         options:
           - staging
           - production
-          - refactor
       backup_id:
         description: 'Backup timestamp folder (e.g. 2026-04-05_120000). Leave empty for latest.'
         required: false
         type: string
 
 env:
-  SERVER_IP: ${{ github.event.inputs.environment == 'production' && '144.91.95.172' || (github.event.inputs.environment == 'refactor' && '217.76.58.119' || '62.171.181.244') }}
-  IMAGE_TAG: ${{ github.event.inputs.environment == 'refactor' && 'refactor' || (github.event.inputs.environment == 'production' && 'latest' || 'demo') }}
-  DEPLOY_ENV: ${{ github.event.inputs.environment == 'refactor' && 'staging' || github.event.inputs.environment }}
+  SERVER_IP: ${{ github.event.inputs.environment == 'production' && '217.76.58.119' || '62.171.181.244' }}
+  IMAGE_TAG: ${{ github.event.inputs.environment == 'production' && 'latest' || 'demo' }}
+  DEPLOY_ENV: ${{ github.event.inputs.environment }}
   RESTORE_PATH: /opt/erpnext
-  DOMAIN: ${{ github.event.inputs.environment == 'refactor' && 'erp-cheese.deepzide.com' || '' }}
+  DOMAIN: ${{ github.event.inputs.environment == 'production' && 'erp-cheese.deepzide.com' || 'erp-cheese-dev.deepzide.com' }}
   LETSENCRYPT_EMAIL: lesterdprez.work@gmail.com
-  SITES_RULE: ${{ github.event.inputs.environment == 'refactor' && 'Host(`erp-cheese.deepzide.com`)' || '' }}
+  SITES_RULE: ${{ github.event.inputs.environment == 'production' && 'Host(`erp-cheese.deepzide.com`)' || 'Host(`erp-cheese-dev.deepzide.com`)' }}
 
 jobs:
   restore:
@@ -37,7 +36,7 @@ jobs:
         run: |
           mkdir -p ~/.ssh
           chmod 700 ~/.ssh
-          echo "${{ github.event.inputs.environment == 'refactor' && secrets.SSH_KEY_REFACTOR || secrets.SSH_KEY_PRIVATE }}" | base64 --decode > ~/.ssh/deploy_key
+          echo "${{ github.event.inputs.environment == 'production' && secrets.SSH_KEY_REFACTOR || secrets.SSH_KEY_PRIVATE }}" | base64 --decode > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
           ssh-keyscan -H ${{ env.SERVER_IP }} >> ~/.ssh/known_hosts 2>/dev/null
 
