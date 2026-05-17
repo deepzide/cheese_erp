@@ -1,3 +1,4 @@
+# cheese_erp CI/CD — multi-server production deploy
 name: Build, Push & Deploy
 
 on:
