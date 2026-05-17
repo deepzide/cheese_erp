@@ -111,3 +111,27 @@ jobs:
             docker compose exec -T backend bench --site frontend clear-website-cache
             echo '>>> Deploy complete!'
           "
+
+      - name: Sync assets from image to volume
+        run: |
+          ssh -i ~/.ssh/deploy_key root@${{ env.SERVER_IP }} "
+            cd /opt/erpnext
+            echo '>>> Syncing assets from image to volume...'
+            docker run --rm \
+              -v erpnext_sites-assets:/target \
+              ghcr.io/deepzide/cheese:${{ env.IMAGE_TAG }} \
+              sh -c '
+                src=/home/frappe/frappe-bench/sites/assets
+                for app in frappe erpnext hrms payments cheese; do
+                  if [ -d "\$src/\$app/dist" ]; then
+                    mkdir -p "/target/\$app/dist"
+                    cp -r "\$src/\$app/dist/"* "/target/\$app/dist/"
+                  fi
+                done
+                [ -f "\$src/assets.json" ] && cp "\$src/assets.json" /target/
+                [ -f "\$src/assets-rtl.json" ] && cp "\$src/assets-rtl.json" /target/
+              '
+            echo '>>> Restarting frontend...'
+            docker compose restart frontend
+            echo '>>> Asset sync complete!'
+          "
