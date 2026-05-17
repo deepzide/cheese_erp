@@ -7,12 +7,8 @@ on:
   workflow_dispatch:
 
 env:
-  SERVER_IP: ${{ github.ref_name == 'main' && '217.76.58.119' || '62.171.181.244' }}
   IMAGE_TAG: ${{ github.ref_name == 'main' && 'latest' || 'demo' }}
-  DEPLOY_ENV: ${{ github.ref_name == 'main' && 'production' || 'staging' }}
-  DOMAIN: ${{ github.ref_name == 'main' && 'erp-cheese.deepzide.com' || 'erp-cheese-dev.deepzide.com' }}
   LETSENCRYPT_EMAIL: lesterdprez.work@gmail.com
-  SITES_RULE: ${{ github.ref_name == 'main' && 'Host(`erp-cheese.deepzide.com`)' || 'Host(`erp-cheese-dev.deepzide.com`)' }}
 
 jobs:
   build-push:
@@ -52,113 +48,229 @@ jobs:
             type=gha,mode=max
             type=registry,ref=ghcr.io/deepzide/cheese:buildcache,mode=max
 
-  deploy:
+  deploy-staging:
     needs: build-push
+    if: github.ref_name != 'main'
     runs-on: ubuntu-latest
-    environment: ${{ github.ref_name == 'main' && 'production' || '' }}
+    env:
+      DEPLOY_IP: 62.171.181.244
+      DEPLOY_DOMAIN: erp-cheese-dev.deepzide.com
+      DEPLOY_ENV: staging
+      DEPLOY_KEY: ${{ secrets.SSH_KEY_PRIVATE }}
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Setup SSH keys
+      - name: Setup SSH
         run: |
-          mkdir -p ~/.ssh
-          chmod 700 ~/.ssh
-          echo "${{ secrets.SSH_KEY_PRIVATE }}" | base64 --decode > ~/.ssh/key_staging
-          echo "${{ secrets.SSH_KEY_REFACTOR }}" | base64 --decode > ~/.ssh/key_prod_cheese
-          echo "${{ secrets.SSH_KEY_VIVENTI }}" | base64 --decode > ~/.ssh/key_prod_viventi
-          chmod 600 ~/.ssh/key_*
-          if [[ "${{ github.ref_name }}" == "main" ]]; then
-            for ip in 217.76.58.119 144.91.95.172; do
-              ssh-keyscan -H "$ip" >> ~/.ssh/known_hosts 2>/dev/null
-            done
-          else
-            ssh-keyscan -H "${{ env.SERVER_IP }}" >> ~/.ssh/known_hosts 2>/dev/null
-          fi
+          mkdir -p ~/.ssh && chmod 700 ~/.ssh
+          echo "$DEPLOY_KEY" | base64 --decode > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H "$DEPLOY_IP" >> ~/.ssh/known_hosts 2>/dev/null
 
-      - name: Test SSH connection
+      - name: Test SSH
         run: |
-          if [[ "${{ github.ref_name }}" == "main" ]]; then
-            ssh -i ~/.ssh/key_prod_cheese -o StrictHostKeyChecking=no root@217.76.58.119 "echo 'SSH OK to 217.76.58.119'"
-            ssh -i ~/.ssh/key_prod_viventi -o StrictHostKeyChecking=no root@144.91.95.172 "echo 'SSH OK to 144.91.95.172'"
-          else
-            ssh -i ~/.ssh/key_staging -o StrictHostKeyChecking=no root@${{ env.SERVER_IP }} "echo 'SSH OK'"
-          fi
+          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no root@$DEPLOY_IP "echo 'SSH OK to $DEPLOY_IP'"
 
       - name: Deploy
         run: |
-          deploy_server() {
-            local IP="$1" DOMAIN="$2" DEP_ENV="$3" SSH_KEY="$4"
+          mkdir -p /opt/erpnext && scp -i ~/.ssh/deploy_key docker-compose.yml scripts/backup.sh scripts/restore.sh root@$DEPLOY_IP:/opt/erpnext/
+          printf 'TAG=%s\nDEPLOY_ENV=%s\nSITES_RULE=Host(`%s`)\nLETSENCRYPT_EMAIL=%s\nDOMAIN=%s\n' \
+            "${{ env.IMAGE_TAG }}" "$DEPLOY_ENV" "$DEPLOY_DOMAIN" "${{ env.LETSENCRYPT_EMAIL }}" "$DEPLOY_DOMAIN" > .env.deploy
+          scp -i ~/.ssh/deploy_key .env.deploy root@$DEPLOY_IP:/opt/erpnext/.env
 
-            echo ">>> Deploying to $IP ($DOMAIN) as $DEP_ENV..."
+          ssh -i ~/.ssh/deploy_key root@$DEPLOY_IP "
+            set -e
+            cd /opt/erpnext
+            echo '>>> Logging in to ghcr.io...'
+            echo '${{ secrets.GITHUB_TOKEN }}' | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+            echo '>>> Pulling image ghcr.io/deepzide/cheese:${{ env.IMAGE_TAG }}...'
+            docker compose pull
+            echo '>>> Restarting stack...'
+            docker compose up -d
+            echo '>>> Waiting for backend...'
+            for i in \$(seq 1 60); do
+              if docker compose exec -T backend bench --version >/dev/null 2>&1; then break; fi
+              sleep 5
+            done
+            echo '>>> Checking if site exists...'
+            if ! docker compose exec -T backend bench --site frontend list-apps >/dev/null 2>&1; then
+              echo '>>> Creating site...'; docker compose run --rm create-site
+            fi
+            echo '>>> Running migrations...'
+            docker compose exec -T backend bench --site frontend migrate
+            echo '>>> Clearing cache...'
+            docker compose exec -T backend bench --site frontend clear-cache
+            docker compose exec -T backend bench --site frontend clear-website-cache
+            echo '>>> Deploy complete!'
+          "
 
-            printf 'TAG=%s\nDEPLOY_ENV=%s\nSITES_RULE=Host(`%s`)\nLETSENCRYPT_EMAIL=%s\nDOMAIN=%s\n' \
-              "${{ env.IMAGE_TAG }}" "$DEP_ENV" "$DOMAIN" "${{ env.LETSENCRYPT_EMAIL }}" "$DOMAIN" > .env.deploy
-
-            ssh -i "$SSH_KEY" root@$IP "mkdir -p /opt/erpnext"
-            scp -i "$SSH_KEY" .env.deploy root@$IP:/opt/erpnext/.env
-            scp -i "$SSH_KEY" docker-compose.yml root@$IP:/opt/erpnext/docker-compose.yml
-            scp -i "$SSH_KEY" scripts/backup.sh root@$IP:/opt/erpnext/backup.sh
-            scp -i "$SSH_KEY" scripts/restore.sh root@$IP:/opt/erpnext/restore.sh
-
-            ssh -i "$SSH_KEY" root@$IP "
-              set -e
-              cd /opt/erpnext
-              echo '>>> Logging in to ghcr.io...'
-              echo '${{ secrets.GITHUB_TOKEN }}' | docker login ghcr.io -u ${{ github.actor }} --password-stdin
-              echo '>>> Pulling image ghcr.io/deepzide/cheese:${{ env.IMAGE_TAG }}...'
-              docker compose pull
-              echo '>>> Restarting stack...'
-              docker compose up -d
-              echo '>>> Waiting for backend...'
-              for i in \$(seq 1 60); do
-                if docker compose exec -T backend bench --version >/dev/null 2>&1; then
-                  break
+          ssh -i ~/.ssh/deploy_key root@$DEPLOY_IP "
+            cd /opt/erpnext
+            echo '>>> Syncing assets from image to volume...'
+            docker run --rm -v erpnext_sites-assets:/target ghcr.io/deepzide/cheese:${{ env.IMAGE_TAG }} sh -c '
+              src=/home/frappe/frappe-bench/sites/assets
+              for app in frappe erpnext hrms payments cheese; do
+                if [ -d \"\$src/\$app/dist\" ]; then
+                  mkdir -p \"/target/\$app/dist\"
+                  cp -r \"\$src/\$app/dist/\"* \"/target/\$app/dist/\"
                 fi
-                sleep 5
               done
-              echo '>>> Checking if site exists...'
-              if ! docker compose exec -T backend bench --site frontend list-apps >/dev/null 2>&1; then
-                echo '>>> Creating site...'
-                docker compose run --rm create-site
-              fi
-              echo '>>> Running migrations...'
-              docker compose exec -T backend bench --site frontend migrate
-              echo '>>> Clearing cache...'
-              docker compose exec -T backend bench --site frontend clear-cache
-              docker compose exec -T backend bench --site frontend clear-website-cache
-              echo '>>> Deploy complete!'
-            "
+              cp \"\$src/assets.json\" \"\$src/assets-rtl.json\" /target/ 2>/dev/null || true
+            '
+            echo '>>> Restarting frontend...'
+            docker compose restart frontend
+            echo '>>> Asset sync complete!'
+          "
 
-            ssh -i "$SSH_KEY" root@$IP "
-              cd /opt/erpnext
-              echo '>>> Syncing assets from image to volume...'
-              docker run --rm \
-                -v erpnext_sites-assets:/target \
-                ghcr.io/deepzide/cheese:${{ env.IMAGE_TAG }} \
-                sh -c '
-                  src=/home/frappe/frappe-bench/sites/assets
-                  for app in frappe erpnext hrms payments cheese; do
-                    if [ -d \"\$src/\$app/dist\" ]; then
-                      mkdir -p \"/target/\$app/dist\"
-                      cp -r \"\$src/\$app/dist/\"* \"/target/\$app/dist/\"
-                    fi
-                  done
-                  [ -f \"\$src/assets.json\" ] && cp \"\$src/assets.json\" /target/
-                  [ -f \"\$src/assets-rtl.json\" ] && cp \"\$src/assets-rtl.json\" /target/
-                '
-              echo '>>> Restarting frontend...'
-              docker compose restart frontend
-              echo '>>> Asset sync complete!'
-            "
+  deploy-cheese:
+    needs: build-push
+    if: github.ref_name == 'main'
+    runs-on: ubuntu-latest
+    environment: production
+    env:
+      DEPLOY_IP: 217.76.58.119
+      DEPLOY_DOMAIN: erp-cheese.deepzide.com
+      DEPLOY_ENV: production
+      DEPLOY_KEY: ${{ secrets.SSH_KEY_REFACTOR }}
 
-            echo ">>> Finished deploying to $IP ($DOMAIN)"
-          }
+    steps:
+      - uses: actions/checkout@v4
 
-          if [[ "${{ github.ref_name }}" == "main" ]]; then
-            deploy_server "217.76.58.119" "erp-cheese.deepzide.com" "production" "$HOME/.ssh/key_prod_cheese"
-            deploy_server "144.91.95.172" "erp-viventi.deepzide.com" "production" "$HOME/.ssh/key_prod_viventi"
-          else
-            deploy_server "${{ env.SERVER_IP }}" "${{ env.DOMAIN }}" "${{ env.DEPLOY_ENV }}" "$HOME/.ssh/key_staging"
-          fi
+      - name: Setup SSH
+        run: |
+          mkdir -p ~/.ssh && chmod 700 ~/.ssh
+          echo "$DEPLOY_KEY" | base64 --decode > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H "$DEPLOY_IP" >> ~/.ssh/known_hosts 2>/dev/null
+
+      - name: Test SSH
+        run: |
+          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no root@$DEPLOY_IP "echo 'SSH OK to $DEPLOY_IP'"
+
+      - name: Deploy
+        run: |
+          mkdir -p /opt/erpnext && scp -i ~/.ssh/deploy_key docker-compose.yml scripts/backup.sh scripts/restore.sh root@$DEPLOY_IP:/opt/erpnext/
+          printf 'TAG=%s\nDEPLOY_ENV=%s\nSITES_RULE=Host(`%s`)\nLETSENCRYPT_EMAIL=%s\nDOMAIN=%s\n' \
+            "${{ env.IMAGE_TAG }}" "$DEPLOY_ENV" "$DEPLOY_DOMAIN" "${{ env.LETSENCRYPT_EMAIL }}" "$DEPLOY_DOMAIN" > .env.deploy
+          scp -i ~/.ssh/deploy_key .env.deploy root@$DEPLOY_IP:/opt/erpnext/.env
+
+          ssh -i ~/.ssh/deploy_key root@$DEPLOY_IP "
+            set -e
+            cd /opt/erpnext
+            echo '>>> Logging in to ghcr.io...'
+            echo '${{ secrets.GITHUB_TOKEN }}' | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+            echo '>>> Pulling image ghcr.io/deepzide/cheese:${{ env.IMAGE_TAG }}...'
+            docker compose pull
+            echo '>>> Restarting stack...'
+            docker compose up -d
+            echo '>>> Waiting for backend...'
+            for i in \$(seq 1 60); do
+              if docker compose exec -T backend bench --version >/dev/null 2>&1; then break; fi
+              sleep 5
+            done
+            echo '>>> Checking if site exists...'
+            if ! docker compose exec -T backend bench --site frontend list-apps >/dev/null 2>&1; then
+              echo '>>> Creating site...'; docker compose run --rm create-site
+            fi
+            echo '>>> Running migrations...'
+            docker compose exec -T backend bench --site frontend migrate
+            echo '>>> Clearing cache...'
+            docker compose exec -T backend bench --site frontend clear-cache
+            docker compose exec -T backend bench --site frontend clear-website-cache
+            echo '>>> Deploy complete!'
+          "
+
+          ssh -i ~/.ssh/deploy_key root@$DEPLOY_IP "
+            cd /opt/erpnext
+            echo '>>> Syncing assets from image to volume...'
+            docker run --rm -v erpnext_sites-assets:/target ghcr.io/deepzide/cheese:${{ env.IMAGE_TAG }} sh -c '
+              src=/home/frappe/frappe-bench/sites/assets
+              for app in frappe erpnext hrms payments cheese; do
+                if [ -d \"\$src/\$app/dist\" ]; then
+                  mkdir -p \"/target/\$app/dist\"
+                  cp -r \"\$src/\$app/dist/\"* \"/target/\$app/dist/\"
+                fi
+              done
+              cp \"\$src/assets.json\" \"\$src/assets-rtl.json\" /target/ 2>/dev/null || true
+            '
+            echo '>>> Restarting frontend...'
+            docker compose restart frontend
+            echo '>>> Asset sync complete!'
+          "
+
+  deploy-viventi:
+    needs: build-push
+    if: github.ref_name == 'main'
+    runs-on: ubuntu-latest
+    environment: production
+    env:
+      DEPLOY_IP: 144.91.95.172
+      DEPLOY_DOMAIN: erp-viventi.deepzide.com
+      DEPLOY_ENV: production
+      DEPLOY_KEY: ${{ secrets.SSH_KEY_VIVENTI }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup SSH
+        run: |
+          mkdir -p ~/.ssh && chmod 700 ~/.ssh
+          echo "$DEPLOY_KEY" | base64 --decode > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H "$DEPLOY_IP" >> ~/.ssh/known_hosts 2>/dev/null
+
+      - name: Test SSH
+        run: |
+          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no root@$DEPLOY_IP "echo 'SSH OK to $DEPLOY_IP'"
+
+      - name: Deploy
+        run: |
+          mkdir -p /opt/erpnext && scp -i ~/.ssh/deploy_key docker-compose.yml scripts/backup.sh scripts/restore.sh root@$DEPLOY_IP:/opt/erpnext/
+          printf 'TAG=%s\nDEPLOY_ENV=%s\nSITES_RULE=Host(`%s`)\nLETSENCRYPT_EMAIL=%s\nDOMAIN=%s\n' \
+            "${{ env.IMAGE_TAG }}" "$DEPLOY_ENV" "$DEPLOY_DOMAIN" "${{ env.LETSENCRYPT_EMAIL }}" "$DEPLOY_DOMAIN" > .env.deploy
+          scp -i ~/.ssh/deploy_key .env.deploy root@$DEPLOY_IP:/opt/erpnext/.env
+
+          ssh -i ~/.ssh/deploy_key root@$DEPLOY_IP "
+            set -e
+            cd /opt/erpnext
+            echo '>>> Logging in to ghcr.io...'
+            echo '${{ secrets.GITHUB_TOKEN }}' | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+            echo '>>> Pulling image ghcr.io/deepzide/cheese:${{ env.IMAGE_TAG }}...'
+            docker compose pull
+            echo '>>> Restarting stack...'
+            docker compose up -d
+            echo '>>> Waiting for backend...'
+            for i in \$(seq 1 60); do
+              if docker compose exec -T backend bench --version >/dev/null 2>&1; then break; fi
+              sleep 5
+            done
+            echo '>>> Checking if site exists...'
+            if ! docker compose exec -T backend bench --site frontend list-apps >/dev/null 2>&1; then
+              echo '>>> Creating site...'; docker compose run --rm create-site
+            fi
+            echo '>>> Running migrations...'
+            docker compose exec -T backend bench --site frontend migrate
+            echo '>>> Clearing cache...'
+            docker compose exec -T backend bench --site frontend clear-cache
+            docker compose exec -T backend bench --site frontend clear-website-cache
+            echo '>>> Deploy complete!'
+          "
+
+          ssh -i ~/.ssh/deploy_key root@$DEPLOY_IP "
+            cd /opt/erpnext
+            echo '>>> Syncing assets from image to volume...'
+            docker run --rm -v erpnext_sites-assets:/target ghcr.io/deepzide/cheese:${{ env.IMAGE_TAG }} sh -c '
+              src=/home/frappe/frappe-bench/sites/assets
+              for app in frappe erpnext hrms payments cheese; do
+                if [ -d \"\$src/\$app/dist\" ]; then
+                  mkdir -p \"/target/\$app/dist\"
+                  cp -r \"\$src/\$app/dist/\"* \"/target/\$app/dist/\"
+                fi
+              done
+              cp \"\$src/assets.json\" \"\$src/assets-rtl.json\" /target/ 2>/dev/null || true
+            '
+            echo '>>> Restarting frontend...'
+            docker compose restart frontend
+            echo '>>> Asset sync complete!'
+          "
