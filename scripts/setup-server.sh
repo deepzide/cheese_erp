@@ -14,9 +14,9 @@ AWS_ACCESS_KEY="${AWS_ACCESS_KEY:-}"
 AWS_SECRET_KEY="${AWS_SECRET_KEY:-}"
 DOMAIN="${DOMAIN:-}"
 LETSENCRYPT_EMAIL="${LETSENCRYPT_EMAIL:-}"
-SITES_RULE="${SITES_RULE:-}"
-if [ -z "${SITES_RULE}" ] && [ -n "${SITES_RULE_B64:-}" ]; then
-  SITES_RULE="$(echo "${SITES_RULE_B64}" | base64 -d)"
+SITES_RULE=""
+if [ -n "${DOMAIN}" ]; then
+  SITES_RULE="Host(\`${DOMAIN}\`)"
 fi
 
 echo "=== cheese_erp server setup (${DEPLOY_ENV}) ==="

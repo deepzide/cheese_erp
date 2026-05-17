@@ -63,7 +63,6 @@ ssh root@"${SERVER_IP}" "
   export TAG_OVERRIDE='${TAG_OVERRIDE}'
   export DOMAIN='${DOMAIN:-}'
   export LETSENCRYPT_EMAIL='${LETSENCRYPT_EMAIL:-}'
-  export SITES_RULE_B64='$(echo "${SITES_RULE:-}" | base64)'
   bash ${PROJECT_DIR}/setup-server.sh ${DEPLOY_ENV}
 "
 
