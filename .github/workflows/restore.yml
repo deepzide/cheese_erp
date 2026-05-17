@@ -46,6 +46,9 @@ jobs:
 
       - name: Sync files to server
         run: |
+          printf 'TAG=%s\nDEPLOY_ENV=%s\nSITES_RULE=%s\nLETSENCRYPT_EMAIL=%s\nDOMAIN=%s\n' \
+            "${{ env.IMAGE_TAG }}" "${{ env.DEPLOY_ENV }}" "${{ env.SITES_RULE }}" "${{ env.LETSENCRYPT_EMAIL }}" "${{ env.DOMAIN }}" > .env.deploy
+          scp -i ~/.ssh/deploy_key .env.deploy root@${{ env.SERVER_IP }}:${{ env.RESTORE_PATH }}/.env
           scp -i ~/.ssh/deploy_key docker-compose.yml root@${{ env.SERVER_IP }}:${{ env.RESTORE_PATH }}/docker-compose.yml
           scp -i ~/.ssh/deploy_key scripts/restore.sh root@${{ env.SERVER_IP }}:${{ env.RESTORE_PATH }}/restore.sh
           scp -i ~/.ssh/deploy_key scripts/backup.sh root@${{ env.SERVER_IP }}:${{ env.RESTORE_PATH }}/backup.sh
@@ -58,15 +61,6 @@ jobs:
           ssh -i ~/.ssh/deploy_key root@${{ env.SERVER_IP }} "
             set -e
             cd ${{ env.RESTORE_PATH }}
-
-            echo '>>> Writing .env...'
-            cat > .env <<ENVEOF
-          TAG=${{ env.IMAGE_TAG }}
-          DEPLOY_ENV=${{ env.DEPLOY_ENV }}
-          SITES_RULE=${{ env.SITES_RULE }}
-          LETSENCRYPT_EMAIL=${{ env.LETSENCRYPT_EMAIL }}
-          DOMAIN=${{ env.DOMAIN }}
-          ENVEOF
 
             echo '>>> Ensuring stack is running...'
             echo '${{ secrets.GITHUB_TOKEN }}' | docker login ghcr.io -u ${{ github.actor }} --password-stdin
