@@ -60,12 +60,14 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup SSH key
+      - name: Setup SSH keys
         run: |
           mkdir -p ~/.ssh
           chmod 700 ~/.ssh
-          echo "${{ github.ref_name == 'main' && secrets.SSH_KEY_REFACTOR || secrets.SSH_KEY_PRIVATE }}" | base64 --decode > ~/.ssh/deploy_key
-          chmod 600 ~/.ssh/deploy_key
+          echo "${{ secrets.SSH_KEY_PRIVATE }}" | base64 --decode > ~/.ssh/key_staging
+          echo "${{ secrets.SSH_KEY_REFACTOR }}" | base64 --decode > ~/.ssh/key_prod_cheese
+          echo "${{ secrets.SSH_KEY_VIVENTI }}" | base64 --decode > ~/.ssh/key_prod_viventi
+          chmod 600 ~/.ssh/key_*
           if [[ "${{ github.ref_name }}" == "main" ]]; then
             for ip in 217.76.58.119 144.91.95.172; do
               ssh-keyscan -H "$ip" >> ~/.ssh/known_hosts 2>/dev/null
@@ -77,30 +79,29 @@ jobs:
       - name: Test SSH connection
         run: |
           if [[ "${{ github.ref_name }}" == "main" ]]; then
-            for ip in 217.76.58.119 144.91.95.172; do
-              ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no root@$ip "echo 'SSH OK to '$ip"
-            done
+            ssh -i ~/.ssh/key_prod_cheese -o StrictHostKeyChecking=no root@217.76.58.119 "echo 'SSH OK to 217.76.58.119'"
+            ssh -i ~/.ssh/key_prod_viventi -o StrictHostKeyChecking=no root@144.91.95.172 "echo 'SSH OK to 144.91.95.172'"
           else
-            ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no root@${{ env.SERVER_IP }} "echo 'SSH OK'"
+            ssh -i ~/.ssh/key_staging -o StrictHostKeyChecking=no root@${{ env.SERVER_IP }} "echo 'SSH OK'"
           fi
 
       - name: Deploy
         run: |
           deploy_server() {
-            local IP="$1" DOMAIN="$2" DEP_ENV="$3"
+            local IP="$1" DOMAIN="$2" DEP_ENV="$3" SSH_KEY="$4"
 
             echo ">>> Deploying to $IP ($DOMAIN) as $DEP_ENV..."
 
             printf 'TAG=%s\nDEPLOY_ENV=%s\nSITES_RULE=Host(`%s`)\nLETSENCRYPT_EMAIL=%s\nDOMAIN=%s\n' \
               "${{ env.IMAGE_TAG }}" "$DEP_ENV" "$DOMAIN" "${{ env.LETSENCRYPT_EMAIL }}" "$DOMAIN" > .env.deploy
 
-            ssh -i ~/.ssh/deploy_key root@$IP "mkdir -p /opt/erpnext"
-            scp -i ~/.ssh/deploy_key .env.deploy root@$IP:/opt/erpnext/.env
-            scp -i ~/.ssh/deploy_key docker-compose.yml root@$IP:/opt/erpnext/docker-compose.yml
-            scp -i ~/.ssh/deploy_key scripts/backup.sh root@$IP:/opt/erpnext/backup.sh
-            scp -i ~/.ssh/deploy_key scripts/restore.sh root@$IP:/opt/erpnext/restore.sh
+            ssh -i "$SSH_KEY" root@$IP "mkdir -p /opt/erpnext"
+            scp -i "$SSH_KEY" .env.deploy root@$IP:/opt/erpnext/.env
+            scp -i "$SSH_KEY" docker-compose.yml root@$IP:/opt/erpnext/docker-compose.yml
+            scp -i "$SSH_KEY" scripts/backup.sh root@$IP:/opt/erpnext/backup.sh
+            scp -i "$SSH_KEY" scripts/restore.sh root@$IP:/opt/erpnext/restore.sh
 
-            ssh -i ~/.ssh/deploy_key root@$IP "
+            ssh -i "$SSH_KEY" root@$IP "
               set -e
               cd /opt/erpnext
               echo '>>> Logging in to ghcr.io...'
@@ -129,7 +130,7 @@ jobs:
               echo '>>> Deploy complete!'
             "
 
-            ssh -i ~/.ssh/deploy_key root@$IP "
+            ssh -i "$SSH_KEY" root@$IP "
               cd /opt/erpnext
               echo '>>> Syncing assets from image to volume...'
               docker run --rm \
@@ -155,8 +156,8 @@ jobs:
           }
 
           if [[ "${{ github.ref_name }}" == "main" ]]; then
-            deploy_server "217.76.58.119" "erp-cheese.deepzide.com" "production"
-            deploy_server "144.91.95.172" "erp-viventi.deepzide.com" "production"
+            deploy_server "217.76.58.119" "erp-cheese.deepzide.com" "production" "$HOME/.ssh/key_prod_cheese"
+            deploy_server "144.91.95.172" "erp-viventi.deepzide.com" "production" "$HOME/.ssh/key_prod_viventi"
           else
-            deploy_server "${{ env.SERVER_IP }}" "${{ env.DOMAIN }}" "${{ env.DEPLOY_ENV }}"
+            deploy_server "${{ env.SERVER_IP }}" "${{ env.DOMAIN }}" "${{ env.DEPLOY_ENV }}" "$HOME/.ssh/key_staging"
           fi
