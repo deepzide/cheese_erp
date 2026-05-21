@@ -33,6 +33,7 @@ services:
         bench set-config -g redis_queue "redis://$$REDIS_QUEUE";
         bench set-config -g redis_socketio "redis://$$REDIS_QUEUE";
         bench set-config -gp socketio_port $$SOCKETIO_PORT;
+        bench set-config -g ignore_csrf 1;
     environment:
       DB_HOST: db
       DB_PORT: "3306"
@@ -77,6 +78,7 @@ services:
         done;
         echo "sites/common_site_config.json found";
         bench new-site --mariadb-user-host-login-scope='%' --admin-password=admin --db-root-username=root --db-root-password=admin --install-app erpnext --install-app hrms --install-app payments --install-app cheese --set-default frontend;
+        bench --site frontend enable-scheduler;
     environment:
       TZ: UTC
       PGTZ: UTC

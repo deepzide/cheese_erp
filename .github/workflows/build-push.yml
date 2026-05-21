@@ -94,7 +94,7 @@ jobs:
               sleep 5
             done
             echo '>>> Checking if site exists...'
-            if ! docker compose exec -T backend bench --site frontend list-apps >/dev/null 2>&1; then
+            if ! docker compose exec -T backend bash -c '[ -d sites/frontend ]' 2>/dev/null; then
               echo '>>> Creating site...'; docker compose run --rm create-site
             fi
             echo '>>> Running migrations...'
@@ -170,7 +170,7 @@ jobs:
               sleep 5
             done
             echo '>>> Checking if site exists...'
-            if ! docker compose exec -T backend bench --site frontend list-apps >/dev/null 2>&1; then
+            if ! docker compose exec -T backend bash -c '[ -d sites/frontend ]' 2>/dev/null; then
               echo '>>> Creating site...'; docker compose run --rm create-site
             fi
             echo '>>> Running migrations...'
@@ -246,7 +246,7 @@ jobs:
               sleep 5
             done
             echo '>>> Checking if site exists...'
-            if ! docker compose exec -T backend bench --site frontend list-apps >/dev/null 2>&1; then
+            if ! docker compose exec -T backend bash -c '[ -d sites/frontend ]' 2>/dev/null; then
               echo '>>> Creating site...'; docker compose run --rm create-site
             fi
             echo '>>> Running migrations...'
