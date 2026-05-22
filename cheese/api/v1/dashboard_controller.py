@@ -36,6 +36,14 @@ def _lead_scope_sql(user=None, table_alias="l", company=None):
 	)
 
 
+def _dashboard_company_scope(user=None):
+	"""Company filter for dashboard metrics. None = all companies (route/central admin)."""
+	user = user or frappe.session.user
+	if _is_super_admin(user):
+		return None
+	return _get_current_user_company()
+
+
 def _lead_status_counts_in_period(start_date, end_date, company=None, user=None):
 	"""Count leads by status for a period using DATE(creation)."""
 	user = user or frappe.session.user
@@ -127,7 +135,7 @@ def get_central_dashboard(period="today", date_from=None, date_to=None):
 		Success response with dashboard data
 	"""
 	try:
-		user_company = _get_current_user_company()
+		scope_company = _dashboard_company_scope()
 		# Calculate date range
 		if period == "today":
 			date_from = today()
@@ -157,8 +165,8 @@ def get_central_dashboard(period="today", date_from=None, date_to=None):
 		prev_date_from = add_days(date_from_obj, -days_diff)
 		prev_date_to = add_days(date_from_obj, -1)
 		
-		current_counts = _ticket_status_counts_with_effective_date(date_from_obj, date_to_obj, user_company)
-		previous_counts = _ticket_status_counts_with_effective_date(prev_date_from, prev_date_to, user_company)
+		current_counts = _ticket_status_counts_with_effective_date(date_from_obj, date_to_obj, scope_company)
+		previous_counts = _ticket_status_counts_with_effective_date(prev_date_from, prev_date_to, scope_company)
 		
 		# Calculate KPIs
 		confirmed = current_counts.get("CONFIRMED", 0)
@@ -176,9 +184,9 @@ def get_central_dashboard(period="today", date_from=None, date_to=None):
 		
 		# Get deposits
 		deposit_filters = {"creation": ["between", [f"{date_from_obj} 00:00:00", f"{date_to_obj} 23:59:59"]]}
-		if user_company:
+		if scope_company:
 			# To filter deposits by company, we filter by entity_id if they are ticket deposits
-			ticket_ids = frappe.get_all("Cheese Ticket", filters={"company": user_company}, pluck="name")
+			ticket_ids = frappe.get_all("Cheese Ticket", filters={"company": scope_company}, pluck="name")
 			if ticket_ids:
 				deposit_filters["entity_id"] = ["in", ticket_ids]
 			else:
@@ -360,9 +368,9 @@ def get_dashboard_kpis(establishment_id=None, period="today"):
 		date_to_obj = getdate(date_to)
 		
 		# Resolve effective establishment scope (tenant users only)
-		user_company = _get_current_user_company()
-		if user_company and not _is_super_admin():
-			establishment_id = user_company
+		scope_company = _dashboard_company_scope()
+		if scope_company:
+			establishment_id = scope_company
 
 		ticket_filters = {"company": establishment_id} if establishment_id else {}
 		tickets = frappe.get_all(
@@ -487,10 +495,11 @@ def get_pending_actions(establishment_id=None, date_from=None, date_to=None):
 		from frappe.utils import getdate, now_datetime
 
 		# Get experiences to build relevant slots.
-		# If establishment_id is not provided, return pending actions across all companies.
-		user_company = _get_current_user_company()
-		if user_company:
-			establishment_id = user_company
+		# Super admins without establishment_id see all companies.
+		if not establishment_id:
+			scope_company = _dashboard_company_scope()
+			if scope_company:
+				establishment_id = scope_company
 
 		experience_filters = {}
 		if establishment_id:
@@ -606,13 +615,15 @@ def get_day_agenda(establishment_id, date=None):
 		Success response with day agenda
 	"""
 	try:
-		user_company = _get_current_user_company()
-		if user_company:
-			establishment_id = user_company
-
 		if not establishment_id:
-			return validation_error("establishment_id is required")
-		
+			scope_company = _dashboard_company_scope()
+			if scope_company:
+				establishment_id = scope_company
+			elif _is_super_admin():
+				return validation_error("establishment_id is required for day agenda")
+			else:
+				return validation_error("establishment_id is required")
+
 		target_date = getdate(date) if date else today()
 		
 		# Get experiences
