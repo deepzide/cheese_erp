@@ -11,6 +11,7 @@
  "field_order": [
   "qr_info",
   "ticket",
+  "company",
   "token",
   "status",
   "expires_at",
@@ -31,6 +32,15 @@
    "options": "Cheese Ticket",
    "reqd": 1,
    "unique": 1
+  },
+  {
+   "fieldname": "company",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Company",
+   "options": "Company",
+   "description": "Establishment that owns this QR token. Auto-set from the linked ticket."
   },
   {
    "fieldname": "token",

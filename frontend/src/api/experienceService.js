@@ -21,8 +21,18 @@ export const experienceService = {
         return apiRequest(`${BASE}.create_time_slot`, { method: 'POST', body: JSON.stringify(data) });
     },
 
-    updateTimeSlot: async (slotId, data) => {
-        return apiRequest(`${BASE}.update_time_slot`, { method: 'POST', body: JSON.stringify({ slot_id: slotId, ...data }) });
+    // `scope` is one of "this" | "following" | "all" — see backend
+    // experience_controller._resolve_slot_recurrence_scope.
+    updateTimeSlot: async (slotId, data, { scope = 'this', confirmActiveTickets = false } = {}) => {
+        return apiRequest(`${BASE}.update_time_slot`, {
+            method: 'POST',
+            body: JSON.stringify({
+                slot_id: slotId,
+                scope,
+                confirm_active_tickets: confirmActiveTickets ? 1 : 0,
+                ...data,
+            }),
+        });
     },
 
     listTimeSlots: async (experienceId, params = {}) => {
@@ -31,20 +41,39 @@ export const experienceService = {
         return apiRequest(`${BASE}.list_time_slots?${searchParams}`);
     },
 
-    blockTimeSlot: async (slotId) => {
-        return apiRequest(`${BASE}.block_time_slot`, { method: 'POST', body: JSON.stringify({ slot_id: slotId }) });
+    // Tells the UI whether to render the Google-Calendar-style 3-option modal
+    // and how many CONFIRMED reservations would be impacted by each scope.
+    getSlotRecurrenceInfo: async (slotId) => {
+        return apiRequest(`${BASE}.get_slot_recurrence_info?slot_id=${encodeURIComponent(slotId)}`);
+    },
+
+    blockTimeSlot: async (slotId, { scope = 'this' } = {}) => {
+        return apiRequest(`${BASE}.block_time_slot`, {
+            method: 'POST',
+            body: JSON.stringify({ slot_id: slotId, scope }),
+        });
     },
 
     updateBookingPolicy: async (experienceId, data) => {
         return apiRequest(`${BASE}.update_booking_policy`, { method: 'POST', body: JSON.stringify({ experience_id: experienceId, ...data }) });
     },
 
+    linkBookingPolicy: async (experienceId, policyId) => {
+        return apiRequest(`${BASE}.link_booking_policy`, {
+            method: 'POST',
+            body: JSON.stringify({ experience_id: experienceId, policy_id: policyId }),
+        });
+    },
+
     createRecurringSlots: async (data) => {
         return apiRequest(`${BASE}.create_recurring_slots`, { method: 'POST', body: JSON.stringify(data) });
     },
 
-    deleteTimeSlot: async (slotId) => {
-        return apiRequest(`${BASE}.delete_time_slot`, { method: 'POST', body: JSON.stringify({ slot_id: slotId }) });
+    deleteTimeSlot: async (slotId, { scope = 'this' } = {}) => {
+        return apiRequest(`${BASE}.delete_time_slot`, {
+            method: 'POST',
+            body: JSON.stringify({ slot_id: slotId, scope }),
+        });
     },
 
     deleteExperience: async (experienceId) => {

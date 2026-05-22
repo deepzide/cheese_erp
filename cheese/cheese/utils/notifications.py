@@ -65,6 +65,12 @@ def send_reservation_email_to_establishment(ticket_id):
 		booking_date = ticket.selected_date or slot.date_from
 		
 		subject = f"New Reservation: {experience.name} on {booking_date}"
+
+		notes_html = ""
+		if ticket.get("notes"):
+			from frappe.utils import escape_html
+			notes_html = f"<li><strong>Notes:</strong> {escape_html(ticket.notes)}</li>"
+
 		message = f"""
 		<h3>New Reservation Received</h3>
 		<p>A new reservation has been placed for your establishment.</p>
@@ -75,6 +81,7 @@ def send_reservation_email_to_establishment(ticket_id):
 			<li><strong>Party Size:</strong> {ticket.party_size} people</li>
 			<li><strong>Customer Name:</strong> {contact.full_name}</li>
 			<li><strong>Reservation ID:</strong> {ticket.name}</li>
+			{notes_html}
 		</ul>
 		<p>Please log in to the Cheese ERP to view details.</p>
 		"""

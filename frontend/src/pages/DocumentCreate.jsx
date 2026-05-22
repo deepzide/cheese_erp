@@ -16,13 +16,25 @@ const ENTITY_DOCTYPE_MAP = {
     "Cheese Experience": { doctype: "Cheese Experience", label: "experience_info" },
 };
 
+// Where to send the user back to when they opened "New Document" from an
+// entity detail page (e.g. an experience). Keeps them inside the upload-edit
+// loop for the same experience instead of bouncing them to /cheese/documents.
+const ENTITY_RETURN_PATH = {
+    "Cheese Route": (id) => `/cheese/routes/${encodeURIComponent(id)}`,
+    "Cheese Experience": (id) => `/cheese/experiences/${encodeURIComponent(id)}`,
+    "Company": (id) => `/cheese/establishments/${encodeURIComponent(id)}`,
+};
+
 export default function DocumentCreate() {
     const { t } = useTranslation();
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
+    const initialEntityType = searchParams.get('entity_type') || "";
+    const initialEntityId = searchParams.get('entity_id') || "";
+    const explicitReturnTo = searchParams.get('returnTo') || "";
     const [form, setForm] = useState({
-        entity_type: searchParams.get('entity_type') || "",
-        entity_id: searchParams.get('entity_id') || "",
+        entity_type: initialEntityType,
+        entity_id: initialEntityId,
         title: "",
         document_type: "PDF",
         file_url: "",
@@ -33,6 +45,20 @@ export default function DocumentCreate() {
     const createMutation = useFrappeCreate("Cheese Document");
 
     const entityConfig = ENTITY_DOCTYPE_MAP[form.entity_type];
+
+    // Resolve where to navigate back to. Priority:
+    //   1. Explicit ?returnTo= override (works for any caller).
+    //   2. The parent entity's detail page when the user opened this form
+    //      from a Cheese Experience / Cheese Route / Company.
+    //   3. Fallback to the global Documents list.
+    const computeReturnPath = (entityType, entityId) => {
+        if (explicitReturnTo) return explicitReturnTo;
+        const builder = ENTITY_RETURN_PATH[entityType];
+        if (builder && entityId) return builder(entityId);
+        return "/cheese/documents";
+    };
+
+    const backPath = computeReturnPath(initialEntityType, initialEntityId);
 
     const handleFileUpload = async (e) => {
         const file = e.target.files?.[0];
@@ -64,11 +90,27 @@ export default function DocumentCreate() {
         setUploading(false);
     };
 
-    const handleSubmit = () => {
+    const handleSubmit = ({ keepGoing = false } = {}) => {
         if (!form.entity_type || !form.entity_id || !form.title) { toast.error(t("documents.createError", "Entity type, entity, and title are required")); return; }
         // Cheese Document supports: DRAFT / PUBLISHED / ARCHIVED
         createMutation.mutate({ ...form, status: "PUBLISHED" }, {
-            onSuccess: () => { toast.success(t("documents.documentCreated", "Document created")); navigate("/cheese/documents"); },
+            onSuccess: () => {
+                toast.success(t("documents.documentCreated", "Document created"));
+                if (keepGoing) {
+                    // Stay on the form so the user can upload another document
+                    // for the same entity without losing context (issue #267).
+                    setForm(f => ({
+                        ...f,
+                        title: "",
+                        file_url: "",
+                    }));
+                    return;
+                }
+                // Return to the original entity (experience/route/establishment)
+                // that the user opened "New Document" from, rather than always
+                // bouncing back to the global Documents list.
+                navigate(computeReturnPath(form.entity_type, form.entity_id));
+            },
             onError: (err) => toast.error(err?.message || t("common.failed", "Failed")),
         });
     };
@@ -78,10 +120,20 @@ export default function DocumentCreate() {
             title={t("documents.uploadDocument", "Subir documento")}
             description={t("documents.attachDocument", "Adjunta un documento a una ruta o experiencia")}
             icon={FileText}
-            backPath="/cheese/documents"
-            onSubmit={handleSubmit}
+            backPath={backPath}
+            onSubmit={() => handleSubmit({ keepGoing: false })}
             isSubmitting={createMutation.isPending}
             submitLabel={t("documents.uploadDocument", "Subir documento")}
+            secondaryAction={
+                // Lets the user upload several documents for the same entity in
+                // a row without losing context (see issue #267).
+                initialEntityType && initialEntityId
+                    ? {
+                          label: t("documents.saveAndAddAnother", "Guardar y subir otro"),
+                          onClick: () => handleSubmit({ keepGoing: true }),
+                      }
+                    : null
+            }
         >
             <div className="space-y-5">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">

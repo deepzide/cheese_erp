@@ -5,6 +5,7 @@ import { Label } from "@/components/ui/label";
 import { Shield } from "lucide-react";
 import { toast } from "sonner";
 import { useFrappeCreate } from "@/lib/useApiData";
+import { experienceService } from "@/api/experienceService";
 import CreatePageLayout from "@/components/CreatePageLayout";
 import FrappeSearchSelect from "@/components/FrappeSearchSelect";
 import { useTranslation } from "react-i18next";
@@ -29,12 +30,30 @@ export default function BookingPolicyCreate() {
     const handleSubmit = () => {
         if (!form.experience) { toast.error(t("bookingPolicy.experienceRequired", "Experience is required")); return; }
         createMutation.mutate({
-            experience: form.experience,
+            policy_name: `Policy for ${form.experience}`,
             cancel_until_hours_before: parseHours(form.cancel_until_hours_before, 24),
             modify_until_hours_before: parseHours(form.modify_until_hours_before, 12),
             min_hours_before_booking: parseHours(form.min_hours_before_booking, 2),
         }, {
-            onSuccess: () => { toast.success(t("bookingPolicy.created", "Booking policy created")); navigate("/cheese/booking-policy"); },
+            onSuccess: async (created) => {
+                const policyId = created?.name || created?.data?.name;
+                if (policyId && form.experience) {
+                    try {
+                        await experienceService.linkBookingPolicy(form.experience, policyId);
+                        await experienceService.updateBookingPolicy(form.experience, {
+                            cancel_until_hours_before: parseHours(form.cancel_until_hours_before, 24),
+                            modify_until_hours_before: parseHours(form.modify_until_hours_before, 12),
+                            min_hours_before_booking: parseHours(form.min_hours_before_booking, 2),
+                        });
+                    } catch (linkErr) {
+                        toast.error(linkErr?.message || t("bookingPolicy.linkFailed", "Policy created but failed to link to experience"));
+                        navigate("/cheese/booking-policy");
+                        return;
+                    }
+                }
+                toast.success(t("bookingPolicy.created", "Booking policy created"));
+                navigate("/cheese/booking-policy");
+            },
             onError: (err) => toast.error(err?.message || t("common.failed", "Failed")),
         });
     };

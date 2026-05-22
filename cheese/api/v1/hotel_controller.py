@@ -6,6 +6,7 @@ from frappe import _
 from frappe.utils import getdate, add_days, now_datetime, cint, flt
 from cheese.api.common.responses import success, created, error, not_found, validation_error, paginated_response
 from cheese.api.v1.user_controller import _get_current_user_company
+from cheese.cheese.utils.access import assert_experience_access, assert_slot_access
 
 
 @frappe.whitelist()
@@ -270,6 +271,11 @@ def create_hotel_slots(experience_id, date_from, date_to, rooms_available, price
         if experience.experience_type != "HOTEL":
             return validation_error("Experience is not a HOTEL type")
 
+        try:
+            assert_experience_access(experience_id)
+        except frappe.PermissionError:
+            return error("Unauthorized", "UNAUTHORIZED", {}, 403)
+
         start_date = getdate(date_from)
         end_date = getdate(date_to)
         today = getdate(now_datetime())
@@ -295,13 +301,14 @@ def create_hotel_slots(experience_id, date_from, date_to, rooms_available, price
             slot = frappe.get_doc({
                 "doctype": "Cheese Experience Slot",
                 "experience": experience_id,
+                "company": experience.company,
                 "date_from": current_date,
                 "date_to": current_date,
                 "max_capacity": rooms_available,
                 "slot_status": "OPEN",
                 "reserved_capacity": 0,
             })
-            slot.insert()
+            slot.insert(ignore_permissions=True)
             created_slots.append(slot.name)
             current_date = add_days(current_date, 1)
 
@@ -344,7 +351,10 @@ def update_hotel_slot(slot_id, rooms_available=None, status=None):
         if not frappe.db.exists("Cheese Experience Slot", slot_id):
             return not_found("Slot", slot_id)
 
-        slot = frappe.get_doc("Cheese Experience Slot", slot_id)
+        try:
+            slot = assert_slot_access(slot_id)
+        except frappe.PermissionError:
+            return error("Unauthorized", "UNAUTHORIZED", {}, 403)
 
         if rooms_available is not None:
             rooms_available = cint(rooms_available)
@@ -359,7 +369,7 @@ def update_hotel_slot(slot_id, rooms_available=None, status=None):
                 return validation_error(f"Invalid status: {status}")
             slot.slot_status = status
 
-        slot.save()
+        slot.save(ignore_permissions=True)
         frappe.db.commit()
 
         return success(
@@ -377,6 +387,55 @@ def update_hotel_slot(slot_id, rooms_available=None, status=None):
     except Exception as e:
         frappe.log_error(f"Error in update_hotel_slot: {str(e)}")
         return error("Failed to update hotel slot", "SERVER_ERROR", {"error": str(e)}, 500)
+
+
+@frappe.whitelist()
+def delete_hotel_slot(slot_id):
+    """
+    Delete a hotel nightly slot when it has no active reservations.
+
+    Args:
+        slot_id: Cheese Experience Slot name
+
+    Returns:
+        Success response
+    """
+    try:
+        if not slot_id:
+            return validation_error("slot_id is required")
+
+        if not frappe.db.exists("Cheese Experience Slot", slot_id):
+            return not_found("Slot", slot_id)
+
+        try:
+            slot = assert_slot_access(slot_id)
+        except frappe.PermissionError:
+            return error("Unauthorized", "UNAUTHORIZED", {}, 403)
+
+        blocking = frappe.db.count(
+            "Cheese Ticket",
+            {
+                "slot": slot_id,
+                "status": ["in", ["PENDING", "CONFIRMED", "CHECKED_IN"]],
+            },
+        )
+        if blocking:
+            return validation_error(
+                f"Cannot delete slot with {blocking} active reservation(s). Cancel them first."
+            )
+
+        frappe.delete_doc("Cheese Experience Slot", slot_id, force=True, ignore_permissions=True)
+        frappe.db.commit()
+
+        return success(
+            "Hotel slot deleted successfully",
+            {"slot_id": slot_id, "date": str(slot.date_from)},
+        )
+    except frappe.ValidationError as e:
+        return validation_error(str(e))
+    except Exception as e:
+        frappe.log_error(f"Error in delete_hotel_slot: {str(e)}")
+        return error("Failed to delete hotel slot", "SERVER_ERROR", {"error": str(e)}, 500)
 
 
 @frappe.whitelist()

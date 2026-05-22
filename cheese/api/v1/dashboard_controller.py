@@ -117,12 +117,10 @@ def get_central_dashboard(period="today", date_from=None, date_to=None):
 		prev_checked_in = previous_counts.get("CHECKED_IN", 0)
 		prev_completed = previous_counts.get("COMPLETED", 0)
 		
-		# Get leads
+		# Get leads (scoped to tenant company when applicable)
 		lead_filters = {"creation": ["between", [f"{date_from_obj} 00:00:00", f"{date_to_obj} 23:59:59"]]}
 		if user_company:
-			# Only leads that have interest in the user's company (requires company field on Lead, assuming it exists or skip if not supported. Lead doesn't have company typically, but let's check).
-			# Actually, leads might not be company-scoped. Skip lead filter or filter if lead has company field.
-			pass
+			lead_filters["company"] = user_company
 
 		leads = frappe.get_all(
 			"Cheese Lead",
@@ -177,6 +175,7 @@ def get_central_dashboard(period="today", date_from=None, date_to=None):
 					"completed_change": completed - prev_completed
 				},
 				"leads": lead_counts,
+				"total_leads": sum(lead_counts.values()),
 				"deposits": {
 					"pending": deposit_counts.get("PENDING", 0),
 					"paid": deposit_counts.get("PAID", 0),
@@ -333,9 +332,13 @@ def get_dashboard_kpis(establishment_id=None, period="today"):
 		tickets = [t for t in tickets if _ticket_in_period(t, date_from_obj, date_to_obj)]
 		
 		# Calculate conversion rates (leads → tickets → confirmed)
+		lead_filters = {"creation": ["between", [f"{date_from_obj} 00:00:00", f"{date_to_obj} 23:59:59"]]}
+		if establishment_id:
+			lead_filters["company"] = establishment_id
+
 		leads = frappe.get_all(
 			"Cheese Lead",
-			filters={"creation": ["between", [f"{date_from_obj} 00:00:00", f"{date_to_obj} 23:59:59"]]},
+			filters=lead_filters,
 			fields=["name", "status"]
 		)
 		
@@ -356,10 +359,19 @@ def get_dashboard_kpis(establishment_id=None, period="today"):
 		no_shows = len([t for t in tickets if t.status == "NO_SHOW"])
 		no_show_rate = (no_shows / confirmed_tickets * 100) if confirmed_tickets > 0 else 0
 		
-		# Calculate deposit collection rates
+		# Calculate deposit collection rates (scoped to establishment tickets when filtered)
+		deposit_filters = {"creation": ["between", [f"{date_from_obj} 00:00:00", f"{date_to_obj} 23:59:59"]]}
+		if establishment_id:
+			ticket_ids = [t.name for t in tickets] if tickets else []
+			if ticket_ids:
+				deposit_filters["entity_type"] = "Cheese Ticket"
+				deposit_filters["entity_id"] = ["in", ticket_ids]
+			else:
+				deposit_filters["name"] = "__no_deposits__"
+
 		deposits = frappe.get_all(
 			"Cheese Deposit",
-			filters={"creation": ["between", [f"{date_from_obj} 00:00:00", f"{date_to_obj} 23:59:59"]]},
+			filters=deposit_filters,
 			fields=["name", "status", "amount_required", "amount_paid"]
 		)
 		

@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { Ticket } from "lucide-react";
 import { toast } from "sonner";
 import { useFrappeCreate, useFrappeDoc, extractData } from "@/lib/useApiData";
@@ -31,6 +32,7 @@ export default function TicketCreate() {
         selected_date: searchParams.get("date") || "",
         check_in_date: "",
         check_out_date: "",
+        notes: "",
     });
 
     const createMutation = useFrappeCreate("Cheese Ticket");
@@ -75,6 +77,7 @@ export default function TicketCreate() {
             slot: form.slot,
             status: "PENDING",
             conversation: form.conversation || undefined,
+            notes: form.notes?.trim() || undefined,
         };
 
         if (isHotel) {
@@ -243,6 +246,16 @@ export default function TicketCreate() {
                             <p className="text-xs text-muted-foreground">{t("hotelReservations.numberOfGuests", "Number of guests")}</p>
                         </div>
                     )}
+                </div>
+
+                <div className="space-y-2">
+                    <Label>{t("tickets.guestNotes", "Guest notes")}</Label>
+                    <Textarea
+                        value={form.notes}
+                        onChange={(e) => setForm(f => ({ ...f, notes: e.target.value }))}
+                        placeholder={t("tickets.guestNotesPlaceholder", "Dietary, accessibility, or other requirements...")}
+                        className="min-h-[80px]"
+                    />
                 </div>
 
             </div>

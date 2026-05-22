@@ -17,6 +17,9 @@ import { ArrowLeft, Loader2 } from "lucide-react";
  *   onSubmit    - Form submit handler
  *   isSubmitting - Show spinner on submit button
  *   submitLabel - Text on the submit button
+ *   secondaryAction - Optional { label, onClick } for an extra action button
+ *                     (e.g. "Save and add another"). Rendered between Cancel
+ *                     and the primary submit button when provided.
  *   children    - Form fields
  */
 export default function CreatePageLayout({
@@ -27,6 +30,7 @@ export default function CreatePageLayout({
     onSubmit,
     isSubmitting = false,
     submitLabel = "Create",
+    secondaryAction,
     children,
 }) {
     const { t } = useTranslation();
@@ -78,6 +82,16 @@ export default function CreatePageLayout({
                             >
                                 {t("common.cancel", "Cancelar")}
                             </Button>
+                            {secondaryAction && (
+                                <Button
+                                    type="button"
+                                    variant="secondary"
+                                    onClick={secondaryAction.onClick}
+                                    disabled={isSubmitting}
+                                >
+                                    {secondaryAction.label}
+                                </Button>
+                            )}
                             <Button
                                 type="submit"
                                 className="cheese-gradient text-black font-semibold border-0 min-w-[120px]"

@@ -11,6 +11,7 @@
  "field_order": [
   "slot_info",
   "experience",
+  "company",
   "hotel",
   "calendar_section",
   "date_from",
@@ -22,7 +23,11 @@
   "capacity_section",
   "max_capacity",
   "reserved_capacity",
-  "slot_status"
+  "slot_status",
+  "recurrence_section",
+  "recurrence_group_id",
+  "is_recurring_master",
+  "recurrence_config_json"
  ],
  "fields": [
   {
@@ -38,6 +43,15 @@
    "label": "Experience",
    "options": "Cheese Experience",
    "reqd": 1
+  },
+  {
+   "fieldname": "company",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Company",
+   "options": "Company",
+   "description": "Establishment that owns this slot. Auto-set from the linked experience."
   },
   {
    "fieldname": "hotel",
@@ -113,6 +127,35 @@
    "label": "Slot Status",
    "options": "OPEN\nCLOSED\nBLOCKED",
    "reqd": 1
+  },
+  {
+   "fieldname": "recurrence_section",
+   "fieldtype": "Section Break",
+   "label": "Recurrence",
+   "collapsible": 1
+  },
+  {
+   "fieldname": "recurrence_group_id",
+   "fieldtype": "Data",
+   "in_standard_filter": 1,
+   "label": "Recurrence Group ID",
+   "description": "Identifier shared by every slot generated from the same bulk/recurring creation. Empty for ad-hoc slots.",
+   "read_only": 1
+  },
+  {
+   "default": "0",
+   "fieldname": "is_recurring_master",
+   "fieldtype": "Check",
+   "label": "Recurring Master",
+   "description": "Set on the first slot of a recurrence group; used by the edit UI to render Google-Calendar-style 'this / following / all' options.",
+   "read_only": 1
+  },
+  {
+   "fieldname": "recurrence_config_json",
+   "fieldtype": "Long Text",
+   "label": "Recurrence Config (JSON)",
+   "description": "Snapshot of the recurrence configuration used when the group was created. Kept for traceability and future regeneration.",
+   "read_only": 1
   }
  ],
  "index_web_pages_for_search": 1,
@@ -149,6 +192,7 @@
   },
   {
    "create": 1,
+   "delete": 1,
    "email": 1,
    "export": 1,
    "print": 1,
@@ -166,6 +210,42 @@
    "report": 1,
    "role": "Cheese Booking Operator",
    "share": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Route Administrator",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Establishment User",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Cheese Establishment User",
+   "share": 1,
+   "write": 1
   }
  ],
  "sort_field": "date_from",
