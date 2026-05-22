@@ -442,7 +442,7 @@ export default function RouteDetail() {
                                     <DocumentGallery
                                         documents={documents}
                                         isLoading={documentsLoading}
-                                        onAddClick={() => navigate(`/cheese/documents/new?entity_type=${encodeURIComponent("Cheese Route")}&entity_id=${encodeURIComponent(id)}`)}
+                                        onAddClick={() => navigate(`/cheese/documents/new?entity_type=${encodeURIComponent("Cheese Route")}&entity_id=${encodeURIComponent(id)}&returnTo=${encodeURIComponent(`/cheese/routes/${id}`)}`)}
                                     />
                                 </CardContent>
                             </Card>

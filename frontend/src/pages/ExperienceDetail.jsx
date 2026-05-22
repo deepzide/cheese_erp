@@ -306,11 +306,11 @@ export default function ExperienceDetail() {
                                     <DocumentGallery
                                         documents={documents}
                                         isLoading={documentsLoading}
-                                        onAddClick={() => navigate(`/cheese/documents/new?entity_type=${encodeURIComponent("Cheese Experience")}&entity_id=${encodeURIComponent(id)}`)}
+                                        onAddClick={() => navigate(`/cheese/documents/new?entity_type=${encodeURIComponent("Cheese Experience")}&entity_id=${encodeURIComponent(id)}&returnTo=${encodeURIComponent(`/cheese/experiences/${id}`)}`)}
                                     />
                                     <div className="p-4 bg-muted/20 border-t border-border flex justify-between items-center">
                                         <p className="text-xs text-muted-foreground">{t("experiences.addDocsToEstb", "To add documents to the Establishment instead, click here.")}</p>
-                                        <Button variant="outline" size="sm" onClick={() => navigate(`/cheese/documents/new?entity_type=${encodeURIComponent("Company")}&entity_id=${encodeURIComponent(exp?.company || "")}`)}>
+                                        <Button variant="outline" size="sm" onClick={() => navigate(`/cheese/documents/new?entity_type=${encodeURIComponent("Company")}&entity_id=${encodeURIComponent(exp?.company || "")}&returnTo=${encodeURIComponent(`/cheese/experiences/${id}`)}`)}>
                                             {t("experiences.addEstbDoc", "Add Establishment Doc")}
                                         </Button>
                                     </div>

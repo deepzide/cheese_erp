@@ -66,6 +66,7 @@ export default function EstablishmentDetail() {
                 website: payload.website || "",
                 cheese_google_maps_link: payload.google_maps_link || "",
                 company_description: payload.description || "",
+                cheese_is_hotel: Boolean(payload.is_hotel || payload.cheese_is_hotel),
             });
         }
     }, [payload]);
@@ -80,6 +81,8 @@ export default function EstablishmentDetail() {
                 cheese_google_maps_link: form.cheese_google_maps_link,
                 google_maps_link: form.cheese_google_maps_link,
                 company_description: form.company_description,
+                cheese_is_hotel: form.cheese_is_hotel ? 1 : 0,
+                is_hotel: form.cheese_is_hotel ? 1 : 0,
             }),
         onSuccess: (res) => {
             const msg = res?.data?.message || {};
@@ -281,6 +284,26 @@ export default function EstablishmentDetail() {
                                     </a>
                                 ) : (
                                     <p className="text-sm">—</p>
+                                )}
+                            </div>
+                            <div className="space-y-2 sm:col-span-2">
+                                <Label>{t("nav.hotels", "Hotel")}</Label>
+                                {editMode ? (
+                                    <label className="flex items-center gap-2 text-sm cursor-pointer">
+                                        <input
+                                            type="checkbox"
+                                            checked={!!form.cheese_is_hotel}
+                                            onChange={(e) => setForm((f) => ({ ...f, cheese_is_hotel: e.target.checked }))}
+                                            className="rounded border-input"
+                                        />
+                                        {t("establishment.enableHotelOptions", "Enable hotel options for this establishment")}
+                                    </label>
+                                ) : (
+                                    <p className="text-sm">
+                                        {payload?.is_hotel || payload?.cheese_is_hotel
+                                            ? t("common.yes", "Yes")
+                                            : t("common.no", "No")}
+                                    </p>
                                 )}
                             </div>
                             <div className="space-y-2 sm:col-span-2">

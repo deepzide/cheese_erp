@@ -2,7 +2,7 @@
  "actions": [],
  "allow_import": 1,
  "allow_rename": 1,
- "autoname": "format:{experience}-POLICY",
+ "autoname": "format:BPOL-{#####}",
  "creation": "2024-01-01 00:00:00",
  "doctype": "DocType",
  "name": "Cheese Booking Policy",
@@ -10,6 +10,8 @@
  "engine": "InnoDB",
  "field_order": [
   "policy_info",
+  "policy_name",
+  "company",
   "experience",
   "cancellation_section",
   "cancel_until_hours_before",
@@ -25,13 +27,29 @@
    "label": "Policy Information"
   },
   {
-   "fieldname": "experience",
+   "fieldname": "policy_name",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Policy Name",
+   "description": "Human-readable name for this policy (e.g. 'Standard Cancellation 24h')"
+  },
+  {
+   "fieldname": "company",
    "fieldtype": "Link",
    "in_list_view": 1,
    "in_standard_filter": 1,
-   "label": "Experience",
+   "label": "Company",
+   "options": "Company",
+   "description": "Establishment that owns this policy. Required for multi-tenant filtering."
+  },
+  {
+   "fieldname": "experience",
+   "fieldtype": "Link",
+   "in_standard_filter": 1,
+   "label": "Default Experience (deprecated)",
    "options": "Cheese Experience",
-   "reqd": 1
+   "description": "Legacy field kept for backward compatibility. Assign the policy on the Experience via 'booking_policy' instead. A single policy can now be linked to many experiences."
   },
   {
    "fieldname": "cancellation_section",
@@ -69,7 +87,7 @@
  "modified": "2024-01-01 00:00:00",
  "modified_by": "Administrator",
  "module": "Cheese",
- "naming_rule": "By \"Naming Series\" field",
+ "naming_rule": "Expression (old style)",
  "owner": "Administrator",
  "permissions": [
   {

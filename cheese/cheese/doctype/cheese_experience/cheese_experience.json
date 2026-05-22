@@ -33,6 +33,8 @@
   "cancel_days_before",
   "modify_days_before",
   "refund_policy",
+  "booking_policy_section",
+  "booking_policy",
   "settings_section",
   "manual_confirmation",
   "status"
@@ -197,6 +199,18 @@
    "label": "Refund Policy",
    "options": "FULL\nPARTIAL\nNONE",
    "depends_on": "eval:doc.experience_type==\"HOTEL\""
+  },
+  {
+   "fieldname": "booking_policy_section",
+   "fieldtype": "Section Break",
+   "label": "Booking Policy"
+  },
+  {
+   "fieldname": "booking_policy",
+   "fieldtype": "Link",
+   "label": "Booking Policy",
+   "options": "Cheese Booking Policy",
+   "description": "Shared booking policy (cancellation / modification / lead-time). One policy can be reused across many experiences."
   },
   {
    "fieldname": "settings_section",

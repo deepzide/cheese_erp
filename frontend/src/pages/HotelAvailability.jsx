@@ -9,7 +9,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
-import { CalendarDays, AlertCircle, RefreshCw, BedDouble, Plus, Check, X, Loader2 } from "lucide-react";
+import { CalendarDays, AlertCircle, RefreshCw, BedDouble, Plus, Check, X, Loader2, Pencil, Trash2 } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { hotelService } from "@/api/hotelService";
 import { ticketService } from "@/api/ticketService";
@@ -40,7 +41,9 @@ export default function HotelAvailability() {
     const [createForm, setCreateForm] = useState({ date_from: "", date_to: "", rooms_available: 10 });
 
     const [showReservationDialog, setShowReservationDialog] = useState(false);
-    const [resForm, setResForm] = useState({ contact: "", check_in_date: "", check_out_date: "", rooms_requested: 1, slot_id: "" });
+    const [resForm, setResForm] = useState({ contact: "", check_in_date: "", check_out_date: "", rooms_requested: 1, slot_id: "", notes: "" });
+    const [manageNight, setManageNight] = useState(null);
+    const [manageForm, setManageForm] = useState({ rooms_available: 10, status: "OPEN" });
 
     // Fetch all hotel experiences to choose from
     const { data: hotelsPayload } = useQuery({
@@ -85,6 +88,26 @@ export default function HotelAvailability() {
     const nights = Array.isArray(availability.nights) ? availability.nights : [];
 
     // Create slots mutation
+    const updateSlotMutation = useMutation({
+        mutationFn: ({ slotId, data }) => hotelService.updateHotelSlot(slotId, data),
+        onSuccess: () => {
+            setManageNight(null);
+            queryClient.invalidateQueries(["hotel-availability"]);
+            toast.success(t("calendar.slotUpdated", "Slot updated"));
+        },
+        onError: (err) => toast.error(err?.message || t("calendar.updateSlotFailed", "Failed to update slot")),
+    });
+
+    const deleteSlotMutation = useMutation({
+        mutationFn: (slotId) => hotelService.deleteHotelSlot(slotId),
+        onSuccess: () => {
+            setManageNight(null);
+            queryClient.invalidateQueries(["hotel-availability"]);
+            toast.success(t("calendar.slotDeleted", "Slot deleted"));
+        },
+        onError: (err) => toast.error(err?.message || t("calendar.deleteSlotFailed", "Failed to delete slot")),
+    });
+
     const createSlotsMutation = useMutation({
         mutationFn: (data) => hotelService.createHotelSlots(data),
         onSuccess: () => {
@@ -134,8 +157,17 @@ export default function HotelAvailability() {
             slot_id: resForm.slot_id,
             check_in_date: resForm.check_in_date,
             check_out_date: resForm.check_out_date,
-            rooms_requested: parseInt(resForm.rooms_requested) || 1,
-            party_size: 1 // default required for API
+            rooms_requested: parseInt(resForm.rooms_requested, 10) || 1,
+            party_size: 1,
+            notes: resForm.notes?.trim() || undefined,
+        });
+    };
+
+    const openManageDialog = (night) => {
+        setManageNight(night);
+        setManageForm({
+            rooms_available: night.max_capacity || 10,
+            status: night.status === "NO_SLOT" ? "OPEN" : (night.status || "OPEN"),
         });
     };
 
@@ -143,6 +175,8 @@ export default function HotelAvailability() {
         if (night.status === "NO_SLOT") {
             setCreateForm({ date_from: night.date, date_to: night.date, rooms_available: 10 });
             setShowCreateDialog(true);
+        } else if (night.slot_id) {
+            openManageDialog(night);
         } else if (night.status === "OPEN" && night.available > 0) {
             const d = new Date(night.date);
             d.setDate(d.getDate() + 1);
@@ -300,7 +334,7 @@ export default function HotelAvailability() {
                                         const effectiveStatus = isFull ? "CLOSED" : night.status;
                                         const statusClass = CELL_COLORS[effectiveStatus] || CELL_COLORS.NO_SLOT;
                                         
-                                        const isClickable = night.status === "NO_SLOT" || (night.status === "OPEN" && night.available > 0);
+                                        const isClickable = night.status === "NO_SLOT" || !!night.slot_id || (night.status === "OPEN" && night.available > 0);
 
                                         return (
                                             <div 
@@ -392,12 +426,101 @@ export default function HotelAvailability() {
                             <Label>{t("hotelReservations.roomsRequested", "Rooms Requested")}</Label>
                             <Input type="number" min="1" value={resForm.rooms_requested} onChange={(e) => setResForm(p => ({ ...p, rooms_requested: parseInt(e.target.value) || 1 }))} />
                         </div>
+                        <div className="space-y-2">
+                            <Label>{t("tickets.guestNotes", "Guest notes")}</Label>
+                            <Textarea
+                                value={resForm.notes}
+                                onChange={(e) => setResForm(p => ({ ...p, notes: e.target.value }))}
+                                placeholder={t("tickets.guestNotesPlaceholder", "Dietary, accessibility, or other requirements...")}
+                                className="min-h-[80px]"
+                            />
+                        </div>
                     </div>
                     <DialogFooter>
                         <Button variant="outline" onClick={() => setShowReservationDialog(false)}>{t("common.cancel", "Cancel")}</Button>
                         <Button onClick={handleCreateReservation} disabled={createResMutation.isPending}>
                             {createResMutation.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Check className="w-4 h-4 mr-1" />}
                             {t("hotelAvailability.bookRoom", "Book Room")}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* Manage / deactivate / delete slot */}
+            <Dialog open={!!manageNight} onOpenChange={(open) => !open && setManageNight(null)}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>{t("hotelAvailability.manageSlot", "Manage Hotel Slot")}</DialogTitle>
+                    </DialogHeader>
+                    {manageNight && (
+                        <div className="space-y-4 py-2">
+                            <p className="text-sm text-muted-foreground">
+                                {manageNight.date} · {manageNight.available}/{manageNight.max_capacity} {t("hotelAvailability.available", "available")}
+                            </p>
+                            <div className="space-y-2">
+                                <Label>{t("hotelAvailability.roomsAvailablePerNight", "Rooms Available (per night)")}</Label>
+                                <Input
+                                    type="number"
+                                    min="0"
+                                    value={manageForm.rooms_available}
+                                    onChange={(e) => setManageForm(p => ({ ...p, rooms_available: parseInt(e.target.value, 10) || 0 }))}
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <Label>{t("common.status", "Status")}</Label>
+                                <Select value={manageForm.status} onValueChange={(v) => setManageForm(p => ({ ...p, status: v }))}>
+                                    <SelectTrigger><SelectValue /></SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="OPEN">{t("hotelAvailability.open", "Open")}</SelectItem>
+                                        <SelectItem value="CLOSED">{t("hotelAvailability.fullClosed", "Closed")}</SelectItem>
+                                        <SelectItem value="BLOCKED">{t("hotelAvailability.blocked", "Blocked")}</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                        </div>
+                    )}
+                    <DialogFooter className="flex-wrap gap-2">
+                        <Button variant="outline" onClick={() => setManageNight(null)}>{t("common.cancel", "Cancel")}</Button>
+                        {manageNight?.status === "OPEN" && manageNight?.available > 0 && (
+                            <Button
+                                variant="secondary"
+                                onClick={() => {
+                                    const d = new Date(manageNight.date);
+                                    d.setDate(d.getDate() + 1);
+                                    setResForm({
+                                        contact: "",
+                                        check_in_date: manageNight.date,
+                                        check_out_date: d.toISOString().split("T")[0],
+                                        rooms_requested: 1,
+                                        slot_id: manageNight.slot_id,
+                                        notes: "",
+                                    });
+                                    setManageNight(null);
+                                    setShowReservationDialog(true);
+                                }}
+                            >
+                                <Check className="w-4 h-4 mr-1" /> {t("hotelAvailability.bookRoom", "Book Room")}
+                            </Button>
+                        )}
+                        <Button
+                            onClick={() => updateSlotMutation.mutate({
+                                slotId: manageNight.slot_id,
+                                data: { rooms_available: manageForm.rooms_available, status: manageForm.status },
+                            })}
+                            disabled={updateSlotMutation.isPending}
+                        >
+                            <Pencil className="w-4 h-4 mr-1" /> {t("common.save", "Save")}
+                        </Button>
+                        <Button
+                            variant="destructive"
+                            onClick={() => {
+                                if (window.confirm(t("calendar.deleteSlotConfirm", "Delete this slot? This cannot be undone.", { name: manageNight.slot_id }))) {
+                                    deleteSlotMutation.mutate(manageNight.slot_id);
+                                }
+                            }}
+                            disabled={deleteSlotMutation.isPending}
+                        >
+                            <Trash2 className="w-4 h-4 mr-1" /> {t("common.delete", "Delete")}
                         </Button>
                     </DialogFooter>
                 </DialogContent>

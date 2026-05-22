@@ -115,15 +115,42 @@ after_install = "cheese.install.after_install"
 
 # Permissions
 # -----------
-# Permissions evaluated in scripted ways
+# Multi-tenant scoping: Route Administrator (super admin) sees every establishment's
+# data; Establishment Users see only documents whose `company` matches one of the
+# Companies assigned to them via Frappe's standard User Permission rows.
+# See cheese/cheese/utils/permissions.py for details.
 
-# permission_query_conditions = {
-# 	"Event": "frappe.desk.doctype.event.event.get_permission_query_conditions",
-# }
-#
-# has_permission = {
-# 	"Event": "frappe.desk.doctype.event.event.has_permission",
-# }
+permission_query_conditions = {
+	"Cheese Ticket": "cheese.cheese.utils.permissions.cheese_ticket_query",
+	"Cheese Experience": "cheese.cheese.utils.permissions.cheese_experience_query",
+	"Cheese Experience Slot": "cheese.cheese.utils.permissions.cheese_experience_slot_query",
+	"Cheese Booking Policy": "cheese.cheese.utils.permissions.cheese_booking_policy_query",
+	"Cheese Survey Response": "cheese.cheese.utils.permissions.cheese_survey_response_query",
+	"Cheese Support Case": "cheese.cheese.utils.permissions.cheese_support_case_query",
+	"Conversation": "cheese.cheese.utils.permissions.conversation_query",
+	"Cheese Attendance": "cheese.cheese.utils.permissions.cheese_attendance_query",
+	"Cheese QR Token": "cheese.cheese.utils.permissions.cheese_qr_token_query",
+	"Cheese Bank Account": "cheese.cheese.utils.permissions.cheese_bank_account_query",
+	"Cheese Document": "cheese.cheese.utils.permissions.cheese_document_query",
+	"Cheese Contact": "cheese.cheese.utils.permissions.cheese_contact_query",
+	"Cheese Lead": "cheese.cheese.utils.permissions.cheese_lead_query",
+}
+
+has_permission = {
+	"Cheese Ticket": "cheese.cheese.utils.permissions.has_company_permission",
+	"Cheese Experience": "cheese.cheese.utils.permissions.has_company_permission",
+	"Cheese Experience Slot": "cheese.cheese.utils.permissions.has_company_permission",
+	"Cheese Booking Policy": "cheese.cheese.utils.permissions.has_company_permission",
+	"Cheese Survey Response": "cheese.cheese.utils.permissions.has_company_permission",
+	"Cheese Support Case": "cheese.cheese.utils.permissions.has_company_permission",
+	"Conversation": "cheese.cheese.utils.permissions.has_conversation_permission",
+	"Cheese Attendance": "cheese.cheese.utils.permissions.has_company_permission",
+	"Cheese QR Token": "cheese.cheese.utils.permissions.has_company_permission",
+	"Cheese Bank Account": "cheese.cheese.utils.permissions.has_bank_account_permission",
+	"Cheese Document": "cheese.cheese.utils.permissions.has_document_permission",
+	"Cheese Contact": "cheese.cheese.utils.permissions.has_contact_permission",
+	"Cheese Lead": "cheese.cheese.utils.permissions.has_lead_permission",
+}
 
 # DocType Class
 # ---------------
@@ -139,15 +166,33 @@ after_install = "cheese.install.after_install"
 
 doc_events = {
 	"Cheese Ticket": {
+		"validate": "cheese.cheese.utils.events.set_ticket_company",
 		"on_update": "cheese.cheese.utils.events.update_route_booking_status",
 		"after_insert": [
 			"cheese.cheese.utils.lead_automation.on_ticket_insert",
 			"cheese.cheese.utils.events.on_ticket_created_notify_establishment",
+			"cheese.cheese.utils.events.link_contact_to_ticket_company",
 		],
 	},
 	"Conversation": {
+		"validate": "cheese.cheese.utils.events.set_conversation_company",
 		"on_update": "cheese.cheese.utils.lead_automation.on_conversation_update",
 		"after_insert": "cheese.cheese.utils.lead_automation.on_conversation_update",
+	},
+	"Cheese Experience Slot": {
+		"validate": "cheese.cheese.utils.events.set_slot_company",
+	},
+	"Cheese Attendance": {
+		"validate": "cheese.cheese.utils.events.set_attendance_company",
+	},
+	"Cheese QR Token": {
+		"validate": "cheese.cheese.utils.events.set_qr_token_company",
+	},
+	"Cheese Booking Policy": {
+		"validate": "cheese.cheese.utils.events.set_booking_policy_company",
+	},
+	"Cheese Lead": {
+		"validate": "cheese.cheese.utils.events.set_lead_company",
 	},
 	"Cheese Deposit": {
 		"on_update": "cheese.cheese.utils.qr_on_payment.on_deposit_paid",

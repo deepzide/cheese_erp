@@ -6,6 +6,55 @@ from frappe import _
 from frappe.utils import get_datetime, add_to_date, now_datetime
 
 
+def get_booking_policy_for_experience(experience_id, as_dict=True, fields=None):
+	"""
+	Resolve the booking policy for an experience.
+
+	Resolution order (supports many-to-one experience-policy relationship):
+	  1. Experience.booking_policy Link field (preferred, new)
+	  2. Legacy Cheese Booking Policy.experience back-reference (deprecated)
+
+	Args:
+		experience_id: Name of the Cheese Experience.
+		as_dict: When True, return the policy fields as a dict; otherwise return the policy name.
+		fields: Optional list of fields to read; defaults to the standard policy lead-time fields.
+
+	Returns:
+		dict | str | None: Policy data, policy name, or None when no policy is assigned.
+	"""
+	if not experience_id:
+		return None
+
+	if fields is None:
+		fields = [
+			"name",
+			"min_hours_before_booking",
+			"modify_until_hours_before",
+			"cancel_until_hours_before",
+		]
+
+	policy_name = frappe.db.get_value("Cheese Experience", experience_id, "booking_policy")
+
+	if not policy_name:
+		# Backwards compatibility: fall back to the legacy back-reference
+		policy_name = frappe.db.get_value(
+			"Cheese Booking Policy",
+			{"experience": experience_id},
+			"name",
+		)
+
+	if not policy_name:
+		return None
+
+	if not as_dict:
+		return policy_name
+
+	policy = frappe.db.get_value(
+		"Cheese Booking Policy", policy_name, fields, as_dict=True
+	)
+	return policy
+
+
 def validate_booking_policy(experience_id, slot_datetime, action="booking", event_end_datetime=None):
 	"""
 	Validate booking policy for an action
@@ -21,12 +70,7 @@ def validate_booking_policy(experience_id, slot_datetime, action="booking", even
 	Returns:
 		True if valid, raises exception if invalid
 	"""
-	policy = frappe.db.get_value(
-		"Cheese Booking Policy",
-		{"experience": experience_id},
-		["min_hours_before_booking", "modify_until_hours_before", "cancel_until_hours_before"],
-		as_dict=True
-	)
+	policy = get_booking_policy_for_experience(experience_id)
 
 	visit_dt = get_datetime(slot_datetime)
 	end_dt = get_datetime(event_end_datetime) if event_end_datetime else visit_dt

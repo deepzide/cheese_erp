@@ -116,7 +116,7 @@ def _initial_ticket_status(experience_doc) -> str:
 
 
 @frappe.whitelist()
-def create_pending_reservation(contact_id, experience_id, slot_id, party_size=1, selected_date=None, route_id=None, check_in_date=None, check_out_date=None, rooms_requested=None):
+def create_pending_reservation(contact_id, experience_id, slot_id, party_size=1, selected_date=None, route_id=None, check_in_date=None, check_out_date=None, rooms_requested=None, notes=None):
 	"""
 	Create pending reservation (individual) - alias for create_pending_ticket
 	
@@ -131,10 +131,11 @@ def create_pending_reservation(contact_id, experience_id, slot_id, party_size=1,
 		check_in_date: Check in date (for hotels)
 		check_out_date: Check out date (for hotels)
 		rooms_requested: Number of rooms (for hotels)
+		notes: Optional free-text notes (e.g. dietary, accessibility requirements)
 	Returns:
 		Success response with reservation data
 	"""
-	return create_pending_ticket(contact_id, experience_id, slot_id, party_size, selected_date=selected_date, route_id=route_id, check_in_date=check_in_date, check_out_date=check_out_date, rooms_requested=rooms_requested)
+	return create_pending_ticket(contact_id, experience_id, slot_id, party_size, selected_date=selected_date, route_id=route_id, check_in_date=check_in_date, check_out_date=check_out_date, rooms_requested=rooms_requested, notes=notes)
 
 
 @frappe.whitelist()
@@ -152,7 +153,7 @@ def get_reservation_status(reservation_id):
 
 
 @frappe.whitelist()
-def create_pending_ticket(contact_id, experience_id, slot_id, party_size=1, selected_date=None, route_id=None, check_in_date=None, check_out_date=None, rooms_requested=None):
+def create_pending_ticket(contact_id, experience_id, slot_id, party_size=1, selected_date=None, route_id=None, check_in_date=None, check_out_date=None, rooms_requested=None, notes=None):
 	"""
 	Create a pending ticket with TTL
 	
@@ -162,6 +163,7 @@ def create_pending_ticket(contact_id, experience_id, slot_id, party_size=1, sele
 		slot_id: ID of the slot
 		party_size: Number of people
 		selected_date: Optional date selected by the user (YYYY-MM-DD). If provided, stored in ticket.selected_date
+		notes: Optional free-text notes (e.g. dietary, accessibility requirements)
 		
 	Returns:
 		Success response with ticket data
@@ -273,7 +275,13 @@ def create_pending_ticket(contact_id, experience_id, slot_id, party_size=1, sele
 		# Store selected_date if provided
 		if selected_date_obj:
 			ticket_data["selected_date"] = selected_date_obj
-		
+
+		# Store guest notes if provided
+		if notes is not None:
+			notes_clean = str(notes).strip()
+			if notes_clean:
+				ticket_data["notes"] = notes_clean
+
 		ticket = frappe.get_doc(ticket_data)
 		ticket.insert()
 		
@@ -294,7 +302,8 @@ def create_pending_ticket(contact_id, experience_id, slot_id, party_size=1, sele
 				"total_price": price_data["total_price"],
 				"deposit_required": ticket.deposit_required,
 				"deposit_amount": ticket.deposit_amount,
-				"expires_at": str(ticket.expires_at) if ticket.expires_at else None
+				"expires_at": str(ticket.expires_at) if ticket.expires_at else None,
+				"notes": ticket.notes if ticket.notes else None
 			}
 		)
 	except frappe.ValidationError as e:
@@ -685,7 +694,8 @@ def get_ticket_summary(ticket_id):
 				"deposit_required": ticket.deposit_required,
 				"deposit_amount": ticket.deposit_amount,
 				"expires_at": str(ticket.expires_at) if ticket.expires_at else None,
-				"conversation_id": ticket.conversation if ticket.conversation else None
+				"conversation_id": ticket.conversation if ticket.conversation else None,
+				"notes": ticket.notes if ticket.notes else None
 			}
 		)
 	except Exception as e:

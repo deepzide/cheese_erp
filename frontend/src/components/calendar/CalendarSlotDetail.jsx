@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -21,10 +21,21 @@ export default function CalendarSlotDetail({ slot, open, onClose }) {
     const queryClient = useQueryClient();
     const [editing, setEditing] = useState(false);
     const [editForm, setEditForm] = useState({});
+    const [scope, setScope] = useState("this");
+
+    const { data: recurrencePayload } = useQuery({
+        queryKey: ["slot-recurrence", slot?.name],
+        queryFn: async () => {
+            const res = await experienceService.getSlotRecurrenceInfo(slot.name);
+            return res?.data?.message?.data || res?.data?.data || {};
+        },
+        enabled: !!slot?.name && open,
+    });
+    const isRecurring = recurrencePayload?.is_recurring;
 
     const updateMutation = useMutation({
         mutationFn: async () => {
-            return experienceService.updateTimeSlot(slot?.name, editForm);
+            return experienceService.updateTimeSlot(slot?.name, editForm, { scope });
         },
         onSuccess: () => {
             toast.success(t("calendar.slotUpdated", "Slot updated"));
@@ -37,7 +48,7 @@ export default function CalendarSlotDetail({ slot, open, onClose }) {
     });
 
     const deleteMutation = useMutation({
-        mutationFn: async () => experienceService.deleteTimeSlot(slot?.name),
+        mutationFn: async () => experienceService.deleteTimeSlot(slot?.name, { scope }),
         onSuccess: () => {
             toast.success(t("calendar.slotDeleted", "Slot deleted"));
             queryClient.invalidateQueries(["calendar-slots"]);
@@ -94,6 +105,25 @@ export default function CalendarSlotDetail({ slot, open, onClose }) {
                 </DialogHeader>
 
                 <div className="space-y-4 py-2">
+                    {isRecurring && (
+                        <div className="space-y-2 rounded-lg border border-border p-3 bg-muted/30">
+                            <p className="text-xs font-medium text-muted-foreground">{t("calendar.recurrenceScope", "Apply changes to")}</p>
+                            <div className="space-y-1.5 text-sm">
+                                <label className="flex items-center gap-2 cursor-pointer">
+                                    <input type="radio" name="slot-scope" value="this" checked={scope === "this"} onChange={() => setScope("this")} />
+                                    {t("calendar.thisSlotOnly", "This slot only")}
+                                </label>
+                                <label className="flex items-center gap-2 cursor-pointer">
+                                    <input type="radio" name="slot-scope" value="following" checked={scope === "following"} onChange={() => setScope("following")} />
+                                    {t("calendar.thisAndFollowing", "This and following slots")} ({recurrencePayload?.following_count || 0})
+                                </label>
+                                <label className="flex items-center gap-2 cursor-pointer">
+                                    <input type="radio" name="slot-scope" value="all" checked={scope === "all"} onChange={() => setScope("all")} />
+                                    {t("calendar.allSlotsInSeries", "All slots in series")} ({recurrencePayload?.total_count || 0})
+                                </label>
+                            </div>
+                        </div>
+                    )}
                     {editing ? (
                         /* Edit mode */
                         <div className="space-y-3">

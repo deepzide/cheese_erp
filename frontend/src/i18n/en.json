@@ -645,6 +645,7 @@
     "openFile": "Open File",
     "viewExperience": "View Experience",
     "uploadDocument": "Upload Document",
+    "saveAndAddAnother": "Save and upload another",
     "attachDocument": "Attach a document to a route or experience",
     "language": "Language",
     "version": "Version",

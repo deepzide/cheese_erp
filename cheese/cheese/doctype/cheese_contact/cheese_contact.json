@@ -18,6 +18,8 @@
         "preferred_channel",
         "opt_in_status",
         "do_not_contact",
+        "companies_section",
+        "companies",
         "channel_opt_ins_section",
         "channel_opt_ins",
         "privacy_section",
@@ -88,6 +90,18 @@
             "fieldname": "do_not_contact",
             "fieldtype": "Check",
             "label": "Do Not Contact"
+        },
+        {
+            "fieldname": "companies_section",
+            "fieldtype": "Section Break",
+            "label": "Linked Companies"
+        },
+        {
+            "fieldname": "companies",
+            "fieldtype": "Table",
+            "label": "Companies",
+            "options": "Cheese Contact Company",
+            "description": "Establishments this contact is associated with. Used for multi-tenant visibility."
         },
         {
             "fieldname": "channel_opt_ins_section",
