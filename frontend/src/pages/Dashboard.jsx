@@ -69,7 +69,11 @@ export default function Dashboard() {
     const depRates = kpis?.deposit_collection_rates || {};
     const attRates = kpis?.attendance_rates || {};
 
-    const totalLeads = dashboard.total_leads ?? convRates.total_leads ?? 0;
+    // Leads KPI comes only from get_central_dashboard (period-scoped total_leads).
+    const totalLeads =
+        dashboard.total_leads != null
+            ? Number(dashboard.total_leads) || 0
+            : Object.values(dashboard.leads || {}).reduce((sum, v) => sum + (Number(v) || 0), 0);
     const collectedRevenue = depRates.collected_amount || dashboard.total_revenue || 0;
     const pendingDeposits = (depRates.total_deposits || 0) - (depRates.paid_deposits || 0);
     const satisfaction = kpis?.average_satisfaction || 0;
