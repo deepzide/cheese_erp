@@ -8,7 +8,7 @@ from cheese.api.common.responses import success, created, validation_error, erro
 
 
 @frappe.whitelist()
-def find_or_create_contact(phone=None, email=None, name=None):
+def find_or_create_contact(phone=None, email=None, name=None, **_ignored):
 	"""
 	Find or create a contact (idempotent)
 	
@@ -79,7 +79,7 @@ def find_or_create_contact(phone=None, email=None, name=None):
 
 
 @frappe.whitelist()
-def resolve_or_create_contact(phone=None, email=None, name=None):
+def resolve_or_create_contact(phone=None, email=None, name=None, **_ignored):
 	"""
 	Resolve or create a unique contact (deduplication by phone/email)
 	Alias for find_or_create_contact to match ERP specification
@@ -93,6 +93,69 @@ def resolve_or_create_contact(phone=None, email=None, name=None):
 		Success response with contact_id
 	"""
 	return find_or_create_contact(phone=phone, email=email, name=name)
+
+
+@frappe.whitelist()
+def append_company_to_contact(contact_id=None, company_id=None, notes=None):
+	"""
+	Append a company/business link to a Cheese Contact (idempotent).
+
+	Args:
+		contact_id: Cheese Contact name
+		company_id: Company name to link
+		notes: Optional note for the relation row
+
+	Returns:
+		Success response with link status
+	"""
+	try:
+		from frappe.utils import now_datetime
+
+		if not contact_id:
+			return validation_error("contact_id is required")
+		if not company_id:
+			return validation_error("company_id is required")
+
+		if not frappe.db.exists("Cheese Contact", contact_id):
+			return not_found("Contact", contact_id)
+		if not frappe.db.exists("Company", company_id):
+			return not_found("Company", company_id)
+
+		contact = frappe.get_doc("Cheese Contact", contact_id)
+		existing = {row.company for row in (contact.get("companies") or [])}
+
+		# Idempotent behavior: linking an already-linked company is a no-op.
+		if company_id in existing:
+			return success(
+				"Company already linked to contact",
+				{
+					"contact_id": contact_id,
+					"company_id": company_id,
+					"linked": False,
+				},
+			)
+
+		row = {"company": company_id, "linked_at": now_datetime()}
+		if notes is not None:
+			row["notes"] = notes
+
+		contact.append("companies", row)
+		contact.save(ignore_permissions=True)
+		frappe.db.commit()
+
+		return created(
+			"Company linked to contact successfully",
+			{
+				"contact_id": contact_id,
+				"company_id": company_id,
+				"linked": True,
+			},
+		)
+	except frappe.ValidationError as e:
+		return validation_error(str(e))
+	except Exception as e:
+		frappe.log_error(f"Error in append_company_to_contact: {str(e)}")
+		return error("Failed to append company to contact", "SERVER_ERROR", {"error": str(e)}, 500)
 
 
 @frappe.whitelist()

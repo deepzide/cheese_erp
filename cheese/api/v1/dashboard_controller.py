@@ -185,8 +185,13 @@ def get_central_dashboard(period="today", date_from=None, date_to=None):
 		prev_checked_in = previous_counts.get("CHECKED_IN", 0)
 		prev_completed = previous_counts.get("COMPLETED", 0)
 		
-		# Leads: period by DATE(creation); company scope matches list permissions
-		lead_counts, total_leads = _leads_for_dashboard(date_from_obj, date_to_obj)
+		# Leads: period by DATE(creation); apply the same tenant scope used by
+		# tickets/deposits so establishment users never see cross-company prospects.
+		lead_counts, total_leads = _leads_for_dashboard(
+			date_from_obj,
+			date_to_obj,
+			company=scope_company,
+		)
 		
 		# Get deposits
 		deposit_filters = {"creation": ["between", [f"{date_from_obj} 00:00:00", f"{date_to_obj} 23:59:59"]]}

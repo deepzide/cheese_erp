@@ -209,11 +209,32 @@ def set_conversation_company(doc, method=None):
 
 
 def set_lead_company(doc, method=None):
-	"""Cheese Lead.company defaults to the contact's primary linked company."""
-	if doc.get("company"):
-		return
+	"""Align Cheese Lead.company with the linked contact companies.
+
+	If the lead has no company, use the contact's primary company.
+	If the lead already has a company but that company is not linked to the
+	contact, normalize it to the contact's primary company to avoid cross-tenant
+	leakage caused by user default company values.
+	"""
 	company = _company_from_contact(doc.contact)
-	if company:
+	if not company:
+		return
+
+	if not doc.get("company"):
+		doc.company = company
+		return
+
+	if doc.company == company:
+		return
+
+	linked = set(
+		frappe.get_all(
+			"Cheese Contact Company",
+			filters={"parent": doc.contact, "parenttype": "Cheese Contact"},
+			pluck="company",
+		)
+	)
+	if doc.company not in linked:
 		doc.company = company
 
 
