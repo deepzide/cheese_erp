@@ -69,7 +69,7 @@ export default function Dashboard() {
     const depRates = kpis?.deposit_collection_rates || {};
     const attRates = kpis?.attendance_rates || {};
 
-    const totalLeads = convRates.total_leads || dashboard.total_leads || 0;
+    const totalLeads = dashboard.total_leads ?? convRates.total_leads ?? 0;
     const collectedRevenue = depRates.collected_amount || dashboard.total_revenue || 0;
     const pendingDeposits = (depRates.total_deposits || 0) - (depRates.paid_deposits || 0);
     const satisfaction = kpis?.average_satisfaction || 0;

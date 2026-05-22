@@ -6,6 +6,60 @@ from frappe import _
 from frappe.utils import getdate, today, add_days, cint, now_datetime
 from cheese.api.common.responses import success, error, validation_error
 from cheese.api.v1.user_controller import _get_current_user_company
+from cheese.cheese.utils.permissions import _is_super_admin, get_user_companies, _quote_list
+
+
+def _lead_scope_sql(user=None, table_alias="l", company=None):
+	"""SQL fragment for lead company scope (matches cheese_lead_query)."""
+	user = user or frappe.session.user
+	if company:
+		quoted = _quote_list([company])
+		return (
+			f"(`{table_alias}`.company = %(lead_company)s"
+			f" OR `{table_alias}`.contact IN ("
+			f"SELECT parent FROM `tabCheese Contact Company` "
+			f"WHERE parenttype = 'Cheese Contact' AND company IN ({quoted})))",
+			{"lead_company": company},
+		)
+	if _is_super_admin(user):
+		return "", {}
+	companies = get_user_companies(user)
+	if not companies:
+		return "1=0", {}
+	quoted = _quote_list(companies)
+	return (
+		f"(`{table_alias}`.company IN ({quoted})"
+		f" OR `{table_alias}`.contact IN ("
+		f"SELECT parent FROM `tabCheese Contact Company` "
+		f"WHERE parenttype = 'Cheese Contact' AND company IN ({quoted})))",
+		{},
+	)
+
+
+def _lead_status_counts_in_period(start_date, end_date, company=None, user=None):
+	"""Count leads by status for a period using DATE(creation)."""
+	user = user or frappe.session.user
+	conditions = [
+		"DATE(l.creation) >= %(start_date)s",
+		"DATE(l.creation) <= %(end_date)s",
+	]
+	params = {"start_date": start_date, "end_date": end_date}
+	scope_sql, scope_params = _lead_scope_sql(user, company=company)
+	if scope_sql:
+		conditions.append(scope_sql)
+	params.update(scope_params)
+
+	rows = frappe.db.sql(
+		f"""
+		SELECT l.status AS status, COUNT(*) AS count
+		FROM `tabCheese Lead` l
+		WHERE {" AND ".join(conditions)}
+		GROUP BY l.status
+		""",
+		params,
+		as_dict=True,
+	)
+	return {r.status: cint(r.count) for r in rows}
 
 
 def _ticket_status_counts_with_effective_date(start_date, end_date, company=None):
@@ -117,21 +171,8 @@ def get_central_dashboard(period="today", date_from=None, date_to=None):
 		prev_checked_in = previous_counts.get("CHECKED_IN", 0)
 		prev_completed = previous_counts.get("COMPLETED", 0)
 		
-		# Get leads (scoped to tenant company when applicable)
-		lead_filters = {"creation": ["between", [f"{date_from_obj} 00:00:00", f"{date_to_obj} 23:59:59"]]}
-		if user_company:
-			lead_filters["company"] = user_company
-
-		leads = frappe.get_all(
-			"Cheese Lead",
-			filters=lead_filters,
-			fields=["status"]
-		)
-		
-		lead_counts = {}
-		for lead in leads:
-			status = lead.status
-			lead_counts[status] = lead_counts.get(status, 0) + 1
+		# Leads: period by DATE(creation); company scope matches list permissions
+		lead_counts = _lead_status_counts_in_period(date_from_obj, date_to_obj)
 		
 		# Get deposits
 		deposit_filters = {"creation": ["between", [f"{date_from_obj} 00:00:00", f"{date_to_obj} 23:59:59"]]}
@@ -318,9 +359,9 @@ def get_dashboard_kpis(establishment_id=None, period="today"):
 		date_from_obj = getdate(date_from)
 		date_to_obj = getdate(date_to)
 		
-		# Resolve effective establishment scope
+		# Resolve effective establishment scope (tenant users only)
 		user_company = _get_current_user_company()
-		if user_company:
+		if user_company and not _is_super_admin():
 			establishment_id = user_company
 
 		ticket_filters = {"company": establishment_id} if establishment_id else {}
@@ -332,18 +373,13 @@ def get_dashboard_kpis(establishment_id=None, period="today"):
 		tickets = [t for t in tickets if _ticket_in_period(t, date_from_obj, date_to_obj)]
 		
 		# Calculate conversion rates (leads → tickets → confirmed)
-		lead_filters = {"creation": ["between", [f"{date_from_obj} 00:00:00", f"{date_to_obj} 23:59:59"]]}
-		if establishment_id:
-			lead_filters["company"] = establishment_id
-
-		leads = frappe.get_all(
-			"Cheese Lead",
-			filters=lead_filters,
-			fields=["name", "status"]
+		lead_counts = _lead_status_counts_in_period(
+			date_from_obj,
+			date_to_obj,
+			company=establishment_id,
 		)
-		
-		total_leads = len(leads)
-		converted_leads = len([l for l in leads if l.status == "CONVERTED"])
+		total_leads = sum(lead_counts.values())
+		converted_leads = lead_counts.get("CONVERTED", 0)
 		lead_conversion_rate = (converted_leads / total_leads * 100) if total_leads > 0 else 0
 		
 		total_tickets = len(tickets)
