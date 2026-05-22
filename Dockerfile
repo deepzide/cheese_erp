@@ -9,6 +9,10 @@ RUN --mount=type=secret,id=CHEESE_ERP_URL,uid=1000 \
     bench get-app "$(cat /run/secrets/CHEESE_ERP_URL)" && \
     find apps -mindepth 1 -path "*/.git" | xargs rm -fr
 
+RUN cd apps/cheese/frontend && npm ci && npm run build
+
+RUN bench build --app cheese
+
 FROM frappe/base:${FRAPPE_BRANCH} AS backend
 
 USER frappe

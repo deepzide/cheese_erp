@@ -70,6 +70,12 @@ def _lead_status_counts_in_period(start_date, end_date, company=None, user=None)
 	return {r.status: cint(r.count) for r in rows}
 
 
+def _leads_for_dashboard(start_date, end_date, company=None, user=None):
+	"""Return (status counts, total) from a single period-scoped query."""
+	counts = _lead_status_counts_in_period(start_date, end_date, company=company, user=user)
+	return counts, sum(counts.values())
+
+
 def _ticket_status_counts_with_effective_date(start_date, end_date, company=None):
 	"""
 	Count ticket statuses for period using booking date OR creation date.
@@ -180,7 +186,7 @@ def get_central_dashboard(period="today", date_from=None, date_to=None):
 		prev_completed = previous_counts.get("COMPLETED", 0)
 		
 		# Leads: period by DATE(creation); company scope matches list permissions
-		lead_counts = _lead_status_counts_in_period(date_from_obj, date_to_obj)
+		lead_counts, total_leads = _leads_for_dashboard(date_from_obj, date_to_obj)
 		
 		# Get deposits
 		deposit_filters = {"creation": ["between", [f"{date_from_obj} 00:00:00", f"{date_to_obj} 23:59:59"]]}
@@ -224,7 +230,7 @@ def get_central_dashboard(period="today", date_from=None, date_to=None):
 					"completed_change": completed - prev_completed
 				},
 				"leads": lead_counts,
-				"total_leads": sum(lead_counts.values()),
+				"total_leads": total_leads,
 				"deposits": {
 					"pending": deposit_counts.get("PENDING", 0),
 					"paid": deposit_counts.get("PAID", 0),
@@ -381,12 +387,11 @@ def get_dashboard_kpis(establishment_id=None, period="today"):
 		tickets = [t for t in tickets if _ticket_in_period(t, date_from_obj, date_to_obj)]
 		
 		# Calculate conversion rates (leads → tickets → confirmed)
-		lead_counts = _lead_status_counts_in_period(
+		lead_counts, total_leads = _leads_for_dashboard(
 			date_from_obj,
 			date_to_obj,
 			company=establishment_id,
 		)
-		total_leads = sum(lead_counts.values())
 		converted_leads = lead_counts.get("CONVERTED", 0)
 		lead_conversion_rate = (converted_leads / total_leads * 100) if total_leads > 0 else 0
 		
