@@ -109,14 +109,20 @@ jobs:
             cd /opt/erpnext
             echo '>>> Syncing assets from image to volume...'
             docker run --rm -v erpnext_sites-assets:/target ghcr.io/deepzide/cheese:${{ env.IMAGE_TAG }} sh -c '
+              set -e
               src=/home/frappe/frappe-bench/sites/assets
               for app in frappe erpnext hrms payments cheese; do
                 if [ -d \"\$src/\$app/dist\" ]; then
                   mkdir -p \"/target/\$app/dist\"
-                  cp -r \"\$src/\$app/dist/\"* \"/target/\$app/dist/\"
+                  cp -aL \"\$src/\$app/dist/.\" \"/target/\$app/dist/\"
                 fi
               done
+              if [ -d \"\$src/cheese/frontend\" ]; then
+                mkdir -p /target/cheese/frontend
+                cp -aL \"\$src/cheese/frontend/.\" /target/cheese/frontend/
+              fi
               cp \"\$src/assets.json\" \"\$src/assets-rtl.json\" /target/ 2>/dev/null || true
+              test -f /target/cheese/frontend/index.html
             '
             echo '>>> Restarting frontend...'
             docker compose restart frontend
@@ -185,14 +191,20 @@ jobs:
             cd /opt/erpnext
             echo '>>> Syncing assets from image to volume...'
             docker run --rm -v erpnext_sites-assets:/target ghcr.io/deepzide/cheese:${{ env.IMAGE_TAG }} sh -c '
+              set -e
               src=/home/frappe/frappe-bench/sites/assets
               for app in frappe erpnext hrms payments cheese; do
                 if [ -d \"\$src/\$app/dist\" ]; then
                   mkdir -p \"/target/\$app/dist\"
-                  cp -r \"\$src/\$app/dist/\"* \"/target/\$app/dist/\"
+                  cp -aL \"\$src/\$app/dist/.\" \"/target/\$app/dist/\"
                 fi
               done
+              if [ -d \"\$src/cheese/frontend\" ]; then
+                mkdir -p /target/cheese/frontend
+                cp -aL \"\$src/cheese/frontend/.\" /target/cheese/frontend/
+              fi
               cp \"\$src/assets.json\" \"\$src/assets-rtl.json\" /target/ 2>/dev/null || true
+              test -f /target/cheese/frontend/index.html
             '
             echo '>>> Restarting frontend...'
             docker compose restart frontend
@@ -261,14 +273,20 @@ jobs:
             cd /opt/erpnext
             echo '>>> Syncing assets from image to volume...'
             docker run --rm -v erpnext_sites-assets:/target ghcr.io/deepzide/cheese:${{ env.IMAGE_TAG }} sh -c '
+              set -e
               src=/home/frappe/frappe-bench/sites/assets
               for app in frappe erpnext hrms payments cheese; do
                 if [ -d \"\$src/\$app/dist\" ]; then
                   mkdir -p \"/target/\$app/dist\"
-                  cp -r \"\$src/\$app/dist/\"* \"/target/\$app/dist/\"
+                  cp -aL \"\$src/\$app/dist/.\" \"/target/\$app/dist/\"
                 fi
               done
+              if [ -d \"\$src/cheese/frontend\" ]; then
+                mkdir -p /target/cheese/frontend
+                cp -aL \"\$src/cheese/frontend/.\" /target/cheese/frontend/
+              fi
               cp \"\$src/assets.json\" \"\$src/assets-rtl.json\" /target/ 2>/dev/null || true
+              test -f /target/cheese/frontend/index.html
             '
             echo '>>> Restarting frontend...'
             docker compose restart frontend
