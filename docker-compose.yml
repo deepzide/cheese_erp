@@ -106,33 +106,12 @@ services:
     volumes:
       - db-data:/var/lib/mysql
 
-  assets-relay:
-    image: ghcr.io/deepzide/cheese:${TAG:-latest}
-    networks:
-      - frappe_network
-    restart: "no"
-    entrypoint:
-      - bash
-      - -c
-    command:
-      - >
-        set -e;
-        echo "Syncing production assets from image to volume...";
-        cp -aL /home/frappe/frappe-bench/sites/assets/. /mnt/assets/;
-        test -f /mnt/assets/cheese/frontend/index.html;
-        echo "Assets sync complete."
-    volumes:
-      - sites-assets:/mnt/assets
-
   frontend:
     image: ghcr.io/deepzide/cheese:${TAG:-latest}
     networks:
       - frappe_network
     depends_on:
-      websocket:
-        condition: service_started
-      assets-relay:
-        condition: service_completed_successfully
+      - websocket
     restart: unless-stopped
     command:
       - nginx-entrypoint.sh

@@ -117,9 +117,16 @@ jobs:
                   cp -aL \"\$src/\$app/dist/.\" \"/target/\$app/dist/\"
                 fi
               done
-              if [ -d \"\$src/cheese/frontend\" ]; then
+              app_frontend=/home/frappe/frappe-bench/apps/cheese/cheese/public/frontend
+              if [ -d \"\$app_frontend\" ]; then
+                mkdir -p /target/cheese/frontend
+                cp -aL \"\$app_frontend/.\" /target/cheese/frontend/
+              elif [ -d \"\$src/cheese/frontend\" ]; then
                 mkdir -p /target/cheese/frontend
                 cp -aL \"\$src/cheese/frontend/.\" /target/cheese/frontend/
+              else
+                echo 'Missing Cheese frontend assets in image'
+                exit 1
               fi
               cp \"\$src/assets.json\" \"\$src/assets-rtl.json\" /target/ 2>/dev/null || true
               test -f /target/cheese/frontend/index.html
@@ -199,9 +206,16 @@ jobs:
                   cp -aL \"\$src/\$app/dist/.\" \"/target/\$app/dist/\"
                 fi
               done
-              if [ -d \"\$src/cheese/frontend\" ]; then
+              app_frontend=/home/frappe/frappe-bench/apps/cheese/cheese/public/frontend
+              if [ -d \"\$app_frontend\" ]; then
+                mkdir -p /target/cheese/frontend
+                cp -aL \"\$app_frontend/.\" /target/cheese/frontend/
+              elif [ -d \"\$src/cheese/frontend\" ]; then
                 mkdir -p /target/cheese/frontend
                 cp -aL \"\$src/cheese/frontend/.\" /target/cheese/frontend/
+              else
+                echo 'Missing Cheese frontend assets in image'
+                exit 1
               fi
               cp \"\$src/assets.json\" \"\$src/assets-rtl.json\" /target/ 2>/dev/null || true
               test -f /target/cheese/frontend/index.html
@@ -281,9 +295,16 @@ jobs:
                   cp -aL \"\$src/\$app/dist/.\" \"/target/\$app/dist/\"
                 fi
               done
-              if [ -d \"\$src/cheese/frontend\" ]; then
+              app_frontend=/home/frappe/frappe-bench/apps/cheese/cheese/public/frontend
+              if [ -d \"\$app_frontend\" ]; then
+                mkdir -p /target/cheese/frontend
+                cp -aL \"\$app_frontend/.\" /target/cheese/frontend/
+              elif [ -d \"\$src/cheese/frontend\" ]; then
                 mkdir -p /target/cheese/frontend
                 cp -aL \"\$src/cheese/frontend/.\" /target/cheese/frontend/
+              else
+                echo 'Missing Cheese frontend assets in image'
+                exit 1
               fi
               cp \"\$src/assets.json\" \"\$src/assets-rtl.json\" /target/ 2>/dev/null || true
               test -f /target/cheese/frontend/index.html
