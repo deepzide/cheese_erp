@@ -53,6 +53,9 @@ jobs:
     needs: build-push
     if: github.ref_name != 'main'
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: read
     env:
       DEPLOY_IP: 62.171.181.244
       DEPLOY_DOMAIN: erp-cheese-dev.deepzide.com
@@ -84,7 +87,7 @@ jobs:
             set -e
             cd /opt/erpnext
             echo '>>> Logging in to ghcr.io...'
-            echo '${{ secrets.GH_PAT }}' | docker login ghcr.io -u deepzide --password-stdin
+            echo '${{ secrets.GITHUB_TOKEN }}' | docker login ghcr.io -u '${{ github.actor }}' --password-stdin
             echo '>>> Pulling image ghcr.io/deepzide/cheese:${{ env.IMAGE_TAG }}...'
             docker compose pull
             echo '>>> Restarting stack...'
@@ -142,6 +145,9 @@ jobs:
     if: github.ref_name == 'main'
     runs-on: ubuntu-latest
     environment: production
+    permissions:
+      contents: read
+      packages: read
     env:
       DEPLOY_IP: 217.76.58.119
       DEPLOY_DOMAIN: erp-cheese.deepzide.com
@@ -173,7 +179,7 @@ jobs:
             set -e
             cd /opt/erpnext
             echo '>>> Logging in to ghcr.io...'
-            echo '${{ secrets.GH_PAT }}' | docker login ghcr.io -u deepzide --password-stdin
+            echo '${{ secrets.GITHUB_TOKEN }}' | docker login ghcr.io -u '${{ github.actor }}' --password-stdin
             echo '>>> Pulling image ghcr.io/deepzide/cheese:${{ env.IMAGE_TAG }}...'
             docker compose pull
             echo '>>> Restarting stack...'
@@ -231,6 +237,9 @@ jobs:
     if: github.ref_name == 'main'
     runs-on: ubuntu-latest
     environment: production
+    permissions:
+      contents: read
+      packages: read
     env:
       DEPLOY_IP: 144.91.95.172
       DEPLOY_DOMAIN: erp-viventi.deepzide.com
@@ -262,7 +271,7 @@ jobs:
             set -e
             cd /opt/erpnext
             echo '>>> Logging in to ghcr.io...'
-            echo '${{ secrets.GH_PAT }}' | docker login ghcr.io -u deepzide --password-stdin
+            echo '${{ secrets.GITHUB_TOKEN }}' | docker login ghcr.io -u '${{ github.actor }}' --password-stdin
             echo '>>> Pulling image ghcr.io/deepzide/cheese:${{ env.IMAGE_TAG }}...'
             docker compose pull
             echo '>>> Restarting stack...'
