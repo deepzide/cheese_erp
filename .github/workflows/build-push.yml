@@ -39,6 +39,7 @@ jobs:
           tags: ghcr.io/deepzide/cheese:${{ env.IMAGE_TAG }}
           build-args: |
             FRAPPE_BRANCH=version-15
+            APP_BRANCH=${{ github.ref_name }}
           secrets: |
             CHEESE_ERP_URL=https://x-access-token:${{ secrets.GH_PAT }}@github.com/deepzide/cheese_erp.git
           cache-from: |
@@ -83,11 +84,11 @@ jobs:
             set -e
             cd /opt/erpnext
             echo '>>> Logging in to ghcr.io...'
-            echo '${{ secrets.GITHUB_TOKEN }}' | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+            echo '${{ secrets.GH_PAT }}' | docker login ghcr.io -u deepzide --password-stdin
             echo '>>> Pulling image ghcr.io/deepzide/cheese:${{ env.IMAGE_TAG }}...'
             docker compose pull
             echo '>>> Restarting stack...'
-            docker compose up -d
+            docker compose up -d --remove-orphans --force-recreate
             echo '>>> Waiting for backend...'
             for i in \$(seq 1 60); do
               if docker compose exec -T backend bench --version >/dev/null 2>&1; then break; fi
@@ -159,11 +160,11 @@ jobs:
             set -e
             cd /opt/erpnext
             echo '>>> Logging in to ghcr.io...'
-            echo '${{ secrets.GITHUB_TOKEN }}' | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+            echo '${{ secrets.GH_PAT }}' | docker login ghcr.io -u deepzide --password-stdin
             echo '>>> Pulling image ghcr.io/deepzide/cheese:${{ env.IMAGE_TAG }}...'
             docker compose pull
             echo '>>> Restarting stack...'
-            docker compose up -d
+            docker compose up -d --remove-orphans --force-recreate
             echo '>>> Waiting for backend...'
             for i in \$(seq 1 60); do
               if docker compose exec -T backend bench --version >/dev/null 2>&1; then break; fi
@@ -235,11 +236,11 @@ jobs:
             set -e
             cd /opt/erpnext
             echo '>>> Logging in to ghcr.io...'
-            echo '${{ secrets.GITHUB_TOKEN }}' | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+            echo '${{ secrets.GH_PAT }}' | docker login ghcr.io -u deepzide --password-stdin
             echo '>>> Pulling image ghcr.io/deepzide/cheese:${{ env.IMAGE_TAG }}...'
             docker compose pull
             echo '>>> Restarting stack...'
-            docker compose up -d
+            docker compose up -d --remove-orphans --force-recreate
             echo '>>> Waiting for backend...'
             for i in \$(seq 1 60); do
               if docker compose exec -T backend bench --version >/dev/null 2>&1; then break; fi

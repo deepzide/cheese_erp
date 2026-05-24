@@ -1,4 +1,5 @@
 ARG FRAPPE_BRANCH=version-15
+ARG APP_BRANCH=main
 
 FROM ghcr.io/deepzide/cheese-base:${FRAPPE_BRANCH} AS builder
 
@@ -6,7 +7,7 @@ USER frappe
 WORKDIR /home/frappe/frappe-bench
 
 RUN --mount=type=secret,id=CHEESE_ERP_URL,uid=1000 \
-    bench get-app "$(cat /run/secrets/CHEESE_ERP_URL)" && \
+    bench get-app --branch "${APP_BRANCH}" "$(cat /run/secrets/CHEESE_ERP_URL)" && \
     find apps -mindepth 1 -path "*/.git" | xargs rm -fr
 
 RUN cd apps/cheese/frontend && npm ci && npm run build
