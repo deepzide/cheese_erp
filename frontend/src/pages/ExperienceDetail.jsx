@@ -2,8 +2,10 @@ import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { useFrappeDoc, useFrappeUpdate, useFrappeList } from "@/lib/useApiData";
+import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import DocumentGallery from "@/components/DocumentGallery";
+import InlineDocumentUploadDialog from "@/components/InlineDocumentUploadDialog";
 import DetailPageLayout from "@/components/DetailPageLayout";
 import EditableField from "@/components/EditableField";
 import { Label } from "@/components/ui/label";
@@ -56,6 +58,32 @@ export default function ExperienceDetail() {
     const [form, setForm] = useState({});
     const [renameOpen, setRenameOpen] = useState(false);
     const [newId, setNewId] = useState("");
+    // Inline doc upload — issue #267: stay on the experience form instead of
+    // navigating to /cheese/documents/new and back.
+    const [uploadOpen, setUploadOpen] = useState(false);
+    const [uploadTarget, setUploadTarget] = useState({
+        entityType: "Cheese Experience",
+        entityId: id,
+    });
+    const queryClient = useQueryClient();
+
+    const openExperienceUpload = () => {
+        setUploadTarget({ entityType: "Cheese Experience", entityId: id });
+        setUploadOpen(true);
+    };
+
+    const openEstablishmentUpload = () => {
+        if (!exp?.company) {
+            toast.error(t("experiences.companyMissing", "Experience has no establishment yet"));
+            return;
+        }
+        setUploadTarget({ entityType: "Company", entityId: exp.company });
+        setUploadOpen(true);
+    };
+
+    const handleDocumentUploaded = () => {
+        queryClient.invalidateQueries({ queryKey: ["frappe-list", "Cheese Document"] });
+    };
 
     // Reset local form when fetched data changes
     useEffect(() => {
@@ -306,11 +334,11 @@ export default function ExperienceDetail() {
                                     <DocumentGallery
                                         documents={documents}
                                         isLoading={documentsLoading}
-                                        onAddClick={() => navigate(`/cheese/documents/new?entity_type=${encodeURIComponent("Cheese Experience")}&entity_id=${encodeURIComponent(id)}&returnTo=${encodeURIComponent(`/cheese/experiences/${id}`)}`)}
+                                        onAddClick={openExperienceUpload}
                                     />
                                     <div className="p-4 bg-muted/20 border-t border-border flex justify-between items-center">
                                         <p className="text-xs text-muted-foreground">{t("experiences.addDocsToEstb", "To add documents to the Establishment instead, click here.")}</p>
-                                        <Button variant="outline" size="sm" onClick={() => navigate(`/cheese/documents/new?entity_type=${encodeURIComponent("Company")}&entity_id=${encodeURIComponent(exp?.company || "")}&returnTo=${encodeURIComponent(`/cheese/experiences/${id}`)}`)}>
+                                        <Button variant="outline" size="sm" onClick={openEstablishmentUpload}>
                                             {t("experiences.addEstbDoc", "Add Establishment Doc")}
                                         </Button>
                                     </div>
@@ -578,6 +606,13 @@ export default function ExperienceDetail() {
                     </Card>
                 </div>
             </div>
+            <InlineDocumentUploadDialog
+                open={uploadOpen}
+                onClose={() => setUploadOpen(false)}
+                entityType={uploadTarget.entityType}
+                entityId={uploadTarget.entityId}
+                onUploaded={handleDocumentUploaded}
+            />
             <Dialog open={renameOpen} onOpenChange={setRenameOpen}>
                 <DialogContent className="max-w-md">
                     <DialogHeader>
