@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
@@ -8,11 +8,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Shield, Search, AlertCircle, RefreshCw, Loader2, Plus, Clock, MoreHorizontal, Sparkles } from "lucide-react";
+import { Shield, Search, AlertCircle, RefreshCw, Loader2, Plus, Clock, MoreHorizontal, Sparkles, X } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
 import { useFrappeList, useFrappeCreate } from "@/lib/useApiData";
 import { apiRequest } from "@/api/client";
+import FrappeSearchSelect from "@/components/FrappeSearchSelect";
+import { experienceService } from "@/api/experienceService";
 import { useTranslation } from "react-i18next";
 
 const parseHours = (value, fallback) => {
@@ -30,11 +32,43 @@ export default function BookingPolicy() {
     const [editPolicy, setEditPolicy] = useState(null);
     const [form, setForm] = useState({ experience: searchParams.get('experience') || "", cancel_until_hours_before: "24", modify_until_hours_before: "12", min_hours_before_booking: "2" });
     const [editForm, setEditForm] = useState({ cancel_until_hours_before: "24", modify_until_hours_before: "12", min_hours_before_booking: "2" });
+    // Multi-experience linking from the edit dialog (issue #266). We hold the
+    // current set of experiences governed by the policy plus a picker for adding
+    // new ones; on save we diff against the original list and link/unlink as needed.
+    const [linkedExperiences, setLinkedExperiences] = useState([]);
+    const [linkedExperiencesOriginal, setLinkedExperiencesOriginal] = useState([]);
+    const [experiencePicker, setExperiencePicker] = useState("");
+    const [savingLinks, setSavingLinks] = useState(false);
 
     const { data: policies = [], isLoading, error, refetch } = useFrappeList("Cheese Booking Policy", {
         fields: ["name", "experience", "cancel_until_hours_before", "modify_until_hours_before", "min_hours_before_booking", "creation", "modified"],
         pageSize: 100,
     });
+
+    const { data: linkedExperiencesData = [] } = useFrappeList("Cheese Experience", {
+        fields: ["name", "booking_policy"],
+        filters: editPolicy?.name ? { booking_policy: editPolicy.name } : undefined,
+        pageSize: 200,
+        enabled: !!editPolicy?.name,
+    });
+
+    useEffect(() => {
+        if (!editPolicy?.name) {
+            setLinkedExperiences([]);
+            setLinkedExperiencesOriginal([]);
+            return;
+        }
+        const names = (Array.isArray(linkedExperiencesData) ? linkedExperiencesData : [])
+            .map((row) => row.name)
+            .filter(Boolean);
+        // Keep the legacy 1-to-1 experience field as a fallback so older policies
+        // that haven't been re-linked yet still surface their experience here.
+        if (editPolicy.experience && !names.includes(editPolicy.experience)) {
+            names.unshift(editPolicy.experience);
+        }
+        setLinkedExperiences(names);
+        setLinkedExperiencesOriginal(names);
+    }, [editPolicy?.name, editPolicy?.experience, linkedExperiencesData]);
 
     const createMutation = useFrappeCreate("Cheese Booking Policy");
 
@@ -66,23 +100,114 @@ export default function BookingPolicy() {
         });
     };
 
-    const handleEditSave = async () => {
+    const handleAddLinkedExperience = (value) => {
+        if (!value) return;
+        if (linkedExperiences.includes(value)) {
+            setExperiencePicker("");
+            return;
+        }
+        setLinkedExperiences((prev) => [...prev, value]);
+        setExperiencePicker("");
+    };
+
+    const handleRemoveLinkedExperience = (value) => {
+        setLinkedExperiences((prev) => prev.filter((exp) => exp !== value));
+    };
+
+    const persistLinkedExperiences = async () => {
         if (!editPolicy?.name) return;
-        try {
-            await apiRequest("/api/method/cheese.api.v1.experience_controller.update_booking_policy", {
+        const added = linkedExperiences.filter((exp) => !linkedExperiencesOriginal.includes(exp));
+        const removed = linkedExperiencesOriginal.filter((exp) => !linkedExperiences.includes(exp));
+
+        const linkOps = added.map((exp) =>
+            experienceService.linkBookingPolicy(exp, editPolicy.name)
+        );
+        const unlinkOps = removed.map((exp) =>
+            apiRequest("/api/method/frappe.client.set_value", {
                 method: "POST",
                 body: JSON.stringify({
-                    experience_id: editPolicy.experience,
-                    cancel_until_hours_before: parseHours(editForm.cancel_until_hours_before, 24),
-                    modify_until_hours_before: parseHours(editForm.modify_until_hours_before, 12),
-                    min_hours_before_booking: parseHours(editForm.min_hours_before_booking, 2),
+                    doctype: "Cheese Experience",
+                    name: exp,
+                    fieldname: "booking_policy",
+                    value: "",
                 }),
-            });
+            })
+        );
+
+        const results = await Promise.allSettled([...linkOps, ...unlinkOps]);
+        const failed = results.filter((r) => r.status === "rejected").length;
+        if (failed > 0) {
+            throw new Error(
+                t(
+                    "bookingPolicy.linkFailed",
+                    `Some experiences could not be (un)linked (${failed} failures)`
+                )
+            );
+        }
+    };
+
+    const handleEditSave = async () => {
+        if (!editPolicy?.name) return;
+        setSavingLinks(true);
+        try {
+            // Use the policy's first remaining experience for the time update.
+            // The shared policy itself owns the time values; the legacy
+            // update_booking_policy endpoint needs *some* experience to scope by.
+            const scopeExperience =
+                linkedExperiences[0] || editPolicy.experience || null;
+
+            if (scopeExperience) {
+                await apiRequest(
+                    "/api/method/cheese.api.v1.experience_controller.update_booking_policy",
+                    {
+                        method: "POST",
+                        body: JSON.stringify({
+                            experience_id: scopeExperience,
+                            cancel_until_hours_before: parseHours(
+                                editForm.cancel_until_hours_before,
+                                24
+                            ),
+                            modify_until_hours_before: parseHours(
+                                editForm.modify_until_hours_before,
+                                12
+                            ),
+                            min_hours_before_booking: parseHours(
+                                editForm.min_hours_before_booking,
+                                2
+                            ),
+                        }),
+                    }
+                );
+            } else {
+                // No scope experience — write directly to the policy doc.
+                await apiRequest(`/api/resource/Cheese Booking Policy/${editPolicy.name}`, {
+                    method: "PUT",
+                    body: JSON.stringify({
+                        cancel_until_hours_before: parseHours(
+                            editForm.cancel_until_hours_before,
+                            24
+                        ),
+                        modify_until_hours_before: parseHours(
+                            editForm.modify_until_hours_before,
+                            12
+                        ),
+                        min_hours_before_booking: parseHours(
+                            editForm.min_hours_before_booking,
+                            2
+                        ),
+                    }),
+                });
+            }
+
+            await persistLinkedExperiences();
+
             toast.success(t("common.saved", "Policy updated"));
             setEditPolicy(null);
             refetch();
         } catch (err) {
             toast.error(err?.message || t("common.failedToUpdate", "Failed to update"));
+        } finally {
+            setSavingLinks(false);
         }
     };
 
@@ -172,17 +297,44 @@ export default function BookingPolicy() {
             </Dialog>
 
             <Dialog open={!!editPolicy} onOpenChange={(open) => !open && setEditPolicy(null)}>
-                <DialogContent className="max-w-md">
+                <DialogContent className="max-w-lg">
                     <DialogHeader>
                         <DialogTitle>{t("bookingPolicy.editTimes", "Edit Booking Policy")}</DialogTitle>
                         <DialogDescription>
-                            {t("bookingPolicy.editTimes", "Updating times")} {t("common.for", "for")} {t("ticket.experience", "experience")} {editPolicy?.experience || "—"}
+                            {t("bookingPolicy.editMultiDescription", "Update the policy times and the list of experiences it governs")}
                         </DialogDescription>
                     </DialogHeader>
                     <div className="space-y-4">
                         <div className="space-y-2">
-                            <Label>{t("ticket.experience", "Experience")}</Label>
-                            <Input value={editPolicy?.experience || ""} disabled />
+                            <Label>{t("bookingPolicy.experiences", "Experiences")}</Label>
+                            <FrappeSearchSelect
+                                doctype="Cheese Experience"
+                                label="name"
+                                value={experiencePicker}
+                                onChange={handleAddLinkedExperience}
+                                placeholder={t("bookingPolicy.addExperiencePlaceholder", "Add an experience...")}
+                                filters={{
+                                    name: linkedExperiences.length > 0 ? ["not in", linkedExperiences] : "",
+                                }}
+                            />
+                            <p className="text-xs text-muted-foreground">{t("bookingPolicy.multiExperienceHint", "The same policy can be assigned to many experiences.")}</p>
+                            {linkedExperiences.length > 0 && (
+                                <div className="flex flex-wrap gap-2 pt-1">
+                                    {linkedExperiences.map((exp) => (
+                                        <Badge key={exp} variant="secondary" className="flex items-center gap-1 px-2 py-1">
+                                            <span className="text-xs">{exp}</span>
+                                            <button
+                                                type="button"
+                                                onClick={() => handleRemoveLinkedExperience(exp)}
+                                                className="ml-1 rounded-full p-0.5 hover:bg-destructive/20 transition-colors"
+                                                aria-label={t("common.remove", "Remove")}
+                                            >
+                                                <X className="w-3 h-3" />
+                                            </button>
+                                        </Badge>
+                                    ))}
+                                </div>
+                            )}
                         </div>
                         <div className="grid grid-cols-3 gap-3">
                             <div className="space-y-2"><Label className="text-xs">Cancel (hrs)</Label><Input type="number" min="0" value={editForm.cancel_until_hours_before} onChange={(e) => setEditForm(f => ({ ...f, cancel_until_hours_before: e.target.value }))} /></div>
@@ -191,8 +343,9 @@ export default function BookingPolicy() {
                         </div>
                     </div>
                     <DialogFooter>
-                        <Button variant="outline" onClick={() => setEditPolicy(null)}>{t("common.cancel", "Cancel")}</Button>
-                        <Button onClick={handleEditSave}>
+                        <Button variant="outline" onClick={() => setEditPolicy(null)} disabled={savingLinks}>{t("common.cancel", "Cancel")}</Button>
+                        <Button onClick={handleEditSave} disabled={savingLinks}>
+                            {savingLinks ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : null}
                             {t("common.save", "Save changes")}
                         </Button>
                     </DialogFooter>

@@ -1258,6 +1258,136 @@ def delete_time_slot(slot_id, scope="this"):
 
 
 @frappe.whitelist()
+def trim_recurrence_series(slot_id, new_end_date, confirm_active_tickets=False):
+	"""Shorten a recurring slot series so it ends on ``new_end_date``.
+
+	Mirrors Google Calendar's "change end date for this series" UX from
+	issue #260: the user opens any slot in the series, picks a new series end
+	date, and every sibling occurrence with ``date_from > new_end_date`` is
+	removed atomically. Slots on or before the new end date are kept untouched.
+
+	Args:
+		slot_id: Any slot in the target recurrence group.
+		new_end_date: Inclusive new series end date (YYYY-MM-DD).
+		confirm_active_tickets: When False the call is rejected if any of the
+			slots that would be deleted still has a non-terminal ticket. The
+			frontend can re-call with this flag once the operator confirms.
+
+	Returns:
+		Success response with the list of trimmed slot IDs.
+	"""
+	try:
+		if not slot_id:
+			return validation_error("slot_id is required")
+		if not new_end_date:
+			return validation_error("new_end_date is required")
+
+		try:
+			new_end = getdate(new_end_date)
+		except Exception:
+			return validation_error("new_end_date must be a valid date (YYYY-MM-DD)")
+
+		if not frappe.db.exists("Cheese Experience Slot", slot_id):
+			return not_found("Slot", slot_id)
+
+		try:
+			base_slot = assert_slot_access(slot_id)
+		except frappe.PermissionError:
+			return error("Unauthorized", "UNAUTHORIZED", {}, 403)
+
+		if not base_slot.recurrence_group_id:
+			return validation_error(
+				"This slot is not part of a recurring series. "
+				"Use delete_time_slot or update_time_slot for individual slots."
+			)
+
+		# Pick every sibling whose start date falls AFTER the new series end.
+		# Slots on the new end date are kept so the operator can pick the new
+		# end date by clicking any slot in the series.
+		trailing = frappe.get_all(
+			"Cheese Experience Slot",
+			filters={
+				"recurrence_group_id": base_slot.recurrence_group_id,
+				"date_from": [">", new_end],
+			},
+			pluck="name",
+		)
+
+		if not trailing:
+			return success(
+				"Series already ends on or before this date — nothing to trim",
+				{
+					"slot_id": base_slot.name,
+					"new_end_date": str(new_end),
+					"trimmed_count": 0,
+					"trimmed_slot_ids": [],
+				},
+			)
+
+		if not confirm_active_tickets:
+			confirmed = _confirmed_tickets_on_slots(trailing)
+			if confirmed > 0:
+				return validation_error(
+					f"Trimming the series removes {len(trailing)} slot(s) "
+					f"holding {confirmed} CONFIRMED reservation(s). "
+					"Re-submit with confirm_active_tickets=true to proceed.",
+					{
+						"trailing_slots": trailing,
+						"confirmed_tickets": confirmed,
+					},
+				)
+
+		blocking = frappe.get_all(
+			"Cheese Ticket",
+			filters={
+				"slot": ["in", trailing],
+				"status": ["in", ["PENDING", "CONFIRMED", "CHECKED_IN"]],
+			},
+			fields=["name", "slot", "status"],
+		)
+		if blocking and not confirm_active_tickets:
+			return validation_error(
+				f"Cannot trim series: {len(blocking)} active ticket(s) still attached. "
+				"Cancel them first or pass confirm_active_tickets=true.",
+				{
+					"blocked_slots": sorted({b.slot for b in blocking}),
+					"active_tickets": [b.name for b in blocking],
+				},
+			)
+
+		deleted = []
+		savepoint = "cheese_slot_series_trim"
+		frappe.db.savepoint(savepoint)
+		try:
+			for name in trailing:
+				frappe.delete_doc(
+					"Cheese Experience Slot", name, force=True, ignore_permissions=True
+				)
+				deleted.append(name)
+		except Exception:
+			frappe.db.rollback(save_point=savepoint)
+			raise
+
+		frappe.db.commit()
+
+		return success(
+			f"Trimmed series — removed {len(deleted)} trailing slot(s)",
+			{
+				"slot_id": base_slot.name,
+				"recurrence_group_id": base_slot.recurrence_group_id,
+				"new_end_date": str(new_end),
+				"trimmed_count": len(deleted),
+				"trimmed_slot_ids": deleted,
+			},
+		)
+	except frappe.ValidationError as e:
+		return validation_error(str(e))
+	except Exception as e:
+		frappe.log_error(f"Error in trim_recurrence_series: {str(e)}")
+		return error("Failed to trim recurrence series", "SERVER_ERROR", {"error": str(e)}, 500)
+
+
+@frappe.whitelist()
 def delete_experience(experience_id):
 	"""
 	Delete an experience after checking for dependencies (active tickets, routes).
