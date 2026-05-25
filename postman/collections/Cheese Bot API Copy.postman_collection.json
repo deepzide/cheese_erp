@@ -39,7 +39,41 @@
                 "cheese.api.v1.contact_controller.resolve_or_create_contact"
               ]
             },
-            "description": "ERP: Creates or resolves a unique contact (deduplication by phone/email), defines contact_id."
+            "description": "ERP: Creates or resolves a unique contact (deduplication by phone/email), defines contact_id. company_id is deprecated and ignored."
+          },
+          "response": []
+        },
+        {
+          "name": "Append Company To Contact",
+          "id": "5a8c93d0-2c2e-4b86-b40a-d0a1f7b0e911",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "token {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"contact_id\": \"+1234567890\",\n  \"company_id\": \"Moad\",\n  \"notes\": \"Linked from ERP-BOT\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/method/cheese.api.v1.contact_controller.append_company_to_contact",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "method",
+                "cheese.api.v1.contact_controller.append_company_to_contact"
+              ]
+            },
+            "description": "ERP-BOT: Link an establishment/company to a contact. Idempotent if the company is already linked."
           },
           "response": []
         },

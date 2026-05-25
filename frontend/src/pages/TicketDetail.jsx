@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import DetailPageLayout from "@/components/DetailPageLayout";
 import EditableField from "@/components/EditableField";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
@@ -80,6 +81,7 @@ export default function TicketDetail() {
                 total_price: ticket.total_price || 0,
                 deposit_required: ticket.deposit_required || 0,
                 deposit_amount: ticket.deposit_amount || 0,
+                notes: ticket.notes || "",
             });
         }
     }, [ticket]);
@@ -279,6 +281,28 @@ export default function TicketDetail() {
                                             <EditableField label={t("tickets.expiresAt", "Expires At")} value={form.expires_at ? new Date(form.expires_at).toLocaleString() : ""} editMode={false} />
                                         )}
                                     </div>
+                                </CardContent>
+                            </Card>
+
+                            <Card className="border-border/60 shadow-sm">
+                                <CardHeader className="border-b bg-muted/20 pb-4">
+                                    <CardTitle className="text-sm font-semibold text-muted-foreground uppercase">
+                                        {t("tickets.guestNotes", "Guest notes")}
+                                    </CardTitle>
+                                </CardHeader>
+                                <CardContent className="p-6">
+                                    {editMode ? (
+                                        <Textarea
+                                            value={form.notes}
+                                            onChange={(e) => handleFieldChange("notes", e.target.value)}
+                                            placeholder={t("tickets.guestNotesPlaceholder", "Dietary, accessibility, or other requirements...")}
+                                            className="min-h-[100px]"
+                                        />
+                                    ) : (
+                                        <p className="text-sm whitespace-pre-wrap">
+                                            {form.notes || <span className="text-muted-foreground italic">{t("common.noNotes", "No notes")}</span>}
+                                        </p>
+                                    )}
                                 </CardContent>
                             </Card>
 

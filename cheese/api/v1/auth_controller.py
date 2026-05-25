@@ -67,6 +67,12 @@ def token():
         role_permission_map = {
             "System Manager": ["Dashboard", "Tickets", "Routes", "Experiences", "Calendar", "Contacts", "Leads", "Quotations", "Deposits", "Bookings"],
             "Cheese Manager": ["Dashboard", "Tickets", "Routes", "Experiences", "Calendar", "Contacts", "Leads", "Quotations", "Deposits", "Bookings"],
+            "Route Administrator": ["Dashboard", "Tickets", "Routes", "Experiences", "Calendar", "Contacts", "Leads", "Quotations", "Deposits", "Bookings"],
+            "Central Admin": ["Dashboard", "Tickets", "Routes", "Experiences", "Calendar", "Contacts", "Leads", "Quotations", "Deposits", "Bookings"],
+            "Establishment User": ["Dashboard", "Tickets", "Experiences", "Calendar", "Contacts", "Leads", "Quotations", "Deposits", "Bookings", "Hotels"],
+            "Cheese Establishment User": ["Dashboard", "Tickets", "Experiences", "Calendar", "Contacts", "Leads", "Quotations", "Deposits", "Bookings", "Hotels"],
+            "Cheese Booking Manager": ["Dashboard", "Tickets", "Experiences", "Calendar", "Contacts", "Leads", "Deposits", "Bookings"],
+            "Cheese Booking Agent": ["Dashboard", "Tickets", "Experiences", "Calendar", "Contacts", "Leads", "Deposits", "Bookings"],
         }
         for role in roles:
             if role in role_permission_map:
@@ -82,6 +88,7 @@ def token():
                 "full_name": user_doc.full_name,
                 "email": user_doc.email,
                 "permissions": permissions,
+                "roles": roles,
             }
         )
     except Exception as e:

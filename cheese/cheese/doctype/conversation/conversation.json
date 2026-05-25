@@ -11,6 +11,7 @@
  "field_order": [
   "conversation_info",
   "contact",
+  "company",
   "channel",
   "status",
   "column_break_1",
@@ -38,6 +39,15 @@
    "label": "Contact",
    "options": "Cheese Contact",
    "reqd": 1
+  },
+  {
+   "fieldname": "company",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Company",
+   "options": "Company",
+   "description": "Establishment this conversation belongs to. Auto-set from the linked ticket / lead / route booking."
   },
   {
    "fieldname": "channel",
@@ -161,6 +171,52 @@
    "report": 1,
    "role": "Cheese Booking Operator",
    "share": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Route Administrator",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Establishment User",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Cheese Establishment User",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Central Admin",
+   "share": 1,
+   "write": 1
   }
  ],
  "sort_field": "modified",

@@ -192,24 +192,22 @@ def get_modification_policy(reservation_id=None, experience_id=None):
 		
 		experience = frappe.get_doc("Cheese Experience", experience_id_to_check)
 		
-		# Get booking policy
+		# Get booking policy via shared resolver (supports many experiences -> one policy)
+		from cheese.cheese.utils.validation import get_booking_policy_for_experience
 		policy = None
-		policy_name = frappe.db.get_value(
-			"Cheese Booking Policy",
-			{"experience": experience_id_to_check},
-			"name"
+		policy_data = get_booking_policy_for_experience(
+			experience_id_to_check,
+			fields=["name", "modify_until_hours_before"],
 		)
-		
-		if policy_name:
-			policy_doc = frappe.get_doc("Cheese Booking Policy", policy_name)
+		if policy_data:
 			policy = {
-				"modify_until_hours_before": policy_doc.modify_until_hours_before,
-				"modification_allowed": True
+				"modify_until_hours_before": policy_data.modify_until_hours_before,
+				"modification_allowed": True,
 			}
 		else:
 			policy = {
 				"modify_until_hours_before": None,
-				"modification_allowed": True
+				"modification_allowed": True,
 			}
 		
 		return success(
@@ -284,25 +282,22 @@ def get_cancellation_impact(reservation_id=None, experience_id=None, slot_dateti
 		if not frappe.db.exists("Cheese Experience", experience_id_to_check):
 			return not_found("Experience", experience_id_to_check)
 		
-		# Get booking policy
-		policy = None
-		policy_name = frappe.db.get_value(
-			"Cheese Booking Policy",
-			{"experience": experience_id_to_check},
-			"name"
+		# Get booking policy via shared resolver (many experiences -> one policy)
+		from cheese.cheese.utils.validation import get_booking_policy_for_experience
+		policy_data = get_booking_policy_for_experience(
+			experience_id_to_check,
+			fields=["name", "cancel_until_hours_before"],
 		)
-		
+
 		cancellation_allowed = True
 		penalty = 0
 		refund_amount = 0
-		
-		if policy_name:
-			policy_doc = frappe.get_doc("Cheese Booking Policy", policy_name)
-			
-			if slot_dt and policy_doc.cancel_until_hours_before is not None:
+
+		if policy_data:
+			if slot_dt and policy_data.cancel_until_hours_before is not None:
 				hours_until_slot = (slot_dt - now_datetime()).total_seconds() / 3600
-				
-				if hours_until_slot < policy_doc.cancel_until_hours_before:
+
+				if hours_until_slot < policy_data.cancel_until_hours_before:
 					cancellation_allowed = False
 					penalty = 100  # Could be calculated based on policy
 		

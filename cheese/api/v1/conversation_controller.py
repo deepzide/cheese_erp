@@ -5,12 +5,11 @@ import frappe
 from frappe import _
 from frappe.utils import now_datetime, cint, add_to_date
 from cheese.api.common.responses import success, created, error, not_found, validation_error, paginated_response
-from cheese.api.v1.user_controller import _get_current_user_company
 import json
 
 
 @frappe.whitelist()
-def open_or_resume_conversation(contact_id, channel, status="ACTIVE"):
+def open_or_resume_conversation(contact_id, channel, status="ACTIVE", company=None):
 	"""
 	Open or resume a persistent conversation, returns conversation_id
 	Creates or resumes conversation (one active per channel+contact within time window)
@@ -19,6 +18,9 @@ def open_or_resume_conversation(contact_id, channel, status="ACTIVE"):
 		contact_id: Contact ID
 		channel: Channel (WhatsApp/Web/Agent)
 		status: Status (ACTIVE/PAUSED/CLOSED)
+		company: Optional Company name to scope the conversation to a specific
+			establishment. When omitted, the company is auto-resolved from the
+			contact's primary linked company (see Cheese Contact.companies).
 		
 	Returns:
 		Success response with conversation_id
@@ -60,13 +62,19 @@ def open_or_resume_conversation(contact_id, channel, status="ACTIVE"):
 				}
 			)
 		
-		# Create new conversation
-		conversation = frappe.get_doc({
+		# Create new conversation; company is set explicitly so that bot/webhook
+		# callers can lock a transcript to a specific establishment up-front.
+		# When `company` is omitted, the validate-hook resolves it from the
+		# contact / linked ticket / linked lead (see set_conversation_company).
+		conversation_payload = {
 			"doctype": "Conversation",
 			"contact": contact_id,
 			"channel": channel,
-			"status": status
-		})
+			"status": status,
+		}
+		if company:
+			conversation_payload["company"] = company
+		conversation = frappe.get_doc(conversation_payload)
 		try:
 			conversation.insert()
 			frappe.db.commit()
@@ -116,7 +124,7 @@ def open_or_resume_conversation(contact_id, channel, status="ACTIVE"):
 
 
 @frappe.whitelist()
-def create_conversation(contact_id, channel, status="ACTIVE"):
+def create_conversation(contact_id, channel, status="ACTIVE", company=None):
 	"""
 	Create or reuse conversation (one active per channel+contact within time window)
 	Legacy endpoint - use open_or_resume_conversation instead
@@ -125,11 +133,12 @@ def create_conversation(contact_id, channel, status="ACTIVE"):
 		contact_id: Contact ID
 		channel: Channel (WhatsApp/Web/Agent)
 		status: Status (ACTIVE/PAUSED/CLOSED)
+		company: Optional Company name (forwarded to open_or_resume_conversation).
 		
 	Returns:
 		Success response with conversation data
 	"""
-	return open_or_resume_conversation(contact_id, channel, status)
+	return open_or_resume_conversation(contact_id, channel, status, company=company)
 	try:
 		if not contact_id:
 			return validation_error("contact_id is required")
@@ -365,27 +374,20 @@ def list_conversations(page=1, page_size=20, contact_id=None, channel=None, stat
 		if status:
 			filters["status"] = status
 
-		# Apply company scoping: restrict to conversations linked to tickets in user's company
-		user_company = _get_current_user_company()
-		if user_company:
-			company_tickets = frappe.get_all(
-				"Cheese Ticket", filters={"company": user_company}, pluck="conversation"
-			)
-			# Filter to only conversations linked to this company's tickets
-			company_convos = [c for c in company_tickets if c]
-			if company_convos:
-				filters["name"] = ["in", company_convos]
-			else:
-				# No conversations for this company
-				return paginated_response([], "Conversations retrieved successfully", page=page, page_size=page_size, total=0)
-		
-		conversations = frappe.get_all(
+		# Note: company-based scoping is enforced automatically by the
+		# `permission_query_conditions` hook registered for Conversation in
+		# hooks.py (see cheese.cheese.utils.permissions.conversation_query).
+		# We intentionally do NOT layer a manual `company` filter here so the
+		# query stays correct for the super admin who is allowed to see every
+		# establishment's data.
+
+		conversations = frappe.get_list(
 			"Conversation",
 			filters=filters,
 			fields=["name", "contact", "channel", "status", "summary", "lead", "ticket", "modified"],
 			limit_start=(page - 1) * page_size,
 			limit_page_length=page_size,
-			order_by="modified desc"
+			order_by="modified desc",
 		)
 		
 		# Enrich with contact names
@@ -393,8 +395,17 @@ def list_conversations(page=1, page_size=20, contact_id=None, channel=None, stat
 			if conv.contact:
 				contact = frappe.db.get_value("Cheese Contact", conv.contact, "full_name", as_dict=True)
 				conv["contact_name"] = contact.full_name if contact else None
-		
-		total = frappe.db.count("Conversation", filters=filters)
+
+		# Use get_list with `as_list=True` so the permission_query_conditions
+		# (multi-tenant scoping) is honoured in the total count too.
+		total = len(
+			frappe.get_list(
+				"Conversation",
+				filters=filters,
+				fields=["name"],
+				limit_page_length=0,  # no limit, return all matching names
+			)
+		)
 		
 		return paginated_response(
 			conversations,

@@ -7,6 +7,7 @@ from frappe import _
 from frappe.utils import today, getdate, get_time, cint, get_datetime, get_url, add_days, add_months
 from cheese.api.common.responses import success, created, error, not_found, validation_error, paginated_response
 from cheese.api.v1.user_controller import _get_current_user_company
+from cheese.cheese.utils.access import assert_slot_access
 from cheese.api.v1.bank_account_controller import (
 	get_active_company_bank_accounts_list,
 	get_active_company_bank_accounts_map,
@@ -170,20 +171,25 @@ def get_experience_detail(experience_id, include_next_availability=True):
 		
 		experience = frappe.get_doc("Cheese Experience", experience_id)
 		
-		# Get booking policy
+		# Get booking policy (supports new shared-policy model on Experience.booking_policy
+		# with fallback to legacy Cheese Booking Policy.experience back-reference)
+		from cheese.cheese.utils.validation import get_booking_policy_for_experience
 		policy = None
-		policy_name = frappe.db.get_value(
-			"Cheese Booking Policy",
-			{"experience": experience_id},
-			"name"
+		policy_data = get_booking_policy_for_experience(
+			experience_id,
+			fields=[
+				"name",
+				"cancel_until_hours_before",
+				"modify_until_hours_before",
+				"min_hours_before_booking",
+			],
 		)
-		
-		if policy_name:
-			policy_doc = frappe.get_doc("Cheese Booking Policy", policy_name)
+		if policy_data:
 			policy = {
-				"cancel_until_hours_before": policy_doc.cancel_until_hours_before,
-				"modify_until_hours_before": policy_doc.modify_until_hours_before,
-				"min_hours_before_booking": policy_doc.min_hours_before_booking
+				"policy_id": policy_data.name,
+				"cancel_until_hours_before": policy_data.cancel_until_hours_before,
+				"modify_until_hours_before": policy_data.modify_until_hours_before,
+				"min_hours_before_booking": policy_data.min_hours_before_booking,
 			}
 		
 		# Get establishment image and details
@@ -612,9 +618,9 @@ def create_recurring_slots(experience_id, date_from, date_to, time_from=None, ti
 			return validation_error("Cannot create recurring slots on expired dates")
 		
 		# Parse recurrence config if it's a string (JSON)
+		import json as _json
 		if isinstance(recurrence_config, str):
-			import json
-			recurrence_config = json.loads(recurrence_config)
+			recurrence_config = _json.loads(recurrence_config)
 		
 		# Calculate all occurrence dates
 		occurrence_dates = calculate_recurrence_dates(start_date, end_date, recurrence_config or {})
@@ -622,12 +628,18 @@ def create_recurring_slots(experience_id, date_from, date_to, time_from=None, ti
 		if not occurrence_dates:
 			return validation_error("No valid occurrence dates found for the given recurrence pattern")
 		
-		# Create slots for each occurrence date
+		# Create slots for each occurrence date. We tag every slot with the
+		# same `recurrence_group_id` so the edit/delete UX (issues #260 and
+		# #269) can apply scoped operations à la Google Calendar.
+		import uuid
+		recurrence_group_id = uuid.uuid4().hex
+		serialized_config = _json.dumps(recurrence_config or {})
+
 		created_slots = []
 		time_from_obj = get_time(time_from) if time_from else None
 		time_to_obj = get_time(time_to) if time_to else None
-		
-		for occurrence_date in occurrence_dates:
+
+		for idx, occurrence_date in enumerate(occurrence_dates):
 			slot = frappe.get_doc({
 				"doctype": "Cheese Experience Slot",
 				"experience": experience_id,
@@ -637,7 +649,10 @@ def create_recurring_slots(experience_id, date_from, date_to, time_from=None, ti
 				"time_to": time_to_obj,
 				"max_capacity": max_capacity,
 				"slot_status": slot_status,
-				"reserved_capacity": 0
+				"reserved_capacity": 0,
+				"recurrence_group_id": recurrence_group_id,
+				"is_recurring_master": 1 if idx == 0 else 0,
+				"recurrence_config_json": serialized_config,
 			})
 			slot.insert()
 			created_slots.append(slot.name)
@@ -650,6 +665,7 @@ def create_recurring_slots(experience_id, date_from, date_to, time_from=None, ti
 				"slots_created": len(created_slots),
 				"slot_ids": created_slots,
 				"experience_id": experience_id,
+				"recurrence_group_id": recurrence_group_id,
 				"date_range": {
 					"from": str(start_date),
 					"to": str(end_date)
@@ -663,19 +679,147 @@ def create_recurring_slots(experience_id, date_from, date_to, time_from=None, ti
 		return error("Failed to create recurring slots", "SERVER_ERROR", {"error": str(e)}, 500)
 
 
-@frappe.whitelist()
-def update_time_slot(slot_id, max_capacity=None, slot_status=None, date_from=None, date_to=None, time_from=None, time_to=None):
+_SLOT_RECURRENCE_SCOPES = ("this", "following", "all")
+
+
+def _resolve_slot_recurrence_scope(slot, scope):
+	"""Return the list of slot names that fall under ``scope``.
+
+	* ``this``      → just ``slot.name``
+	* ``following`` → every slot in the same recurrence_group_id with
+	                   ``date_from >= slot.date_from`` (matches Google
+	                   Calendar's "this and following events").
+	* ``all``       → every slot in the same recurrence_group_id.
+
+	A slot without a recurrence_group_id is always treated as ``this``.
 	"""
-	Update time slot capacity, status, or schedule
+	scope = (scope or "this").strip().lower()
+	if scope not in _SLOT_RECURRENCE_SCOPES:
+		frappe.throw(_(f"Invalid scope '{scope}'. Expected one of: this, following, all."))
+
+	if not slot.recurrence_group_id or scope == "this":
+		return [slot.name]
+
+	filters = {"recurrence_group_id": slot.recurrence_group_id}
+	if scope == "following":
+		filters["date_from"] = [">=", slot.date_from]
+
+	return frappe.get_all(
+		"Cheese Experience Slot",
+		filters=filters,
+		pluck="name",
+		order_by="date_from asc, time_from asc",
+	)
+
+
+def _confirmed_tickets_on_slots(slot_names):
+	"""Return number of CONFIRMED / CHECKED_IN tickets attached to any of the given slots."""
+	if not slot_names:
+		return 0
+	return frappe.db.count(
+		"Cheese Ticket",
+		filters={"slot": ["in", slot_names], "status": ["in", ["CONFIRMED", "CHECKED_IN"]]},
+	)
+
+
+@frappe.whitelist()
+def get_slot_recurrence_info(slot_id):
+	"""Return information the UI needs to render the 3-option edit/delete modal.
+
+	Tells the caller whether the slot belongs to a recurrence group, how many
+	siblings it has (and how many are still in the future), and how many
+	CONFIRMED reservations would be affected by a "this and following" /
+	"all" operation.
+
+	The frontend uses this to decide whether to render the Google-Calendar-style
+	modal or just an inline confirm.
+	"""
+	try:
+		if not slot_id:
+			return validation_error("slot_id is required")
+		if not frappe.db.exists("Cheese Experience Slot", slot_id):
+			return not_found("Slot", slot_id)
+
+		slot = frappe.get_doc("Cheese Experience Slot", slot_id)
+
+		if not slot.recurrence_group_id:
+			confirmed = _confirmed_tickets_on_slots([slot.name])
+			return success(
+				"Slot recurrence info",
+				{
+					"slot_id": slot.name,
+					"is_recurring": False,
+					"recurrence_group_id": None,
+					"sibling_count": 0,
+					"following_count": 0,
+					"total_count": 1,
+					"confirmed_tickets_this": confirmed,
+					"confirmed_tickets_following": confirmed,
+					"confirmed_tickets_all": confirmed,
+				},
+			)
+
+		total = frappe.db.count(
+			"Cheese Experience Slot",
+			filters={"recurrence_group_id": slot.recurrence_group_id},
+		)
+		following = _resolve_slot_recurrence_scope(slot, "following")
+		all_slots = _resolve_slot_recurrence_scope(slot, "all")
+
+		return success(
+			"Slot recurrence info",
+			{
+				"slot_id": slot.name,
+				"is_recurring": True,
+				"recurrence_group_id": slot.recurrence_group_id,
+				"is_recurring_master": bool(slot.is_recurring_master),
+				"sibling_count": total - 1,
+				"following_count": len(following),
+				"total_count": total,
+				"confirmed_tickets_this": _confirmed_tickets_on_slots([slot.name]),
+				"confirmed_tickets_following": _confirmed_tickets_on_slots(following),
+				"confirmed_tickets_all": _confirmed_tickets_on_slots(all_slots),
+			},
+		)
+	except frappe.ValidationError as e:
+		return validation_error(str(e))
+	except Exception as e:
+		frappe.log_error(f"Error in get_slot_recurrence_info: {str(e)}")
+		return error("Failed to get slot recurrence info", "SERVER_ERROR", {"error": str(e)}, 500)
+
+
+@frappe.whitelist()
+def update_time_slot(
+	slot_id,
+	max_capacity=None,
+	slot_status=None,
+	date_from=None,
+	date_to=None,
+	time_from=None,
+	time_to=None,
+	scope="this",
+	confirm_active_tickets=False,
+):
+	"""
+	Update time slot capacity, status, or schedule.
+
+	When ``scope`` is "following" or "all" and the slot belongs to a recurrence
+	group, the same change is applied atomically to every other slot in scope
+	(see Google-Calendar-style recurring edit in issues #260 and #269).
 
 	Args:
 		slot_id: Slot ID
 		max_capacity: New maximum capacity
-		slot_status: New slot status
-		date_from: New start date
-		date_to: New end date
-		time_from: New start time
-		time_to: New end time
+		slot_status: New slot status (OPEN / CLOSED / BLOCKED)
+		date_from: New start date (only applied to ``scope="this"``)
+		date_to: New end date (only applied to ``scope="this"``)
+		time_from: New start time (applied to every slot in scope)
+		time_to: New end time (applied to every slot in scope)
+		scope: One of "this", "following", "all"
+		confirm_active_tickets: When True, allows mutating slots that still
+			carry CONFIRMED / CHECKED_IN reservations; without this flag the
+			operation is rejected with an explicit error so the operator can
+			be warned (issue #269 acceptance criteria).
 
 	Returns:
 		Success response
@@ -687,52 +831,106 @@ def update_time_slot(slot_id, max_capacity=None, slot_status=None, date_from=Non
 		if not frappe.db.exists("Cheese Experience Slot", slot_id):
 			return not_found("Slot", slot_id)
 
-		slot = frappe.get_doc("Cheese Experience Slot", slot_id)
+		try:
+			base_slot = assert_slot_access(slot_id)
+		except frappe.PermissionError:
+			return error("Unauthorized", "UNAUTHORIZED", {}, 403)
 
+		target_names = _resolve_slot_recurrence_scope(base_slot, scope)
+
+		# Sanitize / pre-validate scalar inputs once so we fail before opening
+		# the transaction.
 		if max_capacity is not None:
-			max_capacity = int(max_capacity)
-			reserved = slot.reserved_capacity or 0
-			if max_capacity < reserved:
+			try:
+				max_capacity = int(max_capacity)
+			except (TypeError, ValueError):
+				return validation_error("max_capacity must be an integer")
+
+		if slot_status is not None and slot_status not in ["OPEN", "CLOSED", "BLOCKED"]:
+			return validation_error(f"Invalid slot_status: {slot_status}")
+
+		# Issue #269: warn the operator before editing a slot that still has
+		# confirmed reservations. The frontend can re-call with
+		# confirm_active_tickets=true once the user explicitly approves.
+		if not confirm_active_tickets:
+			confirmed = _confirmed_tickets_on_slots(target_names)
+			if confirmed > 0:
 				return validation_error(
-					f"Cannot reduce capacity below reserved amount ({reserved})"
+					f"This change affects {confirmed} CONFIRMED reservation(s). "
+					"Re-submit with confirm_active_tickets=true to proceed.",
+					{
+						"confirmed_tickets": confirmed,
+						"target_slot_count": len(target_names),
+					},
 				)
-			slot.max_capacity = max_capacity
 
-		if slot_status is not None:
-			if slot_status not in ["OPEN", "CLOSED", "BLOCKED"]:
-				return validation_error(f"Invalid slot_status: {slot_status}")
-			slot.slot_status = slot_status
+		# Atomic rollback if any single slot update fails.
+		results = []
+		savepoint = "cheese_slot_bulk_update"
+		frappe.db.savepoint(savepoint)
+		try:
+			for name in target_names:
+				slot = frappe.get_doc("Cheese Experience Slot", name)
 
-		if date_from is not None:
-			slot.date_from = getdate(date_from)
-			# Also set date_to to date_from if date_to not explicitly provided
-			if date_to is None:
-				slot.date_to = getdate(date_from)
+				if max_capacity is not None:
+					reserved = slot.reserved_capacity or 0
+					if max_capacity < reserved:
+						frappe.throw(
+							_(
+								"Cannot reduce capacity below reserved amount ({0}) on slot {1}"
+							).format(reserved, name)
+						)
+					slot.max_capacity = max_capacity
 
-		if date_to is not None:
-			slot.date_to = getdate(date_to)
+				if slot_status is not None:
+					slot.slot_status = slot_status
 
-		# Assign time values as strings to avoid timedelta/time type mismatch
-		if time_from is not None:
-			slot.time_from = str(time_from)
+				# Date changes are intentionally scoped to the "this" target only.
+				# Applying the same calendar date to every slot in a series would
+				# collapse them onto a single day which is never what the user wants.
+				if name == base_slot.name:
+					if date_from is not None:
+						slot.date_from = getdate(date_from)
+						if date_to is None:
+							slot.date_to = getdate(date_from)
+					if date_to is not None:
+						slot.date_to = getdate(date_to)
 
-		if time_to is not None:
-			slot.time_to = str(time_to)
+				if time_from is not None:
+					slot.time_from = str(time_from)
+				if time_to is not None:
+					slot.time_to = str(time_to)
 
-		slot.save()
+				slot.save(ignore_permissions=True)
+				results.append({
+					"slot_id": slot.name,
+					"max_capacity": slot.max_capacity,
+					"slot_status": slot.slot_status,
+					"date_from": str(slot.date_from),
+					"date_to": str(slot.date_to) if slot.date_to else None,
+					"time_from": str(slot.time_from) if slot.time_from else None,
+					"time_to": str(slot.time_to) if slot.time_to else None,
+				})
+		except Exception:
+			frappe.db.rollback(save_point=savepoint)
+			raise
+
 		frappe.db.commit()
 
 		return success(
-			"Time slot updated successfully",
+			f"Updated {len(results)} slot(s) successfully",
 			{
-				"slot_id": slot.name,
-				"max_capacity": slot.max_capacity,
-				"slot_status": slot.slot_status,
-				"date_from": str(slot.date_from),
-				"date_to": str(slot.date_to) if slot.date_to else None,
-				"time_from": str(slot.time_from) if slot.time_from else None,
-				"time_to": str(slot.time_to) if slot.time_to else None,
-			}
+				"scope": (scope or "this").lower(),
+				"updated_count": len(results),
+				"slots": results,
+				"slot_id": base_slot.name,
+				"max_capacity": results[0]["max_capacity"] if results else None,
+				"slot_status": results[0]["slot_status"] if results else None,
+				"date_from": results[0]["date_from"] if results else None,
+				"date_to": results[0]["date_to"] if results else None,
+				"time_from": results[0]["time_from"] if results else None,
+				"time_to": results[0]["time_to"] if results else None,
+			},
 		)
 	except frappe.ValidationError as e:
 		return validation_error(str(e))
@@ -843,38 +1041,58 @@ def list_time_slots(experience_id, date_from=None, date_to=None, slot_status=Non
 
 
 @frappe.whitelist()
-def block_time_slot(slot_id):
+def block_time_slot(slot_id, scope="this"):
 	"""
-	Block a time slot (US-10)
-	
+	Block a time slot (US-10).
+
+	Setting slot_status="BLOCKED" disables further bookings on that slot while
+	keeping existing reservations intact. With ``scope="following"`` or
+	``scope="all"`` the block is applied atomically to every slot in the same
+	recurrence group, matching the Google-Calendar-style operations required
+	by issues #260 and #269.
+	"""
+	return update_time_slot(slot_id, slot_status="BLOCKED", scope=scope, confirm_active_tickets=True)
+
+
+@frappe.whitelist()
+def link_booking_policy(experience_id, policy_id):
+	"""
+	Assign an existing shared booking policy to an experience (many-to-one).
+
 	Args:
-		slot_id: Slot ID
-		
+		experience_id: Cheese Experience name
+		policy_id: Cheese Booking Policy name
+
 	Returns:
 		Success response
 	"""
 	try:
-		if not slot_id:
-			return validation_error("slot_id is required")
-		
-		if not frappe.db.exists("Cheese Experience Slot", slot_id):
-			return not_found("Slot", slot_id)
-		
-		slot = frappe.get_doc("Cheese Experience Slot", slot_id)
-		slot.slot_status = "BLOCKED"
-		slot.save()
+		if not experience_id:
+			return validation_error("experience_id is required")
+		if not policy_id:
+			return validation_error("policy_id is required")
+
+		if not frappe.db.exists("Cheese Experience", experience_id):
+			return not_found("Experience", experience_id)
+		if not frappe.db.exists("Cheese Booking Policy", policy_id):
+			return not_found("Booking Policy", policy_id)
+
+		frappe.db.set_value(
+			"Cheese Experience",
+			experience_id,
+			"booking_policy",
+			policy_id,
+			update_modified=False,
+		)
 		frappe.db.commit()
-		
+
 		return success(
-			"Time slot blocked successfully",
-			{
-				"slot_id": slot.name,
-				"slot_status": slot.slot_status
-			}
+			"Booking policy linked successfully",
+			{"experience_id": experience_id, "policy_id": policy_id},
 		)
 	except Exception as e:
-		frappe.log_error(f"Error in block_time_slot: {str(e)}")
-		return error("Failed to block time slot", "SERVER_ERROR", {"error": str(e)}, 500)
+		frappe.log_error(f"Error in link_booking_policy: {str(e)}")
+		return error("Failed to link booking policy", "SERVER_ERROR", {"error": str(e)}, 500)
 
 
 @frappe.whitelist()
@@ -898,18 +1116,17 @@ def update_booking_policy(experience_id, cancel_until_hours_before=None, modify_
 		if not frappe.db.exists("Cheese Experience", experience_id):
 			return not_found("Experience", experience_id)
 		
-		# Get or create booking policy
-		policy_name = frappe.db.get_value(
-			"Cheese Booking Policy",
-			{"experience": experience_id},
-			"name"
-		)
-		
+		# Resolve the policy currently in use by this experience
+		# (new model: Experience.booking_policy; legacy: Booking Policy.experience back-ref)
+		from cheese.cheese.utils.validation import get_booking_policy_for_experience
+		policy_name = get_booking_policy_for_experience(experience_id, as_dict=False)
+
 		if policy_name:
 			policy = frappe.get_doc("Cheese Booking Policy", policy_name)
 		else:
 			policy = frappe.get_doc({
 				"doctype": "Cheese Booking Policy",
+				"policy_name": f"Policy for {experience_id}",
 				"experience": experience_id
 			})
 		
@@ -929,10 +1146,19 @@ def update_booking_policy(experience_id, cancel_until_hours_before=None, modify_
 			policy.min_hours_before_booking = min_hours_before_booking
 		
 		if policy_name:
-			policy.save()
+			policy.save(ignore_permissions=True)
 		else:
-			policy.insert()
-		
+			policy.insert(ignore_permissions=True)
+
+		# Link policy on the experience (many experiences can share one policy).
+		frappe.db.set_value(
+			"Cheese Experience",
+			experience_id,
+			"booking_policy",
+			policy.name,
+			update_modified=False,
+		)
+
 		frappe.db.commit()
 		
 		return success(
@@ -953,15 +1179,20 @@ def update_booking_policy(experience_id, cancel_until_hours_before=None, modify_
 
 
 @frappe.whitelist()
-def delete_time_slot(slot_id):
+def delete_time_slot(slot_id, scope="this"):
 	"""
 	Delete a time slot after checking for dependencies.
 
+	When ``scope`` is "following" or "all" and the slot is part of a recurrence
+	group, every slot in scope is deleted atomically: if any deletion fails
+	(e.g. an active ticket on one of them), nothing is removed (issue #269).
+
 	Args:
-		slot_id: Slot ID
+		slot_id: Slot ID to anchor the operation on.
+		scope: One of "this", "following", "all".
 
 	Returns:
-		Success response
+		Success response with the list of deleted slot IDs.
 	"""
 	try:
 		if not slot_id:
@@ -970,20 +1201,55 @@ def delete_time_slot(slot_id):
 		if not frappe.db.exists("Cheese Experience Slot", slot_id):
 			return not_found("Slot", slot_id)
 
-		# Check for active tickets on this slot
-		active_tickets = frappe.db.count(
+		try:
+			base_slot = assert_slot_access(slot_id)
+		except frappe.PermissionError:
+			return error("Unauthorized", "UNAUTHORIZED", {}, 403)
+
+		target_names = _resolve_slot_recurrence_scope(base_slot, scope)
+
+		blocking = frappe.get_all(
 			"Cheese Ticket",
-			filters={"slot": slot_id, "status": ["in", ["PENDING", "CONFIRMED", "CHECKED_IN"]]}
+			filters={
+				"slot": ["in", target_names],
+				"status": ["in", ["PENDING", "CONFIRMED", "CHECKED_IN"]],
+			},
+			fields=["name", "slot", "status"],
 		)
-		if active_tickets > 0:
+		if blocking:
+			# Group by slot so the operator sees which slot(s) are blocked.
+			blocked_slots = sorted({b.slot for b in blocking})
 			return validation_error(
-				f"Cannot delete slot with {active_tickets} active ticket(s). Cancel them first."
+				f"Cannot delete {len(blocked_slots)} slot(s) with active ticket(s); "
+				"cancel them first.",
+				{
+					"blocked_slots": blocked_slots,
+					"active_tickets": [b.name for b in blocking],
+				},
 			)
 
-		frappe.delete_doc("Cheese Experience Slot", slot_id, force=True)
+		deleted = []
+		savepoint = "cheese_slot_bulk_delete"
+		frappe.db.savepoint(savepoint)
+		try:
+			for name in target_names:
+				frappe.delete_doc("Cheese Experience Slot", name, force=True, ignore_permissions=True)
+				deleted.append(name)
+		except Exception:
+			frappe.db.rollback(save_point=savepoint)
+			raise
+
 		frappe.db.commit()
 
-		return success("Time slot deleted successfully", {"slot_id": slot_id})
+		return success(
+			f"Deleted {len(deleted)} slot(s) successfully",
+			{
+				"scope": (scope or "this").lower(),
+				"deleted_count": len(deleted),
+				"deleted_slot_ids": deleted,
+				"slot_id": slot_id,
+			},
+		)
 	except frappe.ValidationError as e:
 		return validation_error(str(e))
 	except Exception as e:

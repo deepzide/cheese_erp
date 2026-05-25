@@ -32,7 +32,9 @@
         "currency",
         "deposit_section",
         "deposit_required",
-        "deposit_amount"
+        "deposit_amount",
+        "guest_requirements_section",
+        "notes"
     ],
     "fields": [
         {
@@ -188,6 +190,17 @@
             "fieldname": "deposit_amount",
             "fieldtype": "Currency",
             "label": "Deposit Amount"
+        },
+        {
+            "fieldname": "guest_requirements_section",
+            "fieldtype": "Section Break",
+            "label": "Guest Requirements"
+        },
+        {
+            "fieldname": "notes",
+            "fieldtype": "Small Text",
+            "label": "Notes",
+            "description": "Free text for special guest requirements (e.g., vegetarian, celiac, allergies, accessibility needs)"
         }
     ],
     "index_web_pages_for_search": 1,

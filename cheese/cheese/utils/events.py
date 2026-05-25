@@ -106,3 +106,171 @@ def on_ticket_created_notify_establishment(doc, method):
 		)
 	except Exception as e:
 		frappe.log_error(f"Failed to enqueue reservation notification email: {e}", "Notification Error")
+
+
+# ---------------------------------------------------------------------------
+# Multi-tenant company auto-population
+# ---------------------------------------------------------------------------
+#
+# Several Cheese doctypes carry a `company` field for tenant scoping but do not
+# require it on the form (the user/API typically doesn't set it explicitly).
+# These handlers run on validate / before_insert and derive `company` from the
+# linked parent record (ticket, experience, contact, ...).  Without this the
+# permission_query_conditions in cheese/utils/permissions.py would filter rows
+# out for tenant users.
+
+
+def _set_if_empty(doc, fieldname, value):
+	if value and not getattr(doc, fieldname, None):
+		setattr(doc, fieldname, value)
+
+
+def set_ticket_company(doc, method=None):
+	"""Cheese Ticket.company defaults to experience.company when omitted."""
+	if doc.experience:
+		company = frappe.db.get_value("Cheese Experience", doc.experience, "company")
+		_set_if_empty(doc, "company", company)
+
+
+def set_slot_company(doc, method=None):
+	"""Cheese Experience Slot.company defaults to experience.company."""
+	if doc.experience:
+		company = frappe.db.get_value("Cheese Experience", doc.experience, "company")
+		_set_if_empty(doc, "company", company)
+
+
+def set_attendance_company(doc, method=None):
+	"""Cheese Attendance.company defaults to ticket.company."""
+	if doc.ticket:
+		company = frappe.db.get_value("Cheese Ticket", doc.ticket, "company")
+		_set_if_empty(doc, "company", company)
+
+
+def set_qr_token_company(doc, method=None):
+	"""Cheese QR Token.company defaults to ticket.company."""
+	if doc.ticket:
+		company = frappe.db.get_value("Cheese Ticket", doc.ticket, "company")
+		_set_if_empty(doc, "company", company)
+
+
+def _company_from_ticket(ticket_name):
+	if not ticket_name:
+		return None
+	return frappe.db.get_value("Cheese Ticket", ticket_name, "company")
+
+
+def _company_from_lead(lead_name):
+	if not lead_name:
+		return None
+	# A Cheese Lead may have an explicit interested_company field; fall back to None.
+	for field in ("company", "interested_company"):
+		try:
+			value = frappe.db.get_value("Cheese Lead", lead_name, field)
+		except Exception:
+			value = None
+		if value:
+			return value
+	return None
+
+
+def _company_from_contact(contact_name):
+	"""Return the first (primary) company linked to a contact via the
+	`companies` child table, if any. Returns None when not linked yet."""
+	if not contact_name:
+		return None
+	row = frappe.db.get_value(
+		"Cheese Contact Company",
+		{"parent": contact_name, "parenttype": "Cheese Contact"},
+		"company",
+		order_by="idx asc",
+	)
+	return row or None
+
+
+def set_conversation_company(doc, method=None):
+	"""Conversation.company is auto-resolved from linked entities.
+
+	Priority order:
+	  1. Linked ticket's company   (strongest signal of tenant ownership)
+	  2. Linked lead's company
+	  3. Primary company on the linked Cheese Contact (if the contact is
+	     only attached to one company, that's almost certainly the tenant)
+	"""
+	if doc.get("company"):
+		return
+
+	company = (
+		_company_from_ticket(doc.ticket)
+		or _company_from_lead(doc.lead)
+		or _company_from_contact(doc.contact)
+	)
+	if company:
+		doc.company = company
+
+
+def set_lead_company(doc, method=None):
+	"""Align Cheese Lead.company with the linked contact companies.
+
+	If the lead has no company, use the contact's primary company.
+	If the lead already has a company but that company is not linked to the
+	contact, normalize it to the contact's primary company to avoid cross-tenant
+	leakage caused by user default company values.
+	"""
+	company = _company_from_contact(doc.contact)
+	if not company:
+		return
+
+	if not doc.get("company"):
+		doc.company = company
+		return
+
+	if doc.company == company:
+		return
+
+	linked = set(
+		frappe.get_all(
+			"Cheese Contact Company",
+			filters={"parent": doc.contact, "parenttype": "Cheese Contact"},
+			pluck="company",
+		)
+	)
+	if doc.company not in linked:
+		doc.company = company
+
+
+def set_booking_policy_company(doc, method=None):
+	"""Cheese Booking Policy.company defaults to the legacy experience's company
+	(when the legacy back-reference is filled in) so existing rows keep working
+	until the operator picks an explicit company for the shared policy."""
+	if doc.get("company"):
+		return
+	if doc.experience:
+		company = frappe.db.get_value("Cheese Experience", doc.experience, "company")
+		_set_if_empty(doc, "company", company)
+
+
+def link_contact_to_ticket_company(doc, method=None):
+	"""When a Cheese Ticket is created, make sure the Cheese Contact lists this
+	ticket's company in its `companies` child table.
+
+	This ensures multi-tenant visibility for contacts that book at several
+	establishments — each company appears in the child table, and the
+	cheese_contact_query restriction returns the contact for users of any of
+	those companies.
+	"""
+	if not (doc.contact and doc.company):
+		return
+	try:
+		contact = frappe.get_doc("Cheese Contact", doc.contact)
+	except frappe.DoesNotExistError:
+		return
+
+	existing = {row.company for row in (contact.get("companies") or [])}
+	if doc.company in existing:
+		return
+
+	contact.append(
+		"companies",
+		{"company": doc.company, "linked_at": now_datetime()},
+	)
+	contact.save(ignore_permissions=True)

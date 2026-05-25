@@ -69,7 +69,24 @@ export default function Dashboard() {
     const depRates = kpis?.deposit_collection_rates || {};
     const attRates = kpis?.attendance_rates || {};
 
-    const totalLeads = convRates.total_leads || dashboard.total_leads || 0;
+    // Leads: prefer status breakdown from central dashboard; if empty but total_leads
+    // disagrees with KPI (stale server), trust KPI period-scoped total.
+    const leadsBreakdown = dashboard.leads && typeof dashboard.leads === 'object' && !Array.isArray(dashboard.leads)
+        ? dashboard.leads
+        : {};
+    const leadsFromBreakdown = Object.values(leadsBreakdown).reduce((sum, v) => sum + (Number(v) || 0), 0);
+    const centralLeadsTotal = dashboard.total_leads != null ? Number(dashboard.total_leads) : null;
+    const kpiLeadsTotal = convRates.total_leads != null ? Number(convRates.total_leads) : null;
+    let totalLeads = 0;
+    if (Object.keys(leadsBreakdown).length > 0) {
+        totalLeads = leadsFromBreakdown;
+    } else if (centralLeadsTotal != null && kpiLeadsTotal != null && centralLeadsTotal !== kpiLeadsTotal) {
+        totalLeads = kpiLeadsTotal;
+    } else if (centralLeadsTotal != null) {
+        totalLeads = centralLeadsTotal;
+    } else if (kpiLeadsTotal != null) {
+        totalLeads = kpiLeadsTotal;
+    }
     const collectedRevenue = depRates.collected_amount || dashboard.total_revenue || 0;
     const pendingDeposits = (depRates.total_deposits || 0) - (depRates.paid_deposits || 0);
     const satisfaction = kpis?.average_satisfaction || 0;

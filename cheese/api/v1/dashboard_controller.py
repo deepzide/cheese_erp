@@ -6,6 +6,74 @@ from frappe import _
 from frappe.utils import getdate, today, add_days, cint, now_datetime
 from cheese.api.common.responses import success, error, validation_error
 from cheese.api.v1.user_controller import _get_current_user_company
+from cheese.cheese.utils.permissions import _is_super_admin, get_user_companies, _quote_list
+
+
+def _lead_scope_sql(user=None, table_alias="l", company=None):
+	"""SQL fragment for lead company scope (matches cheese_lead_query)."""
+	user = user or frappe.session.user
+	if company:
+		quoted = _quote_list([company])
+		return (
+			f"(`{table_alias}`.company = %(lead_company)s"
+			f" OR `{table_alias}`.contact IN ("
+			f"SELECT parent FROM `tabCheese Contact Company` "
+			f"WHERE parenttype = 'Cheese Contact' AND company IN ({quoted})))",
+			{"lead_company": company},
+		)
+	if _is_super_admin(user):
+		return "", {}
+	companies = get_user_companies(user)
+	if not companies:
+		return "1=0", {}
+	quoted = _quote_list(companies)
+	return (
+		f"(`{table_alias}`.company IN ({quoted})"
+		f" OR `{table_alias}`.contact IN ("
+		f"SELECT parent FROM `tabCheese Contact Company` "
+		f"WHERE parenttype = 'Cheese Contact' AND company IN ({quoted})))",
+		{},
+	)
+
+
+def _dashboard_company_scope(user=None):
+	"""Company filter for dashboard metrics. None = all companies (route/central admin)."""
+	user = user or frappe.session.user
+	if _is_super_admin(user):
+		return None
+	return _get_current_user_company()
+
+
+def _lead_status_counts_in_period(start_date, end_date, company=None, user=None):
+	"""Count leads by status for a period using DATE(creation)."""
+	user = user or frappe.session.user
+	conditions = [
+		"DATE(l.creation) >= %(start_date)s",
+		"DATE(l.creation) <= %(end_date)s",
+	]
+	params = {"start_date": start_date, "end_date": end_date}
+	scope_sql, scope_params = _lead_scope_sql(user, company=company)
+	if scope_sql:
+		conditions.append(scope_sql)
+	params.update(scope_params)
+
+	rows = frappe.db.sql(
+		f"""
+		SELECT l.status AS status, COUNT(*) AS count
+		FROM `tabCheese Lead` l
+		WHERE {" AND ".join(conditions)}
+		GROUP BY l.status
+		""",
+		params,
+		as_dict=True,
+	)
+	return {r.status: cint(r.count) for r in rows}
+
+
+def _leads_for_dashboard(start_date, end_date, company=None, user=None):
+	"""Return (status counts, total) from a single period-scoped query."""
+	counts = _lead_status_counts_in_period(start_date, end_date, company=company, user=user)
+	return counts, sum(counts.values())
 
 
 def _ticket_status_counts_with_effective_date(start_date, end_date, company=None):
@@ -73,7 +141,7 @@ def get_central_dashboard(period="today", date_from=None, date_to=None):
 		Success response with dashboard data
 	"""
 	try:
-		user_company = _get_current_user_company()
+		scope_company = _dashboard_company_scope()
 		# Calculate date range
 		if period == "today":
 			date_from = today()
@@ -103,8 +171,8 @@ def get_central_dashboard(period="today", date_from=None, date_to=None):
 		prev_date_from = add_days(date_from_obj, -days_diff)
 		prev_date_to = add_days(date_from_obj, -1)
 		
-		current_counts = _ticket_status_counts_with_effective_date(date_from_obj, date_to_obj, user_company)
-		previous_counts = _ticket_status_counts_with_effective_date(prev_date_from, prev_date_to, user_company)
+		current_counts = _ticket_status_counts_with_effective_date(date_from_obj, date_to_obj, scope_company)
+		previous_counts = _ticket_status_counts_with_effective_date(prev_date_from, prev_date_to, scope_company)
 		
 		# Calculate KPIs
 		confirmed = current_counts.get("CONFIRMED", 0)
@@ -117,29 +185,19 @@ def get_central_dashboard(period="today", date_from=None, date_to=None):
 		prev_checked_in = previous_counts.get("CHECKED_IN", 0)
 		prev_completed = previous_counts.get("COMPLETED", 0)
 		
-		# Get leads
-		lead_filters = {"creation": ["between", [f"{date_from_obj} 00:00:00", f"{date_to_obj} 23:59:59"]]}
-		if user_company:
-			# Only leads that have interest in the user's company (requires company field on Lead, assuming it exists or skip if not supported. Lead doesn't have company typically, but let's check).
-			# Actually, leads might not be company-scoped. Skip lead filter or filter if lead has company field.
-			pass
-
-		leads = frappe.get_all(
-			"Cheese Lead",
-			filters=lead_filters,
-			fields=["status"]
+		# Leads: period by DATE(creation); apply the same tenant scope used by
+		# tickets/deposits so establishment users never see cross-company prospects.
+		lead_counts, total_leads = _leads_for_dashboard(
+			date_from_obj,
+			date_to_obj,
+			company=scope_company,
 		)
-		
-		lead_counts = {}
-		for lead in leads:
-			status = lead.status
-			lead_counts[status] = lead_counts.get(status, 0) + 1
 		
 		# Get deposits
 		deposit_filters = {"creation": ["between", [f"{date_from_obj} 00:00:00", f"{date_to_obj} 23:59:59"]]}
-		if user_company:
+		if scope_company:
 			# To filter deposits by company, we filter by entity_id if they are ticket deposits
-			ticket_ids = frappe.get_all("Cheese Ticket", filters={"company": user_company}, pluck="name")
+			ticket_ids = frappe.get_all("Cheese Ticket", filters={"company": scope_company}, pluck="name")
 			if ticket_ids:
 				deposit_filters["entity_id"] = ["in", ticket_ids]
 			else:
@@ -177,6 +235,7 @@ def get_central_dashboard(period="today", date_from=None, date_to=None):
 					"completed_change": completed - prev_completed
 				},
 				"leads": lead_counts,
+				"total_leads": total_leads,
 				"deposits": {
 					"pending": deposit_counts.get("PENDING", 0),
 					"paid": deposit_counts.get("PAID", 0),
@@ -319,10 +378,10 @@ def get_dashboard_kpis(establishment_id=None, period="today"):
 		date_from_obj = getdate(date_from)
 		date_to_obj = getdate(date_to)
 		
-		# Resolve effective establishment scope
-		user_company = _get_current_user_company()
-		if user_company:
-			establishment_id = user_company
+		# Resolve effective establishment scope (tenant users only)
+		scope_company = _dashboard_company_scope()
+		if scope_company:
+			establishment_id = scope_company
 
 		ticket_filters = {"company": establishment_id} if establishment_id else {}
 		tickets = frappe.get_all(
@@ -333,14 +392,12 @@ def get_dashboard_kpis(establishment_id=None, period="today"):
 		tickets = [t for t in tickets if _ticket_in_period(t, date_from_obj, date_to_obj)]
 		
 		# Calculate conversion rates (leads → tickets → confirmed)
-		leads = frappe.get_all(
-			"Cheese Lead",
-			filters={"creation": ["between", [f"{date_from_obj} 00:00:00", f"{date_to_obj} 23:59:59"]]},
-			fields=["name", "status"]
+		lead_counts, total_leads = _leads_for_dashboard(
+			date_from_obj,
+			date_to_obj,
+			company=establishment_id,
 		)
-		
-		total_leads = len(leads)
-		converted_leads = len([l for l in leads if l.status == "CONVERTED"])
+		converted_leads = lead_counts.get("CONVERTED", 0)
 		lead_conversion_rate = (converted_leads / total_leads * 100) if total_leads > 0 else 0
 		
 		total_tickets = len(tickets)
@@ -356,10 +413,19 @@ def get_dashboard_kpis(establishment_id=None, period="today"):
 		no_shows = len([t for t in tickets if t.status == "NO_SHOW"])
 		no_show_rate = (no_shows / confirmed_tickets * 100) if confirmed_tickets > 0 else 0
 		
-		# Calculate deposit collection rates
+		# Calculate deposit collection rates (scoped to establishment tickets when filtered)
+		deposit_filters = {"creation": ["between", [f"{date_from_obj} 00:00:00", f"{date_to_obj} 23:59:59"]]}
+		if establishment_id:
+			ticket_ids = [t.name for t in tickets] if tickets else []
+			if ticket_ids:
+				deposit_filters["entity_type"] = "Cheese Ticket"
+				deposit_filters["entity_id"] = ["in", ticket_ids]
+			else:
+				deposit_filters["name"] = "__no_deposits__"
+
 		deposits = frappe.get_all(
 			"Cheese Deposit",
-			filters={"creation": ["between", [f"{date_from_obj} 00:00:00", f"{date_to_obj} 23:59:59"]]},
+			filters=deposit_filters,
 			fields=["name", "status", "amount_required", "amount_paid"]
 		)
 		
@@ -439,10 +505,11 @@ def get_pending_actions(establishment_id=None, date_from=None, date_to=None):
 		from frappe.utils import getdate, now_datetime
 
 		# Get experiences to build relevant slots.
-		# If establishment_id is not provided, return pending actions across all companies.
-		user_company = _get_current_user_company()
-		if user_company:
-			establishment_id = user_company
+		# Super admins without establishment_id see all companies.
+		if not establishment_id:
+			scope_company = _dashboard_company_scope()
+			if scope_company:
+				establishment_id = scope_company
 
 		experience_filters = {}
 		if establishment_id:
@@ -558,13 +625,15 @@ def get_day_agenda(establishment_id, date=None):
 		Success response with day agenda
 	"""
 	try:
-		user_company = _get_current_user_company()
-		if user_company:
-			establishment_id = user_company
-
 		if not establishment_id:
-			return validation_error("establishment_id is required")
-		
+			scope_company = _dashboard_company_scope()
+			if scope_company:
+				establishment_id = scope_company
+			elif _is_super_admin():
+				return validation_error("establishment_id is required for day agenda")
+			else:
+				return validation_error("establishment_id is required")
+
 		target_date = getdate(date) if date else today()
 		
 		# Get experiences

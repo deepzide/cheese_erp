@@ -5,9 +5,9 @@
     "type": "module",
     "scripts": {
         "dev": "vite",
-        "build": "vite build --base=/assets/cheese/frontend/ && npm run copy-assets && npm run copy-html-entry",
-        "copy-assets": "cp -r dist/assets ../cheese/public/frontend/ && cp -r dist/index.html ../cheese/public/frontend/index.html 2>/dev/null || true",
-        "copy-html-entry": "cp dist/index.html ../cheese/www/cheese.html",
+        "build": "vite build && node scripts/copy-build-assets.mjs",
+        "copy-assets": "node scripts/copy-build-assets.mjs",
+        "copy-html-entry": "node scripts/copy-build-assets.mjs --html-only",
         "lint": "eslint .",
         "preview": "vite preview"
     },

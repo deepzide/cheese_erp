@@ -29,6 +29,10 @@ export const hotelService = {
         return apiRequest(`${BASE}.update_hotel_slot`, { method: 'POST', body: JSON.stringify({ slot_id: slotId, ...data }) });
     },
 
+    deleteHotelSlot: async (slotId) => {
+        return apiRequest(`${BASE}.delete_hotel_slot`, { method: 'POST', body: JSON.stringify({ slot_id: slotId }) });
+    },
+
     getHotelReservations: async (params = {}) => {
         const searchParams = new URLSearchParams();
         Object.entries(params).forEach(([k, v]) => { if (v != null) searchParams.append(k, v); });

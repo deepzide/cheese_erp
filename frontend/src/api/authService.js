@@ -32,6 +32,7 @@ const normalizeTokenPayload = (response = {}, defaults = {}) => {
         full_name: data?.full_name || defaults?.full_name || '',
         email: data?.email || defaults?.email || '',
         permissions: data?.permissions || defaults?.permissions || [],
+        roles: data?.roles || defaults?.roles || [],
     };
 };
 
