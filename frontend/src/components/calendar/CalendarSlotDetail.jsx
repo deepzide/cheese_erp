@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Users, Clock, Ticket, Pencil, Trash2, ExternalLink, Save, X } from "lucide-react";
+import { Users, Clock, Ticket, Pencil, Trash2, ExternalLink, Save, X, Scissors } from "lucide-react";
 import { toast } from "sonner";
 import { experienceService } from "@/api/experienceService";
 import { getOccupancy, getOccupancyColor, formatTimeRange, format } from "./calendarUtils";
@@ -22,6 +22,8 @@ export default function CalendarSlotDetail({ slot, open, onClose }) {
     const [editing, setEditing] = useState(false);
     const [editForm, setEditForm] = useState({});
     const [scope, setScope] = useState("this");
+    const [trimOpen, setTrimOpen] = useState(false);
+    const [trimEndDate, setTrimEndDate] = useState("");
 
     const { data: recurrencePayload } = useQuery({
         queryKey: ["slot-recurrence", slot?.name],
@@ -55,6 +57,41 @@ export default function CalendarSlotDetail({ slot, open, onClose }) {
             onClose?.();
         },
         onError: (err) => toast.error(err?.message || t("calendar.deleteSlotFailed", "Failed to delete slot")),
+    });
+
+    const trimMutation = useMutation({
+        mutationFn: async ({ confirmActiveTickets = false } = {}) =>
+            experienceService.trimRecurrenceSeries(slot?.name, trimEndDate, { confirmActiveTickets }),
+        onSuccess: (res) => {
+            const data = res?.data?.message?.data || res?.data?.data || {};
+            const removed = data.trimmed_count || 0;
+            toast.success(
+                removed
+                    ? t("calendar.seriesTrimmed", `Series trimmed — removed ${removed} slot(s)`)
+                    : t("calendar.seriesAlreadyEnds", "Series already ends on or before this date")
+            );
+            queryClient.invalidateQueries(["calendar-slots"]);
+            queryClient.invalidateQueries(["slot-recurrence", slot?.name]);
+            setTrimOpen(false);
+            setTrimEndDate("");
+            onClose?.();
+        },
+        onError: (err) => {
+            const details = err?.details || err?.data?.details || {};
+            if (details?.confirmed_tickets > 0) {
+                const proceed = window.confirm(
+                    t(
+                        "calendar.trimConfirmsActive",
+                        `${details.confirmed_tickets} confirmed reservation(s) will be cancelled. Continue?`
+                    )
+                );
+                if (proceed) {
+                    trimMutation.mutate({ confirmActiveTickets: true });
+                    return;
+                }
+            }
+            toast.error(err?.message || t("calendar.trimFailed", "Failed to trim series"));
+        },
     });
 
     if (!slot) return null;
@@ -107,7 +144,22 @@ export default function CalendarSlotDetail({ slot, open, onClose }) {
                 <div className="space-y-4 py-2">
                     {isRecurring && (
                         <div className="space-y-2 rounded-lg border border-border p-3 bg-muted/30">
-                            <p className="text-xs font-medium text-muted-foreground">{t("calendar.recurrenceScope", "Apply changes to")}</p>
+                            <div className="flex items-center justify-between">
+                                <p className="text-xs font-medium text-muted-foreground">{t("calendar.recurrenceScope", "Apply changes to")}</p>
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    className="h-7 text-xs"
+                                    onClick={() => {
+                                        setTrimEndDate(slot.date_from || slot._viewDate || "");
+                                        setTrimOpen(true);
+                                    }}
+                                >
+                                    <Scissors className="w-3 h-3 mr-1" />
+                                    {t("calendar.trimSeriesEnd", "Change series end date")}
+                                </Button>
+                            </div>
                             <div className="space-y-1.5 text-sm">
                                 <label className="flex items-center gap-2 cursor-pointer">
                                     <input type="radio" name="slot-scope" value="this" checked={scope === "this"} onChange={() => setScope("this")} />
@@ -219,6 +271,58 @@ export default function CalendarSlotDetail({ slot, open, onClose }) {
                     )}
                 </DialogFooter>
             </DialogContent>
+
+            {/* Trim Series Sub-Dialog (issue #260): Google-Calendar-style
+                "change end date for this series" affordance. The operator
+                picks a new end date and every sibling slot after that date is
+                removed in one atomic call. */}
+            <Dialog open={trimOpen} onOpenChange={setTrimOpen}>
+                <DialogContent className="max-w-md">
+                    <DialogHeader>
+                        <DialogTitle className="flex items-center gap-2">
+                            <Scissors className="w-4 h-4 text-cheese-600" />
+                            {t("calendar.trimSeriesTitle", "Change series end date")}
+                        </DialogTitle>
+                        <DialogDescription>
+                            {t(
+                                "calendar.trimSeriesDescription",
+                                "Pick the inclusive last date the series should run. Slots on later dates are removed."
+                            )}
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-3">
+                        <div className="space-y-1.5">
+                            <Label className="text-xs">{t("calendar.newSeriesEnd", "New series end date")}</Label>
+                            <Input
+                                type="date"
+                                value={trimEndDate}
+                                min={slot?.date_from || ""}
+                                onChange={(e) => setTrimEndDate(e.target.value)}
+                            />
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                            {t(
+                                "calendar.trimSeriesHint",
+                                "Slots on or before this date are kept. Slots after it are deleted."
+                            )}
+                        </p>
+                    </div>
+                    <DialogFooter>
+                        <Button size="sm" variant="ghost" onClick={() => setTrimOpen(false)}>
+                            {t("common.cancel", "Cancel")}
+                        </Button>
+                        <Button
+                            size="sm"
+                            className="bg-cheese-500 hover:bg-cheese-600 text-black"
+                            disabled={!trimEndDate || trimMutation.isPending}
+                            onClick={() => trimMutation.mutate({ confirmActiveTickets: false })}
+                        >
+                            <Scissors className="w-3.5 h-3.5 mr-1" />
+                            {t("calendar.trimSeries", "Trim series")}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </Dialog>
     );
 }
