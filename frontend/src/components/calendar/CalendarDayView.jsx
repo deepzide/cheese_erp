@@ -1,4 +1,5 @@
 import React, { useRef, useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { isToday, isSameDay, format, getHours, getSlotPosition, getNowPosition, HOUR_HEIGHT, TOTAL_HOURS, formatHour, calculateSlotLayout } from "./calendarUtils";
 import CalendarSlotCard from "./CalendarSlotCard";
 
@@ -6,6 +7,7 @@ import CalendarSlotCard from "./CalendarSlotCard";
  * Day view — single column hourly time grid.
  */
 export default function CalendarDayView({ date, slots, onSlotClick, onEmptyClick }) {
+    const { t } = useTranslation();
     const containerRef = useRef(null);
     const [nowPos, setNowPos] = useState(getNowPosition());
     const hours = getHours();
@@ -44,7 +46,7 @@ export default function CalendarDayView({ date, slots, onSlotClick, onEmptyClick
             {/* All-day slots */}
             {untimed.length > 0 && (
                 <div className="border-b border-border bg-muted/20 px-2 py-1.5 flex items-center gap-1 flex-wrap">
-                    <span className="text-[10px] text-muted-foreground font-medium mr-1">ALL DAY</span>
+                    <span className="text-[10px] text-muted-foreground font-medium mr-1">{t("calendar.allDay", "All Day")}</span>
                     {untimed.map((slot) => (
                         <button
                             key={slot.name}

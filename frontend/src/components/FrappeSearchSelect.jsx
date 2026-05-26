@@ -103,10 +103,10 @@ export default function FrappeSearchSelect({
                     ${disabled ? 'opacity-50 cursor-not-allowed' : 'hover:border-cheese-400 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 cursor-pointer'}
                     ${open ? 'border-cheese-400 ring-2 ring-ring ring-offset-2' : ''}`}
             >
-                <span className={value ? "text-foreground" : "text-muted-foreground"}>
+                <span className={`${value ? "text-foreground" : "text-muted-foreground"} flex-1 min-w-0 truncate text-left`}>
                     {value ? displayLabel : (placeholder || t("common.search", "Search") + "...")}
                 </span>
-                <div className="flex items-center gap-1">
+                <div className="flex items-center gap-1 flex-shrink-0">
                     {value && !disabled && (
                         <span
                             onClick={(e) => { e.stopPropagation(); onChange(""); setSearchTerm(""); }}

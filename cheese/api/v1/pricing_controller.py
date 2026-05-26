@@ -99,10 +99,8 @@ def get_pricing_preview(items, party_size=1):
 					route_price = 0
 					for exp_row in route.experiences:
 						exp = frappe.get_doc("Cheese Experience", exp_row.experience)
-						if exp.route_price:
-							route_price += exp.route_price * party_size
-						elif exp.individual_price:
-							route_price += exp.individual_price * party_size
+						route_unit = exp.route_price if exp.route_price is not None else 0
+						route_price += route_unit * party_size
 				else:
 					route_price = 0
 				

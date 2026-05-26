@@ -36,7 +36,10 @@ def calculate_ticket_price(experience_id, party_size, route_id=None, ticket=None
 				"individual_price": None,
 				"route_price": per_person
 			}
-		unit_price = experience.route_price or experience.individual_price or 0
+		# In route context (Sum mode), route_price is the source of truth.
+		# Do not silently fall back to individual_price, otherwise tickets
+		# can be priced as stand-alone experiences inside a route.
+		unit_price = experience.route_price if experience.route_price is not None else 0
 		return {
 			"total_price": unit_price * party_size,
 			"individual_price": experience.individual_price,
@@ -104,8 +107,8 @@ def calculate_route_price(route_id, party_size):
 	for exp_row in route.experiences:
 		experience = frappe.get_doc("Cheese Experience", exp_row.experience)
 		if experience.experience_type == "HOTEL":
-			unit = experience.route_price or experience.price_per_night or 0
+			unit = experience.route_price if experience.route_price is not None else 0
 		else:
-			unit = experience.route_price or experience.individual_price or 0
+			unit = experience.route_price if experience.route_price is not None else 0
 		total += unit * party_size
 	return total
