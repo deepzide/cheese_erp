@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Shield, X } from "lucide-react";
 import { toast } from "sonner";
@@ -20,18 +21,19 @@ export default function BookingPolicyCreate() {
     const { t } = useTranslation();
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
+    const initialExperience = searchParams.get("experience");
 
-    const initialExperience = searchParams.get('experience');
+    const [experiencePicker, setExperiencePicker] = useState("");
     const [experiences, setExperiences] = useState(
         initialExperience ? [initialExperience] : []
     );
-    const [experiencePicker, setExperiencePicker] = useState("");
     const [form, setForm] = useState({
         policy_name: "",
         cancel_until_hours_before: "24",
         modify_until_hours_before: "12",
         min_hours_before_booking: "2",
     });
+
     const createMutation = useFrappeCreate("Cheese Booking Policy");
 
     const handleAddExperience = (value) => {
@@ -80,9 +82,6 @@ export default function BookingPolicyCreate() {
                         return;
                     }
 
-                    // Link the same shared policy to every experience the operator
-                    // picked. This is the many-to-one model from issue #266 — a
-                    // booking policy can govern many experiences at once.
                     const results = await Promise.allSettled(
                         experiences.map((expId) =>
                             experienceService.linkBookingPolicy(expId, policyId)
@@ -112,6 +111,7 @@ export default function BookingPolicyCreate() {
                             )
                         );
                     }
+
                     navigate("/cheese/booking-policy");
                 },
                 onError: (err) =>

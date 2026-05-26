@@ -85,7 +85,8 @@
     "documents": "Documents",
     "bankAccounts": "Bank Accounts",
     "failed": "Failed",
-    "selected": "Selected"
+    "selected": "Selected",
+    "more": "more"
   },
   "status": {
     "ONLINE": "Online",
@@ -762,7 +763,10 @@
     "deleteSlotConfirm": "Delete slot {{name}}? This cannot be undone.",
     "maxCapacity": "Max Capacity",
     "capacity": "Capacity",
-    "occupied": "occupied"
+    "occupied": "occupied",
+    "filling": "Filling",
+    "slots": "slots",
+    "more": "more"
     ,"repeat": "Repeat"
     ,"customRecurrence": "Custom Recurrence"
     ,"customRecurrenceDesc": "Set up a custom recurrence pattern for this slot"

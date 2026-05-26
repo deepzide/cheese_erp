@@ -139,7 +139,8 @@
     "takeOffline": "Desconectar",
     "to": "Hasta",
     "type": "Tipo",
-    "selected": "Seleccionado"
+    "selected": "Seleccionado",
+    "more": "más"
   },
   "status": {
     "ONLINE": "En Línea",
@@ -599,6 +600,9 @@
     "maxCapacity": "Capacidad máxima",
     "capacity": "Capacidad",
     "occupied": "ocupado",
+    "filling": "Ocupándose",
+    "slots": "horarios",
+    "more": "más",
     "repeat": "Repetir",
     "customRecurrence": "Recurrencia personalizada",
     "customRecurrenceDesc": "Configura un patrón de recurrencia personalizado para este horario",

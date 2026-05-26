@@ -704,6 +704,54 @@ def get_ticket_summary(ticket_id):
 
 
 @frappe.whitelist()
+def record_customer_notes(ticket_id, notes, append=False):
+	"""
+	Store customer notes on an existing ticket (bot-friendly endpoint).
+
+	Args:
+		ticket_id: Cheese Ticket ID
+		notes: Customer notes text
+		append: If true, append to existing notes instead of replacing
+	"""
+	try:
+		if not ticket_id:
+			return validation_error("ticket_id is required")
+		if notes is None:
+			return validation_error("notes is required")
+
+		if not frappe.db.exists("Cheese Ticket", ticket_id):
+			return not_found("Ticket", ticket_id)
+
+		notes_text = str(notes).strip()
+		if not notes_text:
+			return validation_error("notes cannot be empty")
+
+		ticket = frappe.get_doc("Cheese Ticket", ticket_id)
+		current_notes = (ticket.notes or "").strip()
+		append_flag = cint(append) == 1 if not isinstance(append, bool) else append
+		if append_flag and current_notes:
+			ticket.notes = f"{current_notes}\n{notes_text}"
+		else:
+			ticket.notes = notes_text
+
+		ticket.save()
+		frappe.db.commit()
+
+		return success(
+			"Customer notes recorded successfully",
+			{
+				"ticket_id": ticket.name,
+				"notes": ticket.notes,
+			},
+		)
+	except frappe.ValidationError as e:
+		return validation_error(str(e))
+	except Exception as e:
+		frappe.log_error(f"Error in record_customer_notes: {str(e)}")
+		return error("Failed to record customer notes", "SERVER_ERROR", {"error": str(e)}, 500)
+
+
+@frappe.whitelist()
 def confirm_ticket(ticket_id):
 	"""
 	Confirm a pending ticket (US-12)
@@ -1381,6 +1429,55 @@ def get_establishment_ticket_board(establishment_id, date=None):
 	except Exception as e:
 		frappe.log_error(f"Error in get_establishment_ticket_board: {str(e)}")
 		return error("Failed to get establishment ticket board", "SERVER_ERROR", {"error": str(e)}, 500)
+
+
+@frappe.whitelist()
+def record_customer_notes(ticket_id, notes, append=False):
+	"""
+	Store customer notes on an existing ticket.
+
+	Args:
+		ticket_id: Cheese Ticket ID
+		notes: Notes text to store
+		append: When truthy, appends notes to existing content
+	"""
+	try:
+		if not ticket_id:
+			return validation_error("ticket_id is required")
+		if notes is None:
+			return validation_error("notes is required")
+
+		if not frappe.db.exists("Cheese Ticket", ticket_id):
+			return not_found("Ticket", ticket_id)
+
+		notes_text = str(notes).strip()
+		if not notes_text:
+			return validation_error("notes cannot be empty")
+
+		ticket = frappe.get_doc("Cheese Ticket", ticket_id)
+		current_notes = (ticket.notes or "").strip()
+		append_mode = cint(append) == 1 if not isinstance(append, bool) else append
+
+		if append_mode and current_notes:
+			ticket.notes = f"{current_notes}\n{notes_text}"
+		else:
+			ticket.notes = notes_text
+
+		ticket.save()
+		frappe.db.commit()
+
+		return success(
+			"Customer notes recorded successfully",
+			{
+				"ticket_id": ticket.name,
+				"notes": ticket.notes,
+			},
+		)
+	except frappe.ValidationError as e:
+		return validation_error(str(e))
+	except Exception as e:
+		frappe.log_error(f"Error in record_customer_notes: {str(e)}")
+		return error("Failed to record customer notes", "SERVER_ERROR", {"error": str(e)}, 500)
 
 
 @frappe.whitelist()
