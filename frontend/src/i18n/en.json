@@ -764,7 +764,9 @@
     "maxCapacity": "Max Capacity",
     "capacity": "Capacity",
     "occupied": "occupied",
-    "filling": "Filling"
+    "filling": "Filling",
+    "slots": "slots",
+    "more": "more"
     ,"repeat": "Repeat"
     ,"customRecurrence": "Custom Recurrence"
     ,"customRecurrenceDesc": "Set up a custom recurrence pattern for this slot"

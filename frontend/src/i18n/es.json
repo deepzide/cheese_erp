@@ -601,6 +601,8 @@
     "capacity": "Capacidad",
     "occupied": "ocupado",
     "filling": "Ocupándose",
+    "slots": "horarios",
+    "more": "más",
     "repeat": "Repetir",
     "customRecurrence": "Recurrencia personalizada",
     "customRecurrenceDesc": "Configura un patrón de recurrencia personalizado para este horario",

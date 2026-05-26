@@ -71,7 +71,7 @@ export default function CalendarMonthView({ date, slots, onDayClick }) {
                                 </span>
                                 {daySlots.length > 0 && (
                                     <span className="text-[9px] text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity">
-                                        {daySlots.length} {t("tickets.slots", "slots")}
+                                        {daySlots.length} {t("calendar.slots", "slots")}
                                     </span>
                                 )}
                             </div>
@@ -94,7 +94,7 @@ export default function CalendarMonthView({ date, slots, onDayClick }) {
                                 })}
                                 {overflow > 0 && (
                                     <div className="text-[10px] text-muted-foreground font-medium pl-1">
-                                        +{overflow} {t("common.more", "more")}
+                                        +{overflow} {t("calendar.more", "more")}
                                     </div>
                                 )}
                             </div>

@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Shield, X } from "lucide-react";
 import { toast } from "sonner";
-import { useFrappeCreate, useFrappeList } from "@/lib/useApiData";
+import { useFrappeCreate } from "@/lib/useApiData";
 import { experienceService } from "@/api/experienceService";
 import CreatePageLayout from "@/components/CreatePageLayout";
 import FrappeSearchSelect from "@/components/FrappeSearchSelect";
@@ -21,41 +21,20 @@ export default function BookingPolicyCreate() {
     const { t } = useTranslation();
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
-    const initialExperience = searchParams.get("experience") || "";
-    const [form, setForm] = useState({
+    const initialExperience = searchParams.get("experience");
 
-    const initialExperience = searchParams.get('experience');
+    const [experiencePicker, setExperiencePicker] = useState("");
     const [experiences, setExperiences] = useState(
         initialExperience ? [initialExperience] : []
     );
-    const [experiencePicker, setExperiencePicker] = useState("");
     const [form, setForm] = useState({
         policy_name: "",
         cancel_until_hours_before: "24",
         modify_until_hours_before: "12",
         min_hours_before_booking: "2",
     });
-    const [selectedExperience, setSelectedExperience] = useState(initialExperience);
-    const [linkedExperiences, setLinkedExperiences] = useState(
-        initialExperience ? [initialExperience] : []
-    );
+
     const createMutation = useFrappeCreate("Cheese Booking Policy");
-    const { data: experiences = [] } = useFrappeList("Cheese Experience", {
-        fields: ["name", "experience_info"],
-        pageSize: 200,
-    });
-
-    const addExperience = () => {
-        if (!selectedExperience) return;
-        setLinkedExperiences((prev) =>
-            prev.includes(selectedExperience) ? prev : [...prev, selectedExperience]
-        );
-        setSelectedExperience("");
-    };
-
-    const removeExperience = (experienceId) => {
-        setLinkedExperiences((prev) => prev.filter((expId) => expId !== experienceId));
-    };
 
     const handleAddExperience = (value) => {
         if (!value) return;
@@ -72,25 +51,6 @@ export default function BookingPolicyCreate() {
     };
 
     const handleSubmit = () => {
-        createMutation.mutate({
-            policy_name: linkedExperiences.length
-                ? `Policy for ${linkedExperiences[0]}`
-                : `Policy ${new Date().toISOString().slice(0, 10)}`,
-            cancel_until_hours_before: parseHours(form.cancel_until_hours_before, 24),
-            modify_until_hours_before: parseHours(form.modify_until_hours_before, 12),
-            min_hours_before_booking: parseHours(form.min_hours_before_booking, 2),
-        }, {
-            onSuccess: async (created) => {
-                const policyId = created?.name || created?.data?.name;
-                if (policyId && linkedExperiences.length) {
-                    try {
-                        await Promise.all(
-                            linkedExperiences.map((experienceId) =>
-                                experienceService.linkBookingPolicy(experienceId, policyId)
-                            )
-                        );
-                    } catch (linkErr) {
-                        toast.error(linkErr?.message || t("bookingPolicy.linkFailed", "Policy created but failed to link to selected experiences"));
         if (experiences.length === 0) {
             toast.error(
                 t(
@@ -122,9 +82,6 @@ export default function BookingPolicyCreate() {
                         return;
                     }
 
-                    // Link the same shared policy to every experience the operator
-                    // picked. This is the many-to-one model from issue #266 — a
-                    // booking policy can govern many experiences at once.
                     const results = await Promise.allSettled(
                         experiences.map((expId) =>
                             experienceService.linkBookingPolicy(expId, policyId)
@@ -154,6 +111,7 @@ export default function BookingPolicyCreate() {
                             )
                         );
                     }
+
                     navigate("/cheese/booking-policy");
                 },
                 onError: (err) =>
@@ -177,33 +135,6 @@ export default function BookingPolicyCreate() {
         >
             <div className="space-y-5">
                 <div className="space-y-2">
-                    <Label>{t("experiences.experience", "Experience")}</Label>
-                    <div className="flex items-center gap-2">
-                        <FrappeSearchSelect
-                            doctype="Cheese Experience"
-                            label="name"
-                            value={selectedExperience}
-                            onChange={setSelectedExperience}
-                            placeholder={t("routes.selectExperience", "Select an experience...")}
-                        />
-                        <Button type="button" variant="outline" onClick={addExperience}>
-                            {t("common.add", "Add")}
-                        </Button>
-                    </div>
-                    <div className="flex flex-wrap gap-2">
-                        {linkedExperiences.map((experienceId) => {
-                            const match = (Array.isArray(experiences) ? experiences : []).find((exp) => exp.name === experienceId);
-                            const label = match?.experience_info || experienceId;
-                            return (
-                                <span key={experienceId} className="inline-flex items-center gap-1 rounded-md border px-2 py-1 text-xs">
-                                    {label}
-                                    <button type="button" onClick={() => removeExperience(experienceId)}>
-                                        <X className="w-3 h-3" />
-                                    </button>
-                                </span>
-                            );
-                        })}
-                    </div>
                     <Label>
                         {t("bookingPolicy.policyName", "Policy Name")}
                     </Label>
