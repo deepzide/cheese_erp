@@ -292,6 +292,11 @@ export default function BookingDetail() {
                                                     {it.time && <span className="flex items-center gap-1"><Clock className="w-3 h-3" /> {it.time}</span>}
                                                     <span className="flex items-center gap-1"><Users className="w-3 h-3" /> {it.party_size}</span>
                                                 </div>
+                                                {it.notes && (
+                                                    <p className="mt-1 text-xs text-muted-foreground truncate">
+                                                        {t("tickets.guestNotes", "Guest notes")}: {it.notes}
+                                                    </p>
+                                                )}
                                             </div>
                                             <div className="flex items-center gap-2 shrink-0">
                                                 <Badge variant="outline" className={DEPOSIT_STATUS_BADGE[it.deposit_status] || DEPOSIT_STATUS_BADGE.NONE}>
