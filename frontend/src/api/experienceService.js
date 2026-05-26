@@ -76,6 +76,20 @@ export const experienceService = {
         });
     },
 
+    // Shorten a recurring slot series so it ends on `newEndDate` (inclusive).
+    // Backend deletes every sibling slot strictly after that date. Used by the
+    // Google-Calendar-style "change series end date" affordance from issue #260.
+    trimRecurrenceSeries: async (slotId, newEndDate, { confirmActiveTickets = false } = {}) => {
+        return apiRequest(`${BASE}.trim_recurrence_series`, {
+            method: 'POST',
+            body: JSON.stringify({
+                slot_id: slotId,
+                new_end_date: newEndDate,
+                confirm_active_tickets: confirmActiveTickets ? 1 : 0,
+            }),
+        });
+    },
+
     deleteExperience: async (experienceId) => {
         return apiRequest(`${BASE}.delete_experience`, { method: 'POST', body: JSON.stringify({ experience_id: experienceId }) });
     },
