@@ -380,6 +380,7 @@ def create_route_reservation(
 	preferred_dates=None,
 	party_size=1,
 	conversation_id=None,
+	notes=None,
 	date_from=None,
 	date_to=None,
 	date=None,
@@ -398,6 +399,7 @@ def create_route_reservation(
 		preferred_dates: Alias for experiences_with_slots
 		party_size: Party size (default: 1)
 		conversation_id: Conversation ID (optional)
+		notes: Optional guest notes copied to all tickets created for this route booking
 		date_from: Start date to auto-select slots (optional, YYYY-MM-DD)
 		date_to: End date to auto-select slots (optional, YYYY-MM-DD). If not provided, uses date_from
 		date: Synonym for date_from when date_from is not set (optional, YYYY-MM-DD)
@@ -774,6 +776,7 @@ def create_route_reservation(
 				check_in_date=check_in,
 				check_out_date=check_out,
 				rooms_requested=rooms,
+				notes=notes,
 			)
 
 			if not ticket_result.get("success"):
@@ -882,6 +885,7 @@ def create_route_reservation(
 					"scheduled_end": f"{schedule_date} {time_to_value}" if time_to_value else None,
 					# Backward-compatible field for clients that still consume a single time value.
 					"time": time_from_value,
+					"notes": ticket_doc.notes if ticket_doc.notes else None,
 				}
 			)
 
@@ -1093,6 +1097,7 @@ def get_route_summary(route_booking_id):
 						"scheduled_end": f"{display_date} {display_time_to}" if display_time_to else None,
 						"status": ticket.status,
 						"party_size": ticket.party_size,
+						"notes": ticket.notes if ticket.notes else None,
 						# Financial fields
 						"unit_cost": unit_cost,
 						"total_per_ticket": total_per_ticket,
@@ -1431,6 +1436,8 @@ def confirm_add_activities_to_route(route_booking_id, activities):
 				slot_id,
 				party_size,
 				selected_date=selected_date,
+				route_id=route_id,
+				notes=activity.get("notes"),
 			)
 			if not ticket_result.get("success"):
 				# Rollback
