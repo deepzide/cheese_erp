@@ -1,4 +1,5 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 import {
     format, isToday, getMonthGrid, getOccupancy, getOccupancyColor,
 } from "./calendarUtils";
@@ -8,6 +9,7 @@ import {
  * Clicking a day switches to Day view.
  */
 export default function CalendarMonthView({ date, slots, onDayClick }) {
+    const { t } = useTranslation();
     const { blanks, days, monthStart, monthEnd } = getMonthGrid(date);
 
     // Group slots by date
@@ -30,9 +32,9 @@ export default function CalendarMonthView({ date, slots, onDayClick }) {
         <div className="border border-border rounded-lg bg-card overflow-hidden">
             {/* Day headers */}
             <div className="grid grid-cols-7 border-b border-border">
-                {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((d) => (
+                {["sun", "mon", "tue", "wed", "thu", "fri", "sat"].map((d) => (
                     <div key={d} className="text-center text-[10px] font-semibold text-muted-foreground py-2 uppercase tracking-wider">
-                        {d}
+                        {t(`hotelAvailability.days.${d}`, d)}
                     </div>
                 ))}
             </div>
@@ -69,7 +71,7 @@ export default function CalendarMonthView({ date, slots, onDayClick }) {
                                 </span>
                                 {daySlots.length > 0 && (
                                     <span className="text-[9px] text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity">
-                                        {daySlots.length} slot{daySlots.length > 1 ? "s" : ""}
+                                        {daySlots.length} {t("tickets.slots", "slots")}
                                     </span>
                                 )}
                             </div>
@@ -85,14 +87,14 @@ export default function CalendarMonthView({ date, slots, onDayClick }) {
                                                 ${colors.bg} border-l-2 ${colors.border}`}
                                         >
                                             <span className={`font-medium truncate ${colors.text}`}>
-                                                {slot.time_from ? slot.time_from.substring(0, 5) : ""} {slot.experience || "Slot"}
+                                                {slot.time_from ? slot.time_from.substring(0, 5) : ""} {slot.experience || t("calendar.slot", "Slot")}
                                             </span>
                                         </div>
                                     );
                                 })}
                                 {overflow > 0 && (
                                     <div className="text-[10px] text-muted-foreground font-medium pl-1">
-                                        +{overflow} more
+                                        +{overflow} {t("common.more", "more")}
                                     </div>
                                 )}
                             </div>
@@ -104,10 +106,10 @@ export default function CalendarMonthView({ date, slots, onDayClick }) {
             {/* Legend */}
             <div className="flex items-center justify-center gap-6 py-3 border-t border-border">
                 {[
-                    { color: "bg-emerald-500", label: "Available" },
-                    { color: "bg-amber-500", label: "Filling" },
-                    { color: "bg-red-500", label: "Full" },
-                    { color: "bg-gray-400", label: "Blocked" },
+                    { color: "bg-emerald-500", label: t("hotelAvailability.available", "Available") },
+                    { color: "bg-amber-500", label: t("calendar.filling", "Filling") },
+                    { color: "bg-red-500", label: t("hotelAvailability.full", "Full") },
+                    { color: "bg-gray-400", label: t("hotelAvailability.blocked", "Blocked") },
                 ].map((l) => (
                     <div key={l.label} className="flex items-center gap-1.5">
                         <div className={`w-2.5 h-2.5 rounded-full ${l.color}`} />

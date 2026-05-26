@@ -1,4 +1,5 @@
 import React, { useRef, useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
     isToday, isSameDay, format, getWeekDays, getHours,
     getSlotPosition, getNowPosition, HOUR_HEIGHT, TOTAL_HOURS, formatHour, calculateSlotLayout,
@@ -9,6 +10,7 @@ import CalendarSlotCard from "./CalendarSlotCard";
  * Week view — 7-column hourly time grid (Google Calendar style).
  */
 export default function CalendarWeekView({ date, slots, onSlotClick, onEmptyClick, onDayClick }) {
+    const { t } = useTranslation();
     const containerRef = useRef(null);
     const [nowPos, setNowPos] = useState(getNowPosition());
     const hours = getHours();
@@ -68,7 +70,7 @@ export default function CalendarWeekView({ date, slots, onSlotClick, onEmptyClic
                             onClick={() => onDayClick?.(day)}
                         >
                             <div className="text-[10px] text-muted-foreground uppercase tracking-wider">
-                                {format(day, "EEE")}
+                                {t(`hotelAvailability.days.${["sun", "mon", "tue", "wed", "thu", "fri", "sat"][day.getDay()]}`, format(day, "EEE"))}
                             </div>
                             <div
                                 className={`text-lg font-semibold mt-0.5
@@ -85,7 +87,7 @@ export default function CalendarWeekView({ date, slots, onSlotClick, onEmptyClic
             {hasAnyUntimed && (
                 <div className="flex border-b border-border bg-muted/20">
                     <div className="w-16 flex-shrink-0 border-r border-border text-[10px] text-muted-foreground font-medium flex items-center justify-end pr-2">
-                        ALL DAY
+                        {t("calendar.allDay", "All Day")}
                     </div>
                     {weekDays.map((day) => {
                         const key = format(day, "yyyy-MM-dd");
