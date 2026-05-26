@@ -3,16 +3,15 @@
 
 import frappe
 from frappe import _
-from frappe.utils import now_datetime, add_to_date
+from frappe.utils import now_datetime, add_to_date, getdate
 from cheese.api.common.responses import success, created, error, not_found, validation_error
-from cheese.cheese.utils.pricing import calculate_ticket_price, calculate_deposit_amount
 from cheese.api.v1.ticket_controller import create_pending_ticket
 from cheese.api.v1.route_booking_controller import create_route_reservation, get_route_status
 import json
 
 
 @frappe.whitelist()
-def create_pending_booking(contact_id, items, preferred_dates=None, conversation_id=None):
+def create_pending_booking(contact_id, items, preferred_dates=None, conversation_id=None, notes=None):
 	"""
 	Create pending booking (recommended single entity)
 	Creates aggregator entity containing:
@@ -27,6 +26,7 @@ def create_pending_booking(contact_id, items, preferred_dates=None, conversation
 		       {"type": "experience", "experience_id": "EXP-001", "slot_id": "SLOT-001", "party_size": 2}]
 		preferred_dates: JSON array of preferred dates (if not in items)
 		conversation_id: Conversation ID (optional)
+		notes: Optional default notes applied when an item-level notes value is not provided
 		
 	Returns:
 		Success response with booking_id, components, pricing preview, expirations
@@ -63,6 +63,18 @@ def create_pending_booking(contact_id, items, preferred_dates=None, conversation
 					"slot_id": item.get("slot_id"),
 					"selected_date": item.get("selected_date") or item.get("calendar_date") or item.get("date"),
 				}
+
+		# Experience rows can be used as slot providers for route rows.
+		# Track which exact rows were consumed by route booking to avoid duplicate standalone tickets.
+		consumed_route_slot_inputs = set()
+
+		def _normalize_selected_date(value):
+			if not value:
+				return None
+			try:
+				return str(getdate(value))
+			except Exception:
+				return str(value)
 
 		# Process items
 		for item in items:
@@ -105,6 +117,13 @@ def create_pending_booking(contact_id, items, preferred_dates=None, conversation
 								"slot_id": slot_choice.get("slot_id"),
 								"selected_date": slot_choice.get("selected_date"),
 							})
+							consumed_route_slot_inputs.add(
+								(
+									exp_row.experience,
+									slot_choice.get("slot_id"),
+									_normalize_selected_date(slot_choice.get("selected_date")),
+								)
+							)
 					
 					if constructed_slots:
 						experiences_with_slots = constructed_slots
@@ -121,6 +140,7 @@ def create_pending_booking(contact_id, items, preferred_dates=None, conversation
 					conversation_id=conversation_id,
 					date_from=route_date,
 					date_to=route_date,
+					notes=item.get("notes") if item.get("notes") is not None else notes,
 				)
 				
 				if not route_result.get("success"):
@@ -149,10 +169,21 @@ def create_pending_booking(contact_id, items, preferred_dates=None, conversation
 			elif item_type == "experience":
 				experience_id = item.get("experience_id")
 				slot_id = item.get("slot_id")
-				item_selected_date = item.get("selected_date") or item.get("date")
+				item_selected_date = (
+					item.get("selected_date") or item.get("calendar_date") or item.get("date")
+				)
+				item_selected_date_norm = _normalize_selected_date(item_selected_date)
+				item_route_id = item.get("route_id")
+				item_notes = item.get("notes") if item.get("notes") is not None else notes
 				
 				if not experience_id or not slot_id:
 					return validation_error("experience_id and slot_id are required for experience items")
+
+				if (
+					(experience_id, slot_id, item_selected_date_norm) in consumed_route_slot_inputs
+					and not item.get("book_as_individual")
+				):
+					continue
 				
 				# Create individual reservation
 				ticket_result = create_pending_ticket(
@@ -161,6 +192,8 @@ def create_pending_booking(contact_id, items, preferred_dates=None, conversation
 					slot_id,
 					party_size,
 					selected_date=item_selected_date,
+					route_id=item_route_id,
+					notes=item_notes,
 				)
 				
 				if not ticket_result.get("success"):
@@ -169,10 +202,9 @@ def create_pending_booking(contact_id, items, preferred_dates=None, conversation
 				ticket_id = ticket_result.get("data", {}).get("ticket_id")
 				individual_reservations.append(ticket_id)
 				
-				# Calculate pricing
-				price_data = calculate_ticket_price(experience_id, party_size)
-				item_price = price_data.get("total_price", 0)
-				deposit = calculate_deposit_amount(experience_id, item_price)
+				# Reuse ticket pricing returned by ticket creation to keep totals consistent.
+				item_price = ticket_result.get("data", {}).get("total_price", 0) or 0
+				deposit = ticket_result.get("data", {}).get("deposit_amount", 0) or 0
 				
 				total_price += item_price
 				total_deposit += deposit
