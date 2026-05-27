@@ -2,7 +2,7 @@ ARG FRAPPE_BRANCH=version-15
 
 FROM ghcr.io/deepzide/cheese-base:${FRAPPE_BRANCH} AS builder
 
-COPY . /home/frappe/frappe-bench/apps/cheese
+COPY --chown=frappe:frappe . /home/frappe/frappe-bench/apps/cheese
 
 USER frappe
 WORKDIR /home/frappe/frappe-bench
