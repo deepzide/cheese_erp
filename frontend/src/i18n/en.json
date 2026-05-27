@@ -766,7 +766,16 @@
     "occupied": "occupied",
     "filling": "Filling",
     "slots": "slots",
-    "more": "more"
+    "more": "more",
+    "days": {
+      "sun": "Sun",
+      "mon": "Mon",
+      "tue": "Tue",
+      "wed": "Wed",
+      "thu": "Thu",
+      "fri": "Fri",
+      "sat": "Sat"
+    }
     ,"repeat": "Repeat"
     ,"customRecurrence": "Custom Recurrence"
     ,"customRecurrenceDesc": "Set up a custom recurrence pattern for this slot"

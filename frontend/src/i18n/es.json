@@ -603,6 +603,15 @@
     "filling": "Ocupándose",
     "slots": "horarios",
     "more": "más",
+    "days": {
+      "sun": "Dom",
+      "mon": "Lun",
+      "tue": "Mar",
+      "wed": "Mié",
+      "thu": "Jue",
+      "fri": "Vie",
+      "sat": "Sáb"
+    },
     "repeat": "Repetir",
     "customRecurrence": "Recurrencia personalizada",
     "customRecurrenceDesc": "Configura un patrón de recurrencia personalizado para este horario",
