@@ -55,6 +55,7 @@ import HotelAvailability from './HotelAvailability';
 import UsersPage from './Users';
 import HotelCreate from './HotelCreate';
 import HotelRoomCreate from './HotelRoomCreate';
+import Hello from './Hello';
 
 export default function Pages() {
     return (
@@ -119,6 +120,7 @@ export default function Pages() {
                                         <Route path="/hotel-reservations" element={<HotelReservations />} />
                                         <Route path="/hotels/reservations/:id" element={<HotelReservationDetail />} />
                                         <Route path="/hotel-availability" element={<HotelAvailability />} />
+                                        <Route path="/hello" element={<Hello />} />
                                         <Route path="/users" element={<UsersPage />} />
                                         <Route path="/" element={<Navigate to="/cheese/dashboard" replace />} />
                                         <Route path="*" element={<Navigate to="/cheese/dashboard" replace />} />
