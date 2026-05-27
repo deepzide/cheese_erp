@@ -9,3 +9,6 @@ __pycache__
 context/
 Pipfile.env
 .env
+
+cheese/public/frontend/assets/
+frontend/dist/

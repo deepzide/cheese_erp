@@ -39,15 +39,6 @@ jobs:
           tags: ghcr.io/deepzide/cheese:${{ env.IMAGE_TAG }}
           build-args: |
             FRAPPE_BRANCH=version-15
-            APP_BRANCH=${{ github.ref_name }}
-          secrets: |
-            CHEESE_ERP_URL=https://x-access-token:${{ secrets.GH_PAT }}@github.com/deepzide/cheese_erp.git
-          cache-from: |
-            type=gha
-            type=registry,ref=ghcr.io/deepzide/cheese:buildcache
-          cache-to: |
-            type=gha,mode=max
-            type=registry,ref=ghcr.io/deepzide/cheese:buildcache,mode=max
 
   deploy-staging:
     needs: build-push

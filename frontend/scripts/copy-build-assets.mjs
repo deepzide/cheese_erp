@@ -3,6 +3,7 @@ import {
   existsSync,
   mkdirSync,
   readFileSync,
+  rmSync,
   writeFileSync,
 } from 'node:fs';
 import path from 'node:path';
@@ -49,6 +50,9 @@ ensureInsideRepo(wwwIndex);
 if (!htmlOnly) {
   requireFile(distAssetsDir);
   mkdirSync(publicFrontendDir, { recursive: true });
+  if (existsSync(publicAssetsDir)) {
+    rmSync(publicAssetsDir, { recursive: true, force: true });
+  }
   cpSync(distAssetsDir, publicAssetsDir, { recursive: true });
 }
 

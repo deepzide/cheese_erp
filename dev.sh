@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # cheese_erp — Local development helper
-# Usage: ./dev.sh [up|down|restart|site|demo|clear-demo|logs|login]
+# Usage: ./dev.sh [up|down|restart|site|demo|clear-demo|logs|login|build-frontend|sync-assets]
 
 set -euo pipefail
 cd "$(dirname "$0")"
@@ -31,7 +31,7 @@ case "$cmd" in
     $COMPOSE exec -T backend bench --site frontend clear-website-cache
     echo ""
     echo "=============================================="
-    echo "  Ready! Open http://localhost:8080"
+    echo "  Ready! Open http://localhost:8090"
     echo "  Login: Administrator / admin"
     echo "=============================================="
     ;;
@@ -75,16 +75,69 @@ case "$cmd" in
 
   login)
     echo ">>> Testing login..."
-    curl -s -X POST http://localhost:8080/api/method/login \
+    curl -s -X POST http://localhost:8090/api/method/login \
       -H "Content-Type: application/json" \
       -d '{"usr":"Administrator","pwd":"admin"}' | python3 -m json.tool 2>/dev/null || \
-    curl -s -X POST http://localhost:8080/api/method/login \
+    curl -s -X POST http://localhost:8090/api/method/login \
       -H "Content-Type: application/json" \
       -d '{"usr":"Administrator","pwd":"admin"}'
     ;;
 
+  build-frontend)
+    echo ">>> Installing npm dependencies..."
+    $COMPOSE exec -T backend bash -c "cd apps/cheese/frontend && npm install"
+    echo ">>> Building frontend..."
+    $COMPOSE exec -T backend bash -c "cd apps/cheese/frontend && npm run build"
+    echo ">>> Copying build output to public/..."
+    $COMPOSE exec -T backend bash -c "cd apps/cheese && mkdir -p public/frontend/assets www && cp -r frontend/dist/assets/* public/frontend/assets/ && cp frontend/dist/index.html public/frontend/index.html && cp frontend/dist/index.html www/cheese.html"
+    echo ">>> Running bench build..."
+    $COMPOSE exec -T backend bench build --app cheese
+    echo ">>> Syncing assets to sites-assets volume..."
+    ASSET_DIR=$(mktemp -d)
+    docker cp cheese_erp-backend-1:/home/frappe/frappe-bench/apps/cheese/public/frontend/ "$ASSET_DIR/frontend"
+    docker cp cheese_erp-backend-1:/home/frappe/frappe-bench/apps/cheese/cheese/www/cheese.html "$ASSET_DIR/cheese.html" 2>/dev/null || true
+    docker run --rm --user root \
+      -v cheese_erp_sites-assets:/target \
+      -v "$ASSET_DIR":/src \
+      alpine sh -c '
+        rm -rf /target/cheese/frontend
+        mkdir -p /target/cheese/frontend
+        cp -a /src/frontend/. /target/cheese/frontend/
+        chown -R 1000:1000 /target/cheese/frontend/
+        echo "Synced $(ls /target/cheese/frontend/assets/ | wc -l) asset files"
+      '
+    rm -rf "$ASSET_DIR"
+    echo ">>> Restarting frontend..."
+    $COMPOSE restart frontend
+    echo ">>> Done! Frontend rebuilt."
+    ;;
+
+  sync-assets)
+    echo ">>> Syncing cheese assets to sites-assets volume..."
+    ASSET_DIR=$(mktemp -d)
+    docker cp cheese_erp-backend-1:/home/frappe/frappe-bench/apps/cheese/public/frontend/ "$ASSET_DIR/frontend" 2>/dev/null || true
+    if [ ! -d "$ASSET_DIR/frontend/assets" ]; then
+      echo "No assets found in public/frontend/assets/"
+      rm -rf "$ASSET_DIR"
+      exit 1
+    fi
+    docker run --rm --user root \
+      -v cheese_erp_sites-assets:/target \
+      -v "$ASSET_DIR":/src \
+      alpine sh -c '
+        rm -rf /target/cheese/frontend
+        mkdir -p /target/cheese/frontend
+        cp -a /src/frontend/. /target/cheese/frontend/
+        chown -R 1000:1000 /target/cheese/frontend/
+        echo "Synced $(ls /target/cheese/frontend/assets/ | wc -l) asset files"
+      '
+    rm -rf "$ASSET_DIR"
+    $COMPOSE restart frontend
+    echo ">>> Done!"
+    ;;
+
   *)
-    echo "Usage: ./dev.sh [up|down|restart|site|demo|clear-demo|logs|login]"
+    echo "Usage: ./dev.sh [up|down|restart|site|demo|clear-demo|logs|login|build-frontend|sync-assets]"
     exit 1
     ;;
 esac
