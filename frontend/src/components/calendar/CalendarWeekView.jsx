@@ -70,7 +70,7 @@ export default function CalendarWeekView({ date, slots, onSlotClick, onEmptyClic
                             onClick={() => onDayClick?.(day)}
                         >
                             <div className="text-[10px] text-muted-foreground uppercase tracking-wider">
-                                {t(`hotelAvailability.days.${["sun", "mon", "tue", "wed", "thu", "fri", "sat"][day.getDay()]}`, format(day, "EEE"))}
+                                {t(`calendar.days.${["sun", "mon", "tue", "wed", "thu", "fri", "sat"][day.getDay()]}`, format(day, "EEE"))}
                             </div>
                             <div
                                 className={`text-lg font-semibold mt-0.5

@@ -34,7 +34,7 @@ export default function CalendarMonthView({ date, slots, onDayClick }) {
             <div className="grid grid-cols-7 border-b border-border">
                 {["sun", "mon", "tue", "wed", "thu", "fri", "sat"].map((d) => (
                     <div key={d} className="text-center text-[10px] font-semibold text-muted-foreground py-2 uppercase tracking-wider">
-                        {t(`hotelAvailability.days.${d}`, d)}
+                        {t(`calendar.days.${d}`, d)}
                     </div>
                 ))}
             </div>
