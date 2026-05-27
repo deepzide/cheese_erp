@@ -21,28 +21,69 @@ def find_or_create_contact(phone=None, email=None, name=None, **_ignored):
 		Success response with contact data
 	"""
 	try:
-		# Validate inputs - phone is mandatory
+		phone = str(phone).strip() if phone is not None else None
+		email = str(email).strip() if email is not None else None
+		name = str(name).strip() if name is not None else None
+		phone = phone or None
+		email = email or None
+		name = name or None
+
+		# Keep current schema constraints explicit for API callers.
 		if not phone:
 			return validation_error("phone is required")
 
-		# Search for existing contact by phone
-		existing = frappe.get_all(
+		# Search for existing contacts by both identifiers.
+		contact_by_phone = frappe.get_all(
 			"Cheese Contact",
 			filters={"phone": phone},
 			fields=["name", "full_name", "phone", "email"],
-			limit=1
+			limit=1,
 		)
+		contact_by_email = []
+		if email:
+			contact_by_email = frappe.get_all(
+				"Cheese Contact",
+				filters={"email": email},
+				fields=["name", "full_name", "phone", "email"],
+				limit=1,
+			)
 
-		if existing:
-			contact = existing[0]
+		by_phone = contact_by_phone[0] if contact_by_phone else None
+		by_email = contact_by_email[0] if contact_by_email else None
+
+		# If phone and email match different contacts, stop to avoid accidental merge.
+		if by_phone and by_email and by_phone.name != by_email.name:
+			return validation_error(
+				f"phone ({phone}) and email ({email}) belong to different contacts: "
+				f"{by_phone.name} vs {by_email.name}"
+			)
+
+		existing_contact = by_phone or by_email
+		if existing_contact:
+			contact_doc = frappe.get_doc("Cheese Contact", existing_contact.name)
+			updated_fields = []
+
+			# Story requirement: update missing fields without losing history.
+			if name and not (contact_doc.full_name or "").strip():
+				contact_doc.full_name = name
+				updated_fields.append("full_name")
+			if email and not (contact_doc.email or "").strip():
+				contact_doc.email = email
+				updated_fields.append("email")
+
+			if updated_fields:
+				contact_doc.save()
+				frappe.db.commit()
+
 			return success(
-				"Contact found",
+				"Contact found and updated" if updated_fields else "Contact found",
 				{
-					"contact_id": contact.name,
-					"full_name": contact.full_name,
-					"phone": contact.phone,
-					"email": contact.email,
-					"is_new": False
+					"contact_id": contact_doc.name,
+					"full_name": contact_doc.full_name,
+					"phone": contact_doc.phone,
+					"email": contact_doc.email,
+					"is_new": False,
+					"updated_fields": updated_fields,
 				}
 			)
 

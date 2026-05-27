@@ -160,6 +160,11 @@ export default function Establishments() {
                                                     {t("establishments.bankAccountsCount", { count: ba.length, defaultValue: `${ba.length} bank account${ba.length !== 1 ? "s" : ""}` })}
                                                 </div>
                                                 <p className="text-xs text-muted-foreground mt-1">
+                                                    {est.is_hotel || est.cheese_is_hotel
+                                                        ? t("hotels.hotel", "Hotel")
+                                                        : t("experiences.activity", "Activity")}
+                                                </p>
+                                                <p className="text-xs text-muted-foreground mt-1">
                                                     {t("establishments.experiencesCount", {
                                                         count: est.experiences_count ?? 0,
                                                         defaultValue: `${est.experiences_count ?? 0} experiences`,

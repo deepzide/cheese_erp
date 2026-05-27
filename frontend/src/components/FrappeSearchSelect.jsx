@@ -99,11 +99,11 @@ export default function FrappeSearchSelect({
                 type="button"
                 disabled={disabled}
                 onClick={() => setOpen(!open)}
-                className={`w-full flex items-center justify-between h-10 px-3 rounded-md border border-input bg-background text-sm ring-offset-background transition-colors
+                className={`w-full flex items-center justify-between h-10 px-3 rounded-md border border-input bg-background text-sm ring-offset-background transition-colors overflow-hidden
                     ${disabled ? 'opacity-50 cursor-not-allowed' : 'hover:border-cheese-400 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 cursor-pointer'}
                     ${open ? 'border-cheese-400 ring-2 ring-ring ring-offset-2' : ''}`}
             >
-                <span className={`${value ? "text-foreground" : "text-muted-foreground"} flex-1 min-w-0 truncate text-left`}>
+                <span className={`${value ? "text-foreground" : "text-muted-foreground"} flex-1 min-w-0 truncate text-left pr-2`}>
                     {value ? displayLabel : (placeholder || t("common.search", "Search") + "...")}
                 </span>
                 <div className="flex items-center gap-1 flex-shrink-0">
@@ -151,12 +151,12 @@ export default function FrappeSearchSelect({
                                         key={opt.name}
                                         type="button"
                                         onClick={() => { onChange(opt.name); setOpen(false); setSearchTerm(""); }}
-                                        className={`w-full text-left px-3 py-2 rounded-md text-sm transition-colors flex items-center justify-between
+                                        className={`w-full text-left px-3 py-2 rounded-md text-sm transition-colors flex items-center justify-between gap-2
                                             ${isSelected
                                                 ? 'bg-cheese-100 dark:bg-cheese-900/30 text-cheese-700 dark:text-cheese-400 font-medium'
                                                 : 'hover:bg-muted text-foreground'}`}
                                     >
-                                        <span className="truncate">
+                                        <span className="truncate min-w-0 flex-1">
                                             {opt[label] || opt.name}
                                             {opt[label] && opt[label] !== opt.name && (
                                                 <span className="ml-2 text-[10px] font-mono text-muted-foreground">{opt.name}</span>

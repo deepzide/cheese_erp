@@ -26,17 +26,19 @@ class Conversation(Document):
 	# end: auto-generated types
 
 	def validate(self):
-		"""Enforce one active conversation per Contact + Channel"""
+		"""Enforce one active conversation per Contact + Channel (+ Company when set)."""
 		if self.status == "ACTIVE":
 			self.check_active_conversation()
 
 	def check_active_conversation(self):
-		"""Check if there's already an active conversation for this contact + channel"""
+		"""Check if there's already an active conversation for this contact + channel scope."""
 		filters = {
 			"contact": self.contact,
 			"channel": self.channel,
 			"status": "ACTIVE"
 		}
+		if self.company:
+			filters["company"] = self.company
 		
 		if not self.is_new():
 			filters["name"] = ["!=", self.name]

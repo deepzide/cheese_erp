@@ -34,6 +34,18 @@ def _read_selected_date_input(selected_date=None):
 	return selected_date
 
 
+def _read_route_id_input(route_id=None):
+	"""Read route_id from argument or request payload fallback keys."""
+	if route_id is None:
+		route_id = (
+			frappe.form_dict.get("route_id")
+			or frappe.form_dict.get("route")
+		)
+	if isinstance(route_id, str):
+		route_id = route_id.strip() or None
+	return route_id
+
+
 def _capacity_date_for_slot(ticket, slot_id, selected_date_obj=None):
 	"""Calendar day for per-day capacity (multi-day slots require selected_date on the ticket)."""
 	d = selected_date_obj or ticket.selected_date
@@ -135,6 +147,7 @@ def create_pending_reservation(contact_id, experience_id, slot_id, party_size=1,
 	Returns:
 		Success response with reservation data
 	"""
+	route_id = _read_route_id_input(route_id)
 	return create_pending_ticket(contact_id, experience_id, slot_id, party_size, selected_date=selected_date, route_id=route_id, check_in_date=check_in_date, check_out_date=check_out_date, rooms_requested=rooms_requested, notes=notes)
 
 
@@ -172,6 +185,7 @@ def create_pending_ticket(contact_id, experience_id, slot_id, party_size=1, sele
 		# Keep a local binding to avoid any accidental local-scope shadowing later.
 		parse_date = getdate
 		selected_date = _read_selected_date_input(selected_date)
+		route_id = _read_route_id_input(route_id)
 		party_size = cint(party_size) if party_size is not None else 1
 		rooms_requested = cint(rooms_requested) if rooms_requested is not None else None
 

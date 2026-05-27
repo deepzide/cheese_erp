@@ -23,6 +23,7 @@ def _company_has_cheese_establishment_fields():
 	return any(
 		meta.get_field(fieldname)
 		for fieldname in (
+			"cheese_is_hotel",
 			"cheese_payment_methods",
 			"cheese_types",
 			"cheese_establishment_type",
@@ -146,6 +147,9 @@ def list_establishments(page=1, page_size=20, search=None, status=None, locality
 		# Get companies - try with administrator_contact, fallback without it if field doesn't exist
 		company_fields_with_contact = ["name", "company_name", "email", "phone_no", "website", "company_description", "administrator_contact"]
 		company_fields_without_contact = ["name", "company_name", "email", "phone_no", "website", "company_description"]
+		if _company_has_is_hotel_field():
+			company_fields_with_contact.append("cheese_is_hotel")
+			company_fields_without_contact.append("cheese_is_hotel")
 		if _company_has_cheese_archived():
 			company_fields_with_contact.append("cheese_archived")
 			company_fields_without_contact.append("cheese_archived")
@@ -221,6 +225,8 @@ def list_establishments(page=1, page_size=20, search=None, status=None, locality
 				"phone": company.phone_no,
 				"website": company.website,
 				"description": company.company_description,
+				"is_hotel": bool(getattr(company, "cheese_is_hotel", 0)) if _company_has_is_hotel_field() else False,
+				"cheese_is_hotel": 1 if bool(getattr(company, "cheese_is_hotel", 0)) else 0,
 				"administrator_contact": getattr(company, "administrator_contact", None),
 				"experiences_count": experiences_count,
 				"online_experiences_count": online_experiences,

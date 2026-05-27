@@ -8,6 +8,20 @@ from cheese.api.common.responses import success, created, error, not_found, vali
 import json
 
 
+def _resolve_conversation_company(contact_id, explicit_company=None):
+	"""Resolve target company for conversation scope."""
+	if explicit_company:
+		return explicit_company
+	if not contact_id:
+		return None
+	return frappe.db.get_value(
+		"Cheese Contact Company",
+		{"parent": contact_id, "parenttype": "Cheese Contact"},
+		"company",
+		order_by="idx asc",
+	)
+
+
 @frappe.whitelist()
 def open_or_resume_conversation(contact_id, channel, status="ACTIVE", company=None):
 	"""
@@ -37,13 +51,18 @@ def open_or_resume_conversation(contact_id, channel, status="ACTIVE", company=No
 		if not frappe.db.exists("Cheese Contact", contact_id):
 			return not_found("Contact", contact_id)
 		
+		resolved_company = _resolve_conversation_company(contact_id, company)
+		existing_filters = {
+			"contact": contact_id,
+			"channel": channel,
+			"status": "ACTIVE",
+		}
+		if resolved_company:
+			existing_filters["company"] = resolved_company
+
 		existing = frappe.db.get_value(
 			"Conversation",
-			{
-				"contact": contact_id,
-				"channel": channel,
-				"status": "ACTIVE"
-			},
+			existing_filters,
 			"name",
 			order_by="modified desc"
 		)
@@ -72,8 +91,8 @@ def open_or_resume_conversation(contact_id, channel, status="ACTIVE", company=No
 			"channel": channel,
 			"status": status,
 		}
-		if company:
-			conversation_payload["company"] = company
+		if resolved_company:
+			conversation_payload["company"] = resolved_company
 		conversation = frappe.get_doc(conversation_payload)
 		try:
 			conversation.insert()
@@ -83,11 +102,7 @@ def open_or_resume_conversation(contact_id, channel, status="ACTIVE", company=No
 			frappe.db.rollback()
 			existing = frappe.db.get_value(
 				"Conversation",
-				{
-					"contact": contact_id,
-					"channel": channel,
-					"status": "ACTIVE",
-				},
+				existing_filters,
 				"name",
 				order_by="modified desc"
 			)
