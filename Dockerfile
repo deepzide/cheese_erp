@@ -10,7 +10,7 @@ WORKDIR /home/frappe/frappe-bench
 RUN cd apps/cheese \
     && /home/frappe/frappe-bench/env/bin/pip install --no-deps -e .
 
-RUN echo "cheese" >> sites/apps.txt
+RUN printf '\ncheese\n' >> sites/apps.txt
 
 RUN cd apps/cheese/frontend && npm ci && npm run build
 
