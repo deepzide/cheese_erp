@@ -94,8 +94,18 @@ case "$cmd" in
     $COMPOSE exec -T backend bench build --app cheese
     echo ">>> Syncing assets to sites-assets volume..."
     ASSET_DIR=$(mktemp -d)
-    docker cp cheese_erp-backend-1:/home/frappe/frappe-bench/apps/cheese/public/frontend/assets/. "$ASSET_DIR/"
-    docker run --rm --user root -v cheese_erp_sites-assets:/target -v "$ASSET_DIR":/src ghcr.io/deepzide/cheese:dev bash -c "rm -rf /target/cheese && mkdir -p /target/cheese/frontend/assets && cp /src/* /target/cheese/frontend/assets/ && chown -R 1000:1000 /target/cheese/frontend/assets/"
+    docker cp cheese_erp-backend-1:/home/frappe/frappe-bench/apps/cheese/public/frontend/ "$ASSET_DIR/frontend"
+    docker cp cheese_erp-backend-1:/home/frappe/frappe-bench/apps/cheese/cheese/www/cheese.html "$ASSET_DIR/cheese.html" 2>/dev/null || true
+    docker run --rm --user root \
+      -v cheese_erp_sites-assets:/target \
+      -v "$ASSET_DIR":/src \
+      alpine sh -c '
+        rm -rf /target/cheese/frontend
+        mkdir -p /target/cheese/frontend
+        cp -a /src/frontend/. /target/cheese/frontend/
+        chown -R 1000:1000 /target/cheese/frontend/
+        echo "Synced $(ls /target/cheese/frontend/assets/ | wc -l) asset files"
+      '
     rm -rf "$ASSET_DIR"
     echo ">>> Restarting frontend..."
     $COMPOSE restart frontend
@@ -105,13 +115,22 @@ case "$cmd" in
   sync-assets)
     echo ">>> Syncing cheese assets to sites-assets volume..."
     ASSET_DIR=$(mktemp -d)
-    docker cp cheese_erp-backend-1:/home/frappe/frappe-bench/apps/cheese/public/frontend/assets/. "$ASSET_DIR/" 2>/dev/null || true
-    if [ -z "$(ls -A "$ASSET_DIR" 2>/dev/null)" ]; then
+    docker cp cheese_erp-backend-1:/home/frappe/frappe-bench/apps/cheese/public/frontend/ "$ASSET_DIR/frontend" 2>/dev/null || true
+    if [ ! -d "$ASSET_DIR/frontend/assets" ]; then
       echo "No assets found in public/frontend/assets/"
       rm -rf "$ASSET_DIR"
       exit 1
     fi
-    docker run --rm --user root -v cheese_erp_sites-assets:/target -v "$ASSET_DIR":/src ghcr.io/deepzide/cheese:dev bash -c "rm -rf /target/cheese && mkdir -p /target/cheese/frontend/assets && cp /src/* /target/cheese/frontend/assets/ && chown -R 1000:1000 /target/cheese/frontend/assets/"
+    docker run --rm --user root \
+      -v cheese_erp_sites-assets:/target \
+      -v "$ASSET_DIR":/src \
+      alpine sh -c '
+        rm -rf /target/cheese/frontend
+        mkdir -p /target/cheese/frontend
+        cp -a /src/frontend/. /target/cheese/frontend/
+        chown -R 1000:1000 /target/cheese/frontend/
+        echo "Synced $(ls /target/cheese/frontend/assets/ | wc -l) asset files"
+      '
     rm -rf "$ASSET_DIR"
     $COMPOSE restart frontend
     echo ">>> Done!"
