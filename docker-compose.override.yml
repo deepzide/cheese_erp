@@ -1,0 +1,40 @@
+# Local development overrides — merged with docker-compose.yml by docker compose
+#
+# Changes:
+#   - Removes Traefik proxy + Alloy (not needed locally)
+#   - Exposes frontend on port 8080 (http://localhost:8080)
+#   - Mounts ./cheese source into containers for live code changes
+#
+# Usage:
+#   docker compose up -d                    # start everything
+#   docker compose restart backend          # apply Python changes
+#   docker compose exec backend bench ...   # run bench commands
+
+services:
+  proxy:
+    profiles:
+      - skip-local
+
+  alloy:
+    profiles:
+      - skip-local
+
+  frontend:
+    ports:
+      - "8090:8080"
+
+  backend:
+    volumes:
+      - .:/home/frappe/frappe-bench/apps/cheese
+
+  queue-long:
+    volumes:
+      - .:/home/frappe/frappe-bench/apps/cheese
+
+  queue-short:
+    volumes:
+      - .:/home/frappe/frappe-bench/apps/cheese
+
+  scheduler:
+    volumes:
+      - .:/home/frappe/frappe-bench/apps/cheese

@@ -7,4 +7,5 @@ node_modules
 __pycache__
 
 context/
-Pipfile
+Pipfile.env
+.env
