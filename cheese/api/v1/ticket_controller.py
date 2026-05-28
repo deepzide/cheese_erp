@@ -1152,6 +1152,11 @@ def get_ticket_board(filters=None, status=None, route_id=None, establishment_id=
 				filter_dict = json.loads(filters) if isinstance(filters, str) else filters
 			except Exception:
 				pass
+
+		# Enforce tenant isolation for establishment users.
+		user_company = _get_current_user_company()
+		if user_company:
+			establishment_id = user_company
 		
 		if status:
 			filter_dict["status"] = status

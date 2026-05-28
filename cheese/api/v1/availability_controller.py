@@ -6,6 +6,7 @@ from frappe import _
 from frappe.utils import getdate, cint
 from cheese.cheese.utils.capacity import get_available_capacity, slot_calendar_days_in_range
 from cheese.api.common.responses import success, error, not_found, validation_error
+from cheese.api.v1.user_controller import _get_current_user_company
 
 
 @frappe.whitelist()
@@ -61,13 +62,38 @@ def get_available_slots(experience_id=None, date=None, date_from=None, date_to=N
 		slot_filters["date_from"] = ["<=", date_to_obj]
 		slot_filters["date_to"] = [">=", date_from_obj]
 
+		user_company = _get_current_user_company()
+
 		# If experience_id provided, validate and filter
 		experience = None
 		if experience_id:
 			if not frappe.db.exists("Cheese Experience", experience_id):
 				return not_found("Experience", experience_id)
+			if user_company:
+				exp_company = frappe.db.get_value("Cheese Experience", experience_id, "company")
+				if exp_company != user_company:
+					return error("Unauthorized", "UNAUTHORIZED", {}, 403)
 			slot_filters["experience"] = experience_id
 			experience = frappe.get_doc("Cheese Experience", experience_id)
+		elif user_company:
+			allowed_experience_ids = frappe.get_all(
+				"Cheese Experience",
+				filters={"company": user_company},
+				pluck="name",
+			)
+			if not allowed_experience_ids:
+				return success(
+					"No slots found for this company",
+					{
+						"date_from": date_from,
+						"date_to": date_to,
+						"experiences": [],
+						"total_experiences": 0,
+						"total_slots": 0,
+						"total_available_slots": 0,
+					},
+				)
+			slot_filters["experience"] = ["in", allowed_experience_ids]
 		rooms_requested = cint(rooms_requested) or 1
 		guests = cint(guests) if guests is not None else None
 		
@@ -213,6 +239,12 @@ def get_hotel_availability(experience_id, check_in_date, check_out_date, guests=
 			
 		if not frappe.db.exists("Cheese Experience", experience_id):
 			return not_found("Experience", experience_id)
+
+		user_company = _get_current_user_company()
+		if user_company:
+			exp_company = frappe.db.get_value("Cheese Experience", experience_id, "company")
+			if exp_company != user_company:
+				return error("Unauthorized", "UNAUTHORIZED", {}, 403)
 			
 		experience = frappe.get_doc("Cheese Experience", experience_id)
 		if experience.experience_type != "HOTEL":
@@ -346,6 +378,7 @@ def get_route_availability(route_id, date=None, date_from=None, date_to=None, pa
 			return not_found("Route", route_id)
 		
 		route = frappe.get_doc("Cheese Route", route_id)
+		user_company = _get_current_user_company()
 		
 		if route.status != "ONLINE":
 			return success(
@@ -362,12 +395,26 @@ def get_route_availability(route_id, date=None, date_from=None, date_to=None, pa
 		experiences = []
 		for exp_row in route.experiences:
 			exp_doc = frappe.get_doc("Cheese Experience", exp_row.experience)
+			if user_company and exp_doc.company != user_company:
+				# Hide cross-company route segments from establishment users.
+				continue
 			experiences.append({
 				"experience_id": exp_row.experience,
 				"experience_name": exp_doc.name,
 				"sequence": exp_row.sequence,
 				"status": exp_doc.status
 			})
+
+		if user_company and not experiences:
+			return success(
+				"Route availability retrieved successfully",
+				{
+					"route_id": route_id,
+					"available": False,
+					"reason": "No experiences in this route belong to your establishment",
+					"experiences": [],
+				},
+			)
 		
 		# Validate date inputs - support both old (date) and new (date_from/date_to) formats
 		if date:

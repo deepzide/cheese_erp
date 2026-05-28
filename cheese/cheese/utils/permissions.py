@@ -48,11 +48,12 @@ def _is_super_admin(user: Optional[str] = None) -> bool:
 
 
 def get_user_companies(user: Optional[str] = None) -> List[str]:
-    """Return the list of Company names the user has access to.
+    """Return scoped Company names for the current user.
 
     Uses Frappe's standard `User Permission` rows with allow="Company".
-    Returns an empty list when no permission is set (i.e. tenant user with
-    no company yet — they should see nothing rather than everything).
+    For establishment-level users we intentionally scope to exactly one
+    company (the earliest assigned permission). This enforces strict tenant
+    isolation even when stale extra User Permission rows exist.
     """
     user = user or frappe.session.user
     if not user or user == "Guest":
@@ -64,8 +65,18 @@ def get_user_companies(user: Optional[str] = None) -> List[str]:
         "User Permission",
         filters={"user": user, "allow": "Company"},
         fields=["for_value"],
+        order_by="creation desc",
     )
-    return [p.for_value for p in perms if p.for_value]
+    company_values = [p.for_value for p in perms if p.for_value]
+    if not company_values:
+        return []
+
+    roles = set(frappe.get_roles(user))
+    if any(role in roles for role in ESTABLISHMENT_USER_ROLES):
+        # Level-2 users must operate in a single-establishment context.
+        return [company_values[0]]
+
+    return company_values
 
 
 def _quote_list(values: Iterable[str]) -> str:
@@ -212,6 +223,84 @@ def cheese_document_query(user):
     return _build_dynamic_link_condition("Cheese Document", user)
 
 
+def cheese_route_booking_query(user):
+    """Scope route bookings through their child tickets' companies."""
+    if _is_super_admin(user):
+        return ""
+
+    companies = get_user_companies(user)
+    table = "tabCheese Route Booking"
+    if not companies:
+        return _none_visible(table)
+
+    quoted = _quote_list(companies)
+    return (
+        f"`{table}`.name IN ("
+        f"SELECT parent FROM `tabCheese Route Booking Ticket` "
+        f"WHERE parenttype = 'Cheese Route Booking' "
+        f"AND ticket IN (SELECT name FROM `tabCheese Ticket` WHERE company IN ({quoted}))"
+        f")"
+    )
+
+
+def company_query(user):
+	"""Scope Company docs to the establishment user's assigned companies."""
+	if _is_super_admin(user):
+		return ""
+	companies = get_user_companies(user)
+	table = "tabCompany"
+	if not companies:
+		return _none_visible(table)
+	quoted = _quote_list(companies)
+	return f"`{table}`.`name` IN ({quoted})"
+
+
+def cheese_route_query(user):
+	"""Scope routes to those linked to at least one allowed-company experience."""
+	if _is_super_admin(user):
+		return ""
+	companies = get_user_companies(user)
+	table = "tabCheese Route"
+	if not companies:
+		return _none_visible(table)
+	quoted = _quote_list(companies)
+	return (
+		f"`{table}`.`name` IN ("
+		f"SELECT re.parent FROM `tabCheese Route Experience` re "
+		f"INNER JOIN `tabCheese Experience` ce ON ce.name = re.experience "
+		f"WHERE ce.company IN ({quoted})"
+		f")"
+	)
+
+
+def cheese_quotation_query(user):
+	return _build_company_condition("Cheese Quotation", user)
+
+
+def cheese_deposit_query(user):
+	"""Scope deposits via linked ticket / route-booking ticket companies."""
+	if _is_super_admin(user):
+		return ""
+	companies = get_user_companies(user)
+	table = "tabCheese Deposit"
+	if not companies:
+		return _none_visible(table)
+	quoted = _quote_list(companies)
+	return (
+		f"("
+		f"(`{table}`.`entity_type` = 'Cheese Ticket' "
+		f" AND `{table}`.`entity_id` IN (SELECT name FROM `tabCheese Ticket` WHERE company IN ({quoted})))"
+		f" OR "
+		f"(`{table}`.`entity_type` = 'Cheese Route Booking' "
+		f" AND `{table}`.`entity_id` IN ("
+		f"   SELECT rbt.parent FROM `tabCheese Route Booking Ticket` rbt "
+		f"   INNER JOIN `tabCheese Ticket` t ON t.name = rbt.ticket "
+		f"   WHERE t.company IN ({quoted})"
+		f" ))"
+		f")"
+	)
+
+
 def cheese_lead_query(user):
 	"""Leads are scoped by explicit company or via the linked contact's companies."""
 	if _is_super_admin(user):
@@ -336,3 +425,85 @@ def has_bank_account_permission(doc, ptype="read", user=None):
 
 def has_document_permission(doc, ptype="read", user=None):
     return has_bank_account_permission(doc, ptype, user)
+
+
+def has_route_booking_permission(doc, ptype="read", user=None):
+    user = user or frappe.session.user
+    if _is_super_admin(user):
+        return True
+
+    companies = set(get_user_companies(user))
+    if not companies:
+        return False
+
+    ticket_ids = [row.ticket for row in (doc.get("tickets") or []) if row.ticket]
+    if not ticket_ids:
+        return False
+
+    ticket_companies = set(
+        frappe.get_all(
+            "Cheese Ticket",
+            filters={"name": ["in", ticket_ids]},
+            pluck="company",
+        )
+    )
+    return bool(ticket_companies & companies)
+
+
+def has_company_doc_permission(doc, ptype="read", user=None):
+	user = user or frappe.session.user
+	if _is_super_admin(user):
+		return True
+	companies = set(get_user_companies(user))
+	if not companies:
+		return False
+	return doc.name in companies
+
+
+def has_route_permission(doc, ptype="read", user=None):
+	user = user or frappe.session.user
+	if _is_super_admin(user):
+		return True
+	companies = set(get_user_companies(user))
+	if not companies:
+		return False
+	exp_ids = [row.experience for row in (doc.get("experiences") or []) if row.experience]
+	if not exp_ids:
+		return False
+	exp_companies = set(
+		frappe.get_all(
+			"Cheese Experience",
+			filters={"name": ["in", exp_ids]},
+			pluck="company",
+		)
+	)
+	return bool(exp_companies & companies)
+
+
+def has_deposit_permission(doc, ptype="read", user=None):
+	user = user or frappe.session.user
+	if _is_super_admin(user):
+		return True
+	companies = set(get_user_companies(user))
+	if not companies:
+		return False
+	if doc.entity_type == "Cheese Ticket":
+		company = frappe.db.get_value("Cheese Ticket", doc.entity_id, "company")
+		return company in companies
+	if doc.entity_type == "Cheese Route Booking":
+		ticket_ids = frappe.get_all(
+			"Cheese Route Booking Ticket",
+			filters={"parent": doc.entity_id},
+			pluck="ticket",
+		)
+		if not ticket_ids:
+			return False
+		ticket_companies = set(
+			frappe.get_all(
+				"Cheese Ticket",
+				filters={"name": ["in", ticket_ids]},
+				pluck="company",
+			)
+		)
+		return bool(ticket_companies & companies)
+	return False

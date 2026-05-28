@@ -2,9 +2,10 @@ import React from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useFrappeDoc } from "@/lib/useApiData";
+import { useFrappeDoc, useFrappeList } from "@/lib/useApiData";
 import DetailPageLayout from "@/components/DetailPageLayout";
 import { apiRequest } from "@/api/client";
+import { useHotelAccess } from "@/lib/useHotelAccess";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -35,6 +36,7 @@ export default function BookingDetail() {
     const navigate = useNavigate();
     const { t } = useTranslation();
     const queryClient = useQueryClient();
+    const { isAdmin, userCompanies } = useHotelAccess();
 
     const { data: booking, isLoading: isBookingLoading } = useFrappeDoc("Cheese Route Booking", id, {
         enabled: !!id,
@@ -56,6 +58,43 @@ export default function BookingDetail() {
     const config = STATUS_CONFIG[status] || STATUS_CONFIG.PENDING;
     const itinerary = routeSummary?.itinerary || [];
     const ps = routeSummary?.payment_summary || {};
+    const bookingTicketIds = React.useMemo(
+        () => (booking?.tickets || []).map((row) => row.ticket).filter(Boolean),
+        [booking?.tickets]
+    );
+
+    const { data: bookingTickets = [] } = useFrappeList("Cheese Ticket", {
+        enabled: bookingTicketIds.length > 0,
+        filters: {
+            name: ["in", bookingTicketIds],
+        },
+        fields: ["name", "company"],
+        pageSize: 200,
+    });
+
+    const hasScopedAccess = React.useMemo(() => {
+        if (isAdmin) return true;
+        const companies = new Set(Array.isArray(userCompanies) ? userCompanies : []);
+        if (companies.size === 0) return false;
+        const ticketRows = Array.isArray(bookingTickets) ? bookingTickets : [];
+        if (ticketRows.length === 0) return false;
+        return ticketRows.some((row) => companies.has(row.company));
+    }, [isAdmin, userCompanies, bookingTickets]);
+
+    if (!isBookingLoading && booking && !hasScopedAccess) {
+        return (
+            <DetailPageLayout
+                title={t("common.accessDenied", "Access denied")}
+                subtitle={t("common.noPermission", "You don't have permission to view this booking.")}
+                backPath="/cheese/bookings"
+                isLoading={false}
+            >
+                <div className="p-6 text-sm text-muted-foreground">
+                    {t("common.noPermission", "You don't have permission to view this booking.")}
+                </div>
+            </DetailPageLayout>
+        );
+    }
 
     return (
         <DetailPageLayout

@@ -54,6 +54,15 @@ import HotelAvailability from './HotelAvailability';
 import UsersPage from './Users';
 import HotelCreate from './HotelCreate';
 import HotelRoomCreate from './HotelRoomCreate';
+import { useHotelAccess } from '@/lib/useHotelAccess';
+
+function HotelRouteGuard({ children }) {
+    const { hasHotelAccess, isLoading } = useHotelAccess();
+
+    if (isLoading) return null;
+    if (!hasHotelAccess) return <Navigate to="/cheese/dashboard" replace />;
+    return children;
+}
 
 export default function Pages() {
     return (
@@ -115,12 +124,12 @@ export default function Pages() {
                     <Route path="events" element={<SystemEvents />} />
                     <Route path="conversations" element={<Conversations />} />
                     <Route path="conversations/:id" element={<ConversationDetail />} />
-                    <Route path="hotels" element={<Hotels />} />
-                    <Route path="hotels/new" element={<HotelCreate />} />
-                    <Route path="hotels/rooms/new" element={<HotelRoomCreate />} />
-                    <Route path="hotel-reservations" element={<HotelReservations />} />
-                    <Route path="hotels/reservations/:id" element={<HotelReservationDetail />} />
-                    <Route path="hotel-availability" element={<HotelAvailability />} />
+                    <Route path="hotels" element={<HotelRouteGuard><Hotels /></HotelRouteGuard>} />
+                    <Route path="hotels/new" element={<HotelRouteGuard><HotelCreate /></HotelRouteGuard>} />
+                    <Route path="hotels/rooms/new" element={<HotelRouteGuard><HotelRoomCreate /></HotelRouteGuard>} />
+                    <Route path="hotel-reservations" element={<HotelRouteGuard><HotelReservations /></HotelRouteGuard>} />
+                    <Route path="hotels/reservations/:id" element={<HotelRouteGuard><HotelReservationDetail /></HotelRouteGuard>} />
+                    <Route path="hotel-availability" element={<HotelRouteGuard><HotelAvailability /></HotelRouteGuard>} />
                     <Route path="users" element={<UsersPage />} />
                     <Route index element={<Navigate to="/cheese/dashboard" replace />} />
                     <Route path="*" element={<Navigate to="/cheese/dashboard" replace />} />

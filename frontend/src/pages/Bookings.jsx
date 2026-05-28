@@ -11,6 +11,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { ShoppingCart, Search, Filter, DollarSign, AlertCircle, RefreshCw, Users, Route, Ticket, MoreHorizontal, Eye, Wallet, Building2, TicketIcon } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { useFrappeList } from "@/lib/useApiData";
+import { useHotelAccess } from "@/lib/useHotelAccess";
 
 const STATUS_CONFIG = {
     PENDING: { label: "Pending", badge: "bg-yellow-500/15 text-yellow-700 dark:text-yellow-400" },
@@ -25,6 +26,7 @@ const STATUS_CONFIG = {
 export default function Bookings() {
     const navigate = useNavigate();
     const { t } = useTranslation();
+    const { isAdmin, userCompanies } = useHotelAccess();
     const [searchTerm, setSearchTerm] = useState("");
     const [filterStatus, setFilterStatus] = useState("all");
     const [filterEstablishment, setFilterEstablishment] = useState("all");
@@ -33,7 +35,16 @@ export default function Bookings() {
     const { data: companies = [] } = useFrappeList("Company", {
         fields: ["name", "company_name"],
         pageSize: 100,
+        enabled: isAdmin,
     });
+
+    const companyOptions = useMemo(() => {
+        if (isAdmin) return Array.isArray(companies) ? companies : [];
+        return (Array.isArray(userCompanies) ? userCompanies : []).map((name) => ({
+            name,
+            company_name: name,
+        }));
+    }, [isAdmin, companies, userCompanies]);
 
     // 1. Fetch Route Bookings
     const { data: routeBookings = [], isLoading: rbLoading, error: rbError, refetch: rbRefetch } = useFrappeList("Cheese Route Booking", {
@@ -145,7 +156,7 @@ export default function Bookings() {
                         </SelectTrigger>
                         <SelectContent>
                             <SelectItem value="all">{t("bookings.allEstablishments", "All Establishments")}</SelectItem>
-                            {Array.isArray(companies) && companies.map(c => (
+                            {Array.isArray(companyOptions) && companyOptions.map(c => (
                                 <SelectItem key={c.name} value={c.name}>{c.company_name || c.name}</SelectItem>
                             ))}
                         </SelectContent>

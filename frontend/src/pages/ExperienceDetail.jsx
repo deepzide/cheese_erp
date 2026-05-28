@@ -18,11 +18,13 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Input } from "@/components/ui/input";
 import { apiRequest } from "@/api/client";
 import { experienceService } from "@/api/experienceService";
+import { useHotelAccess } from "@/lib/useHotelAccess";
 
 export default function ExperienceDetail() {
     const { id } = useParams();
     const navigate = useNavigate();
     const { t } = useTranslation();
+    const { isAdmin, userCompanies } = useHotelAccess();
 
     // Fetch Data
     const { data: exp, isLoading } = useFrappeDoc("Cheese Experience", id);
@@ -69,15 +71,6 @@ export default function ExperienceDetail() {
 
     const openExperienceUpload = () => {
         setUploadTarget({ entityType: "Cheese Experience", entityId: id });
-        setUploadOpen(true);
-    };
-
-    const openEstablishmentUpload = () => {
-        if (!exp?.company) {
-            toast.error(t("experiences.companyMissing", "Experience has no establishment yet"));
-            return;
-        }
-        setUploadTarget({ entityType: "Company", entityId: exp.company });
         setUploadOpen(true);
     };
 
@@ -203,6 +196,27 @@ export default function ExperienceDetail() {
             default: return <Badge variant="outline">{status}</Badge>;
         }
     };
+
+    const hasScopedAccess = React.useMemo(() => {
+        if (isAdmin) return true;
+        if (!exp?.company) return false;
+        return (Array.isArray(userCompanies) ? userCompanies : []).includes(exp.company);
+    }, [isAdmin, userCompanies, exp?.company]);
+
+    if (!isLoading && exp && !hasScopedAccess) {
+        return (
+            <DetailPageLayout
+                title={t("common.accessDenied", "Access denied")}
+                subtitle={t("common.noPermission", "You don't have permission to view this experience.")}
+                backPath="/cheese/experiences"
+                isLoading={false}
+            >
+                <div className="p-6 text-sm text-muted-foreground">
+                    {t("common.noPermission", "You don't have permission to view this experience.")}
+                </div>
+            </DetailPageLayout>
+        );
+    }
 
     return (
         <DetailPageLayout
@@ -336,12 +350,6 @@ export default function ExperienceDetail() {
                                         isLoading={documentsLoading}
                                         onAddClick={openExperienceUpload}
                                     />
-                                    <div className="p-4 bg-muted/20 border-t border-border flex justify-between items-center">
-                                        <p className="text-xs text-muted-foreground">{t("experiences.addDocsToEstb", "To add documents to the Establishment instead, click here.")}</p>
-                                        <Button variant="outline" size="sm" onClick={openEstablishmentUpload}>
-                                            {t("experiences.addEstbDoc", "Add Establishment Doc")}
-                                        </Button>
-                                    </div>
                                 </CardContent>
                             </Card>
                         </TabsContent>

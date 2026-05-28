@@ -132,8 +132,13 @@ permission_query_conditions = {
 	"Cheese QR Token": "cheese.cheese.utils.permissions.cheese_qr_token_query",
 	"Cheese Bank Account": "cheese.cheese.utils.permissions.cheese_bank_account_query",
 	"Cheese Document": "cheese.cheese.utils.permissions.cheese_document_query",
+	"Cheese Route Booking": "cheese.cheese.utils.permissions.cheese_route_booking_query",
 	"Cheese Contact": "cheese.cheese.utils.permissions.cheese_contact_query",
 	"Cheese Lead": "cheese.cheese.utils.permissions.cheese_lead_query",
+	"Company": "cheese.cheese.utils.permissions.company_query",
+	"Cheese Route": "cheese.cheese.utils.permissions.cheese_route_query",
+	"Cheese Quotation": "cheese.cheese.utils.permissions.cheese_quotation_query",
+	"Cheese Deposit": "cheese.cheese.utils.permissions.cheese_deposit_query",
 }
 
 has_permission = {
@@ -148,8 +153,13 @@ has_permission = {
 	"Cheese QR Token": "cheese.cheese.utils.permissions.has_company_permission",
 	"Cheese Bank Account": "cheese.cheese.utils.permissions.has_bank_account_permission",
 	"Cheese Document": "cheese.cheese.utils.permissions.has_document_permission",
+	"Cheese Route Booking": "cheese.cheese.utils.permissions.has_route_booking_permission",
 	"Cheese Contact": "cheese.cheese.utils.permissions.has_contact_permission",
 	"Cheese Lead": "cheese.cheese.utils.permissions.has_lead_permission",
+	"Company": "cheese.cheese.utils.permissions.has_company_doc_permission",
+	"Cheese Route": "cheese.cheese.utils.permissions.has_route_permission",
+	"Cheese Quotation": "cheese.cheese.utils.permissions.has_company_permission",
+	"Cheese Deposit": "cheese.cheese.utils.permissions.has_deposit_permission",
 }
 
 # DocType Class

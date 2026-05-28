@@ -1,18 +1,9 @@
 import './App.css'
 import Pages from "@/pages/index.jsx"
 import { Toaster } from "sonner"
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
+import { QueryClientProvider } from "@tanstack/react-query"
 import { ThemeProvider, useTheme } from "@/components/ThemeProvider"
-
-const queryClient = new QueryClient({
-    defaultOptions: {
-        queries: {
-            refetchOnWindowFocus: false,
-            retry: 1,
-            staleTime: 5 * 60 * 1000,
-        },
-    },
-})
+import { queryClient } from "@/lib/queryClient";
 
 function ThemedToaster() {
     const { resolvedTheme } = useTheme();

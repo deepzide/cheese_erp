@@ -86,7 +86,9 @@
     "bankAccounts": "Bank Accounts",
     "failed": "Failed",
     "selected": "Selected",
-    "more": "more"
+    "more": "more",
+    "accessDenied": "Access denied",
+    "noPermission": "You don't have permission to view this record."
   },
   "status": {
     "ONLINE": "Online",
@@ -273,7 +275,9 @@
     "switchToEnglish": "Switch to English",
     "switchToSpanish": "Switch to Spanish",
     "switchToLight": "Switch to light mode",
-    "switchToDark": "Switch to dark mode"
+    "switchToDark": "Switch to dark mode",
+    "noEstablishment": "No establishment",
+    "allEstablishments": "All Establishments"
   },
   "deposit": {
     "title": "Deposits",
@@ -326,8 +330,15 @@
     "experienceRequired": "Experience is required",
     "created": "Booking policy created",
     "newPolicy": "New Booking Policy",
+    "newPolicyMultiDescription": "Set booking rules for one or more experiences",
+    "policyName": "Policy Name",
+    "policyNamePlaceholder": "Standard cancellation 24h",
+    "policyNameHint": "Optional. A descriptive name is auto-generated if left empty.",
     "newPolicyDescription": "Set booking rules for an experience",
     "createPolicy": "Create Policy",
+    "atLeastOneExperienceRequired": "Select at least one experience for this policy",
+    "createdAndLinked": "Policy created and linked to {{count}} experience(s)",
+    "partialLink": "Policy linked to {{linked}}/{{total}} experiences",
     "cancelBeforeHours": "Cancel Before (hours)",
     "cancelBeforeHint": "Guests can cancel up to this many hours before",
     "modifyBeforeHours": "Modify Before (hours)",
@@ -769,6 +780,11 @@
     "slotDeleted": "Slot deleted",
     "deleteSlotFailed": "Failed to delete slot",
     "deleteSlotConfirm": "Delete slot {{name}}? This cannot be undone.",
+    "recurrenceScope": "Apply changes to",
+    "thisSlotOnly": "This slot only",
+    "thisAndFollowing": "This and following slots",
+    "allSlotsInSeries": "All slots in series",
+    "trimSeriesEnd": "Change series end date",
     "maxCapacity": "Max Capacity",
     "capacity": "Capacity",
     "occupied": "occupied",

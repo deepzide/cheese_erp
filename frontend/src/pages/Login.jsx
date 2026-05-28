@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { authService } from "@/api/authService";
 import { setBaseUrl, getBaseUrl } from "@/api/client";
+import { queryClient } from "@/lib/queryClient";
 import { Loader2, Eye, EyeOff } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
@@ -35,8 +36,11 @@ export default function Login() {
         setError("");
 
         try {
+            // Prevent cross-session data flashes from a previous user.
+            queryClient.clear();
             if (serverUrl) setBaseUrl(serverUrl);
             await authService.login(username, password);
+            queryClient.clear();
             navigate("/cheese/dashboard");
         } catch (err) {
             setError(err?.message || t("login.error", "Login failed. Please try again."));
