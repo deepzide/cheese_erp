@@ -335,7 +335,15 @@
     "minLeadHours": "Min Booking Lead (hours)",
     "minLeadHoursHint": "Minimum hours in advance to book",
     "editTimes": "Edit Times",
-    "noneFound": "No policies found"
+    "noneFound": "No policies found",
+    "editMultiDescription": "Update the policy times and the list of experiences it governs",
+    "experiences": "Experiences",
+    "addExperiencePlaceholder": "Add an experience...",
+    "multiExperienceHint": "The same policy can be assigned to many experiences.",
+    "linkFailed": "Some experiences could not be linked or unlinked",
+    "cancelHoursShort": "Cancel (hrs)",
+    "modifyHoursShort": "Modify (hrs)",
+    "minBookHoursShort": "Min Book (hrs)"
   },
   "booking": {
     "title": "Bookings"

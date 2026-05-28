@@ -95,7 +95,12 @@ export default function Documents() {
                 </div>
                 <div className="flex gap-2">
                     <div className="relative"><Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" /><Input placeholder={t("common.search", "Buscar...")} value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-9 w-56 h-9" /></div>
-                    <Button className="cheese-gradient text-black font-semibold border-0 h-9" onClick={() => navigate("/cheese/documents/new")}><Plus className="w-4 h-4 mr-1" /> {t("documents.upload", "Upload")}</Button>
+                    <Button
+                        className="cheese-gradient text-black font-semibold border-0 h-9"
+                        onClick={() => window.location.assign("/cheese/documents/new")}
+                    >
+                        <Plus className="w-4 h-4 mr-1" /> {t("documents.upload", "Upload")}
+                    </Button>
                     <Button variant="ghost" size="icon" onClick={() => refetch()} className="h-9 w-9"><RefreshCw className="w-4 h-4" /></Button>
                 </div>
             </div>

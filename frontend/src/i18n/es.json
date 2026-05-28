@@ -675,7 +675,15 @@
     "minLeadHours": "Anticipación mínima (horas)",
     "minLeadHoursHint": "Horas mínimas de anticipación para reservar",
     "editTimes": "Editar horarios",
-    "noneFound": "No se encontraron políticas"
+    "noneFound": "No se encontraron políticas",
+    "editMultiDescription": "Actualiza los horarios de la política y la lista de experiencias que gobierna",
+    "experiences": "Experiencias",
+    "addExperiencePlaceholder": "Agregar una experiencia...",
+    "multiExperienceHint": "La misma política puede asignarse a muchas experiencias.",
+    "linkFailed": "No se pudieron vincular o desvincular algunas experiencias",
+    "cancelHoursShort": "Cancelar (hrs)",
+    "modifyHoursShort": "Modificar (hrs)",
+    "minBookHoursShort": "Mín. reserva (hrs)"
   },
   "booking": {
     "title": "Reservas"

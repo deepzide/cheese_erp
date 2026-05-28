@@ -150,7 +150,7 @@ export default function CalendarCreateSlotDialog({ open, onClose, prefillDate, p
 
     return (
         <Dialog open={open} onOpenChange={(o) => !o && onClose?.()}>
-            <DialogContent className="max-w-md">
+            <DialogContent className="w-[calc(100vw-2rem)] max-w-lg max-h-[85vh] overflow-y-auto overflow-x-hidden p-4 sm:p-6">
                 <DialogHeader>
                     <DialogTitle className="flex items-center gap-2">
                         <Plus className="w-4 h-4 text-cheese-600" />
@@ -161,7 +161,7 @@ export default function CalendarCreateSlotDialog({ open, onClose, prefillDate, p
                     </DialogDescription>
                 </DialogHeader>
 
-                <form onSubmit={handleSubmit} className="space-y-4">
+                <form onSubmit={handleSubmit} className="space-y-4 min-w-0">
                     {/* Experience */}
                     <div className="space-y-1.5">
                         <Label className="text-xs">{t("ticket.experience", "Experiencia")} *</Label>
@@ -175,7 +175,7 @@ export default function CalendarCreateSlotDialog({ open, onClose, prefillDate, p
                     </div>
 
                     {/* Date Range */}
-                    <div className="grid grid-cols-2 gap-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         <div className="space-y-1.5">
                             <Label className="text-xs">{t("hotelAvailability.dateFrom", "Date From")} *</Label>
                             <Input
@@ -203,7 +203,7 @@ export default function CalendarCreateSlotDialog({ open, onClose, prefillDate, p
                     </div>
 
                     {/* Time Range */}
-                    <div className="grid grid-cols-2 gap-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         <div className="space-y-1.5">
                             <Label className="text-xs">{t("calendar.time", "Time From")}</Label>
                             <Input
@@ -233,7 +233,7 @@ export default function CalendarCreateSlotDialog({ open, onClose, prefillDate, p
                             onChange={(e) => setMaxCapacity(e.target.value)}
                             min="1"
                             required
-                            className="h-9 w-32"
+                            className="h-9 w-full sm:w-32"
                         />
                     </div>
 
@@ -282,7 +282,7 @@ export default function CalendarCreateSlotDialog({ open, onClose, prefillDate, p
             
             {/* Custom Recurrence Dialog */}
             <Dialog open={showCustomDialog} onOpenChange={setShowCustomDialog}>
-                <DialogContent className="max-w-md">
+                <DialogContent className="w-[calc(100vw-2rem)] max-w-lg max-h-[85vh] overflow-y-auto overflow-x-hidden p-4 sm:p-6">
                     <DialogHeader>
                         <DialogTitle>{t("calendar.customRecurrence", "Custom Recurrence")}</DialogTitle>
                         <DialogDescription>
