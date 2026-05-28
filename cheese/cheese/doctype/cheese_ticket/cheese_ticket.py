@@ -292,16 +292,8 @@ class CheeseTicket(Document):
 				self.policy_snapshot = json.dumps(policy)
 
 		if self.route:
-			# For route tickets, the unit price may come from route.price (Manual mode)
-			# or experience.route_price / individual_price (Sum mode)
-			try:
-				route = frappe.get_doc("Cheese Route", self.route)
-				if route.price_mode == "Manual":
-					effective_unit_price = route.price or 0
-				else:
-					effective_unit_price = experience.route_price or experience.individual_price or 0
-			except Exception:
-				effective_unit_price = experience.route_price or experience.individual_price or 0
+			# Route tickets should always snapshot the per-experience route_price.
+			effective_unit_price = experience.route_price or 0
 		else:
 			effective_unit_price = experience.individual_price or 0
 

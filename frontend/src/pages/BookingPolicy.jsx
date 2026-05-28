@@ -45,6 +45,17 @@ export default function BookingPolicy() {
         pageSize: 100,
     });
 
+    // Resolve policy -> experiences from the canonical relationship on Cheese Experience.
+    // Some older policies have an empty legacy `policy.experience` field even though
+    // experiences are linked via `experience.booking_policy`.
+    const { data: policyExperienceLinks = [] } = useFrappeList("Cheese Experience", {
+        fields: ["name", "booking_policy"],
+        filters: {
+            booking_policy: ["is", "set"],
+        },
+        pageSize: 500,
+    });
+
     const { data: linkedExperiencesData = [] } = useFrappeList("Cheese Experience", {
         fields: ["name", "booking_policy"],
         filters: editPolicy?.name ? { booking_policy: editPolicy.name } : undefined,
@@ -72,9 +83,32 @@ export default function BookingPolicy() {
 
     const createMutation = useFrappeCreate("Cheese Booking Policy");
 
+    const policyExperienceMap = React.useMemo(() => {
+        const map = new Map();
+        (Array.isArray(policyExperienceLinks) ? policyExperienceLinks : []).forEach((row) => {
+            const policyName = row?.booking_policy;
+            const experienceName = row?.name;
+            if (!policyName || !experienceName) return;
+            const prev = map.get(policyName) || [];
+            if (!prev.includes(experienceName)) prev.push(experienceName);
+            map.set(policyName, prev);
+        });
+        return map;
+    }, [policyExperienceLinks]);
+
+    const getPolicyExperiences = (policy) => {
+        const linked = policyExperienceMap.get(policy?.name) || [];
+        if (linked.length > 0) return linked;
+        return policy?.experience ? [policy.experience] : [];
+    };
+
     const filtered = (Array.isArray(policies) ? policies : []).filter(p => {
-        if (experienceFilter && p.experience !== experienceFilter) return false;
-        if (searchTerm) return (p.experience || p.name || '').toLowerCase().includes(searchTerm.toLowerCase());
+        const experienceNames = getPolicyExperiences(p);
+        if (experienceFilter && !experienceNames.includes(experienceFilter)) return false;
+        if (searchTerm) {
+            const haystack = `${p.name || ""} ${experienceNames.join(" ")}`.toLowerCase();
+            return haystack.includes(searchTerm.toLowerCase());
+        }
         return true;
     });
 
@@ -234,7 +268,12 @@ export default function BookingPolicy() {
                 </div>
                 <div className="flex gap-2">
                     <div className="relative"><Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" /><Input placeholder={t("common.search", "Search") + "..."} value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-9 w-56 h-9" /></div>
-                    <Button className="cheese-gradient text-black font-semibold border-0 h-9" onClick={() => navigate("/cheese/booking-policy/new")}><Plus className="w-4 h-4 mr-1" /> {t("bookingPolicy.new", "New Policy")}</Button>
+                    <Button
+                        className="cheese-gradient text-black font-semibold border-0 h-9"
+                        onClick={() => window.location.assign("/cheese/booking-policy/new")}
+                    >
+                        <Plus className="w-4 h-4 mr-1" /> {t("bookingPolicy.new", "New Policy")}
+                    </Button>
                     <Button variant="ghost" size="icon" onClick={() => refetch()} className="h-9 w-9"><RefreshCw className="w-4 h-4" /></Button>
                 </div>
             </div>
@@ -246,21 +285,30 @@ export default function BookingPolicy() {
                     <motion.div key={policy.name} whileHover={{ y: -3 }}>
                         <Card className="border border-border shadow-sm hover:shadow-md transition-all group">
                             <CardContent className="p-5">
+                                {(() => {
+                                    const displayExperiences = getPolicyExperiences(policy);
+                                    const displayExperienceLabel = displayExperiences.length > 0 ? displayExperiences.join(", ") : "—";
+                                    const primaryExperience = displayExperiences[0] || "";
+                                    return (
                                 <div className="flex items-start justify-between mb-3">
                                     <div>
                                         <h3 className="font-semibold text-foreground">{policy.name}</h3>
-                                        <span className="text-xs text-muted-foreground">{t("ticket.experience", "Experience")}: {policy.experience || '—'}</span>
+                                        <span className="text-xs text-muted-foreground">
+                                            {t("ticket.experience", "Experience")}: {displayExperienceLabel}
+                                        </span>
                                     </div>
                                     <DropdownMenu>
                                         <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8 opacity-0 group-hover:opacity-100"><MoreHorizontal className="w-4 h-4" /></Button></DropdownMenuTrigger>
                                         <DropdownMenuContent align="end">
                                             <DropdownMenuItem onClick={() => openEdit(policy)}>
-                                                <Clock className="w-3 h-3 mr-2" /> {t("bookingPolicy.editTimes", "Editar horarios")}
+                                                <Clock className="w-3 h-3 mr-2" /> {t("bookingPolicy.editTimes", "Edit Times")}
                                             </DropdownMenuItem>
-                                            <DropdownMenuItem onClick={() => navigate(`/cheese/experiences?search=${policy.experience}`)}><Sparkles className="w-3 h-3 mr-2" /> {t("documents.viewExperience", "Ver experiencia")}</DropdownMenuItem>
+                                            <DropdownMenuItem onClick={() => navigate(`/cheese/experiences?search=${primaryExperience}`)}><Sparkles className="w-3 h-3 mr-2" /> {t("documents.viewExperience", "View Experience")}</DropdownMenuItem>
                                         </DropdownMenuContent>
                                     </DropdownMenu>
                                 </div>
+                                    );
+                                })()}
                                 <div className="space-y-2">
                                     <div className="flex items-center gap-2 text-sm"><Clock className="w-3.5 h-3.5 text-muted-foreground" /><span>{t("bookingPolicy.cancelBeforeHours", "Cancel before (hours)")}: <strong>{policy.cancel_until_hours_before || 0}h</strong></span></div>
                                     <div className="flex items-center gap-2 text-sm"><Clock className="w-3.5 h-3.5 text-muted-foreground" /><span>{t("bookingPolicy.modifyBeforeHours", "Modify before (hours)")}: <strong>{policy.modify_until_hours_before || 0}h</strong></span></div>
@@ -282,9 +330,9 @@ export default function BookingPolicy() {
                     <div className="space-y-4">
                         <div className="space-y-2"><Label>{t("ticket.experience", "Experience")} *</Label><Input placeholder={t("experiences.experienceNameId", "Experience ID")} value={form.experience} onChange={(e) => setForm(f => ({ ...f, experience: e.target.value }))} /></div>
                         <div className="grid grid-cols-3 gap-3">
-                            <div className="space-y-2"><Label className="text-xs">Cancel (hrs)</Label><Input type="number" min="0" value={form.cancel_until_hours_before} onChange={(e) => setForm(f => ({ ...f, cancel_until_hours_before: e.target.value }))} /></div>
-                            <div className="space-y-2"><Label className="text-xs">Modify (hrs)</Label><Input type="number" min="0" value={form.modify_until_hours_before} onChange={(e) => setForm(f => ({ ...f, modify_until_hours_before: e.target.value }))} /></div>
-                            <div className="space-y-2"><Label className="text-xs">Min Book (hrs)</Label><Input type="number" min="0" value={form.min_hours_before_booking} onChange={(e) => setForm(f => ({ ...f, min_hours_before_booking: e.target.value }))} /></div>
+                            <div className="space-y-2"><Label className="text-xs">{t("bookingPolicy.cancelHoursShort", "Cancel (hrs)")}</Label><Input type="number" min="0" value={form.cancel_until_hours_before} onChange={(e) => setForm(f => ({ ...f, cancel_until_hours_before: e.target.value }))} /></div>
+                            <div className="space-y-2"><Label className="text-xs">{t("bookingPolicy.modifyHoursShort", "Modify (hrs)")}</Label><Input type="number" min="0" value={form.modify_until_hours_before} onChange={(e) => setForm(f => ({ ...f, modify_until_hours_before: e.target.value }))} /></div>
+                            <div className="space-y-2"><Label className="text-xs">{t("bookingPolicy.minBookHoursShort", "Min Book (hrs)")}</Label><Input type="number" min="0" value={form.min_hours_before_booking} onChange={(e) => setForm(f => ({ ...f, min_hours_before_booking: e.target.value }))} /></div>
                         </div>
                     </div>
                     <DialogFooter>
@@ -337,9 +385,9 @@ export default function BookingPolicy() {
                             )}
                         </div>
                         <div className="grid grid-cols-3 gap-3">
-                            <div className="space-y-2"><Label className="text-xs">Cancel (hrs)</Label><Input type="number" min="0" value={editForm.cancel_until_hours_before} onChange={(e) => setEditForm(f => ({ ...f, cancel_until_hours_before: e.target.value }))} /></div>
-                            <div className="space-y-2"><Label className="text-xs">Modify (hrs)</Label><Input type="number" min="0" value={editForm.modify_until_hours_before} onChange={(e) => setEditForm(f => ({ ...f, modify_until_hours_before: e.target.value }))} /></div>
-                            <div className="space-y-2"><Label className="text-xs">Min Book (hrs)</Label><Input type="number" min="0" value={editForm.min_hours_before_booking} onChange={(e) => setEditForm(f => ({ ...f, min_hours_before_booking: e.target.value }))} /></div>
+                            <div className="space-y-2"><Label className="text-xs">{t("bookingPolicy.cancelHoursShort", "Cancel (hrs)")}</Label><Input type="number" min="0" value={editForm.cancel_until_hours_before} onChange={(e) => setEditForm(f => ({ ...f, cancel_until_hours_before: e.target.value }))} /></div>
+                            <div className="space-y-2"><Label className="text-xs">{t("bookingPolicy.modifyHoursShort", "Modify (hrs)")}</Label><Input type="number" min="0" value={editForm.modify_until_hours_before} onChange={(e) => setEditForm(f => ({ ...f, modify_until_hours_before: e.target.value }))} /></div>
+                            <div className="space-y-2"><Label className="text-xs">{t("bookingPolicy.minBookHoursShort", "Min Book (hrs)")}</Label><Input type="number" min="0" value={editForm.min_hours_before_booking} onChange={(e) => setEditForm(f => ({ ...f, min_hours_before_booking: e.target.value }))} /></div>
                         </div>
                     </div>
                     <DialogFooter>
