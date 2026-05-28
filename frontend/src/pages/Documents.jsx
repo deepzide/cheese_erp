@@ -5,14 +5,11 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
-import { FileText, Search, Plus, Filter, Download, AlertCircle, RefreshCw, Loader2, MoreHorizontal, ExternalLink } from "lucide-react";
+import { FileText, Search, Plus, AlertCircle, RefreshCw, MoreHorizontal, ExternalLink } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { toast } from "sonner";
-import { useFrappeList, useFrappeCreate } from "@/lib/useApiData";
+import { useFrappeList } from "@/lib/useApiData";
+import { useHotelAccess } from "@/lib/useHotelAccess";
 import { useTranslation } from "react-i18next";
 
 const TYPE_BADGE = { PDF: "bg-red-500/15 text-red-700", Image: "bg-blue-500/15 text-blue-700", Link: "bg-purple-500/15 text-purple-700" };
@@ -20,21 +17,19 @@ const STATUS_BADGE = { DRAFT: "bg-yellow-500/15 text-yellow-700", PUBLISHED: "bg
 
 export default function Documents() {
     const { t } = useTranslation();
+    const { isAdmin, userCompanies } = useHotelAccess();
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
     const companyFromQuery = searchParams.get("company") || "";
     const includeCompanyDocs = searchParams.get("include_company_docs") !== "0";
     const [searchTerm, setSearchTerm] = useState("");
-    const [createOpen, setCreateOpen] = useState(false);
-    const [form, setForm] = useState({
-        entity_type: searchParams.get('entity_type') || "", entity_id: searchParams.get('entity_id') || "",
-        title: "", document_type: "PDF", file_url: "",
-    });
+    const entityTypeFilter = searchParams.get("entity_type") || "";
+    const entityIdFilter = searchParams.get("entity_id") || "";
 
     const { data: docs = [], isLoading, error, refetch } = useFrappeList("Cheese Document", {
         filters: {
-            entity_type: form.entity_type || undefined,
-            entity_id: form.entity_id || undefined,
+            entity_type: entityTypeFilter || undefined,
+            entity_id: entityIdFilter || undefined,
         },
         fields: ["name", "entity_type", "entity_id", "title", "document_type", "file_url", "status", "language", "version", "validity_date", "tags", "creation"],
         pageSize: 100,
@@ -42,7 +37,7 @@ export default function Documents() {
 
     const shouldLoadCompanyDocs =
         includeCompanyDocs &&
-        form.entity_type === "Cheese Experience" &&
+        entityTypeFilter === "Cheese Experience" &&
         !!(companyFromQuery || searchParams.get("establishment_id"));
     const companyEntityId = companyFromQuery || searchParams.get("establishment_id") || "";
 
@@ -56,8 +51,6 @@ export default function Documents() {
         pageSize: 100,
     });
 
-    const createMutation = useFrappeCreate("Cheese Document");
-
     const mergedDocs = React.useMemo(() => {
         const seen = new Set();
         const result = [];
@@ -69,7 +62,30 @@ export default function Documents() {
         return result;
     }, [docs, companyDocs]);
 
-    const filtered = mergedDocs.filter(d => {
+    const { data: allowedExperiences = [] } = useFrappeList("Cheese Experience", {
+        enabled: !isAdmin && (Array.isArray(userCompanies) ? userCompanies.length > 0 : false),
+        filters: {
+            company: ["in", userCompanies],
+        },
+        fields: ["name"],
+        pageSize: 500,
+    });
+
+    const scopedDocs = React.useMemo(() => {
+        if (isAdmin) return mergedDocs;
+        const allowedCompanies = new Set(Array.isArray(userCompanies) ? userCompanies : []);
+        const allowedExperienceIds = new Set(
+            (Array.isArray(allowedExperiences) ? allowedExperiences : []).map((row) => row.name).filter(Boolean)
+        );
+        return mergedDocs.filter((doc) => {
+            if (doc?.entity_type === "Company") return allowedCompanies.has(doc.entity_id);
+            if (doc?.entity_type === "Cheese Experience") return allowedExperienceIds.has(doc.entity_id);
+            // Hide other entity types for establishment users unless they are explicitly scoped.
+            return false;
+        });
+    }, [mergedDocs, isAdmin, userCompanies, allowedExperiences]);
+
+    const filtered = scopedDocs.filter(d => {
         if (searchTerm) {
             const term = searchTerm.toLowerCase();
             return (d.title || d.name || '').toLowerCase().includes(term) || (d.entity_id || '').toLowerCase().includes(term);
@@ -146,33 +162,6 @@ export default function Documents() {
                 <div className="text-center py-16"><FileText className="w-16 h-16 text-muted-foreground/20 mx-auto mb-4" /><p className="text-muted-foreground">{t("documents.noDocuments", "No documents found")}</p></div>
             )}
 
-            <Dialog open={createOpen} onOpenChange={setCreateOpen}>
-                <DialogContent className="max-w-md">
-                    <DialogHeader><DialogTitle className="flex items-center gap-2"><Plus className="w-5 h-5 text-cheese-600" /> {t("documents.uploadDocument", "Subir documento")}</DialogTitle><DialogDescription>{t("documents.attachDocument", "Adjunta un documento")}</DialogDescription></DialogHeader>
-                    <div className="space-y-4">
-                        <div className="grid grid-cols-2 gap-4">
-                            <div className="space-y-2"><Label>{t("deposits.entityType", "Tipo de entidad")} *</Label><Input placeholder={t("common.selectType", "Ruta / Experiencia")} value={form.entity_type} onChange={(e) => setForm(f => ({ ...f, entity_type: e.target.value }))} /></div>
-                            <div className="space-y-2"><Label>{t("deposits.entityId", "Entity ID")} *</Label><Input placeholder={t("deposits.entityId", "ID")} value={form.entity_id} onChange={(e) => setForm(f => ({ ...f, entity_id: e.target.value }))} /></div>
-                        </div>
-                        <div className="space-y-2"><Label>{t("documents.title", "Title")} *</Label><Input value={form.title} onChange={(e) => setForm(f => ({ ...f, title: e.target.value }))} /></div>
-                        <div className="grid grid-cols-2 gap-4">
-                            <div className="space-y-2"><Label>{t("documents.type", "Type")}</Label>
-                                <Select value={form.document_type} onValueChange={(v) => setForm(f => ({ ...f, document_type: v }))}>
-                                    <SelectTrigger><SelectValue /></SelectTrigger>
-                                    <SelectContent><SelectItem value="PDF">PDF</SelectItem><SelectItem value="Image">Image</SelectItem><SelectItem value="Link">Link</SelectItem></SelectContent>
-                                </Select>
-                            </div>
-                            <div className="space-y-2"><Label>{t("documents.content", "File URL")}</Label><Input value={form.file_url} onChange={(e) => setForm(f => ({ ...f, file_url: e.target.value }))} /></div>
-                        </div>
-                    </div>
-                    <DialogFooter>
-                        <Button variant="outline" onClick={() => setCreateOpen(false)}>{t("common.cancel", "Cancel")}</Button>
-                        <Button className="cheese-gradient text-black font-semibold border-0" onClick={() => createMutation.mutate(form, { onSuccess: () => { setCreateOpen(false); toast.success(t("documents.documentCreated", "Document uploaded")); } })} disabled={createMutation.isPending}>
-                            {createMutation.isPending ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Plus className="w-4 h-4 mr-1" />} {t("documents.upload", "Upload")}
-                        </Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
         </motion.div>
     );
 }

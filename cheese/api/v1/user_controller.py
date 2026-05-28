@@ -24,6 +24,7 @@ def _get_user_companies(user_email):
         "User Permission",
         filters={"user": user_email, "allow": "Company"},
         fields=["for_value"],
+        order_by="creation desc",
     )
     return [p.for_value for p in perms]
 

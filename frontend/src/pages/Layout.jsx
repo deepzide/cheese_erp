@@ -17,7 +17,9 @@ import {
     DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { getStoredCredentials } from "@/api/client";
+import { queryClient } from "@/lib/queryClient";
 import { useTheme } from "@/components/ThemeProvider";
+import { useHotelAccess } from "@/lib/useHotelAccess";
 
 const URL_ESTABLISHMENTS = createPageUrl("establishments");
 const URL_ESTABLISHMENTS_NEW = createPageUrl("establishments/new");
@@ -83,6 +85,14 @@ export default function Layout({ children }) {
 
     const currentUser = getStoredCredentials();
     const user = currentUser || { full_name: "Cheese Admin", role: "admin" };
+    const { hasHotelAccess, establishmentName, isLoading: establishmentLoading, isAdmin } = useHotelAccess();
+
+    const visibleNavigationItems = React.useMemo(() => {
+        return navigationItems.filter((item) => {
+            if (item.section === "hotel") return hasHotelAccess;
+            return true;
+        });
+    }, [hasHotelAccess]);
 
     const toggleLanguage = () => {
         const next = i18n.language === "es" ? "en" : "es";
@@ -102,6 +112,7 @@ export default function Layout({ children }) {
             const { authService } = await import('@/api/authService');
             await authService.logout();
         } catch (err) { }
+        queryClient.clear();
         localStorage.clear();
         sessionStorage.clear();
         navigate("/cheese/login");
@@ -118,6 +129,11 @@ export default function Layout({ children }) {
                     <div>
                         <h2 className="font-bold text-cheese-400 text-lg tracking-tight">Cheese</h2>
                         <p className="text-[11px] text-white/40 font-medium">{t("sections.commandCenter")}</p>
+                        <p className="text-[11px] text-white/60 mt-1 truncate">
+                            {establishmentLoading
+                                ? t("common.loading", "Loading...")
+                                : establishmentName || t("layout.noEstablishment", "No establishment")}
+                        </p>
                     </div>
                 </div>
             </div>
@@ -125,7 +141,7 @@ export default function Layout({ children }) {
             {/* Navigation */}
             <ScrollArea className="flex-1 px-3 py-4">
                 {Object.entries(sectionDefs).map(([key, section]) => {
-                    const items = navigationItems.filter(item => item.section === key);
+                    const items = visibleNavigationItems.filter(item => item.section === key);
                     if (items.length === 0) return null;
                     const isGroupActive = items.some(item => isNavItemActive(item, location.pathname));
                     const isCollapsed = collapsedSections[key] && !isGroupActive;
@@ -236,6 +252,11 @@ export default function Layout({ children }) {
                                 Cheese
                             </h1>
                         </div>
+                        <Badge variant="outline" className="max-w-[220px] truncate">
+                            {isAdmin
+                                ? t("layout.allEstablishments", "All Establishments")
+                                : (establishmentName || t("layout.noEstablishment", "No establishment"))}
+                        </Badge>
                     </div>
 
                     <div className="flex items-center gap-2">

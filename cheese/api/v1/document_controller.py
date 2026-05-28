@@ -5,6 +5,7 @@ import frappe
 from frappe import _
 from frappe.utils import cint
 from cheese.api.common.responses import success, created, error, not_found, validation_error, paginated_response
+from cheese.api.v1.user_controller import _get_current_user_company
 import json
 
 
@@ -30,6 +31,25 @@ def _normalize_document_type(document_type):
 		"LINK": "Link",
 	}
 	return mapping.get(document_type, document_type)
+
+
+def _entity_company(entity_type, entity_id):
+	"""Resolve owning company for supported document entity targets."""
+	if entity_type == "Company":
+		return entity_id
+	if entity_type == "Cheese Experience":
+		return frappe.db.get_value("Cheese Experience", entity_id, "company")
+	if entity_type == "Cheese Ticket":
+		return frappe.db.get_value("Cheese Ticket", entity_id, "company")
+	return None
+
+
+def _is_entity_accessible(entity_type, entity_id):
+	"""Tenant guard for establishment users; admins remain unrestricted."""
+	user_company = _get_current_user_company()
+	if not user_company:
+		return True
+	return _entity_company(entity_type, entity_id) == user_company
 
 
 @frappe.whitelist()
@@ -76,6 +96,9 @@ def upload_document(entity_type, entity_id, file_url, title, document_type="PDF"
 				return not_found("Company", entity_id)
 		else:
 			return validation_error(f"Invalid entity_type: {entity_type}")
+
+		if not _is_entity_accessible(entity_type, entity_id):
+			return error("Unauthorized", "UNAUTHORIZED", {}, 403)
 		
 		# If Cheese Document doctype exists, use it
 		# Otherwise, store as File attachment with custom fields
@@ -157,6 +180,7 @@ def list_documents(entity_type=None, entity_id=None, status=None, document_type=
 		page_size = cint(page_size) or 20
 		entity_type = _normalize_entity_type(entity_type) if entity_type else None
 		document_type = _normalize_document_type(document_type) if document_type else None
+		user_company = _get_current_user_company()
 		
 		# Try to use Cheese Document doctype
 		try:
@@ -172,6 +196,36 @@ def list_documents(entity_type=None, entity_id=None, status=None, document_type=
 			if language:
 				filters["language"] = language
 			
+			# `frappe.get_all` bypasses doctype permission hooks; apply explicit
+			# company scoping for establishment users.
+			if user_company:
+				if entity_type and entity_id:
+					if not _is_entity_accessible(entity_type, entity_id):
+						return paginated_response([], "Documents retrieved successfully", page=page, page_size=page_size, total=0)
+				else:
+					allowed_experiences = frappe.get_all(
+						"Cheese Experience",
+						filters={"company": user_company},
+						pluck="name",
+					)
+					allowed_tickets = frappe.get_all(
+						"Cheese Ticket",
+						filters={"company": user_company},
+						pluck="name",
+					)
+					if entity_type == "Company":
+						filters["entity_id"] = user_company
+					elif entity_type == "Cheese Experience":
+						filters["entity_id"] = ["in", allowed_experiences or ["__none__"]]
+					elif entity_type == "Cheese Ticket":
+						filters["entity_id"] = ["in", allowed_tickets or ["__none__"]]
+					else:
+						filters["entity_type"] = ["in", ["Company", "Cheese Experience", "Cheese Ticket"]]
+						filters["entity_id"] = [
+							"in",
+							[user_company, *allowed_experiences, *allowed_tickets],
+						]
+
 			documents = frappe.get_all(
 				"Cheese Document",
 				filters=filters,
@@ -221,6 +275,8 @@ def list_documents(entity_type=None, entity_id=None, status=None, document_type=
 			# Map to document format
 			documents = []
 			for file in files:
+				if user_company and not _is_entity_accessible(file.attached_to_doctype, file.attached_to_name):
+					continue
 				documents.append({
 					"document_id": file.name,
 					"entity_type": file.attached_to_doctype,
@@ -265,6 +321,8 @@ def get_document_details(document_id):
 				return not_found("Document", document_id)
 			
 			doc = frappe.get_doc("Cheese Document", document_id)
+			if not _is_entity_accessible(doc.entity_type, doc.entity_id):
+				return error("Unauthorized", "UNAUTHORIZED", {}, 403)
 			
 			return success(
 				"Document details retrieved successfully",
@@ -286,6 +344,8 @@ def get_document_details(document_id):
 				return not_found("Document", document_id)
 			
 			file_doc = frappe.get_doc("File", document_id)
+			if not _is_entity_accessible(file_doc.attached_to_doctype, file_doc.attached_to_name):
+				return error("Unauthorized", "UNAUTHORIZED", {}, 403)
 			
 			return success(
 				"Document details retrieved successfully",
@@ -330,6 +390,8 @@ def update_document_status(document_id, status):
 				return not_found("Document", document_id)
 			
 			doc = frappe.get_doc("Cheese Document", document_id)
+			if not _is_entity_accessible(doc.entity_type, doc.entity_id):
+				return error("Unauthorized", "UNAUTHORIZED", {}, 403)
 			doc.status = status
 			doc.save()
 			frappe.db.commit()
@@ -371,6 +433,8 @@ def delete_document(document_id):
 				return not_found("Document", document_id)
 			
 			doc = frappe.get_doc("Cheese Document", document_id)
+			if not _is_entity_accessible(doc.entity_type, doc.entity_id):
+				return error("Unauthorized", "UNAUTHORIZED", {}, 403)
 			# Soft delete by archiving
 			doc.status = "ARCHIVED"
 			doc.save()

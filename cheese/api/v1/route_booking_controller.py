@@ -11,12 +11,37 @@ from frappe.utils import add_to_date, get_datetime, getdate, now_datetime
 
 from cheese.api.common.responses import created, error, not_found, success, validation_error
 from cheese.api.v1.ticket_controller import create_pending_ticket
+from cheese.api.v1.user_controller import _get_current_user_company
 from cheese.cheese.utils.capacity import (
 	get_available_capacity,
 	slot_calendar_days_in_range,
 	update_slot_capacity,
 )
 from cheese.cheese.utils.pricing import calculate_deposit_amount, calculate_ticket_price
+
+
+def _permission_denied(message="Not permitted"):
+	return error(message, "PERMISSION_DENIED", {}, 403)
+
+
+def _has_route_booking_company_access(route_booking) -> bool:
+	"""Establishment users can only access bookings containing their company tickets."""
+	user_company = _get_current_user_company()
+	if not user_company:
+		return True
+
+	ticket_ids = [row.ticket for row in (route_booking.tickets or []) if row.ticket]
+	if not ticket_ids:
+		return False
+
+	companies = set(
+		frappe.get_all(
+			"Cheese Ticket",
+			filters={"name": ["in", ticket_ids]},
+			pluck="company",
+		)
+	)
+	return user_company in companies
 
 
 def _normalize_time_filter(time_value):
@@ -947,6 +972,10 @@ def get_route_status(route_booking_id):
 				return not_found("Route Booking", route_booking_id)
 
 		route_booking = frappe.get_doc("Cheese Route Booking", route_booking_id)
+		if not frappe.has_permission("Cheese Route Booking", "read", route_booking):
+			return _permission_denied("Not permitted to access this route booking")
+		if not _has_route_booking_company_access(route_booking):
+			return _permission_denied("Not permitted to access this route booking")
 
 		# Refresh status from tickets
 		route_booking.calculate_status()
@@ -1024,6 +1053,10 @@ def get_route_summary(route_booking_id):
 				return not_found("Route Booking", route_booking_id)
 
 		route_booking = frappe.get_doc("Cheese Route Booking", route_booking_id)
+		if not frappe.has_permission("Cheese Route Booking", "read", route_booking):
+			return _permission_denied("Not permitted to access this route booking")
+		if not _has_route_booking_company_access(route_booking):
+			return _permission_denied("Not permitted to access this route booking")
 		route = frappe.get_doc("Cheese Route", route_booking.route)
 
 		# Build itinerary from tickets with financial data
@@ -1412,6 +1445,10 @@ def confirm_add_activities_to_route(route_booking_id, activities):
 				return not_found("Route Booking", route_booking_id)
 
 		route_booking = frappe.get_doc("Cheese Route Booking", route_booking_id)
+		if not frappe.has_permission("Cheese Route Booking", "write", route_booking):
+			return _permission_denied("Not permitted to modify this route booking")
+		if not _has_route_booking_company_access(route_booking):
+			return _permission_denied("Not permitted to modify this route booking")
 
 		if not route_booking.tickets or len(route_booking.tickets) == 0:
 			return not_found("Route Booking", route_booking_id)
@@ -1523,6 +1560,10 @@ def cancel_route_booking(route_booking_id, reason=None):
 				return not_found("Route Booking", route_booking_id)
 
 		route_booking = frappe.get_doc("Cheese Route Booking", route_booking_id)
+		if not frappe.has_permission("Cheese Route Booking", "write", route_booking):
+			return _permission_denied("Not permitted to cancel this route booking")
+		if not _has_route_booking_company_access(route_booking):
+			return _permission_denied("Not permitted to cancel this route booking")
 
 		if route_booking.status == "CANCELLED":
 			return success(

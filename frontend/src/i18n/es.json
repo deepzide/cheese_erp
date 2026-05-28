@@ -140,7 +140,9 @@
     "to": "Hasta",
     "type": "Tipo",
     "selected": "Seleccionado",
-    "more": "más"
+    "more": "más",
+    "accessDenied": "Acceso denegado",
+    "noPermission": "No tienes permiso para ver este registro."
   },
   "status": {
     "ONLINE": "En Línea",
@@ -471,7 +473,9 @@
     "switchToEnglish": "Cambiar a inglés",
     "switchToSpanish": "Cambiar a español",
     "switchToLight": "Cambiar a modo claro",
-    "switchToDark": "Cambiar a modo oscuro"
+    "switchToDark": "Cambiar a modo oscuro",
+    "noEstablishment": "Sin establecimiento",
+    "allEstablishments": "Todos los establecimientos"
   },
   "deposit": {
     "title": "Depósitos",
@@ -597,6 +601,11 @@
     "slotDeleted": "Horario eliminado",
     "deleteSlotFailed": "No se pudo eliminar el horario",
     "deleteSlotConfirm": "¿Eliminar el horario {{name}}? Esta acción no se puede deshacer.",
+    "recurrenceScope": "Aplicar cambios a",
+    "thisSlotOnly": "Solo este horario",
+    "thisAndFollowing": "Este y los siguientes horarios",
+    "allSlotsInSeries": "Todos los horarios de la serie",
+    "trimSeriesEnd": "Cambiar fecha de fin de la serie",
     "maxCapacity": "Capacidad máxima",
     "capacity": "Capacidad",
     "occupied": "ocupado",
@@ -666,8 +675,15 @@
     "experienceRequired": "La experiencia es requerida",
     "created": "Política de reserva creada",
     "newPolicy": "Nueva Política de Reserva",
+    "newPolicyMultiDescription": "Define reglas de reserva para una o más experiencias",
+    "policyName": "Nombre de la política",
+    "policyNamePlaceholder": "Cancelación estándar 24h",
+    "policyNameHint": "Opcional. Si se deja vacío se genera automáticamente un nombre descriptivo.",
     "newPolicyDescription": "Define reglas de reserva para una experiencia",
     "createPolicy": "Crear Política",
+    "atLeastOneExperienceRequired": "Selecciona al menos una experiencia para esta política",
+    "createdAndLinked": "Política creada y vinculada a {{count}} experiencia(s)",
+    "partialLink": "Política vinculada a {{linked}}/{{total}} experiencias",
     "cancelBeforeHours": "Cancelar antes (horas)",
     "cancelBeforeHint": "Los huéspedes pueden cancelar hasta esta cantidad de horas antes",
     "modifyBeforeHours": "Modificar antes (horas)",

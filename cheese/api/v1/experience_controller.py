@@ -168,6 +168,9 @@ def get_experience_detail(experience_id, include_next_availability=True):
 		
 		if not frappe.db.exists("Cheese Experience", experience_id):
 			return not_found("Experience", experience_id)
+
+		if not frappe.has_permission("Cheese Experience", "read", experience_id):
+			return error("Not permitted to access this experience", "PERMISSION_DENIED", {}, 403)
 		
 		experience = frappe.get_doc("Cheese Experience", experience_id)
 		

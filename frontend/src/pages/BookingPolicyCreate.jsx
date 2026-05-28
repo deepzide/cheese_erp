@@ -98,17 +98,18 @@ export default function BookingPolicyCreate() {
                         );
                     } else if (failures.length > 0) {
                         toast.warning(
-                            t(
-                                "bookingPolicy.partialLink",
-                                `Policy linked to ${experiences.length - failures.length}/${experiences.length} experiences`
-                            )
+                            t("bookingPolicy.partialLink", {
+                                linked: experiences.length - failures.length,
+                                total: experiences.length,
+                                defaultValue: "Policy linked to {{linked}}/{{total}} experiences",
+                            })
                         );
                     } else {
                         toast.success(
-                            t(
-                                "bookingPolicy.createdAndLinked",
-                                `Policy created and linked to ${experiences.length} experience(s)`
-                            )
+                            t("bookingPolicy.createdAndLinked", {
+                                count: experiences.length,
+                                defaultValue: "Policy created and linked to {{count}} experience(s)",
+                            })
                         );
                     }
 
