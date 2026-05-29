@@ -5,6 +5,7 @@ from collections import defaultdict
 
 import frappe
 from cheese.api.common.responses import error, not_found, success, validation_error
+from cheese.cheese.utils.access import assert_entity_access
 
 
 def serialize_company_bank_account_row(row):
@@ -83,6 +84,11 @@ def get_entity_bank_account(entity_type, entity_id):
 
 		if not frappe.db.exists(entity_type, entity_id):
 			return not_found(entity_type, entity_id)
+
+		try:
+			assert_entity_access(entity_type, entity_id)
+		except frappe.PermissionError:
+			return error("Unauthorized", "UNAUTHORIZED", {}, 403)
 
 		bank_account = get_active_bank_account_doc(entity_type, entity_id)
 		if not bank_account:

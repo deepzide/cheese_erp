@@ -8,6 +8,7 @@ from frappe.utils import add_to_date, flt, now_datetime
 from cheese.api.common.responses import created, error, not_found, success, validation_error
 from cheese.api.v1.bank_account_controller import get_active_company_bank_accounts_list
 from cheese.api.v1.user_controller import _get_current_user_company
+from cheese.cheese.utils.access import assert_record_access
 
 OPEN_DEPOSIT_STATUSES = ("PENDING", "OVERDUE")
 RECEIVED_DEPOSIT_STATUSES = ("PAID", "REVIEW", "ADJUSTED")
@@ -311,11 +312,20 @@ def get_payment_link_or_instructions(ticket_id=None, deposit_id=None, payment_ty
 		if deposit_id:
 			if not frappe.db.exists("Cheese Deposit", deposit_id):
 				return not_found("Deposit", deposit_id)
+			try:
+				assert_record_access("Cheese Deposit", deposit_id)
+			except frappe.PermissionError:
+				return error("Unauthorized", "UNAUTHORIZED", {}, 403)
 			deposit_doc = frappe.get_doc("Cheese Deposit", deposit_id)
 			ticket_id = deposit_doc.entity_id if deposit_doc.entity_type == "Cheese Ticket" else None
 		else:
 			if not frappe.db.exists("Cheese Ticket", ticket_id):
 				return not_found("Ticket", ticket_id)
+
+			try:
+				assert_record_access("Cheese Ticket", ticket_id)
+			except frappe.PermissionError:
+				return error("Unauthorized", "UNAUTHORIZED", {}, 403)
 
 			# If a Deposit-phase payment is requested but the ticket has no deposit requirement,
 			# return early — the Balance deposit should not be surfaced as a "Deposit".
@@ -436,6 +446,11 @@ def get_deposit_instructions(ticket_id, payment_type=None):
 
 		if not frappe.db.exists("Cheese Ticket", ticket_id):
 			return not_found("Ticket", ticket_id)
+
+		try:
+			assert_record_access("Cheese Ticket", ticket_id)
+		except frappe.PermissionError:
+			return error("Unauthorized", "UNAUTHORIZED", {}, 403)
 
 		ticket = frappe.get_doc("Cheese Ticket", ticket_id)
 		bank_account = _bank_accounts_for_ticket(ticket)
@@ -682,6 +697,10 @@ def record_deposit_payment(
 		if deposit_id:
 			if not frappe.db.exists("Cheese Deposit", deposit_id):
 				return not_found("Deposit", deposit_id)
+			try:
+				assert_record_access("Cheese Deposit", deposit_id)
+			except frappe.PermissionError:
+				return error("Unauthorized", "UNAUTHORIZED", {}, 403)
 			deposit = frappe.get_doc("Cheese Deposit", deposit_id)
 			ticket_id = ticket_id or (deposit.entity_id if deposit.entity_type == "Cheese Ticket" else None)
 		else:
@@ -690,6 +709,11 @@ def record_deposit_payment(
 				entity_type = "Cheese Route Booking"
 			elif not frappe.db.exists("Cheese Ticket", ticket_id):
 				return not_found("Ticket or Route Booking", ticket_id)
+
+			try:
+				assert_record_access(entity_type, ticket_id)
+			except frappe.PermissionError:
+				return error("Unauthorized", "UNAUTHORIZED", {}, 403)
 
 			# Get or auto-create deposit for this ticket
 			ticket_doc = frappe.get_doc(entity_type, ticket_id)
@@ -858,6 +882,11 @@ def verify_deposit(deposit_id):
 		if not frappe.db.exists("Cheese Deposit", deposit_id):
 			return not_found("Deposit", deposit_id)
 
+		try:
+			assert_record_access("Cheese Deposit", deposit_id)
+		except frappe.PermissionError:
+			return error("Unauthorized", "UNAUTHORIZED", {}, 403)
+
 		deposit = frappe.get_doc("Cheese Deposit", deposit_id)
 		old_status = deposit.status
 
@@ -915,6 +944,11 @@ def get_deposit_status(deposit_id):
 		if not frappe.db.exists("Cheese Deposit", deposit_id):
 			return not_found("Deposit", deposit_id)
 
+		try:
+			assert_record_access("Cheese Deposit", deposit_id)
+		except frappe.PermissionError:
+			return error("Unauthorized", "UNAUTHORIZED", {}, 403)
+
 		deposit = frappe.get_doc("Cheese Deposit", deposit_id)
 
 		return success(
@@ -951,6 +985,10 @@ def get_deposit(deposit_id):
 			return validation_error("deposit_id is required")
 		if not frappe.db.exists("Cheese Deposit", deposit_id):
 			return not_found("Deposit", deposit_id)
+		try:
+			assert_record_access("Cheese Deposit", deposit_id)
+		except frappe.PermissionError:
+			return error("Unauthorized", "UNAUTHORIZED", {}, 403)
 		deposit = frappe.get_doc("Cheese Deposit", deposit_id)
 		return success("Deposit retrieved successfully", _build_deposit_payload(deposit))
 	except Exception as e:
@@ -975,6 +1013,11 @@ def mark_deposit_overdue(deposit_id):
 
 		if not frappe.db.exists("Cheese Deposit", deposit_id):
 			return not_found("Deposit", deposit_id)
+
+		try:
+			assert_record_access("Cheese Deposit", deposit_id)
+		except frappe.PermissionError:
+			return error("Unauthorized", "UNAUTHORIZED", {}, 403)
 
 		deposit = frappe.get_doc("Cheese Deposit", deposit_id)
 
@@ -1041,6 +1084,11 @@ def adjust_deposit(deposit_id, adjustment_reason, refund_amount=None):
 
 		if not frappe.db.exists("Cheese Deposit", deposit_id):
 			return not_found("Deposit", deposit_id)
+
+		try:
+			assert_record_access("Cheese Deposit", deposit_id)
+		except frappe.PermissionError:
+			return error("Unauthorized", "UNAUTHORIZED", {}, 403)
 
 		deposit = frappe.get_doc("Cheese Deposit", deposit_id)
 
@@ -1319,6 +1367,11 @@ def reconcile_deposit(deposit_id, bank_account_number=None):
 		if not frappe.db.exists("Cheese Deposit", deposit_id):
 			return not_found("Deposit", deposit_id)
 
+		try:
+			assert_record_access("Cheese Deposit", deposit_id)
+		except frappe.PermissionError:
+			return error("Unauthorized", "UNAUTHORIZED", {}, 403)
+
 		deposit = frappe.get_doc("Cheese Deposit", deposit_id)
 
 		# Use reconcile_ocr_payment method
@@ -1375,6 +1428,11 @@ def create_remaining_balance_deposit(ticket_id=None, route_booking_id=None):
 				return not_found("Ticket", entity_id)
 			entity_doc = frappe.get_doc(entity_type, entity_id)
 			total_price = _get_entity_total_price(entity_type, entity_doc)
+
+		try:
+			assert_record_access(entity_type, entity_id)
+		except frappe.PermissionError:
+			return error("Unauthorized", "UNAUTHORIZED", {}, 403)
 
 		existing_balance = _get_open_balance_deposit(entity_type, entity_id)
 		if existing_balance:

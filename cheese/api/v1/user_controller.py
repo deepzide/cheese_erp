@@ -30,10 +30,18 @@ def _get_user_companies(user_email):
 
 
 def _get_current_user_company():
-    """Get the company for the currently logged-in user (for scoped access)."""
+    """Get the company for the currently logged-in user (for scoped access).
+
+    Super admins (Route Administrator / System Manager / Central Admin /
+    Administrator) are never scoped and return ``None`` meaning "all
+    companies". Establishment-level (Level 2) users are scoped to their single
+    assigned company.
+    """
+    from cheese.cheese.utils.permissions import _is_super_admin
+
     user = frappe.session.user
-    if user == "Administrator":
-        return None  # Admin sees everything
+    if _is_super_admin(user):
+        return None  # super admins see everything
     companies = _get_user_companies(user)
     return companies[0] if companies else None
 

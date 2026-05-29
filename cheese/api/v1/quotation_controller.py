@@ -6,6 +6,7 @@ from frappe import _
 from frappe.utils import add_to_date, now_datetime, cint, get_datetime, getdate
 from cheese.api.common.responses import success, created, error, not_found, validation_error, paginated_response
 from cheese.cheese.utils.pricing import calculate_ticket_price, calculate_deposit_amount
+from cheese.cheese.utils.access import assert_record_access, scope_filters
 import json
 
 
@@ -32,7 +33,9 @@ def create_quotation(lead_id, conversation_id=None, route_id=None, experiences=N
 		
 		if not frappe.db.exists("Cheese Lead", lead_id):
 			return not_found("Lead", lead_id)
-		
+
+		assert_record_access("Cheese Lead", lead_id)
+
 		# Validate route or experiences
 		if route_id:
 			if not frappe.db.exists("Cheese Route", route_id):
@@ -163,7 +166,9 @@ def get_quotation_details(quotation_id):
 		
 		if not frappe.db.exists("Cheese Quotation", quotation_id):
 			return not_found("Quotation", quotation_id)
-		
+
+		assert_record_access("Cheese Quotation", quotation_id)
+
 		quotation = frappe.get_doc("Cheese Quotation", quotation_id)
 		
 		# Parse snapshot
@@ -216,7 +221,9 @@ def update_quotation_status(quotation_id, status):
 		
 		if not frappe.db.exists("Cheese Quotation", quotation_id):
 			return not_found("Quotation", quotation_id)
-		
+
+		assert_record_access("Cheese Quotation", quotation_id)
+
 		quotation = frappe.get_doc("Cheese Quotation", quotation_id)
 		old_status = quotation.status
 		quotation.status = status
@@ -255,7 +262,9 @@ def accept_quotation(quotation_id):
 		
 		if not frappe.db.exists("Cheese Quotation", quotation_id):
 			return not_found("Quotation", quotation_id)
-		
+
+		assert_record_access("Cheese Quotation", quotation_id)
+
 		quotation = frappe.get_doc("Cheese Quotation", quotation_id)
 		
 		# Validate quotation is not expired
@@ -341,7 +350,7 @@ def list_quotations(page=1, page_size=20, lead_id=None, status=None):
 		page = cint(page) or 1
 		page_size = cint(page_size) or 20
 		
-		filters = {}
+		filters = scope_filters({})
 		if lead_id:
 			filters["lead"] = lead_id
 		if status:
@@ -394,7 +403,9 @@ def validate_quotation_availability(quotation_id):
 		
 		if not frappe.db.exists("Cheese Quotation", quotation_id):
 			return not_found("Quotation", quotation_id)
-		
+
+		assert_record_access("Cheese Quotation", quotation_id)
+
 		quotation = frappe.get_doc("Cheese Quotation", quotation_id)
 		
 		# Parse snapshot

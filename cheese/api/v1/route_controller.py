@@ -19,6 +19,11 @@ from cheese.api.v1.bank_account_controller import get_active_bank_account_doc
 from cheese.api.v1.deposit_controller import _amount_remaining_for_deposit, _select_open_deposit
 from cheese.api.v1.route_booking_controller import _check_experiences_combinable
 from cheese.api.v1.user_controller import _get_current_user_company
+from cheese.cheese.utils.access import (
+	assert_route_access,
+	assert_record_access,
+	assert_experience_access,
+)
 
 
 def _duration_to_seconds(duration_value):
@@ -162,6 +167,12 @@ def create_route(
 			if not frappe.db.exists("Cheese Experience", exp.get("experience")):
 				return not_found("Experience", exp.get("experience"))
 
+			# Tenant isolation: scoped users may only build routes from their own experiences.
+			try:
+				assert_experience_access(exp.get("experience"))
+			except frappe.PermissionError:
+				return error("Unauthorized", "UNAUTHORIZED", {}, 403)
+
 			# Check if experience is eligible for routes
 			exp_doc = frappe.get_doc("Cheese Experience", exp.get("experience"))
 			if exp_doc.package_mode not in ["Route", "Both"]:
@@ -264,6 +275,11 @@ def update_route(
 		if not frappe.db.exists("Cheese Route", route_id):
 			return not_found("Route", route_id)
 
+		try:
+			assert_route_access(route_id)
+		except frappe.PermissionError:
+			return error("Unauthorized", "UNAUTHORIZED", {}, 403)
+
 		route = frappe.get_doc("Cheese Route", route_id)
 
 		# Update fields
@@ -296,6 +312,12 @@ def update_route(
 				for exp in experiences_list:
 					if not frappe.db.exists("Cheese Experience", exp.get("experience")):
 						return not_found("Experience", exp.get("experience"))
+
+					# Tenant isolation: scoped users may only attach their own experiences.
+					try:
+						assert_experience_access(exp.get("experience"))
+					except frappe.PermissionError:
+						return error("Unauthorized", "UNAUTHORIZED", {}, 403)
 
 					route.append(
 						"experiences",
@@ -370,6 +392,11 @@ def get_route_details(route_id):
 
 		if not frappe.db.exists("Cheese Route", route_id):
 			return not_found("Route", route_id)
+
+		try:
+			assert_route_access(route_id)
+		except frappe.PermissionError:
+			return error("Unauthorized", "UNAUTHORIZED", {}, 403)
 
 		route = frappe.get_doc("Cheese Route", route_id)
 
@@ -596,6 +623,11 @@ def publish_route(route_id):
 		if not frappe.db.exists("Cheese Route", route_id):
 			return not_found("Route", route_id)
 
+		try:
+			assert_route_access(route_id)
+		except frappe.PermissionError:
+			return error("Unauthorized", "UNAUTHORIZED", {}, 403)
+
 		route = frappe.get_doc("Cheese Route", route_id)
 
 		# Validate route has experiences
@@ -632,6 +664,11 @@ def unpublish_route(route_id):
 		if not frappe.db.exists("Cheese Route", route_id):
 			return not_found("Route", route_id)
 
+		try:
+			assert_route_access(route_id)
+		except frappe.PermissionError:
+			return error("Unauthorized", "UNAUTHORIZED", {}, 403)
+
 		route = frappe.get_doc("Cheese Route", route_id)
 		route.status = "OFFLINE"
 		route.save()
@@ -660,6 +697,11 @@ def archive_route(route_id):
 
 		if not frappe.db.exists("Cheese Route", route_id):
 			return not_found("Route", route_id)
+
+		try:
+			assert_route_access(route_id)
+		except frappe.PermissionError:
+			return error("Unauthorized", "UNAUTHORIZED", {}, 403)
 
 		route = frappe.get_doc("Cheese Route", route_id)
 		route.status = "ARCHIVED"
@@ -695,6 +737,11 @@ def configure_route_deposit(
 
 		if not frappe.db.exists("Cheese Route", route_id):
 			return not_found("Route", route_id)
+
+		try:
+			assert_route_access(route_id)
+		except frappe.PermissionError:
+			return error("Unauthorized", "UNAUTHORIZED", {}, 403)
 
 		route = frappe.get_doc("Cheese Route", route_id)
 
@@ -762,6 +809,11 @@ def configure_route_bank_account(route_id, bank_account_data):
 		if not frappe.db.exists("Cheese Route", route_id):
 			return not_found("Route", route_id)
 
+		try:
+			assert_route_access(route_id)
+		except frappe.PermissionError:
+			return error("Unauthorized", "UNAUTHORIZED", {}, 403)
+
 		# Parse bank account data
 		if isinstance(bank_account_data, str):
 			bank_data = json.loads(bank_account_data)
@@ -825,6 +877,11 @@ def get_route_deposit_instructions(route_booking_id):
 
 		if not frappe.db.exists("Cheese Route Booking", route_booking_id):
 			return not_found("Route Booking", route_booking_id)
+
+		try:
+			assert_record_access("Cheese Route Booking", route_booking_id)
+		except frappe.PermissionError:
+			return error("Unauthorized", "UNAUTHORIZED", {}, 403)
 
 		route_booking = frappe.get_doc("Cheese Route Booking", route_booking_id)
 		route = frappe.get_doc("Cheese Route", route_booking.route)
@@ -947,6 +1004,11 @@ def record_route_deposit_payment(route_booking_id, amount, verification_method="
 		if not frappe.db.exists("Cheese Route Booking", route_booking_id):
 			return not_found("Route Booking", route_booking_id)
 
+		try:
+			assert_record_access("Cheese Route Booking", route_booking_id)
+		except frappe.PermissionError:
+			return error("Unauthorized", "UNAUTHORIZED", {}, 403)
+
 		# Get deposit
 		deposit_name = _select_open_deposit("Cheese Route Booking", route_booking_id)
 
@@ -1000,6 +1062,11 @@ def get_route_bank_account(route_id):
 		if not frappe.db.exists("Cheese Route", route_id):
 			return not_found("Route", route_id)
 
+		try:
+			assert_route_access(route_id)
+		except frappe.PermissionError:
+			return error("Unauthorized", "UNAUTHORIZED", {}, 403)
+
 		bank_account = get_active_bank_account_doc("Cheese Route", route_id)
 		if not bank_account:
 			return not_found("Bank Account", f"for route {route_id}")
@@ -1040,6 +1107,11 @@ def get_experiences_by_route(route_id):
 
 		if not frappe.db.exists("Cheese Route", route_id):
 			return not_found("Route", route_id)
+
+		try:
+			assert_route_access(route_id)
+		except frappe.PermissionError:
+			return error("Unauthorized", "UNAUTHORIZED", {}, 403)
 
 		experiences = frappe.get_all(
 			"Cheese Route Experience",
@@ -1098,6 +1170,11 @@ def delete_route(route_id):
 
 		if not frappe.db.exists("Cheese Route", route_id):
 			return not_found("Route", route_id)
+
+		try:
+			assert_route_access(route_id)
+		except frappe.PermissionError:
+			return error("Unauthorized", "UNAUTHORIZED", {}, 403)
 
 		# Check for active bookings
 		active_bookings = frappe.db.count(

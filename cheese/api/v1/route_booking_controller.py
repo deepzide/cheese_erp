@@ -12,6 +12,7 @@ from frappe.utils import add_to_date, get_datetime, getdate, now_datetime
 from cheese.api.common.responses import created, error, not_found, success, validation_error
 from cheese.api.v1.ticket_controller import create_pending_ticket
 from cheese.api.v1.user_controller import _get_current_user_company
+from cheese.cheese.utils.access import assert_route_access, assert_record_access
 from cheese.cheese.utils.capacity import (
 	get_available_capacity,
 	slot_calendar_days_in_range,
@@ -304,6 +305,11 @@ def get_route_combinations(route_id, date=None, date_from=None, date_to=None, pa
 		if not frappe.db.exists("Cheese Route", route_id):
 			return not_found("Route", route_id)
 
+		try:
+			assert_route_access(route_id)
+		except frappe.PermissionError:
+			return _permission_denied("Not permitted to access this route")
+
 		route = frappe.get_doc("Cheese Route", route_id)
 
 		if route.status != "ONLINE":
@@ -460,6 +466,11 @@ def create_route_reservation(
 
 		if not frappe.db.exists("Cheese Route", route_id):
 			return not_found("Route", route_id)
+
+		try:
+			assert_route_access(route_id)
+		except frappe.PermissionError:
+			return _permission_denied("Not permitted to access this route")
 
 		route = frappe.get_doc("Cheese Route", route_id)
 
@@ -1273,6 +1284,13 @@ def confirm_route_modification(route_booking_id, changes):
 			except Exception as e:
 				return validation_error(f"Invalid changes format: {e!s}")
 
+		# Tenant isolation: scoped users may only modify their own bookings.
+		if frappe.db.exists("Cheese Route Booking", route_booking_id):
+			try:
+				assert_record_access("Cheese Route Booking", route_booking_id)
+			except frappe.PermissionError:
+				return _permission_denied("Not permitted to modify this route booking")
+
 		# Apply changes using ticket modification
 		from cheese.api.v1.ticket_controller import modify_ticket
 
@@ -1635,6 +1653,11 @@ def get_available_slots_for_route(route_id, selected_date=None, date_from=None, 
 
 		if not frappe.db.exists("Cheese Route", route_id):
 			return not_found("Route", route_id)
+
+		try:
+			assert_route_access(route_id)
+		except frappe.PermissionError:
+			return _permission_denied("Not permitted to access this route")
 
 		route = frappe.get_doc("Cheese Route", route_id)
 		if route.status != "ONLINE":

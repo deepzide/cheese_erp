@@ -5,6 +5,7 @@ import frappe
 from frappe import _
 from frappe.utils import now_datetime
 from cheese.api.common.responses import success, error, not_found, validation_error
+from cheese.cheese.utils.access import assert_contact_access
 
 
 @frappe.whitelist()
@@ -36,6 +37,11 @@ def update_opt_in_status(contact_id, channel, opt_in_status):
 		
 		if not frappe.db.exists("Cheese Contact", contact_id):
 			return not_found("Contact", contact_id)
+
+		try:
+			assert_contact_access(contact_id)
+		except frappe.PermissionError:
+			return error("Unauthorized", "UNAUTHORIZED", {}, 403)
 		
 		contact = frappe.get_doc("Cheese Contact", contact_id)
 		
@@ -96,6 +102,11 @@ def get_opt_in_status(contact_id, channel=None):
 		
 		if not frappe.db.exists("Cheese Contact", contact_id):
 			return not_found("Contact", contact_id)
+
+		try:
+			assert_contact_access(contact_id)
+		except frappe.PermissionError:
+			return error("Unauthorized", "UNAUTHORIZED", {}, 403)
 		
 		contact = frappe.get_doc("Cheese Contact", contact_id)
 		

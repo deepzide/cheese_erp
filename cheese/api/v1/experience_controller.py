@@ -7,7 +7,7 @@ from frappe import _
 from frappe.utils import today, getdate, get_time, cint, get_datetime, get_url, add_days, add_months
 from cheese.api.common.responses import success, created, error, not_found, validation_error, paginated_response
 from cheese.api.v1.user_controller import _get_current_user_company
-from cheese.cheese.utils.access import assert_slot_access
+from cheese.cheese.utils.access import assert_slot_access, assert_experience_access
 from cheese.api.v1.bank_account_controller import (
 	get_active_company_bank_accounts_list,
 	get_active_company_bank_accounts_map,
@@ -88,13 +88,17 @@ def list_experiences(page=1, page_size=20, status=None, company=None, establishm
 
 		if date:
 			date_obj = getdate(date)
+			slot_filters = {
+				"date_from": ["<=", date_obj],
+				"date_to": [">=", date_obj],
+				"slot_status": ["in", ["OPEN", "CLOSED"]],
+			}
+			# Tenant isolation: only consider the user's own slots.
+			if user_company:
+				slot_filters["company"] = user_company
 			slots = frappe.get_all(
 				"Cheese Experience Slot",
-				filters={
-					"date_from": ["<=", date_obj],
-					"date_to": [">=", date_obj],
-					"slot_status": ["in", ["OPEN", "CLOSED"]],
-				},
+				filters=slot_filters,
 				fields=["name", "experience"],
 			)
 
@@ -328,7 +332,12 @@ def update_experience_pricing(experience_id, individual_price=None, route_price=
 		
 		if not frappe.db.exists("Cheese Experience", experience_id):
 			return not_found("Experience", experience_id)
-		
+
+		try:
+			assert_experience_access(experience_id)
+		except frappe.PermissionError:
+			return error("Unauthorized", "UNAUTHORIZED", {}, 403)
+
 		experience = frappe.get_doc("Cheese Experience", experience_id)
 		
 		if individual_price is not None:
@@ -399,6 +408,11 @@ def create_time_slot(experience_id, date, time, max_capacity, slot_status="OPEN"
 		
 		if not frappe.db.exists("Cheese Experience", experience_id):
 			return not_found("Experience", experience_id)
+
+		try:
+			assert_experience_access(experience_id)
+		except frappe.PermissionError:
+			return error("Unauthorized", "UNAUTHORIZED", {}, 403)
 
 		if getdate(date) < getdate(today()):
 			return validation_error("Cannot create a slot on an expired date")
@@ -610,7 +624,12 @@ def create_recurring_slots(experience_id, date_from, date_to, time_from=None, ti
 		
 		if not frappe.db.exists("Cheese Experience", experience_id):
 			return not_found("Experience", experience_id)
-		
+
+		try:
+			assert_experience_access(experience_id)
+		except frappe.PermissionError:
+			return error("Unauthorized", "UNAUTHORIZED", {}, 403)
+
 		start_date = getdate(date_from)
 		end_date = getdate(date_to)
 		today_date = getdate(today())
@@ -1080,6 +1099,11 @@ def link_booking_policy(experience_id, policy_id):
 		if not frappe.db.exists("Cheese Booking Policy", policy_id):
 			return not_found("Booking Policy", policy_id)
 
+		try:
+			assert_experience_access(experience_id)
+		except frappe.PermissionError:
+			return error("Unauthorized", "UNAUTHORIZED", {}, 403)
+
 		frappe.db.set_value(
 			"Cheese Experience",
 			experience_id,
@@ -1118,7 +1142,12 @@ def update_booking_policy(experience_id, cancel_until_hours_before=None, modify_
 		
 		if not frappe.db.exists("Cheese Experience", experience_id):
 			return not_found("Experience", experience_id)
-		
+
+		try:
+			assert_experience_access(experience_id)
+		except frappe.PermissionError:
+			return error("Unauthorized", "UNAUTHORIZED", {}, 403)
+
 		# Resolve the policy currently in use by this experience
 		# (new model: Experience.booking_policy; legacy: Booking Policy.experience back-ref)
 		from cheese.cheese.utils.validation import get_booking_policy_for_experience
@@ -1407,6 +1436,11 @@ def delete_experience(experience_id):
 
 		if not frappe.db.exists("Cheese Experience", experience_id):
 			return not_found("Experience", experience_id)
+
+		try:
+			assert_experience_access(experience_id)
+		except frappe.PermissionError:
+			return error("Unauthorized", "UNAUTHORIZED", {}, 403)
 
 		# Check for active tickets
 		active_tickets = frappe.db.count(

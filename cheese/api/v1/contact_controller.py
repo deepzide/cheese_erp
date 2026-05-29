@@ -5,6 +5,7 @@ import frappe
 import json
 from frappe import _
 from cheese.api.common.responses import success, created, validation_error, error, not_found
+from cheese.cheese.utils.access import assert_contact_access, assert_company_value, scope_filters
 
 
 @frappe.whitelist()
@@ -162,6 +163,11 @@ def append_company_to_contact(contact_id=None, company_id=None, notes=None):
 		if not frappe.db.exists("Company", company_id):
 			return not_found("Company", company_id)
 
+		# Tenant isolation: scoped users may only act on their own contacts and
+		# may only link their own company.
+		assert_contact_access(contact_id)
+		assert_company_value(company_id)
+
 		contact = frappe.get_doc("Cheese Contact", contact_id)
 		existing = {row.company for row in (contact.get("companies") or [])}
 
@@ -225,7 +231,9 @@ def update_contact(contact_id, name=None, phone=None, email=None, preferred_lang
 		
 		if not frappe.db.exists("Cheese Contact", contact_id):
 			return not_found("Contact", contact_id)
-		
+
+		assert_contact_access(contact_id)
+
 		contact = frappe.get_doc("Cheese Contact", contact_id)
 		
 		# Track changed fields
@@ -368,40 +376,42 @@ def get_contact_profile(contact_id):
 		
 		if not frappe.db.exists("Cheese Contact", contact_id):
 			return not_found("Contact", contact_id)
-		
+
+		assert_contact_access(contact_id)
+
 		contact = frappe.get_doc("Cheese Contact", contact_id)
 		
-		# Get leads
+		# Get leads (scoped to the user's company)
 		leads = frappe.get_all(
 			"Cheese Lead",
-			filters={"contact": contact_id},
+			filters=scope_filters({"contact": contact_id}),
 			fields=["name", "status", "interest_type", "last_interaction_at", "lost_reason"],
 			order_by="modified desc",
 			limit=10
 		)
 		
-		# Get conversations
+		# Get conversations (scoped to the user's company)
 		conversations = frappe.get_all(
 			"Conversation",
-			filters={"contact": contact_id},
+			filters=scope_filters({"contact": contact_id}),
 			fields=["name", "channel", "status", "summary", "modified"],
 			order_by="modified desc",
 			limit=10
 		)
 		
-		# Get reservations/tickets
+		# Get reservations/tickets (scoped to the user's company)
 		reservations = frappe.get_all(
 			"Cheese Ticket",
-			filters={"contact": contact_id},
+			filters=scope_filters({"contact": contact_id}),
 			fields=["name", "status", "experience", "slot", "party_size", "created", "modified"],
 			order_by="modified desc",
 			limit=10
 		)
 		
-		# Get quotations
+		# Get quotations (constrained to the scoped leads above)
 		quotations = frappe.get_all(
 			"Cheese Quotation",
-			filters={"lead": ["in", [lead.name for lead in leads]]},
+			filters={"lead": ["in", [lead.name for lead in leads] or [""]]},
 			fields=["name", "status", "total_price", "deposit_amount", "valid_until"],
 			order_by="modified desc",
 			limit=5
@@ -455,20 +465,23 @@ def get_contact_leads(contact_id, page=1, page_size=20):
 		
 		if not frappe.db.exists("Cheese Contact", contact_id):
 			return not_found("Contact", contact_id)
-		
+
+		assert_contact_access(contact_id)
+
 		page = cint(page) or 1
 		page_size = cint(page_size) or 20
-		
+
+		lead_filters = scope_filters({"contact": contact_id})
 		leads = frappe.get_all(
 			"Cheese Lead",
-			filters={"contact": contact_id},
+			filters=lead_filters,
 			fields=["name", "status", "interest_type", "last_interaction_at", "lost_reason", "conversation", "modified"],
 			limit_start=(page - 1) * page_size,
 			limit_page_length=page_size,
 			order_by="modified desc"
 		)
 		
-		total = frappe.db.count("Cheese Lead", {"contact": contact_id})
+		total = frappe.db.count("Cheese Lead", lead_filters)
 		
 		return paginated_response(
 			leads,
@@ -504,20 +517,23 @@ def get_contact_conversations(contact_id, page=1, page_size=20):
 		
 		if not frappe.db.exists("Cheese Contact", contact_id):
 			return not_found("Contact", contact_id)
-		
+
+		assert_contact_access(contact_id)
+
 		page = cint(page) or 1
 		page_size = cint(page_size) or 20
-		
+
+		conv_filters = scope_filters({"contact": contact_id})
 		conversations = frappe.get_all(
 			"Conversation",
-			filters={"contact": contact_id},
+			filters=conv_filters,
 			fields=["name", "channel", "status", "summary", "lead", "ticket", "route_booking", "modified"],
 			limit_start=(page - 1) * page_size,
 			limit_page_length=page_size,
 			order_by="modified desc"
 		)
 		
-		total = frappe.db.count("Conversation", {"contact": contact_id})
+		total = frappe.db.count("Conversation", conv_filters)
 		
 		return paginated_response(
 			conversations,
@@ -553,13 +569,16 @@ def get_contact_reservations(contact_id, page=1, page_size=20):
 		
 		if not frappe.db.exists("Cheese Contact", contact_id):
 			return not_found("Contact", contact_id)
-		
+
+		assert_contact_access(contact_id)
+
 		page = cint(page) or 1
 		page_size = cint(page_size) or 20
-		
+
+		ticket_filters = scope_filters({"contact": contact_id})
 		reservations = frappe.get_all(
 			"Cheese Ticket",
-			filters={"contact": contact_id},
+			filters=ticket_filters,
 			fields=["name", "status", "experience", "slot", "party_size", "company", "route", "created", "modified"],
 			limit_start=(page - 1) * page_size,
 			limit_page_length=page_size,
@@ -572,7 +591,7 @@ def get_contact_reservations(contact_id, page=1, page_size=20):
 				exp = frappe.db.get_value("Cheese Experience", reservation.experience, "name", as_dict=True)
 				reservation["experience_name"] = exp.name if exp else None
 		
-		total = frappe.db.count("Cheese Ticket", {"contact": contact_id})
+		total = frappe.db.count("Cheese Ticket", ticket_filters)
 		
 		return paginated_response(
 			reservations,

@@ -6,6 +6,7 @@ from frappe import _
 from frappe.utils import getdate, cint
 from cheese.api.common.responses import success, error, not_found, validation_error, paginated_response
 from cheese.api.v1.user_controller import _get_current_user_company
+from cheese.cheese.utils.access import assert_company_value
 from cheese.api.v1.bank_account_controller import (
 	get_active_company_bank_accounts_list,
 	get_active_company_bank_accounts_map,
@@ -144,6 +145,11 @@ def list_establishments(page=1, page_size=20, search=None, status=None, locality
 					total=0
 				)
 		
+		# Re-assert tenant scope: the tags/locality filters above may have widened
+		# `name`, so a scoped establishment user must always be pinned to their company.
+		if user_company:
+			filters["name"] = user_company
+
 		# Get companies - try with administrator_contact, fallback without it if field doesn't exist
 		company_fields_with_contact = ["name", "company_name", "email", "phone_no", "website", "company_description", "administrator_contact"]
 		company_fields_without_contact = ["name", "company_name", "email", "phone_no", "website", "company_description"]
@@ -270,7 +276,12 @@ def get_establishment_details(company_id):
 		
 		if not frappe.db.exists("Company", company_id):
 			return not_found("Company", company_id)
-		
+
+		try:
+			assert_company_value(company_id)
+		except frappe.PermissionError:
+			return error("Unauthorized", "UNAUTHORIZED", {}, 403)
+
 		company = frappe.get_doc("Company", company_id)
 		
 		# Get experiences
@@ -514,6 +525,11 @@ def delete_establishment(company_id):
 		if not frappe.db.exists("Company", company_id):
 			return not_found("Company", company_id)
 
+		try:
+			assert_company_value(company_id)
+		except frappe.PermissionError:
+			return error("Unauthorized", "UNAUTHORIZED", {}, 403)
+
 		blockers = _establishment_delete_blockers(company_id)
 		if blockers:
 			return validation_error(
@@ -541,6 +557,11 @@ def archive_establishment(company_id):
 		if not _company_has_cheese_archived():
 			return validation_error(_("Cheese archive field is not installed. Run bench migrate."))
 
+		try:
+			assert_company_value(company_id)
+		except frappe.PermissionError:
+			return error("Unauthorized", "UNAUTHORIZED", {}, 403)
+
 		frappe.db.set_value("Company", company_id, "cheese_archived", 1)
 		frappe.db.commit()
 		return success(
@@ -561,6 +582,11 @@ def unarchive_establishment(company_id):
 			return not_found("Company", company_id)
 		if not _company_has_cheese_archived():
 			return validation_error(_("Cheese archive field is not installed. Run bench migrate."))
+
+		try:
+			assert_company_value(company_id)
+		except frappe.PermissionError:
+			return error("Unauthorized", "UNAUTHORIZED", {}, 403)
 
 		frappe.db.set_value("Company", company_id, "cheese_archived", 0)
 		frappe.db.commit()
@@ -591,7 +617,12 @@ def update_establishment(company_id, **kwargs):
 		
 		if not frappe.db.exists("Company", company_id):
 			return not_found("Company", company_id)
-		
+
+		try:
+			assert_company_value(company_id)
+		except frappe.PermissionError:
+			return error("Unauthorized", "UNAUTHORIZED", {}, 403)
+
 		company = frappe.get_doc("Company", company_id)
 		
 		# Allowed fields for update (restrict operational fields)
@@ -672,7 +703,12 @@ def export_establishments(format="CSV", filters=None):
 				filter_dict = json.loads(filters) if isinstance(filters, str) else filters
 			except Exception:
 				pass
-		
+
+		# Tenant isolation: scoped users may only export their own establishment.
+		user_company = _get_current_user_company()
+		if user_company:
+			filter_dict["name"] = user_company
+
 		# Get all companies matching filters
 		companies = frappe.get_all(
 			"Company",
@@ -863,7 +899,12 @@ def upload_establishment_media(company_id, file_url, title, document_type="PDF",
 		
 		if not frappe.db.exists("Company", company_id):
 			return not_found("Company", company_id)
-		
+
+		try:
+			assert_company_value(company_id)
+		except frappe.PermissionError:
+			return error("Unauthorized", "UNAUTHORIZED", {}, 403)
+
 		# Use document controller
 		from cheese.api.v1.document_controller import upload_document
 		return upload_document(
