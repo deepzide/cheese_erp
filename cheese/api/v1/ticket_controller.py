@@ -9,6 +9,12 @@ from cheese.cheese.utils.validation import validate_booking_policy
 from cheese.cheese.utils.capacity import update_slot_capacity, get_available_capacity
 from cheese.api.common.responses import success, created, error, not_found, validation_error
 from cheese.api.v1.user_controller import _get_current_user_company
+from cheese.cheese.utils.access import (
+	assert_record_access,
+	assert_experience_access,
+	assert_company_value,
+	scope_filters,
+)
 import json
 
 
@@ -206,6 +212,12 @@ def create_pending_ticket(contact_id, experience_id, slot_id, party_size=1, sele
 		if not frappe.db.exists("Cheese Experience Slot", slot_id):
 			return not_found("Slot", slot_id)
 
+		# Tenant isolation: a scoped user may only book their own establishment's experiences.
+		try:
+			assert_experience_access(experience_id)
+		except frappe.PermissionError:
+			return error("Unauthorized", "UNAUTHORIZED", {}, 403)
+
 		# Get slot and experience
 		slot = frappe.get_doc("Cheese Experience Slot", slot_id)
 		experience = frappe.get_doc("Cheese Experience", experience_id)
@@ -347,6 +359,11 @@ def modify_reservation_preview(reservation_id, new_slot=None, party_size=None, s
 		if not frappe.db.exists("Cheese Ticket", reservation_id):
 			return not_found("Reservation", reservation_id)
 		
+		try:
+			assert_record_access("Cheese Ticket", reservation_id)
+		except frappe.PermissionError:
+			return error("Unauthorized", "UNAUTHORIZED", {}, 403)
+
 		ticket = frappe.get_doc("Cheese Ticket", reservation_id)
 		
 		if ticket.status not in ["PENDING", "CONFIRMED"]:
@@ -471,6 +488,11 @@ def modify_ticket(ticket_id, new_slot=None, party_size=None, selected_date=None)
 
 		if not frappe.db.exists("Cheese Ticket", ticket_id):
 			return not_found("Ticket", ticket_id)
+
+		try:
+			assert_record_access("Cheese Ticket", ticket_id)
+		except frappe.PermissionError:
+			return error("Unauthorized", "UNAUTHORIZED", {}, 403)
 
 		ticket = frappe.get_doc("Cheese Ticket", ticket_id)
 		
@@ -607,6 +629,11 @@ def cancel_ticket(ticket_id):
 		if not frappe.db.exists("Cheese Ticket", ticket_id):
 			return not_found("Ticket", ticket_id)
 
+		try:
+			assert_record_access("Cheese Ticket", ticket_id)
+		except frappe.PermissionError:
+			return error("Unauthorized", "UNAUTHORIZED", {}, 403)
+
 		ticket = frappe.get_doc("Cheese Ticket", ticket_id)
 		
 		if ticket.status not in ["PENDING", "CONFIRMED"]:
@@ -667,6 +694,11 @@ def get_ticket_summary(ticket_id):
 
 		if not frappe.db.exists("Cheese Ticket", ticket_id):
 			return not_found("Ticket", ticket_id)
+
+		try:
+			assert_record_access("Cheese Ticket", ticket_id)
+		except frappe.PermissionError:
+			return error("Unauthorized", "UNAUTHORIZED", {}, 403)
 
 		ticket = frappe.get_doc("Cheese Ticket", ticket_id)
 		slot = frappe.get_doc("Cheese Experience Slot", ticket.slot)
@@ -740,6 +772,11 @@ def record_customer_notes(ticket_id, notes, append=False):
 		if not notes_text:
 			return validation_error("notes cannot be empty")
 
+		try:
+			assert_record_access("Cheese Ticket", ticket_id)
+		except frappe.PermissionError:
+			return error("Unauthorized", "UNAUTHORIZED", {}, 403)
+
 		ticket = frappe.get_doc("Cheese Ticket", ticket_id)
 		current_notes = (ticket.notes or "").strip()
 		append_flag = cint(append) == 1 if not isinstance(append, bool) else append
@@ -783,6 +820,11 @@ def confirm_ticket(ticket_id):
 		if not frappe.db.exists("Cheese Ticket", ticket_id):
 			return not_found("Ticket", ticket_id)
 		
+		try:
+			assert_record_access("Cheese Ticket", ticket_id)
+		except frappe.PermissionError:
+			return error("Unauthorized", "UNAUTHORIZED", {}, 403)
+
 		ticket = frappe.get_doc("Cheese Ticket", ticket_id)
 		
 		if ticket.status != "PENDING":
@@ -861,6 +903,11 @@ def reject_ticket(ticket_id, reason=None):
 		if not frappe.db.exists("Cheese Ticket", ticket_id):
 			return not_found("Ticket", ticket_id)
 		
+		try:
+			assert_record_access("Cheese Ticket", ticket_id)
+		except frappe.PermissionError:
+			return error("Unauthorized", "UNAUTHORIZED", {}, 403)
+
 		ticket = frappe.get_doc("Cheese Ticket", ticket_id)
 		
 		if ticket.status != "PENDING":
@@ -1071,7 +1118,7 @@ def get_reservations_by_phone(phone, page=1, page_size=20, status=None):
 			)
 
 		contact = contact[0]
-		filters = {"contact": contact.name}
+		filters = scope_filters({"contact": contact.name})
 		if status:
 			filters["status"] = status
 
@@ -1282,6 +1329,11 @@ def update_ticket_status(ticket_id, new_status, reason=None):
 		if not frappe.db.exists("Cheese Ticket", ticket_id):
 			return not_found("Ticket", ticket_id)
 		
+		try:
+			assert_record_access("Cheese Ticket", ticket_id)
+		except frappe.PermissionError:
+			return error("Unauthorized", "UNAUTHORIZED", {}, 403)
+
 		ticket = frappe.get_doc("Cheese Ticket", ticket_id)
 		old_status = ticket.status
 		
@@ -1343,6 +1395,11 @@ def mark_no_show(ticket_id, reason=None):
 		if not frappe.db.exists("Cheese Ticket", ticket_id):
 			return not_found("Ticket", ticket_id)
 		
+		try:
+			assert_record_access("Cheese Ticket", ticket_id)
+		except frappe.PermissionError:
+			return error("Unauthorized", "UNAUTHORIZED", {}, 403)
+
 		ticket = frappe.get_doc("Cheese Ticket", ticket_id)
 		
 		if ticket.status not in ["CONFIRMED", "CHECKED_IN"]:
@@ -1387,7 +1444,13 @@ def get_establishment_ticket_board(establishment_id, date=None):
 	"""
 	try:
 		from frappe.utils import getdate, today
-		
+
+		# Tenant isolation: scoped users may only view their own establishment's
+		# board regardless of the establishment_id passed by the client.
+		user_company = _get_current_user_company()
+		if user_company:
+			establishment_id = user_company
+
 		if not establishment_id:
 			return validation_error("establishment_id is required")
 		
@@ -1473,6 +1536,11 @@ def convert_ticket_to_booking(ticket_id, route_id=None):
 
 		if not frappe.db.exists("Cheese Ticket", ticket_id):
 			return not_found("Ticket", ticket_id)
+
+		try:
+			assert_record_access("Cheese Ticket", ticket_id)
+		except frappe.PermissionError:
+			return error("Unauthorized", "UNAUTHORIZED", {}, 403)
 
 		ticket = frappe.get_doc("Cheese Ticket", ticket_id)
 

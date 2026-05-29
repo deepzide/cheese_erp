@@ -7,6 +7,8 @@ from frappe.utils import now_datetime, add_to_date, getdate
 from cheese.api.common.responses import success, created, error, not_found, validation_error
 from cheese.api.v1.ticket_controller import create_pending_ticket
 from cheese.api.v1.route_booking_controller import create_route_reservation, get_route_status
+from cheese.api.v1.user_controller import _get_current_user_company
+from cheese.cheese.utils.access import assert_contact_access
 import json
 
 
@@ -39,6 +41,11 @@ def create_pending_booking(contact_id, items, preferred_dates=None, conversation
 		
 		if not frappe.db.exists("Cheese Contact", contact_id):
 			return not_found("Contact", contact_id)
+
+		try:
+			assert_contact_access(contact_id)
+		except frappe.PermissionError:
+			return error("Unauthorized", "UNAUTHORIZED", {}, 403)
 		
 		# Parse items
 		if isinstance(items, str):
@@ -299,15 +306,21 @@ def get_booking_status(booking_id):
 		# This ensures we only get tickets from the same booking
 		window_start = add_to_date(booking_time, minutes=-2, as_datetime=True)
 		window_end = add_to_date(booking_time, minutes=2, as_datetime=True)
-		
+
+		ticket_filters = [
+			["contact", "=", contact_id],
+			["creation", ">=", window_start],
+			["creation", "<=", window_end],
+			["status", "!=", "CANCELLED"]
+		]
+		# Tenant isolation: scoped users only see their own company's components.
+		user_company = _get_current_user_company()
+		if user_company:
+			ticket_filters.append(["company", "=", user_company])
+
 		tickets = frappe.get_all(
 			"Cheese Ticket",
-			filters=[
-				["contact", "=", contact_id],
-				["creation", ">=", window_start],
-				["creation", "<=", window_end],
-				["status", "!=", "CANCELLED"]
-			],
+			filters=ticket_filters,
 			fields=["name", "status", "route", "experience", "slot", "creation"],
 			order_by="creation asc"
 		)

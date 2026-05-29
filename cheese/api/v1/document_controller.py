@@ -453,6 +453,8 @@ def delete_document(document_id):
 				return not_found("Document", document_id)
 			
 			file_doc = frappe.get_doc("File", document_id)
+			if not _is_entity_accessible(file_doc.attached_to_doctype, file_doc.attached_to_name):
+				return error("Unauthorized", "UNAUTHORIZED", {}, 403)
 			file_doc.delete()
 			frappe.db.commit()
 			

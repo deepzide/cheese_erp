@@ -5,6 +5,7 @@ import frappe
 from frappe import _
 from frappe.utils import now_datetime, cint
 from cheese.api.common.responses import success, created, error, not_found, validation_error, paginated_response
+from cheese.cheese.utils.access import assert_record_access, assert_contact_access, scope_filters
 
 
 @frappe.whitelist()
@@ -28,7 +29,9 @@ def upsert_lead(contact_id, conversation_id=None, interest_type=None, status=Non
 		
 		if not frappe.db.exists("Cheese Contact", contact_id):
 			return not_found("Contact", contact_id)
-		
+
+		assert_contact_access(contact_id)
+
 		# Check for existing lead (any status except DISCARDED)
 		existing_lead = frappe.db.get_value(
 			"Cheese Lead",
@@ -199,7 +202,9 @@ def update_lead_status(lead_id, status, lost_reason=None):
 		
 		if not frappe.db.exists("Cheese Lead", lead_id):
 			return not_found("Lead", lead_id)
-		
+
+		assert_record_access("Cheese Lead", lead_id)
+
 		lead = frappe.get_doc("Cheese Lead", lead_id)
 		old_status = lead.status
 		
@@ -244,7 +249,9 @@ def get_lead_details(lead_id):
 		
 		if not frappe.db.exists("Cheese Lead", lead_id):
 			return not_found("Lead", lead_id)
-		
+
+		assert_record_access("Cheese Lead", lead_id)
+
 		lead = frappe.get_doc("Cheese Lead", lead_id)
 		
 		# Get contact details
@@ -313,7 +320,7 @@ def list_leads(page=1, page_size=20, status=None, contact_id=None, interest_type
 		page = cint(page) or 1
 		page_size = cint(page_size) or 20
 		
-		filters = {}
+		filters = scope_filters({})
 		if status:
 			filters["status"] = status
 		if contact_id:
@@ -376,7 +383,9 @@ def convert_lead_to_reservation(lead_id, experience_id, slot_id, party_size):
 		
 		if not frappe.db.exists("Cheese Lead", lead_id):
 			return not_found("Lead", lead_id)
-		
+
+		assert_record_access("Cheese Lead", lead_id)
+
 		lead = frappe.get_doc("Cheese Lead", lead_id)
 		
 		# Get contact from lead

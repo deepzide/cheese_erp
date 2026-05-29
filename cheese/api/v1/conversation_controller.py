@@ -5,6 +5,7 @@ import frappe
 from frappe import _
 from frappe.utils import now_datetime, cint, add_to_date
 from cheese.api.common.responses import success, created, error, not_found, validation_error, paginated_response
+from cheese.cheese.utils.access import assert_record_access
 import json
 
 
@@ -243,7 +244,12 @@ def update_conversation_summary(conversation_id, summary=None, highlights_json=N
 		
 		if not frappe.db.exists("Conversation", conversation_id):
 			return not_found("Conversation", conversation_id)
-		
+
+		try:
+			assert_record_access("Conversation", conversation_id)
+		except frappe.PermissionError:
+			return error("Unauthorized", "UNAUTHORIZED", {}, 403)
+
 		conversation = frappe.get_doc("Conversation", conversation_id)
 		
 		if summary is not None:
@@ -300,7 +306,12 @@ def get_conversation_details(conversation_id):
 		
 		if not frappe.db.exists("Conversation", conversation_id):
 			return not_found("Conversation", conversation_id)
-		
+
+		try:
+			assert_record_access("Conversation", conversation_id)
+		except frappe.PermissionError:
+			return error("Unauthorized", "UNAUTHORIZED", {}, 403)
+
 		conversation = frappe.get_doc("Conversation", conversation_id)
 		
 		# Get contact details
@@ -460,21 +471,33 @@ def link_conversation_entity(conversation_id, entity_type, entity_id):
 		
 		if not frappe.db.exists("Conversation", conversation_id):
 			return not_found("Conversation", conversation_id)
-		
+
+		try:
+			assert_record_access("Conversation", conversation_id)
+		except frappe.PermissionError:
+			return error("Unauthorized", "UNAUTHORIZED", {}, 403)
+
 		conversation = frappe.get_doc("Conversation", conversation_id)
 		
-		# Validate entity exists
-		if entity_type == "lead":
-			if not frappe.db.exists("Cheese Lead", entity_id):
-				return not_found("Lead", entity_id)
-			conversation.lead = entity_id
-		elif entity_type == "ticket":
-			if not frappe.db.exists("Cheese Ticket", entity_id):
-				return not_found("Ticket", entity_id)
-			conversation.ticket = entity_id
-		elif entity_type == "route_booking":
-			# Route booking would be a string reference
-			conversation.route_booking = entity_id
+		# Validate entity exists and belongs to the user's company
+		try:
+			if entity_type == "lead":
+				if not frappe.db.exists("Cheese Lead", entity_id):
+					return not_found("Lead", entity_id)
+				assert_record_access("Cheese Lead", entity_id)
+				conversation.lead = entity_id
+			elif entity_type == "ticket":
+				if not frappe.db.exists("Cheese Ticket", entity_id):
+					return not_found("Ticket", entity_id)
+				assert_record_access("Cheese Ticket", entity_id)
+				conversation.ticket = entity_id
+			elif entity_type == "route_booking":
+				if frappe.db.exists("Cheese Route Booking", entity_id):
+					assert_record_access("Cheese Route Booking", entity_id)
+				# Route booking would be a string reference
+				conversation.route_booking = entity_id
+		except frappe.PermissionError:
+			return error("Unauthorized", "UNAUTHORIZED", {}, 403)
 		
 		conversation.save()
 		frappe.db.commit()
@@ -517,7 +540,12 @@ def append_conversation_event(conversation_id, event_type, event_data=None, meta
 		
 		if not frappe.db.exists("Conversation", conversation_id):
 			return not_found("Conversation", conversation_id)
-		
+
+		try:
+			assert_record_access("Conversation", conversation_id)
+		except frappe.PermissionError:
+			return error("Unauthorized", "UNAUTHORIZED", {}, 403)
+
 		# Parse event_data and metadata if strings
 		if isinstance(event_data, str):
 			try:

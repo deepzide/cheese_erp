@@ -7,6 +7,7 @@ from frappe.utils import get_datetime, now_datetime
 from cheese.api.common.responses import success, error, not_found, validation_error
 from cheese.cheese.utils.pricing import calculate_ticket_price, calculate_deposit_amount
 from cheese.cheese.utils.validation import validate_booking_policy
+from cheese.cheese.utils.access import assert_record_access
 import json
 
 
@@ -167,7 +168,12 @@ def get_modification_policy(reservation_id=None, experience_id=None):
 		if reservation_id:
 			if not frappe.db.exists("Cheese Ticket", reservation_id):
 				return not_found("Reservation", reservation_id)
-			
+
+			try:
+				assert_record_access("Cheese Ticket", reservation_id)
+			except frappe.PermissionError:
+				return error("Unauthorized", "UNAUTHORIZED", {}, 403)
+
 			ticket = frappe.get_doc("Cheese Ticket", reservation_id)
 			experience_id_to_check = ticket.experience
 			
@@ -250,7 +256,12 @@ def get_cancellation_impact(reservation_id=None, experience_id=None, slot_dateti
 		if reservation_id:
 			if not frappe.db.exists("Cheese Ticket", reservation_id):
 				return not_found("Reservation", reservation_id)
-			
+
+			try:
+				assert_record_access("Cheese Ticket", reservation_id)
+			except frappe.PermissionError:
+				return error("Unauthorized", "UNAUTHORIZED", {}, 403)
+
 			ticket = frappe.get_doc("Cheese Ticket", reservation_id)
 			experience_id_to_check = ticket.experience
 			

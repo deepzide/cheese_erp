@@ -4,6 +4,7 @@
 import frappe
 from frappe import _
 from cheese.api.common.responses import success, error, not_found, validation_error
+from cheese.cheese.utils.access import assert_contact_access, scope_filters
 
 
 @frappe.whitelist()
@@ -23,14 +24,20 @@ def get_customer_itinerary(contact_id):
 		
 		if not frappe.db.exists("Cheese Contact", contact_id):
 			return not_found("Contact", contact_id)
+
+		try:
+			assert_contact_access(contact_id)
+		except frappe.PermissionError:
+			return error("Unauthorized", "UNAUTHORIZED", {}, 403)
 		
-		# Get all tickets for this contact
+		# Get all tickets for this contact (scoped to the user's company so an
+		# establishment user never sees the contact's cross-company reservations).
 		tickets = frappe.get_all(
 			"Cheese Ticket",
-			filters={
+			filters=scope_filters({
 				"contact": contact_id,
 				"status": ["not in", ["CANCELLED", "EXPIRED", "REJECTED"]]
-			},
+			}),
 			fields=["name", "status", "experience", "route", "slot", "party_size", "creation", "modified"],
 			order_by="creation desc"
 		)

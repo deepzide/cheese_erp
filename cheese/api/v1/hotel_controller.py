@@ -147,6 +147,12 @@ def get_hotel_availability(experience_id, date_from=None, date_to=None, guests=N
         if not frappe.db.exists("Cheese Experience", experience_id):
             return not_found("Experience", experience_id)
 
+        # Tenant isolation (guest bot callers have no company and pass through).
+        try:
+            assert_experience_access(experience_id)
+        except frappe.PermissionError:
+            return error("Unauthorized", "UNAUTHORIZED", {}, 403)
+
         experience = frappe.get_doc("Cheese Experience", experience_id)
         if experience.experience_type != "HOTEL":
             return validation_error("Experience is not a HOTEL type")
@@ -456,9 +462,13 @@ def get_hotel_reservations(hotel_id=None, experience_id=None, date_from=None, da
         Paginated response with hotel reservations
     """
     try:
+        # Tenant isolation: scoped users are pinned to their own establishment
+        # regardless of the hotel_id passed (omitted hotel_id must not leak all).
         user_company = _get_current_user_company()
-        if user_company and hotel_id != user_company:
-            return paginated_response([], "Unauthorized", page=1, page_size=20, total=0)
+        if user_company:
+            if hotel_id and hotel_id != user_company:
+                return paginated_response([], "Unauthorized", page=1, page_size=20, total=0)
+            hotel_id = user_company
 
         page = cint(page) or 1
         page_size = cint(page_size) or 20

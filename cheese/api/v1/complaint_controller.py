@@ -6,6 +6,7 @@ from frappe import _
 from frappe.utils import now_datetime
 from cheese.api.common.responses import success, created, error, not_found, validation_error
 from cheese.api.v1.user_controller import _get_current_user_company
+from cheese.cheese.utils.access import assert_record_access, assert_contact_access, assert_company_value
 
 
 @frappe.whitelist()
@@ -36,11 +37,17 @@ def create_complaint(contact_id, description, ticket_id=None, route_booking_id=N
 		
 		if not frappe.db.exists("Cheese Contact", contact_id):
 			return not_found("Contact", contact_id)
-		
-		# Validate ticket if provided
-		if ticket_id:
-			if not frappe.db.exists("Cheese Ticket", ticket_id):
-				return not_found("Ticket", ticket_id)
+
+		try:
+			assert_contact_access(contact_id)
+
+			# Validate ticket if provided
+			if ticket_id:
+				if not frappe.db.exists("Cheese Ticket", ticket_id):
+					return not_found("Ticket", ticket_id)
+				assert_record_access("Cheese Ticket", ticket_id)
+		except frappe.PermissionError:
+			return error("Unauthorized", "UNAUTHORIZED", {}, 403)
 		
 		# Create support case
 		support_case = frappe.get_doc({
@@ -101,7 +108,12 @@ def update_support_case_status(support_case_id, status, notes=None, assigned_to=
 		
 		if not frappe.db.exists("Cheese Support Case", support_case_id):
 			return not_found("Support Case", support_case_id)
-		
+
+		try:
+			assert_record_access("Cheese Support Case", support_case_id)
+		except frappe.PermissionError:
+			return error("Unauthorized", "UNAUTHORIZED", {}, 403)
+
 		support_case = frappe.get_doc("Cheese Support Case", support_case_id)
 		old_status = support_case.status
 		
@@ -154,7 +166,9 @@ def list_support_cases(status=None, contact_id=None, assigned_to=None, route_id=
 		Success response with support cases
 	"""
 	try:
-		# Apply company scoping for establishment admins
+		# Apply company scoping for establishment admins. Block parameter-override
+		# leaks first, then force the scoped user's own company.
+		assert_company_value(company_id)
 		user_company = _get_current_user_company()
 		if user_company:
 			company_id = user_company
@@ -167,14 +181,13 @@ def list_support_cases(status=None, contact_id=None, assigned_to=None, route_id=
 		if assigned_to:
 			filters["assigned_to"] = assigned_to
 
-		if route_id or company_id:
-			ticket_filters = {}
-			if route_id:
-				ticket_filters["route"] = route_id
-			if company_id:
-				ticket_filters["company"] = company_id
+		# Cheese Support Case carries its own `company` column; filter on it
+		# directly so ticketless (GENERAL) cases are scoped too.
+		if company_id:
+			filters["company"] = company_id
 
-			ticket_ids = frappe.get_all("Cheese Ticket", filters=ticket_filters, pluck="name")
+		if route_id:
+			ticket_ids = frappe.get_all("Cheese Ticket", filters={"route": route_id}, pluck="name")
 			if not ticket_ids:
 				from cheese.api.common.responses import paginated_response
 				return paginated_response([], "Support cases retrieved successfully", page=page, page_size=page_size, total=0)

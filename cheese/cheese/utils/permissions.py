@@ -340,6 +340,105 @@ def cheese_contact_query(user):
     )
 
 
+def cheese_message_query(user):
+    """Messages are scoped via the linked contact's companies or conversation company."""
+    if _is_super_admin(user):
+        return ""
+
+    companies = get_user_companies(user)
+    table = "tabCheese Message"
+    if not companies:
+        return _none_visible(table)
+
+    quoted = _quote_list(companies)
+    return (
+        f"(`{table}`.contact IN ("
+        f"SELECT parent FROM `tabCheese Contact Company` "
+        f"WHERE parenttype = 'Cheese Contact' AND company IN ({quoted}))"
+        f" OR `{table}`.conversation IN ("
+        f"SELECT name FROM `tabConversation` WHERE company IN ({quoted})))"
+    )
+
+
+def cheese_complaint_query(user):
+    """Complaints are scoped via the linked ticket's company or contact's companies."""
+    if _is_super_admin(user):
+        return ""
+
+    companies = get_user_companies(user)
+    table = "tabCheese Complaint"
+    if not companies:
+        return _none_visible(table)
+
+    quoted = _quote_list(companies)
+    return (
+        f"(`{table}`.ticket IN ("
+        f"SELECT name FROM `tabCheese Ticket` WHERE company IN ({quoted}))"
+        f" OR `{table}`.contact IN ("
+        f"SELECT parent FROM `tabCheese Contact Company` "
+        f"WHERE parenttype = 'Cheese Contact' AND company IN ({quoted})))"
+    )
+
+
+def cheese_system_event_query(user):
+    """Audit events scoped via their dynamic entity link.
+
+    Events whose ``entity_type`` is not a recognised tenant-scoped doctype are
+    hidden from establishment users (fail closed). Super admins see everything.
+    """
+    if _is_super_admin(user):
+        return ""
+
+    companies = get_user_companies(user)
+    table = "tabCheese System Event"
+    if not companies:
+        return _none_visible(table)
+
+    quoted = _quote_list(companies)
+    return (
+        f"("
+        f"(`{table}`.entity_type = 'Company' AND `{table}`.entity_id IN ({quoted}))"
+        f" OR (`{table}`.entity_type = 'Cheese Experience' AND `{table}`.entity_id IN ("
+        f"   SELECT name FROM `tabCheese Experience` WHERE company IN ({quoted})))"
+        f" OR (`{table}`.entity_type = 'Cheese Ticket' AND `{table}`.entity_id IN ("
+        f"   SELECT name FROM `tabCheese Ticket` WHERE company IN ({quoted})))"
+        f" OR (`{table}`.entity_type = 'Conversation' AND `{table}`.entity_id IN ("
+        f"   SELECT name FROM `tabConversation` WHERE company IN ({quoted})))"
+        f" OR (`{table}`.entity_type = 'Cheese Contact' AND `{table}`.entity_id IN ("
+        f"   SELECT parent FROM `tabCheese Contact Company` "
+        f"   WHERE parenttype = 'Cheese Contact' AND company IN ({quoted})))"
+        f")"
+    )
+
+
+def cheese_route_experience_query(user):
+    """Route-experience child rows scoped via the linked experience's company."""
+    if _is_super_admin(user):
+        return ""
+
+    companies = get_user_companies(user)
+    table = "tabCheese Route Experience"
+    if not companies:
+        return _none_visible(table)
+
+    quoted = _quote_list(companies)
+    return f"`{table}`.experience IN (SELECT name FROM `tabCheese Experience` WHERE company IN ({quoted}))"
+
+
+def cheese_quotation_experience_query(user):
+    """Quotation-experience child rows scoped via the linked experience's company."""
+    if _is_super_admin(user):
+        return ""
+
+    companies = get_user_companies(user)
+    table = "tabCheese Quotation Experience"
+    if not companies:
+        return _none_visible(table)
+
+    quoted = _quote_list(companies)
+    return f"`{table}`.experience IN (SELECT name FROM `tabCheese Experience` WHERE company IN ({quoted}))"
+
+
 # ---------------------------------------------------------------------------
 # has_permission callbacks (per-document checks for get_doc / form view)
 # ---------------------------------------------------------------------------
@@ -507,3 +606,86 @@ def has_deposit_permission(doc, ptype="read", user=None):
 		)
 		return bool(ticket_companies & companies)
 	return False
+
+
+def _contact_companies(contact: Optional[str]) -> set:
+	if not contact:
+		return set()
+	return set(
+		frappe.get_all(
+			"Cheese Contact Company",
+			filters={"parent": contact, "parenttype": "Cheese Contact"},
+			pluck="company",
+		)
+	)
+
+
+def has_message_permission(doc, ptype="read", user=None):
+	user = user or frappe.session.user
+	if _is_super_admin(user):
+		return True
+	companies = set(get_user_companies(user))
+	if not companies:
+		return False
+	if _contact_companies(doc.get("contact")) & companies:
+		return True
+	if doc.get("conversation"):
+		conv_company = frappe.db.get_value("Conversation", doc.conversation, "company")
+		if conv_company in companies:
+			return True
+	return False
+
+
+def has_complaint_permission(doc, ptype="read", user=None):
+	user = user or frappe.session.user
+	if _is_super_admin(user):
+		return True
+	companies = set(get_user_companies(user))
+	if not companies:
+		return False
+	if doc.get("ticket"):
+		ticket_company = frappe.db.get_value("Cheese Ticket", doc.ticket, "company")
+		if ticket_company in companies:
+			return True
+	return bool(_contact_companies(doc.get("contact")) & companies)
+
+
+def has_system_event_permission(doc, ptype="read", user=None):
+	user = user or frappe.session.user
+	if _is_super_admin(user):
+		return True
+	companies = set(get_user_companies(user))
+	if not companies:
+		return False
+	entity_type, entity_id = doc.get("entity_type"), doc.get("entity_id")
+	if not entity_type or not entity_id:
+		return False
+	if entity_type == "Company":
+		return entity_id in companies
+	if entity_type in ("Cheese Experience", "Cheese Ticket"):
+		return frappe.db.get_value(entity_type, entity_id, "company") in companies
+	if entity_type == "Conversation":
+		return frappe.db.get_value("Conversation", entity_id, "company") in companies
+	if entity_type == "Cheese Contact":
+		return bool(_contact_companies(entity_id) & companies)
+	return False
+
+
+def _experience_company_in(experience: Optional[str], companies: set) -> bool:
+	if not experience:
+		return False
+	return frappe.db.get_value("Cheese Experience", experience, "company") in companies
+
+
+def has_route_experience_permission(doc, ptype="read", user=None):
+	user = user or frappe.session.user
+	if _is_super_admin(user):
+		return True
+	companies = set(get_user_companies(user))
+	if not companies:
+		return False
+	return _experience_company_in(doc.get("experience"), companies)
+
+
+def has_quotation_experience_permission(doc, ptype="read", user=None):
+	return has_route_experience_permission(doc, ptype, user)

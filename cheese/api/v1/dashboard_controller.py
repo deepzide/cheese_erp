@@ -263,6 +263,12 @@ def get_establishment_dashboard(establishment_id, period="today", date_from=None
 		Success response with establishment dashboard data
 	"""
 	try:
+		# Tenant isolation: scoped users are pinned to their own establishment
+		# regardless of the establishment_id passed by the client.
+		scope_company = _dashboard_company_scope()
+		if scope_company:
+			establishment_id = scope_company
+
 		if not establishment_id:
 			return validation_error("establishment_id is required")
 		

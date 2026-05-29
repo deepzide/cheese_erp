@@ -5,6 +5,8 @@ import frappe
 from frappe import _
 from frappe.utils import now_datetime
 from cheese.api.common.responses import success, created, error, not_found, validation_error
+from cheese.api.v1.user_controller import _get_current_user_company
+from cheese.cheese.utils.access import assert_record_access, assert_company_value
 
 
 @frappe.whitelist()
@@ -54,6 +56,11 @@ def send_survey(ticket_id):
 
 		if not frappe.db.exists("Cheese Ticket", ticket_id):
 			return not_found("Ticket", ticket_id)
+
+		try:
+			assert_record_access("Cheese Ticket", ticket_id)
+		except frappe.PermissionError:
+			return error("Unauthorized", "UNAUTHORIZED", {}, 403)
 
 		ticket = frappe.get_doc("Cheese Ticket", ticket_id)
 		
@@ -137,6 +144,11 @@ def submit_survey(ticket_id, rating, comment=None):
 
 		if not frappe.db.exists("Cheese Ticket", ticket_id):
 			return not_found("Ticket", ticket_id)
+
+		try:
+			assert_record_access("Cheese Ticket", ticket_id)
+		except frappe.PermissionError:
+			return error("Unauthorized", "UNAUTHORIZED", {}, 403)
 
 		# Get or create survey response
 		survey_name = frappe.db.get_value(
@@ -234,7 +246,13 @@ def get_survey_analytics(date_from=None, date_to=None, route_id=None, establishm
 		
 		date_from_obj = getdate(date_from)
 		date_to_obj = getdate(date_to)
-		
+
+		# Tenant isolation: block param-override, then force the scoped company.
+		assert_company_value(establishment_id)
+		user_company = _get_current_user_company()
+		if user_company:
+			establishment_id = user_company
+
 		# Build filters
 		filters = {}
 		
@@ -333,7 +351,20 @@ def export_survey_results(format="CSV", filters=None):
 				filter_dict = json.loads(filters) if isinstance(filters, str) else filters
 			except Exception:
 				pass
-		
+
+		# Tenant isolation: scope surveys to tickets owned by the user's company.
+		user_company = _get_current_user_company()
+		if user_company:
+			company_ticket_ids = frappe.get_all(
+				"Cheese Ticket", filters={"company": user_company}, pluck="name"
+			)
+			if not company_ticket_ids:
+				return success(
+					f"Export data prepared ({format} format)",
+					{"format": format, "count": 0, "data": [], "note": "No data for this establishment"},
+				)
+			filter_dict["ticket"] = ["in", company_ticket_ids]
+
 		surveys = frappe.get_all(
 			"Cheese Survey Response",
 			filters=filter_dict,
@@ -403,7 +434,12 @@ def create_support_ticket_from_survey(survey_id, complaint_text):
 		# Get ticket and contact
 		if not survey.ticket:
 			return validation_error("Survey has no associated ticket")
-		
+
+		try:
+			assert_record_access("Cheese Ticket", survey.ticket)
+		except frappe.PermissionError:
+			return error("Unauthorized", "UNAUTHORIZED", {}, 403)
+
 		ticket = frappe.get_doc("Cheese Ticket", survey.ticket)
 		contact_id = ticket.contact
 		

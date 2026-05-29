@@ -5,6 +5,7 @@ import frappe
 from frappe import _
 from frappe.utils import now_datetime, getdate, cint, get_datetime
 from cheese.api.common.responses import success, created, error, not_found, validation_error, paginated_response
+from cheese.cheese.utils.access import assert_record_access, assert_company_value, scope_filters
 
 
 @frappe.whitelist()
@@ -73,7 +74,9 @@ def manual_check_in(contact_id=None, ticket_id=None, reservation_code=None):
 		
 		if not ticket:
 			return not_found("Ticket", "not found")
-		
+
+		assert_record_access("Cheese Ticket", ticket.name)
+
 		# Validate ticket can be checked in
 		if ticket.status != "CONFIRMED":
 			return validation_error(
@@ -154,7 +157,9 @@ def get_attendance_record(attendance_id):
 		
 		if not frappe.db.exists("Cheese Attendance", attendance_id):
 			return not_found("Attendance", attendance_id)
-		
+
+		assert_record_access("Cheese Attendance", attendance_id)
+
 		attendance = frappe.get_doc("Cheese Attendance", attendance_id)
 		ticket = frappe.get_doc("Cheese Ticket", attendance.ticket)
 		
@@ -202,9 +207,14 @@ def list_attendance(
 	try:
 		page = cint(page) or 1
 		page_size = cint(page_size) or 20
-		
-		# Build filters
-		filters = {}
+
+		# Block parameter-override leaks for scoped users.
+		assert_company_value(company_id)
+		assert_company_value(establishment_id)
+
+		# Build filters. Cheese Attendance carries its own `company` column, so
+		# scope_filters enforces tenant isolation directly on the attendance query.
+		filters = scope_filters({})
 		
 		# Get tickets matching filters first
 		ticket_filters = {}
@@ -325,7 +335,9 @@ def mark_no_show_manual(ticket_id, reason=None):
 		
 		if not frappe.db.exists("Cheese Ticket", ticket_id):
 			return not_found("Ticket", ticket_id)
-		
+
+		assert_record_access("Cheese Ticket", ticket_id)
+
 		ticket = frappe.get_doc("Cheese Ticket", ticket_id)
 		
 		if ticket.status not in ["CONFIRMED"]:

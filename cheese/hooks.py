@@ -139,6 +139,11 @@ permission_query_conditions = {
 	"Cheese Route": "cheese.cheese.utils.permissions.cheese_route_query",
 	"Cheese Quotation": "cheese.cheese.utils.permissions.cheese_quotation_query",
 	"Cheese Deposit": "cheese.cheese.utils.permissions.cheese_deposit_query",
+	"Cheese Message": "cheese.cheese.utils.permissions.cheese_message_query",
+	"Cheese Complaint": "cheese.cheese.utils.permissions.cheese_complaint_query",
+	"Cheese System Event": "cheese.cheese.utils.permissions.cheese_system_event_query",
+	"Cheese Route Experience": "cheese.cheese.utils.permissions.cheese_route_experience_query",
+	"Cheese Quotation Experience": "cheese.cheese.utils.permissions.cheese_quotation_experience_query",
 }
 
 has_permission = {
@@ -160,6 +165,11 @@ has_permission = {
 	"Cheese Route": "cheese.cheese.utils.permissions.has_route_permission",
 	"Cheese Quotation": "cheese.cheese.utils.permissions.has_company_permission",
 	"Cheese Deposit": "cheese.cheese.utils.permissions.has_deposit_permission",
+	"Cheese Message": "cheese.cheese.utils.permissions.has_message_permission",
+	"Cheese Complaint": "cheese.cheese.utils.permissions.has_complaint_permission",
+	"Cheese System Event": "cheese.cheese.utils.permissions.has_system_event_permission",
+	"Cheese Route Experience": "cheese.cheese.utils.permissions.has_route_experience_permission",
+	"Cheese Quotation Experience": "cheese.cheese.utils.permissions.has_quotation_experience_permission",
 }
 
 # DocType Class

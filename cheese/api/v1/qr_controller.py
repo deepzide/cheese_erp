@@ -7,6 +7,7 @@ from frappe.utils import now_datetime
 import secrets
 import string
 from cheese.api.common.responses import success, created, error, not_found, validation_error
+from cheese.cheese.utils.access import assert_record_access
 
 
 def _request_value(*keys):
@@ -82,7 +83,12 @@ def get_checkin_status(reservation_id):
 		
 		if not frappe.db.exists("Cheese Ticket", reservation_id):
 			return not_found("Reservation", reservation_id)
-		
+
+		try:
+			assert_record_access("Cheese Ticket", reservation_id)
+		except frappe.PermissionError:
+			return error("Unauthorized", "UNAUTHORIZED", {}, 403)
+
 		ticket = frappe.get_doc("Cheese Ticket", reservation_id)
 		
 		# Get attendance record
@@ -172,6 +178,11 @@ def get_qr(ticket_id=None, allow_pending=0, send_notification=0):
 
 		if not frappe.db.exists("Cheese Ticket", ticket_id):
 			return not_found("Ticket", ticket_id)
+
+		try:
+			assert_record_access("Cheese Ticket", ticket_id)
+		except frappe.PermissionError:
+			return error("Unauthorized", "UNAUTHORIZED", {}, 403)
 
 		ticket = frappe.get_doc("Cheese Ticket", ticket_id)
 		
@@ -315,6 +326,10 @@ def validate_qr(token=None):
 			)
 
 		# Get ticket
+		try:
+			assert_record_access("Cheese Ticket", qr_token.ticket)
+		except frappe.PermissionError:
+			return error("Unauthorized", "UNAUTHORIZED", {}, 403)
 		ticket = frappe.get_doc("Cheese Ticket", qr_token.ticket)
 
 		if ticket.status == "PENDING":
@@ -388,7 +403,12 @@ def resend_qr(ticket_id):
 		
 		if not frappe.db.exists("Cheese Ticket", ticket_id):
 			return not_found("Ticket", ticket_id)
-		
+
+		try:
+			assert_record_access("Cheese Ticket", ticket_id)
+		except frappe.PermissionError:
+			return error("Unauthorized", "UNAUTHORIZED", {}, 403)
+
 		ticket = frappe.get_doc("Cheese Ticket", ticket_id)
 		
 		if ticket.status not in ["CONFIRMED", "CHECKED_IN"]:
@@ -439,7 +459,12 @@ def revoke_qr(ticket_id):
 		
 		if not frappe.db.exists("Cheese Ticket", ticket_id):
 			return not_found("Ticket", ticket_id)
-		
+
+		try:
+			assert_record_access("Cheese Ticket", ticket_id)
+		except frappe.PermissionError:
+			return error("Unauthorized", "UNAUTHORIZED", {}, 403)
+
 		# Get QR token
 		qr_token = frappe.db.get_value(
 			"Cheese QR Token",
