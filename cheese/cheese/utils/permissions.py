@@ -33,6 +33,12 @@ SUPER_ADMIN_ROLES = (
 # Tenant establishment roles (must stay in sync with user_controller / fixtures).
 ESTABLISHMENT_USER_ROLES = ("Establishment User", "Cheese Establishment User")
 
+# Impossible Company value used to "fail closed": injected as a normal company
+# filter so a tenant user with no resolvable company sees nothing instead of
+# everything. Shared by the query-condition builders and the custom-endpoint
+# scoping helper (user_controller._get_current_user_company).
+NO_COMPANY_SENTINEL = "__no_company_for_user__"
+
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -86,7 +92,7 @@ def _quote_list(values: Iterable[str]) -> str:
 
 def _none_visible(table_alias: str) -> str:
     """Hide everything for a tenant user with no assigned company."""
-    return f"`{table_alias}`.name = '__no_company_for_user__'"
+    return f"`{table_alias}`.name = '{NO_COMPANY_SENTINEL}'"
 
 
 # ---------------------------------------------------------------------------

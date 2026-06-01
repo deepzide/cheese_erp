@@ -22,10 +22,13 @@ from cheese.cheese.utils.access import (
 	current_scope_company,
 	scope_filters,
 )
+from cheese.cheese.utils.permissions import NO_COMPANY_SENTINEL
 
 COMPANY_A = "Cheese ISO Company A"
 COMPANY_B = "Cheese ISO Company B"
 EST_USER = "cheese_iso_est_user@example.com"
+# Establishment user deliberately left WITHOUT a Company User Permission.
+EST_USER_NO_COMPANY = "cheese_iso_est_user_nocompany@example.com"
 # Roles a real establishment user receives (see user_controller.create_user):
 # "Cheese Establishment User" drives single-company scoping, "Cheese Booking
 # Agent" grants the doctype read access tested below.
@@ -182,6 +185,34 @@ class TestTenantIsolationHelpers(FrappeTestCase):
 				}
 			).insert(ignore_permissions=True)
 
+		# Establishment user with NO company assignment: must fail CLOSED.
+		if not frappe.db.exists("User", EST_USER_NO_COMPANY):
+			nc_user = frappe.get_doc(
+				{
+					"doctype": "User",
+					"email": EST_USER_NO_COMPANY,
+					"first_name": "ISO",
+					"last_name": "NoCompany",
+					"enabled": 1,
+					"user_type": "System User",
+					"send_welcome_email": 0,
+				}
+			)
+			nc_user.insert(ignore_permissions=True)
+		else:
+			nc_user = frappe.get_doc("User", EST_USER_NO_COMPANY)
+		_nc_roles = {r.role for r in nc_user.roles}
+		_nc_added = False
+		for role in EST_ROLES:
+			if role not in _nc_roles:
+				nc_user.append("roles", {"role": role})
+				_nc_added = True
+		if _nc_added:
+			nc_user.save(ignore_permissions=True)
+		frappe.db.delete(
+			"User Permission", {"user": EST_USER_NO_COMPANY, "allow": "Company"}
+		)
+
 		frappe.db.commit()
 
 	def tearDown(self):
@@ -246,6 +277,26 @@ class TestTenantIsolationHelpers(FrappeTestCase):
 		names = frappe.get_list("Cheese System Event", pluck="name", limit_page_length=0)
 		self.assertIn(self.event_a, names)
 		self.assertNotIn(self.event_b, names)
+
+	# -- establishment user with NO company fails CLOSED ------------------
+
+	def test_no_company_user_scope_is_sentinel(self):
+		frappe.set_user(EST_USER_NO_COMPANY)
+		# Must NOT be None (that would mean "all companies" / fail open).
+		self.assertEqual(current_scope_company(), NO_COMPANY_SENTINEL)
+
+	def test_no_company_user_scope_filters_blocks(self):
+		frappe.set_user(EST_USER_NO_COMPANY)
+		self.assertEqual(
+			scope_filters({"status": "PENDING"}),
+			{"status": "PENDING", "company": NO_COMPANY_SENTINEL},
+		)
+
+	def test_no_company_user_sees_no_experiences(self):
+		frappe.set_user(EST_USER_NO_COMPANY)
+		names = frappe.get_list("Cheese Experience", pluck="name", limit_page_length=0)
+		self.assertNotIn(self.exp_a, names)
+		self.assertNotIn(self.exp_b, names)
 
 	# -- super admins are never scoped ------------------------------------
 
