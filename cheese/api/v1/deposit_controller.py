@@ -15,6 +15,35 @@ RECEIVED_DEPOSIT_STATUSES = ("PAID", "REVIEW", "ADJUSTED")
 IGNORED_DEPOSIT_STATUSES = ("CANCELLED", "REFUNDED")
 
 
+def _deposit_names_for_company(company):
+	"""Deposit names whose entity resolves to ``company``.
+
+	Mirrors ``permissions.cheese_deposit_query`` so the custom ``list_deposits``
+	endpoint (which uses ``frappe.get_all`` and therefore bypasses the
+	doctype permission hooks) scopes at the DB layer:
+	  * entity_type = Cheese Ticket        -> ticket.company
+	  * entity_type = Cheese Route Booking -> child ticket.company
+	"""
+	rows = frappe.db.sql(
+		"""
+		SELECT d.name FROM `tabCheese Deposit` d
+		WHERE (
+			d.entity_type = 'Cheese Ticket'
+			AND d.entity_id IN (SELECT name FROM `tabCheese Ticket` WHERE company = %(c)s)
+		) OR (
+			d.entity_type = 'Cheese Route Booking'
+			AND d.entity_id IN (
+				SELECT rbt.parent FROM `tabCheese Route Booking Ticket` rbt
+				INNER JOIN `tabCheese Ticket` t ON t.name = rbt.ticket
+				WHERE t.company = %(c)s
+			)
+		)
+		""",
+		{"c": company},
+	)
+	return [r[0] for r in rows]
+
+
 def _instructions_for_deposit(amount_remaining, bank_accounts):
 	if not bank_accounts:
 		return _("Please make payment to complete your booking")
@@ -1163,8 +1192,6 @@ def list_deposits(
 		page_size = cint(page_size) or 20
 
 		user_company = _get_current_user_company()
-		if user_company:
-			company_id = user_company
 
 		filters = {}
 		if status:
@@ -1173,6 +1200,20 @@ def list_deposits(
 			filters["entity_type"] = entity_type
 		if entity_id:
 			filters["entity_id"] = entity_id
+
+		# Tenant isolation: establishment users (and any scoped user without a
+		# company -> impossible sentinel) only ever see their own deposits.
+		# Applied at the DB layer because frappe.get_all bypasses the
+		# permission_query_conditions hook. Super admins (user_company is None)
+		# are unrestricted.
+		if user_company:
+			company_id = user_company
+			allowed_deposit_names = _deposit_names_for_company(user_company)
+			if not allowed_deposit_names:
+				return paginated_response(
+					[], "Deposits retrieved successfully", page=page, page_size=page_size, total=0
+				)
+			filters["name"] = ["in", allowed_deposit_names]
 
 		deposits = frappe.get_all(
 			"Cheese Deposit",

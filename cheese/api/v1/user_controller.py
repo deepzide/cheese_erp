@@ -36,14 +36,30 @@ def _get_current_user_company():
     Administrator) are never scoped and return ``None`` meaning "all
     companies". Establishment-level (Level 2) users are scoped to their single
     assigned company.
+
+    Fail-closed: an establishment-role user who has NO Company assignment must
+    see nothing rather than everything. We return an impossible sentinel
+    company so the existing ``if user_company: filters[...] = user_company``
+    pattern (and the ``assert_*`` access checks) resolve to zero rows / denial
+    instead of leaking every company's data. Guests and other non-establishment
+    users stay unrestricted (``None``) so public read flows are unaffected.
     """
-    from cheese.cheese.utils.permissions import _is_super_admin
+    from cheese.cheese.utils.permissions import (
+        ESTABLISHMENT_USER_ROLES,
+        NO_COMPANY_SENTINEL,
+        _is_super_admin,
+    )
 
     user = frappe.session.user
     if _is_super_admin(user):
         return None  # super admins see everything
     companies = _get_user_companies(user)
-    return companies[0] if companies else None
+    if companies:
+        return companies[0]
+    roles = set(frappe.get_roles(user))
+    if any(role in roles for role in ESTABLISHMENT_USER_ROLES):
+        return NO_COMPANY_SENTINEL  # scoped user, no company -> see nothing
+    return None
 
 
 @frappe.whitelist()
