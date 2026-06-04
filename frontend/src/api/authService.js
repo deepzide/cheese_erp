@@ -2,6 +2,7 @@ import { apiRequest, setStoredCredentials, getStoredCredentials, clearStoredCred
 
 const TOKEN_ENDPOINT = '/api/method/cheese.api.v1.auth_controller.token';
 const LOGOUT_ENDPOINT = '/api/method/cheese.api.v1.auth_controller.logout';
+const SESSION_ENDPOINT = '/api/method/cheese.api.v1.auth_controller.session';
 
 const normalizeTokenPayload = (response = {}, defaults = {}) => {
     // Handle Frappe's nested response structure: { message: { success, message, data: {...} } }
@@ -67,6 +68,39 @@ export const authService = {
             throw { message: 'No valid session found', code: 'UNAUTHENTICATED', status: 401 };
         }
         return credentials;
+    },
+
+    /**
+     * Resolve the user from the active Frappe session cookie (single sign-on).
+     *
+     * Returns the credential payload for the user currently logged into the
+     * Frappe desk (/app), or null when there is no such session. This is the
+     * source of truth used to reconcile (and avoid overlapping) the locally
+     * stored token credentials with the Frappe login.
+     */
+    syncWithFrappeSession: async () => {
+        try {
+            // Cookie-only: omit the stored api-key token so the server resolves
+            // the user from the Frappe session cookie (the source of truth),
+            // not from a possibly-stale token belonging to a different user.
+            const response = await apiRequest(SESSION_ENDPOINT, { method: 'GET', skipAuthHeader: true });
+            const responseData = response?.data || response;
+            const payload = normalizeTokenPayload(responseData);
+            if (!payload.user || !payload.api_key || !payload.api_secret) {
+                return null;
+            }
+
+            const existing = getStoredCredentials();
+            // Re-point local credentials at the Frappe session user when they
+            // are missing or belong to a different user (the "overlap" case).
+            if (!existing || existing.user !== payload.user) {
+                setStoredCredentials(payload);
+            }
+            return payload;
+        } catch (error) {
+            // 401 simply means no Frappe session cookie is present.
+            return null;
+        }
     },
 
     logout: async () => {

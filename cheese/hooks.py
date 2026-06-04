@@ -270,7 +270,9 @@ scheduler_events = {
 
 # Request Events
 # ----------------
-# before_request = ["cheese.utils.before_request"]
+# Restrict the Frappe desk (/app) to the Administrator only; everyone else is
+# redirected to the Cheese SPA.
+before_request = ["cheese.utils.desk_access.restrict_desk_to_admin"]
 # after_request = ["cheese.utils.after_request"]
 
 # Website Path Resolver
