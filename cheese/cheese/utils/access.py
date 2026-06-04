@@ -134,12 +134,24 @@ def assert_record_access(doctype: str, name: str) -> None:
 
 	Ownerless records (no resolvable company) are allowed through, matching the
 	lenient behavior of :func:`assert_slot_access` for legacy data.
+
+	Conversations are company-agnostic; establishment users may access a
+	conversation only when it contains messages tagged with their company.
 	"""
 	if _is_super_admin(frappe.session.user):
 		return
 	user_company = _get_current_user_company()
 	if not user_company:
 		return
+
+	if doctype == "Conversation":
+		if not frappe.db.exists(
+			"Cheese Message",
+			{"conversation": name, "company": user_company},
+		):
+			frappe.throw(frappe._("Unauthorized"), frappe.PermissionError)
+		return
+
 	record_company = _resolve_record_company(doctype, name)
 	if not record_company:
 		return

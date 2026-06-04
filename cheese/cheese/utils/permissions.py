@@ -208,7 +208,22 @@ def cheese_support_case_query(user):
 
 
 def conversation_query(user):
-    return _build_company_condition("Conversation", user)
+	"""Conversations visible when the tenant has uploaded messages for them."""
+	if _is_super_admin(user):
+		return ""
+
+	companies = get_user_companies(user)
+	table = "tabConversation"
+	if not companies:
+		return _none_visible(table)
+
+	quoted = _quote_list(companies)
+	return (
+		f"`{table}`.name IN ("
+		f"SELECT DISTINCT conversation FROM `tabCheese Message` "
+		f"WHERE conversation IS NOT NULL AND conversation != '' "
+		f"AND company IN ({quoted}))"
+	)
 
 
 def cheese_attendance_query(user):
@@ -347,23 +362,8 @@ def cheese_contact_query(user):
 
 
 def cheese_message_query(user):
-    """Messages are scoped via the linked contact's companies or conversation company."""
-    if _is_super_admin(user):
-        return ""
-
-    companies = get_user_companies(user)
-    table = "tabCheese Message"
-    if not companies:
-        return _none_visible(table)
-
-    quoted = _quote_list(companies)
-    return (
-        f"(`{table}`.contact IN ("
-        f"SELECT parent FROM `tabCheese Contact Company` "
-        f"WHERE parenttype = 'Cheese Contact' AND company IN ({quoted}))"
-        f" OR `{table}`.conversation IN ("
-        f"SELECT name FROM `tabConversation` WHERE company IN ({quoted})))"
-    )
+	"""Messages are scoped by their own company field."""
+	return _build_company_condition("Cheese Message", user)
 
 
 def cheese_complaint_query(user):
@@ -408,8 +408,10 @@ def cheese_system_event_query(user):
         f"   SELECT name FROM `tabCheese Experience` WHERE company IN ({quoted})))"
         f" OR (`{table}`.entity_type = 'Cheese Ticket' AND `{table}`.entity_id IN ("
         f"   SELECT name FROM `tabCheese Ticket` WHERE company IN ({quoted})))"
-        f" OR (`{table}`.entity_type = 'Conversation' AND `{table}`.entity_id IN ("
-        f"   SELECT name FROM `tabConversation` WHERE company IN ({quoted})))"
+		f" OR (`{table}`.entity_type = 'Conversation' AND `{table}`.entity_id IN ("
+		f"   SELECT DISTINCT conversation FROM `tabCheese Message` "
+		f"   WHERE conversation IS NOT NULL AND conversation != '' "
+		f"   AND company IN ({quoted})))"
         f" OR (`{table}`.entity_type = 'Cheese Contact' AND `{table}`.entity_id IN ("
         f"   SELECT parent FROM `tabCheese Contact Company` "
         f"   WHERE parenttype = 'Cheese Contact' AND company IN ({quoted})))"
@@ -469,7 +471,20 @@ def has_company_permission(doc, ptype="read", user=None):
 
 
 def has_conversation_permission(doc, ptype="read", user=None):
-    return has_company_permission(doc, ptype, user)
+	user = user or frappe.session.user
+	if _is_super_admin(user):
+		return True
+
+	companies = get_user_companies(user)
+	if not companies:
+		return False
+
+	return bool(
+		frappe.db.exists(
+			"Cheese Message",
+			{"conversation": doc.name, "company": ["in", companies]},
+		)
+	)
 
 
 def has_lead_permission(doc, ptype="read", user=None):
@@ -633,13 +648,7 @@ def has_message_permission(doc, ptype="read", user=None):
 	companies = set(get_user_companies(user))
 	if not companies:
 		return False
-	if _contact_companies(doc.get("contact")) & companies:
-		return True
-	if doc.get("conversation"):
-		conv_company = frappe.db.get_value("Conversation", doc.conversation, "company")
-		if conv_company in companies:
-			return True
-	return False
+	return doc.get("company") in companies
 
 
 def has_complaint_permission(doc, ptype="read", user=None):
@@ -671,7 +680,12 @@ def has_system_event_permission(doc, ptype="read", user=None):
 	if entity_type in ("Cheese Experience", "Cheese Ticket"):
 		return frappe.db.get_value(entity_type, entity_id, "company") in companies
 	if entity_type == "Conversation":
-		return frappe.db.get_value("Conversation", entity_id, "company") in companies
+		return bool(
+			frappe.db.exists(
+				"Cheese Message",
+				{"conversation": entity_id, "company": ["in", list(companies)]},
+			)
+		)
 	if entity_type == "Cheese Contact":
 		return bool(_contact_companies(entity_id) & companies)
 	return False

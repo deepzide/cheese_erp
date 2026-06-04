@@ -11,6 +11,7 @@
  "field_order": [
   "message_info",
   "conversation",
+  "company",
   "contact",
   "phone_number",
   "role",
@@ -31,6 +32,16 @@
    "in_standard_filter": 1,
    "label": "Conversation",
    "options": "Conversation"
+  },
+  {
+   "fieldname": "company",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Company",
+   "options": "Company",
+   "reqd": 1,
+   "description": "Establishment that owns this message. Multiple companies can share a conversation but each only sees their own messages."
   },
   {
    "fieldname": "contact",

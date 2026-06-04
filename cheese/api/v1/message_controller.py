@@ -9,14 +9,19 @@ import json
 
 
 @frappe.whitelist()
-def upload_message_transcript(phone_number, messages, conversation_id=None):
+def upload_message_transcript(phone_number, messages, company_id, conversation_id=None):
 	"""
 	Upload message transcript - stores individual messages from a conversation
+	
+	Each message is scoped to ``company_id``. Multiple establishments can share
+	the same ``conversation_id`` but each only sees the messages uploaded under
+	their own company.
 	
 	Args:
 		phone_number: Phone number of the user
 		messages: Array of message objects with role and content
 			Example: [{"role": "user", "content": "hello"}, {"role": "assistant", "content": "Nice to meet you"}]
+		company_id: Company (establishment) that owns this transcript slice
 		conversation_id: Optional conversation ID to link messages to
 		
 	Returns:
@@ -25,8 +30,13 @@ def upload_message_transcript(phone_number, messages, conversation_id=None):
 	try:
 		if not phone_number:
 			return validation_error("phone_number is required")
+		if not company_id:
+			return validation_error("company_id is required")
 		if not messages:
 			return validation_error("messages array is required")
+
+		if not frappe.db.exists("Company", company_id):
+			return not_found("Company", company_id)
 		
 		# Parse messages if string
 		if isinstance(messages, str):
@@ -86,6 +96,7 @@ def upload_message_transcript(phone_number, messages, conversation_id=None):
 			message_doc = frappe.get_doc({
 				"doctype": "Cheese Message",
 				"contact": contact_id,
+				"company": company_id,
 				"phone_number": phone_number,
 				"role": msg["role"],
 				"content": msg["content"],
@@ -102,6 +113,7 @@ def upload_message_transcript(phone_number, messages, conversation_id=None):
 			"Message transcript uploaded successfully",
 			{
 				"contact_id": contact_id,
+				"company_id": company_id,
 				"conversation_id": conversation_id,
 				"message_count": len(message_ids),
 				"message_ids": message_ids
