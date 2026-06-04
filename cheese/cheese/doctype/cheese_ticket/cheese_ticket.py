@@ -298,11 +298,19 @@ class CheeseTicket(Document):
 			effective_unit_price = experience.individual_price or 0
 
 		if experience.experience_type == "HOTEL":
+			# Hotels within a route package are priced at the configured Route
+			# Price per night, not the standalone nightly price.
+			if self.route:
+				effective_per_night = experience.route_price if experience.route_price is not None else 0
+			else:
+				effective_per_night = experience.price_per_night or 0
 			price_data = {
-				"price_per_night": experience.price_per_night,
+				"price_per_night": effective_per_night,
 				"nights": self.nights,
 				"rooms": self.rooms_requested,
-				"effective_unit_price": experience.price_per_night,
+				"effective_unit_price": effective_per_night,
+				"individual_price": experience.price_per_night,
+				"route_price": experience.route_price,
 			}
 		else:
 			price_data = {

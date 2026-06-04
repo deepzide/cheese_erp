@@ -48,11 +48,13 @@
             "reqd": 1
         },
         {
+            "depends_on": "eval:doc.entity_type=='Cheese Route'",
             "fieldname": "route",
             "fieldtype": "Link",
             "in_list_view": 1,
             "in_standard_filter": 1,
             "label": "Route",
+            "mandatory_depends_on": "eval:doc.entity_type=='Cheese Route'",
             "options": "Cheese Route"
         },
         {

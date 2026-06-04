@@ -643,7 +643,16 @@
     "filteredByRoute": "Filtered by Route",
     "companyId": "Company ID",
     "routeId": "Route ID",
-    "accountAdded": "Account added"
+    "accountAdded": "Account added",
+    "linkTo": "Link To",
+    "establishment": "Establishment",
+    "routeLabel": "Route",
+    "establishmentLabel": "Establishment",
+    "searchEstablishment": "Search establishment...",
+    "selectEstablishment": "Select establishment...",
+    "selectRoute": "Select route...",
+    "establishmentRequired": "Establishment is required",
+    "routeRequired": "Route is required"
   },
   "documents": {
     "newDocument": "New Document",

@@ -10,19 +10,27 @@ def calculate_ticket_price(experience_id, party_size, route_id=None, ticket=None
 	
 	- Individual ticket (no route): individual_price * party_size
 	- Route ticket: always use experience.route_price * party_size
-	- HOTEL ticket: price_per_night * nights * rooms_requested
+	- HOTEL ticket (standalone): price_per_night * nights * rooms_requested
+	- HOTEL ticket (within a route): route_price * nights * rooms_requested
 	"""
 	experience = frappe.get_doc("Cheese Experience", experience_id)
 	
 	if experience.experience_type == "HOTEL":
 		nights = ticket.nights if ticket else 1
 		rooms = party_size  # For HOTEL, party_size passed is actually rooms_requested
-		price_per_night = experience.price_per_night or 0
+		# Within a route package, hotel pricing must use the configured Route
+		# Price per night, never the standalone nightly price.
+		if route_id:
+			per_night = experience.route_price if experience.route_price is not None else 0
+		else:
+			per_night = experience.price_per_night or 0
 		return {
-			"total_price": price_per_night * nights * rooms,
-			"price_per_night": price_per_night,
+			"total_price": per_night * nights * rooms,
+			"price_per_night": per_night,
 			"nights": nights,
-			"rooms": rooms
+			"rooms": rooms,
+			"individual_price": experience.price_per_night,
+			"route_price": experience.route_price,
 		}
 
 	if route_id:

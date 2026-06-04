@@ -59,7 +59,10 @@ class CheeseBankAccount(Document):
 
 	def sync_legacy_route_field(self):
 		# Backward compatibility for legacy docs and callers still using route.
-		if self.entity_type == "Cheese Route" and self.entity_id and not self.route:
+		if self.entity_type == "Company":
+			# Establishment-linked accounts must not retain a legacy route link.
+			self.route = None
+		elif self.entity_type == "Cheese Route" and self.entity_id:
 			self.route = self.entity_id
 
 		if self.route and not self.entity_type:
