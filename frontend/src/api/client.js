@@ -134,24 +134,32 @@ export const apiRequest = async (endpoint, options = {}) => {
     const cleanBaseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
     const url = isAbsoluteUrl ? endpoint : `${cleanBaseUrl}${cleanEndpoint}`;
 
+    const { skipAuthHeader, ...fetchOptions } = options;
+
     const buildConfig = () => {
         const credentials = getStoredCredentials();
         const defaultHeaders = { 'Accept': 'application/json' };
-        if (options.body && !(options.body instanceof FormData)) {
+        if (fetchOptions.body && !(fetchOptions.body instanceof FormData)) {
             defaultHeaders['Content-Type'] = 'application/json';
         }
-        if (credentials?.api_key && credentials?.api_secret) {
+        // When skipAuthHeader is set we rely purely on the Frappe session
+        // cookie. The api-key token would otherwise override the cookie user
+        // server-side (Frappe prioritizes the Authorization header), which
+        // would defeat single sign-on reconciliation.
+        if (!skipAuthHeader && credentials?.api_key && credentials?.api_secret) {
             defaultHeaders['Authorization'] = `token ${credentials.api_key}:${credentials.api_secret}`;
         }
         // Send the Frappe session cookie so the SPA can reuse the same login
         // as the Frappe desk (/app) for single sign-on.
-        return { credentials: 'include', ...options, headers: { ...defaultHeaders, ...options.headers } };
+        return { credentials: 'include', ...fetchOptions, headers: { ...defaultHeaders, ...fetchOptions.headers } };
     };
 
     try {
         let { response, data } = await doFetch(url, buildConfig());
 
-        if (response.status === 401 && !endpoint.includes('auth_controller.token')) {
+        // Cookie-only probes (e.g. the SSO session check) must never clear the
+        // stored token on 401 — a 401 there just means "no Frappe cookie".
+        if (response.status === 401 && !skipAuthHeader && !endpoint.includes('auth_controller.token')) {
             // Single retry: re-read credentials (another tab may have refreshed them)
             const retried = await doFetch(url, buildConfig());
             response = retried.response;

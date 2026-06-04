@@ -80,7 +80,10 @@ export const authService = {
      */
     syncWithFrappeSession: async () => {
         try {
-            const response = await apiRequest(SESSION_ENDPOINT, { method: 'GET' });
+            // Cookie-only: omit the stored api-key token so the server resolves
+            // the user from the Frappe session cookie (the source of truth),
+            // not from a possibly-stale token belonging to a different user.
+            const response = await apiRequest(SESSION_ENDPOINT, { method: 'GET', skipAuthHeader: true });
             const responseData = response?.data || response;
             const payload = normalizeTokenPayload(responseData);
             if (!payload.user || !payload.api_key || !payload.api_secret) {
