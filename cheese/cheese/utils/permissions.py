@@ -212,6 +212,9 @@ def conversation_query(user):
 	if _is_super_admin(user):
 		return ""
 
+	if not frappe.db.has_column("Cheese Message", "company"):
+		return _none_visible("tabConversation")
+
 	companies = get_user_companies(user)
 	table = "tabConversation"
 	if not companies:
@@ -363,6 +366,10 @@ def cheese_contact_query(user):
 
 def cheese_message_query(user):
 	"""Messages are scoped by their own company field."""
+	if _is_super_admin(user):
+		return ""
+	if not frappe.db.has_column("Cheese Message", "company"):
+		return _none_visible("tabCheese Message")
 	return _build_company_condition("Cheese Message", user)
 
 
