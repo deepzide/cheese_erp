@@ -30,6 +30,21 @@ export default function Login() {
         }
     }, []);
 
+    // If the user is already logged into Frappe (/app), reuse that session
+    // instead of asking them to log in again.
+    useEffect(() => {
+        let active = true;
+        authService.syncWithFrappeSession().then((payload) => {
+            if (active && payload) {
+                queryClient.clear();
+                navigate("/cheese/dashboard", { replace: true });
+            }
+        });
+        return () => {
+            active = false;
+        };
+    }, [navigate]);
+
     const handleLogin = async (e) => {
         e.preventDefault();
         setLoading(true);

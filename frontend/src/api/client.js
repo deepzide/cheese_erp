@@ -143,7 +143,9 @@ export const apiRequest = async (endpoint, options = {}) => {
         if (credentials?.api_key && credentials?.api_secret) {
             defaultHeaders['Authorization'] = `token ${credentials.api_key}:${credentials.api_secret}`;
         }
-        return { ...options, headers: { ...defaultHeaders, ...options.headers } };
+        // Send the Frappe session cookie so the SPA can reuse the same login
+        // as the Frappe desk (/app) for single sign-on.
+        return { credentials: 'include', ...options, headers: { ...defaultHeaders, ...options.headers } };
     };
 
     try {
