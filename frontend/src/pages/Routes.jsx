@@ -93,7 +93,7 @@ export default function RoutesPage() {
     const { data: experiencesRaw } = useQuery({
         queryKey: ['experiences-for-routes'],
         queryFn: async () => {
-            const result = await experienceService.listExperiences({ page_size: 100 });
+            const result = await experienceService.listExperiences({ page_size: 100, status: "ONLINE" });
             const payload = result?.data?.message || result?.data || result;
             return payload?.data || [];
         },
@@ -102,13 +102,24 @@ export default function RoutesPage() {
     const routes = Array.isArray(routesRaw) ? routesRaw : [];
     const experiences = Array.isArray(experiencesRaw) ? experiencesRaw : [];
     const experiencesById = useMemo(() => {
-        return Object.fromEntries((experiences || []).map((e) => [e.name, e]));
+        return Object.fromEntries(
+            (experiences || [])
+                .map((e) => {
+                    const key = e.name || e.id || e.experience_name;
+                    return key ? [key, e] : null;
+                })
+                .filter(Boolean)
+        );
     }, [experiences]);
 
+    const getExperienceKey = (exp) => exp?.name || exp?.id || exp?.experience_name;
+
     const eligibleExperiences = useMemo(() => {
-        // Backend: only experiences with package_mode in ["Route", "Both"] are eligible for routes.
-        return (experiences || []).filter((e) => ["Route", "Both"].includes(e.package_mode));
-    }, [experiences]);
+        return (experiences || []).filter((e) => {
+            const key = getExperienceKey(e);
+            return e.status === "ONLINE" && key && !selectedExperienceIds.includes(key);
+        });
+    }, [experiences, selectedExperienceIds]);
 
     // Route price is the sum of included experiences' route prices.
     // HOTEL experiences contribute their Hotel Price (`price_per_night`).
@@ -128,8 +139,8 @@ export default function RoutesPage() {
             return;
         }
         const exp = experiencesById[experienceToAdd];
-        if (exp && !["Route", "Both"].includes(exp.package_mode)) {
-            toast.error(t("routes.experienceNotEligible", "Experience \"{{name}}\" is not eligible for routes", { name: exp.experience_info || exp.name }));
+        if (!exp) {
+            toast.error(t("routes.selectExperience", "Select an experience to add"));
             return;
         }
         setSelectedExperienceIds(prev => [...prev, experienceToAdd]);
@@ -404,11 +415,14 @@ export default function RoutesPage() {
                                             <SelectValue placeholder={t("routes.selectExperiencePlaceholder", "Select an experience...")} />
                                         </SelectTrigger>
                                         <SelectContent>
-                                            {eligibleExperiences.map((exp) => (
-                                                <SelectItem key={exp.name} value={exp.name}>
-                                                    {exp.experience_info || exp.name}
+                                            {eligibleExperiences.map((exp) => {
+                                                const expKey = getExperienceKey(exp);
+                                                return (
+                                                <SelectItem key={expKey} value={expKey}>
+                                                    {exp.experience_info || exp.experience_name || exp.name || expKey}
                                                 </SelectItem>
-                                            ))}
+                                                );
+                                            })}
                                         </SelectContent>
                                     </Select>
                                 </div>

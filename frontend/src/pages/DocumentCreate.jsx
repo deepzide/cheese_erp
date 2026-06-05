@@ -14,6 +14,7 @@ import { useTranslation } from "react-i18next";
 const ENTITY_DOCTYPE_MAP = {
     "Cheese Route": { doctype: "Cheese Route", label: "route_info" },
     "Cheese Experience": { doctype: "Cheese Experience", label: "experience_info" },
+    "Company": { doctype: "Company", label: "company_name" },
 };
 
 // Where to send the user back to when they opened "New Document" from an
@@ -144,6 +145,7 @@ export default function DocumentCreate() {
                             <SelectContent>
                                 <SelectItem value="Cheese Route">{t("routes.route", "Route")}</SelectItem>
                                 <SelectItem value="Cheese Experience">{t("experiences.experience", "Experience")}</SelectItem>
+                                <SelectItem value="Company">{t("experiences.establishment", "Establishment")}</SelectItem>
                             </SelectContent>
                         </Select>
                     </div>

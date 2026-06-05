@@ -13,6 +13,7 @@ from cheese.api.v1.bank_account_controller import (
 	get_active_company_bank_accounts_map,
 )
 from cheese.cheese.utils.capacity import get_available_capacity, slot_calendar_days_in_range
+from cheese.cheese.utils.documents import get_published_documents_grouped
 
 
 @frappe.whitelist()
@@ -254,21 +255,19 @@ def get_experience_detail(experience_id, include_next_availability=True):
 			get_active_company_bank_accounts_list(experience.company) if experience.company else []
 		)
 
-		# Fetch published links for this experience
-		links = frappe.get_all(
-			"Cheese Document",
-			filters={
-				"entity_type": "Cheese Experience",
-				"entity_id": experience.name,
-				"document_type": "Link",
-				"status": "PUBLISHED",
-			},
-			fields=["title", "file_url", "tags", "language"],
-			order_by="creation asc",
-		)
+		# Published multimedia: experience documents + owning company documents
+		entity_specs = [("Cheese Experience", experience.name)]
+		if experience.company:
+			entity_specs.append(("Company", experience.company))
+		media = get_published_documents_grouped(entity_specs)
 		links_data = [
-			{"title": l.title, "url": l.file_url, "tags": l.tags, "language": l.language}
-			for l in links
+			{
+				"title": link["title"],
+				"url": link["url"],
+				"tags": link["tags"],
+				"language": link["language"],
+			}
+			for link in media["links"]
 		]
 
 		return success(
@@ -305,6 +304,9 @@ def get_experience_detail(experience_id, include_next_availability=True):
 				"booking_policy": policy,
 				"bank_account": bank_account,
 				"links": links_data,
+				"documents": media["documents"],
+				"photos": media["photos"],
+				"pdfs": media["pdfs"],
 			}
 		)
 	except Exception as e:

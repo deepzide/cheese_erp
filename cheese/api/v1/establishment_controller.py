@@ -11,6 +11,7 @@ from cheese.api.v1.bank_account_controller import (
 	get_active_company_bank_accounts_list,
 	get_active_company_bank_accounts_map,
 )
+from cheese.cheese.utils.documents import get_published_documents_grouped
 import json
 
 
@@ -205,20 +206,15 @@ def list_establishments(page=1, page_size=20, search=None, status=None, locality
 
 			# Fetch published links for this establishment
 			try:
-				est_links = frappe.get_all(
-					"Cheese Document",
-					filters={
-						"entity_type": "Company",
-						"entity_id": company.name,
-						"document_type": "Link",
-						"status": "PUBLISHED",
-					},
-					fields=["title", "file_url", "tags", "language"],
-					order_by="creation asc",
-				)
+				grouped = get_published_documents_grouped([("Company", company.name)])
 				links_data = [
-					{"title": l.title, "url": l.file_url, "tags": l.tags, "language": l.language}
-					for l in est_links
+					{
+						"title": link["title"],
+						"url": link["url"],
+						"tags": link["tags"],
+						"language": link["language"],
+					}
+					for link in grouped["links"]
 				]
 			except Exception:
 				links_data = []
@@ -335,66 +331,24 @@ def get_establishment_details(company_id):
 			limit=5
 		)
 		
-		# Get documents/multimedia
+		# Get documents/multimedia (Company + linked experiences)
 		documents = []
 		photos = []
 		links = []
 		pdfs = []
-		
 		try:
-			# Cheese Document allows Company | Cheese Experience | Cheese Route (not "Establishment")
-			company_docs = frappe.get_all(
-				"Cheese Document",
-				filters={
-					"entity_id": company_id,
-					"status": "PUBLISHED",
-					"entity_type": "Company",
-				},
-				fields=["name", "title", "file_url", "document_type", "tags", "language", "version", "entity_type"],
-			)
 			experience_ids = frappe.get_all(
 				"Cheese Experience",
 				filters={"company": company_id},
 				pluck="name",
 			)
-			experience_docs = []
-			if experience_ids:
-				experience_docs = frappe.get_all(
-					"Cheese Document",
-					filters={
-						"entity_type": "Cheese Experience",
-						"entity_id": ["in", experience_ids],
-						"status": "PUBLISHED",
-					},
-					fields=["name", "title", "file_url", "document_type", "tags", "language", "version", "entity_type"],
-				)
-			seen = set()
-			all_documents = []
-			for row in company_docs + experience_docs:
-				if row.name in seen:
-					continue
-				seen.add(row.name)
-				all_documents.append(row)
-			
-			for doc in all_documents:
-				doc_info = {
-					"document_id": doc.name,
-					"title": doc.title,
-					"file_url": doc.file_url,
-					"tags": doc.tags,
-					"language": doc.language,
-					"version": doc.version,
-					"entity_type": doc.entity_type
-				}
-				
-				documents.append(doc_info)
-				
-				if doc.document_type == "Image":
-					photos.append(doc_info)
-				elif doc.document_type == "Link":
-					links.append(doc_info)
-				elif doc.document_type == "PDF":
-					pdfs.append(doc_info)
+			entity_specs = [("Company", company_id)]
+			entity_specs.extend(("Cheese Experience", exp_id) for exp_id in experience_ids)
+			grouped = get_published_documents_grouped(entity_specs)
+			documents = grouped["documents"]
+			photos = grouped["photos"]
+			links = grouped["links"]
+			pdfs = grouped["pdfs"]
 		except Exception as e:
 			frappe.log_error(f"Failed to fetch establishment documents: {e}", "Establishment API")
 
