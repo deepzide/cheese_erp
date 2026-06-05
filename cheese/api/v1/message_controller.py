@@ -141,6 +141,14 @@ def upload_message_transcript(phone_number, messages, company_id, conversation_i
 				)
 			message_ids.append(message_doc.name)
 		
+		if conversation_id:
+			frappe.db.set_value(
+				"Conversation",
+				conversation_id,
+				{"modified": now_datetime()},
+				update_modified=False,
+			)
+
 		frappe.db.commit()
 		
 		return created(

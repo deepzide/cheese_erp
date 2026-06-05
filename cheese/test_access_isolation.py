@@ -278,6 +278,32 @@ class TestTenantIsolationHelpers(FrappeTestCase):
 		self.assertIn(self.event_a, names)
 		self.assertNotIn(self.event_b, names)
 
+	def test_conversation_visible_after_company_scoped_message_upload(self):
+		"""Establishment users see conversations only after a scoped message upload."""
+		from cheese.api.v1.conversation_controller import open_or_resume_conversation
+		from cheese.api.v1.message_controller import upload_message_transcript
+
+		phone = "+100000000099"
+		contact_id = _ensure_contact(phone, COMPANY_A)
+		frappe.set_user("Administrator")
+
+		result = open_or_resume_conversation(contact_id, "WhatsApp", "ACTIVE")
+		conv_id = result["data"]["conversation_id"]
+		self.assertIsNone(frappe.db.get_value("Conversation", conv_id, "company"))
+
+		upload = upload_message_transcript(
+			phone,
+			[{"role": "user", "content": "hello"}],
+			COMPANY_A,
+			conv_id,
+		)
+		self.assertTrue(upload.get("success"))
+		frappe.db.commit()
+
+		frappe.set_user(EST_USER)
+		names = frappe.get_list("Conversation", pluck="name", limit_page_length=0)
+		self.assertIn(conv_id, names)
+
 	# -- establishment user with NO company fails CLOSED ------------------
 
 	def test_no_company_user_scope_is_sentinel(self):

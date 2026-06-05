@@ -23,7 +23,13 @@ class Conversation(Document):
 		status: DF.Literal["ACTIVE", "PAUSED", "CLOSED"]
 		summary: DF.TextEditor | None
 		ticket: DF.Link | None
+		company: DF.Link | None
 	# end: auto-generated types
+
+	def before_insert(self):
+		# Conversations are company-agnostic; tenant scoping lives on Cheese Message.
+		# Frappe otherwise auto-fills Link defaults from the session user's Company.
+		self.company = None
 
 	def validate(self):
 		"""Enforce one active conversation per Contact + Channel (+ Company when set)."""

@@ -43,10 +43,10 @@
   {
    "fieldname": "company",
    "fieldtype": "Link",
-   "in_list_view": 1,
-   "in_standard_filter": 1,
+   "ignore_user_permissions": 1,
    "label": "Company",
    "options": "Company",
+   "read_only": 1,
    "description": "Legacy field — conversations are company-agnostic. Tenant scoping is on Cheese Message.company."
   },
   {
