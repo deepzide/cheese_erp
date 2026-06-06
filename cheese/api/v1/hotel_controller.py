@@ -9,6 +9,11 @@ from cheese.api.v1.user_controller import _get_current_user_company
 from cheese.cheese.utils.access import assert_experience_access, assert_slot_access
 
 
+def _get_hotel_description(hotel_id):
+    """Return the establishment description used for hotel/room API payloads."""
+    return frappe.db.get_value("Company", hotel_id, "company_description") or ""
+
+
 @frappe.whitelist()
 def list_hotels(page=1, page_size=20, search=None):
     """
@@ -111,6 +116,10 @@ def get_hotel_experiences(hotel_id, page=1, page_size=20):
         )
 
         total = frappe.db.count("Cheese Experience", filters=filters)
+
+        hotel_description = _get_hotel_description(hotel_id)
+        for experience in experiences:
+            experience["description"] = hotel_description
 
         return paginated_response(
             experiences,
@@ -562,15 +571,18 @@ def bot_get_hotel_catalog():
         hotels = frappe.get_all(
             "Company",
             filters={"cheese_is_hotel": 1},
-            fields=["name", "company_name", "cheese_operating_hours"],
+            fields=["name", "company_name", "company_description", "cheese_operating_hours"],
             order_by="company_name asc",
         )
         for hotel in hotels:
+            hotel_description = hotel.get("company_description") or ""
             rooms = frappe.get_all(
                 "Cheese Experience",
                 filters={"company": hotel.name, "experience_type": "HOTEL", "status": "ONLINE"},
                 fields=["name", "description", "price_per_night", "max_occupancy_per_unit", "min_nights_stay"]
             )
+            for room in rooms:
+                room["description"] = hotel_description
             hotel["rooms"] = rooms
             
         return success("Hotel catalog retrieved", {"hotels": hotels})
