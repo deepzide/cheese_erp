@@ -7,6 +7,7 @@ from frappe.utils import getdate, add_days, now_datetime, cint, flt
 from cheese.api.common.responses import success, created, error, not_found, validation_error, paginated_response
 from cheese.api.v1.user_controller import _get_current_user_company
 from cheese.cheese.utils.access import assert_experience_access, assert_slot_access
+from cheese.cheese.utils.documents import get_published_documents_grouped
 
 
 def _get_hotel_description(hotel_id):
@@ -576,6 +577,11 @@ def bot_get_hotel_catalog():
         )
         for hotel in hotels:
             hotel_description = hotel.get("company_description") or ""
+            company_media = get_published_documents_grouped([("Company", hotel.name)])
+            hotel["documents"] = company_media["documents"]
+            hotel["photos"] = company_media["photos"]
+            hotel["links"] = company_media["links"]
+            hotel["pdfs"] = company_media["pdfs"]
             rooms = frappe.get_all(
                 "Cheese Experience",
                 filters={"company": hotel.name, "experience_type": "HOTEL", "status": "ONLINE"},

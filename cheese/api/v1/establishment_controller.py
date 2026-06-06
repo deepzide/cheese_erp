@@ -204,7 +204,8 @@ def list_establishments(page=1, page_size=20, search=None, status=None, locality
 
 			archived = bool(getattr(company, "cheese_archived", 0)) if _company_has_cheese_archived() else False
 
-			# Fetch published links for this establishment
+			# Fetch published company documents for this establishment
+			grouped = {"documents": [], "photos": [], "links": [], "pdfs": []}
 			try:
 				grouped = get_published_documents_grouped([("Company", company.name)])
 				links_data = [
@@ -234,6 +235,9 @@ def list_establishments(page=1, page_size=20, search=None, status=None, locality
 				"online_experiences_count": online_experiences,
 				"bank_account": bank_map.get(company.name, []),
 				"links": links_data,
+				"documents": grouped["documents"],
+				"photos": grouped["photos"],
+				"pdfs": grouped["pdfs"],
 			}
 
 			# Add new establishment fields if they exist
@@ -336,12 +340,14 @@ def get_establishment_details(company_id):
 		photos = []
 		links = []
 		pdfs = []
+		company_grouped = {"documents": [], "photos": [], "links": [], "pdfs": []}
 		try:
 			experience_ids = frappe.get_all(
 				"Cheese Experience",
 				filters={"company": company_id},
 				pluck="name",
 			)
+			company_grouped = get_published_documents_grouped([("Company", company_id)])
 			entity_specs = [("Company", company_id)]
 			entity_specs.extend(("Cheese Experience", exp_id) for exp_id in experience_ids)
 			grouped = get_published_documents_grouped(entity_specs)
@@ -373,6 +379,10 @@ def get_establishment_details(company_id):
 				"photos": photos,
 				"links": links,
 				"pdfs": pdfs,
+				"company_documents": company_grouped["documents"],
+				"company_photos": company_grouped["photos"],
+				"company_links": company_grouped["links"],
+				"company_pdfs": company_grouped["pdfs"],
 				"bank_account": bank_account,
 			}
 
