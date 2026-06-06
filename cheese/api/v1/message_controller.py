@@ -8,15 +8,42 @@ from cheese.api.common.responses import success, created, error, not_found, vali
 import json
 
 
+def _resolve_company_id(company_id):
+	"""Resolve Company.name from a doc name or company_name label."""
+	if not company_id:
+		return None
+	if frappe.db.exists("Company", company_id):
+		return company_id
+	by_name = frappe.db.get_value("Company", {"company_name": company_id}, "name")
+	return by_name
+
+
+def _ensure_message_company_field():
+	"""Fail fast when the DB schema is behind the app (bench migrate required)."""
+	if not frappe.db.has_column("Cheese Message", "company"):
+		frappe.throw(
+			_(
+				"Cheese Message.company is missing in the database. "
+				"Run `bench migrate` on the site, then upload the transcript again."
+			),
+			frappe.ValidationError,
+		)
+
+
 @frappe.whitelist()
-def upload_message_transcript(phone_number, messages, conversation_id=None):
+def upload_message_transcript(phone_number, messages, company_id, conversation_id=None):
 	"""
 	Upload message transcript - stores individual messages from a conversation
+	
+	Each message is scoped to ``company_id``. Multiple establishments can share
+	the same ``conversation_id`` but each only sees the messages uploaded under
+	their own company.
 	
 	Args:
 		phone_number: Phone number of the user
 		messages: Array of message objects with role and content
 			Example: [{"role": "user", "content": "hello"}, {"role": "assistant", "content": "Nice to meet you"}]
+		company_id: Company (establishment) that owns this transcript slice
 		conversation_id: Optional conversation ID to link messages to
 		
 	Returns:
@@ -25,8 +52,16 @@ def upload_message_transcript(phone_number, messages, conversation_id=None):
 	try:
 		if not phone_number:
 			return validation_error("phone_number is required")
+		if not company_id:
+			return validation_error("company_id is required")
 		if not messages:
 			return validation_error("messages array is required")
+
+		_ensure_message_company_field()
+
+		resolved_company = _resolve_company_id(company_id)
+		if not resolved_company:
+			return not_found("Company", company_id)
 		
 		# Parse messages if string
 		if isinstance(messages, str):
@@ -86,6 +121,7 @@ def upload_message_transcript(phone_number, messages, conversation_id=None):
 			message_doc = frappe.get_doc({
 				"doctype": "Cheese Message",
 				"contact": contact_id,
+				"company": resolved_company,
 				"phone_number": phone_number,
 				"role": msg["role"],
 				"content": msg["content"],
@@ -94,14 +130,32 @@ def upload_message_transcript(phone_number, messages, conversation_id=None):
 				"conversation": conversation_id
 			})
 			message_doc.insert()
+			saved_company = frappe.db.get_value("Cheese Message", message_doc.name, "company")
+			if saved_company != resolved_company:
+				frappe.throw(
+					_(
+						"Message company was not persisted. Run `bench migrate` on the site "
+						"and upload the transcript again."
+					),
+					frappe.ValidationError,
+				)
 			message_ids.append(message_doc.name)
 		
+		if conversation_id:
+			frappe.db.set_value(
+				"Conversation",
+				conversation_id,
+				{"modified": now_datetime()},
+				update_modified=False,
+			)
+
 		frappe.db.commit()
 		
 		return created(
 			"Message transcript uploaded successfully",
 			{
 				"contact_id": contact_id,
+				"company_id": resolved_company,
 				"conversation_id": conversation_id,
 				"message_count": len(message_ids),
 				"message_ids": message_ids

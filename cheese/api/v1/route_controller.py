@@ -24,6 +24,7 @@ from cheese.cheese.utils.access import (
 	assert_record_access,
 	assert_experience_access,
 )
+from cheese.cheese.utils.documents import get_published_documents_grouped
 
 
 def _duration_to_seconds(duration_value):
@@ -172,14 +173,6 @@ def create_route(
 				assert_experience_access(exp.get("experience"))
 			except frappe.PermissionError:
 				return error("Unauthorized", "UNAUTHORIZED", {}, 403)
-
-			# Check if experience is eligible for routes
-			exp_doc = frappe.get_doc("Cheese Experience", exp.get("experience"))
-			if exp_doc.package_mode not in ["Route", "Both"]:
-				return validation_error(
-					f"Experience {exp.get('experience')} is not eligible for routes. "
-					f"Package mode: {exp_doc.package_mode}"
-				)
 
 		# Create route
 		route = frappe.get_doc(
@@ -423,6 +416,20 @@ def get_route_details(route_id):
 				}
 			)
 
+		entity_specs = [("Cheese Route", route.name)]
+		for exp_row in route.experiences:
+			entity_specs.append(("Cheese Experience", exp_row.experience))
+		media = get_published_documents_grouped(entity_specs)
+		links_data = [
+			{
+				"title": link["title"],
+				"url": link["url"],
+				"tags": link["tags"],
+				"language": link["language"],
+			}
+			for link in media["links"]
+		]
+
 		return success(
 			"Route details retrieved successfully",
 			{
@@ -439,6 +446,10 @@ def get_route_details(route_id):
 				"deposit_ttl_hours": route.deposit_ttl_hours,
 				"experiences": experiences,
 				"experiences_count": len(experiences),
+				"links": links_data,
+				"documents": media["documents"],
+				"photos": media["photos"],
+				"pdfs": media["pdfs"],
 			},
 		)
 	except Exception as e:

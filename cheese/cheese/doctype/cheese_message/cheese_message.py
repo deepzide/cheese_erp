@@ -14,6 +14,7 @@ class CheeseMessage(Document):
 	if TYPE_CHECKING:
 		from frappe.types import DF
 
+		company: DF.Link | None
 		contact: DF.Link
 		content: DF.TextEditor
 		conversation: DF.Link | None

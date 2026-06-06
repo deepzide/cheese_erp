@@ -9,33 +9,20 @@ from cheese.cheese.utils.access import assert_record_access
 import json
 
 
-def _resolve_conversation_company(contact_id, explicit_company=None):
-	"""Resolve target company for conversation scope."""
-	if explicit_company:
-		return explicit_company
-	if not contact_id:
-		return None
-	return frappe.db.get_value(
-		"Cheese Contact Company",
-		{"parent": contact_id, "parenttype": "Cheese Contact"},
-		"company",
-		order_by="idx asc",
-	)
-
-
 @frappe.whitelist()
-def open_or_resume_conversation(contact_id, channel, status="ACTIVE", company=None):
+def open_or_resume_conversation(contact_id, channel, status="ACTIVE"):
 	"""
 	Open or resume a persistent conversation, returns conversation_id
 	Creates or resumes conversation (one active per channel+contact within time window)
+	
+	Conversations are intentionally company-agnostic. Tenant scoping happens on
+	individual messages when the bot uploads a transcript with ``company_id``
+	(see ``upload_message_transcript``).
 	
 	Args:
 		contact_id: Contact ID
 		channel: Channel (WhatsApp/Web/Agent)
 		status: Status (ACTIVE/PAUSED/CLOSED)
-		company: Optional Company name to scope the conversation to a specific
-			establishment. When omitted, the company is auto-resolved from the
-			contact's primary linked company (see Cheese Contact.companies).
 		
 	Returns:
 		Success response with conversation_id
@@ -52,14 +39,11 @@ def open_or_resume_conversation(contact_id, channel, status="ACTIVE", company=No
 		if not frappe.db.exists("Cheese Contact", contact_id):
 			return not_found("Contact", contact_id)
 		
-		resolved_company = _resolve_conversation_company(contact_id, company)
 		existing_filters = {
 			"contact": contact_id,
 			"channel": channel,
 			"status": "ACTIVE",
 		}
-		if resolved_company:
-			existing_filters["company"] = resolved_company
 
 		existing = frappe.db.get_value(
 			"Conversation",
@@ -82,19 +66,12 @@ def open_or_resume_conversation(contact_id, channel, status="ACTIVE", company=No
 				}
 			)
 		
-		# Create new conversation; company is set explicitly so that bot/webhook
-		# callers can lock a transcript to a specific establishment up-front.
-		# When `company` is omitted, the validate-hook resolves it from the
-		# contact / linked ticket / linked lead (see set_conversation_company).
-		conversation_payload = {
+		conversation = frappe.get_doc({
 			"doctype": "Conversation",
 			"contact": contact_id,
 			"channel": channel,
 			"status": status,
-		}
-		if resolved_company:
-			conversation_payload["company"] = resolved_company
-		conversation = frappe.get_doc(conversation_payload)
+		})
 		try:
 			conversation.insert()
 			frappe.db.commit()
@@ -140,7 +117,7 @@ def open_or_resume_conversation(contact_id, channel, status="ACTIVE", company=No
 
 
 @frappe.whitelist()
-def create_conversation(contact_id, channel, status="ACTIVE", company=None):
+def create_conversation(contact_id, channel, status="ACTIVE"):
 	"""
 	Create or reuse conversation (one active per channel+contact within time window)
 	Legacy endpoint - use open_or_resume_conversation instead
@@ -149,12 +126,11 @@ def create_conversation(contact_id, channel, status="ACTIVE", company=None):
 		contact_id: Contact ID
 		channel: Channel (WhatsApp/Web/Agent)
 		status: Status (ACTIVE/PAUSED/CLOSED)
-		company: Optional Company name (forwarded to open_or_resume_conversation).
 		
 	Returns:
 		Success response with conversation data
 	"""
-	return open_or_resume_conversation(contact_id, channel, status, company=company)
+	return open_or_resume_conversation(contact_id, channel, status)
 	try:
 		if not contact_id:
 			return validation_error("contact_id is required")
@@ -403,9 +379,8 @@ def list_conversations(page=1, page_size=20, contact_id=None, channel=None, stat
 		# Note: company-based scoping is enforced automatically by the
 		# `permission_query_conditions` hook registered for Conversation in
 		# hooks.py (see cheese.cheese.utils.permissions.conversation_query).
-		# We intentionally do NOT layer a manual `company` filter here so the
-		# query stays correct for the super admin who is allowed to see every
-		# establishment's data.
+		# A tenant sees conversations that contain messages tagged with their
+		# company; message rows are filtered the same way.
 
 		conversations = frappe.get_list(
 			"Conversation",

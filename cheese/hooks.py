@@ -195,7 +195,6 @@ doc_events = {
 		],
 	},
 	"Conversation": {
-		"validate": "cheese.cheese.utils.events.set_conversation_company",
 		"on_update": "cheese.cheese.utils.lead_automation.on_conversation_update",
 		"after_insert": "cheese.cheese.utils.lead_automation.on_conversation_update",
 	},

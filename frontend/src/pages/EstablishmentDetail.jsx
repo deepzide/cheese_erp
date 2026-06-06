@@ -10,6 +10,9 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
+import DocumentGallery from "@/components/DocumentGallery";
+import InlineDocumentUploadDialog from "@/components/InlineDocumentUploadDialog";
+import { useFrappeList } from "@/lib/useApiData";
 import {
     Building2,
     ArrowLeft,
@@ -22,6 +25,7 @@ import {
     AlertCircle,
     MapPin,
     ExternalLink,
+    FileText,
 } from "lucide-react";
 import { toast } from "sonner";
 import { establishmentService } from "@/api/establishmentService";
@@ -43,6 +47,23 @@ export default function EstablishmentDetail() {
     const [editMode, setEditMode] = useState(false);
     const [form, setForm] = useState({});
     const [deleteOpen, setDeleteOpen] = useState(false);
+    const [uploadOpen, setUploadOpen] = useState(false);
+
+    const { data: companyDocuments = [], isLoading: companyDocumentsLoading } = useFrappeList("Cheese Document", {
+        enabled: !!companyId,
+        filters: {
+            entity_type: "Company",
+            entity_id: companyId,
+        },
+        fields: ["name", "title", "document_type", "file_url", "status", "language", "version", "validity_date", "creation", "entity_type"],
+        pageSize: 20,
+        orderBy: "creation desc",
+    });
+
+    const handleDocumentUploaded = () => {
+        queryClient.invalidateQueries({ queryKey: ["frappe-list", "Cheese Document"] });
+        queryClient.invalidateQueries({ queryKey: ["establishment", companyId] });
+    };
 
     const { data: payload, isLoading, error, refetch } = useQuery({
         queryKey: ["establishment", companyId],
@@ -323,6 +344,21 @@ export default function EstablishmentDetail() {
                         </CardContent>
                     </Card>
 
+                    <Card className="border-border/60 shadow-sm">
+                        <CardHeader className="border-b bg-muted/20 pb-4">
+                            <CardTitle className="text-sm font-semibold text-muted-foreground uppercase flex items-center">
+                                <FileText className="w-4 h-4 mr-2" /> {t("common.attachedDocuments", "Attached Documents")}
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent className="p-0">
+                            <DocumentGallery
+                                documents={companyDocuments}
+                                isLoading={companyDocumentsLoading}
+                                onAddClick={() => setUploadOpen(true)}
+                            />
+                        </CardContent>
+                    </Card>
+
                     <Card>
                         <CardHeader className="flex flex-row items-center justify-between">
                             <CardTitle className="text-base flex items-center gap-2">
@@ -424,6 +460,13 @@ export default function EstablishmentDetail() {
                     </div>
                 </>
             )}
+            <InlineDocumentUploadDialog
+                open={uploadOpen}
+                onClose={() => setUploadOpen(false)}
+                entityType="Company"
+                entityId={companyId}
+                onUploaded={handleDocumentUploaded}
+            />
         </motion.div>
     );
 }

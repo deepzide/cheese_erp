@@ -286,7 +286,7 @@
                                 "cheese.api.v1.conversation_controller.open_or_resume_conversation"
                             ]
                         },
-                        "description": "ERP: Creates or resumes a persistent conversation, returns conversation_id."
+                        "description": "ERP: Creates or resumes a persistent conversation, returns conversation_id.\n\nConversations are company-agnostic. Pass `company_id` when uploading messages via `upload_message_transcript` so each establishment only sees its own transcript slice."
                     },
                     "response": []
                 },
@@ -339,7 +339,7 @@
                         ],
                         "body": {
                             "mode": "raw",
-                            "raw": "{\n  \"phone_number\": \"+1234567890\",\n  \"messages\": [\n    {\"role\": \"user\", \"content\": \"hello\"},\n    {\"role\": \"assistant\", \"content\": \"Nice to meet you\"}\n  ],\n  \"conversation_id\": \"CONV-001\"\n}"
+                            "raw": "{\n  \"phone_number\": \"+1234567890\",\n  \"company_id\": \"Your Company Name\",\n  \"messages\": [\n    {\"role\": \"user\", \"content\": \"hello\"},\n    {\"role\": \"assistant\", \"content\": \"Nice to meet you\"}\n  ],\n  \"conversation_id\": \"CONV-001\"\n}"
                         },
                         "url": {
                             "raw": "{{base_url}}/api/method/cheese.api.v1.message_controller.upload_message_transcript",
@@ -352,7 +352,7 @@
                                 "cheese.api.v1.message_controller.upload_message_transcript"
                             ]
                         },
-                        "description": "Upload message transcript - stores individual messages from a conversation.\n\n**Parameters:**\n- `phone_number`: Phone number of the user (required)\n- `messages`: Array of message objects with `role` (user/assistant) and `content` (required)\n- `conversation_id`: Optional conversation ID to link messages to\n\n**Example response:**\n```json\n{\n  \"success\": true,\n  \"message\": \"Message transcript uploaded successfully\",\n  \"data\": {\n    \"contact_id\": \"CONTACT-001\",\n    \"conversation_id\": \"CONV-001\",\n    \"message_count\": 2,\n    \"message_ids\": [\"MSG-001\", \"MSG-002\"]\n  }\n}\n```"
+                        "description": "Upload message transcript - stores individual messages from a conversation.\n\n**Parameters:**\n- `phone_number`: Phone number of the user (required)\n- `company_id`: Establishment that owns this transcript slice (required). Multiple companies can share the same `conversation_id` but each only sees messages uploaded under their own company.\n- `messages`: Array of message objects with `role` (user/assistant) and `content` (required)\n- `conversation_id`: Optional conversation ID to link messages to\n\n**Example response:**\n```json\n{\n  \"success\": true,\n  \"message\": \"Message transcript uploaded successfully\",\n  \"data\": {\n    \"contact_id\": \"CONTACT-001\",\n    \"company_id\": \"Your Company Name\",\n    \"conversation_id\": \"CONV-001\",\n    \"message_count\": 2,\n    \"message_ids\": [\"MSG-001\", \"MSG-002\"]\n  }\n}\n```"
                     },
                     "response": []
                 }
