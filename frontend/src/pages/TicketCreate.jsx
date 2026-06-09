@@ -10,6 +10,7 @@ import { toast } from "sonner";
 import { useFrappeCreate, useFrappeDoc, extractData } from "@/lib/useApiData";
 import CreatePageLayout from "@/components/CreatePageLayout";
 import FrappeSearchSelect from "@/components/FrappeSearchSelect";
+import CompanySelect from "@/components/CompanySelect";
 import { routeService } from "@/api/routeService";
 
 export default function TicketCreate() {
@@ -142,9 +143,7 @@ export default function TicketCreate() {
                     </div>
                     <div className="space-y-2">
                         <Label>{t("common.company", "Company")}</Label>
-                        <FrappeSearchSelect
-                            doctype="Company"
-                            label="name"
+                        <CompanySelect
                             value={form.company}
                             onChange={(v) => setForm(f => ({ ...f, company: v }))}
                             placeholder={t("tickets.selectCompany", "Select company...")}

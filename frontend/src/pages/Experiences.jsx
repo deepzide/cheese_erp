@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { useAutoFillCompany, useHotelAccess } from "@/lib/useHotelAccess";
 import { motion } from "framer-motion";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
@@ -28,8 +29,11 @@ export default function Experiences() {
     const { t } = useTranslation();
     const queryClient = useQueryClient();
     const [searchTerm, setSearchTerm] = useState("");
+    const { companyLocked } = useHotelAccess();
     const [companyFilter, setCompanyFilter] = useState("all");
     const [selectedExperience, setSelectedExperience] = useState(null);
+
+    useAutoFillCompany(companyFilter === "all" ? "" : companyFilter, (v) => setCompanyFilter(v));
 
     const { data: expRaw, isLoading, error, refetch } = useQuery({
         queryKey: ['experiences'],
@@ -127,6 +131,7 @@ export default function Experiences() {
                     <Select
                         value={companyFilter}
                         onValueChange={setCompanyFilter}
+                        disabled={companyLocked}
                     >
                         <SelectTrigger className="w-40 h-9 text-xs">
                             <SelectValue placeholder={t("experiences.allCompanies", "All Companies")} />

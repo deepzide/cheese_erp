@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from "react";
+import { useAutoFillCompany } from "@/lib/useHotelAccess";
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
@@ -26,10 +27,15 @@ const STATUS_CONFIG = {
 export default function Bookings() {
     const navigate = useNavigate();
     const { t } = useTranslation();
-    const { isAdmin, userCompanies } = useHotelAccess();
+    const { isAdmin, userCompanies, companyLocked } = useHotelAccess();
     const [searchTerm, setSearchTerm] = useState("");
     const [filterStatus, setFilterStatus] = useState("all");
     const [filterEstablishment, setFilterEstablishment] = useState("all");
+
+    useAutoFillCompany(
+        filterEstablishment === "all" ? "" : filterEstablishment,
+        (v) => setFilterEstablishment(v)
+    );
 
     // Fetch Establishments (Companies)
     const { data: companies = [] } = useFrappeList("Company", {
@@ -149,7 +155,7 @@ export default function Bookings() {
                         <Input placeholder={t("bookings.search", "Search bookings...")} value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-9 w-48 h-9" />
                     </div>
 
-                    <Select value={filterEstablishment} onValueChange={setFilterEstablishment}>
+                    <Select value={filterEstablishment} onValueChange={setFilterEstablishment} disabled={companyLocked}>
                         <SelectTrigger className="w-48 h-9">
                             <Building2 className="w-3 h-3 mr-1 text-muted-foreground" />
                             <SelectValue placeholder={t("bookings.allEstablishments", "All Establishments")} />

@@ -13,6 +13,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { toast } from "sonner";
 import { depositService } from "@/api/depositService";
 import FrappeSearchSelect from "@/components/FrappeSearchSelect";
+import CompanySelect from "@/components/CompanySelect";
 import { useTranslation } from "react-i18next";
 
 /** Matches Cheese Deposit status Select options */
@@ -105,9 +106,7 @@ export default function Deposits() {
                         />
                     </div>
                     <div className="w-48">
-                        <FrappeSearchSelect
-                            doctype="Company"
-                            label="name"
+                        <CompanySelect
                             value={companyId}
                             onChange={setCompanyId}
                             placeholder={t("hotel.establishment", "Establishment") + "..."}

@@ -12,6 +12,7 @@ import { UserCheck, Search, Filter, Clock, AlertCircle, RefreshCw, Ticket, QrCod
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { apiRequest } from "@/api/client";
 import FrappeSearchSelect from "@/components/FrappeSearchSelect";
+import CompanySelect from "@/components/CompanySelect";
 import { useTranslation } from "react-i18next";
 
 const STATUS_CONFIG = {
@@ -83,7 +84,7 @@ export default function Attendance() {
                         <FrappeSearchSelect doctype="Cheese Route" label="name" value={routeId} onChange={setRouteId} placeholder={t("attendance.route", "Ruta...")} />
                     </div>
                     <div className="w-48">
-                        <FrappeSearchSelect doctype="Company" label="name" value={companyId} onChange={setCompanyId} placeholder={t("attendance.establishment", "Establecimiento...")} />
+                        <CompanySelect value={companyId} onChange={setCompanyId} placeholder={t("attendance.establishment", "Establecimiento...")} />
                     </div>
                     <Button variant="ghost" size="icon" onClick={() => refetch()} className="h-9 w-9"><RefreshCw className="w-4 h-4" /></Button>
                 </div>

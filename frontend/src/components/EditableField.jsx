@@ -2,6 +2,7 @@ import React from "react";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import FrappeSearchSelect from "@/components/FrappeSearchSelect";
+import CompanySelect from "@/components/CompanySelect";
 
 export default function EditableField({
     label,
@@ -30,13 +31,22 @@ export default function EditableField({
         <div className="space-y-1.5 animate-in fade-in zoom-in-95 duration-200">
             <Label className="text-xs text-muted-foreground">{label}</Label>
             {doctype ? (
-                <FrappeSearchSelect
-                    doctype={doctype}
-                    label={searchLabel}
-                    value={value || ""}
-                    onChange={onChange}
-                    placeholder={`Select ${label}...`}
-                />
+                doctype === "Company" ? (
+                    <CompanySelect
+                        label={searchLabel}
+                        value={value || ""}
+                        onChange={onChange}
+                        placeholder={`Select ${label}...`}
+                    />
+                ) : (
+                    <FrappeSearchSelect
+                        doctype={doctype}
+                        label={searchLabel}
+                        value={value || ""}
+                        onChange={onChange}
+                        placeholder={`Select ${label}...`}
+                    />
+                )
             ) : (
                 <Input
                     type={type}

@@ -10,6 +10,7 @@ import { toast } from "sonner";
 import { useFrappeCreate, useFrappeDoc, useFrappeList } from "@/lib/useApiData";
 import CreatePageLayout from "@/components/CreatePageLayout";
 import FrappeSearchSelect from "@/components/FrappeSearchSelect";
+import CompanySelect from "@/components/CompanySelect";
 import { experienceService } from "@/api/experienceService";
 
 export default function QuotationCreate() {
@@ -315,9 +316,7 @@ export default function QuotationCreate() {
                     </div>
                     <div className="space-y-2">
                         <Label>{t("experiences.establishment", "Establishment")}</Label>
-                        <FrappeSearchSelect
-                            doctype="Company"
-                            label="name"
+                        <CompanySelect
                             value={form.establishment}
                             onChange={(v) => setForm(f => ({ ...f, establishment: v }))}
                             placeholder={t("quotations.selectCompany", "Select company...")}

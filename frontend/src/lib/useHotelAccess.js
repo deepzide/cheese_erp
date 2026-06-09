@@ -56,12 +56,12 @@ export function useHotelAccess() {
     });
 
     const hasHotelAccess = useMemo(() => {
+        if (isAdminFallback) return true;
         if (activeCompany) {
             return Boolean(establishmentQuery?.data?.is_hotel || establishmentQuery?.data?.cheese_is_hotel);
         }
-        // No active establishment context means hotel-only routes stay hidden.
         return false;
-    }, [activeCompany, establishmentQuery?.data?.is_hotel, establishmentQuery?.data?.cheese_is_hotel]);
+    }, [isAdminFallback, activeCompany, establishmentQuery?.data?.is_hotel, establishmentQuery?.data?.cheese_is_hotel]);
 
     const establishmentName = useMemo(() => {
         if (activeCompany) {
@@ -75,6 +75,8 @@ export function useHotelAccess() {
         return "";
     }, [activeCompany, establishmentQuery?.data?.company_name, establishmentQuery?.data?.name, isAdminFallback]);
 
+    const companyLocked = !isAdminFallback && userCompanies.length === 1;
+
     return {
         hasHotelAccess,
         isLoading: userQuery.isLoading || establishmentQuery.isLoading,
@@ -82,5 +84,16 @@ export function useHotelAccess() {
         userCompanies,
         establishmentName,
         isAdmin: isAdminFallback,
+        companyLocked,
     };
+}
+
+/** Auto-fill a company field/filter for establishment users. */
+export function useAutoFillCompany(value, onChange, { enabled = true } = {}) {
+    const { activeCompany, isAdmin } = useHotelAccess();
+
+    useEffect(() => {
+        if (!enabled || isAdmin || !activeCompany || value) return;
+        onChange(activeCompany);
+    }, [enabled, isAdmin, activeCompany, value, onChange]);
 }

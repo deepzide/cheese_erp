@@ -5,7 +5,7 @@ import { Sparkles, MapPin } from "lucide-react";
 import { toast } from "sonner";
 import { useFrappeCreate } from "@/lib/useApiData";
 import CreatePageLayout from "@/components/CreatePageLayout";
-import FrappeSearchSelect from "@/components/FrappeSearchSelect";
+import CompanySelect from "@/components/CompanySelect";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
@@ -106,9 +106,7 @@ export default function ExperienceCreate() {
                     </div>
                     <div className="space-y-2">
                         <Label>{t("experiences.providerCompany", "Provider Company")} <span className="text-red-500">*</span></Label>
-                        <FrappeSearchSelect
-                            doctype="Company"
-                            label="name"
+                        <CompanySelect
                             value={form.company}
                             onChange={(v) => handleChange("company", v)}
                             placeholder={t("experiences.selectProvider", "Select provider company...")}

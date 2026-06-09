@@ -7,7 +7,7 @@ import { BedDouble } from "lucide-react";
 import { toast } from "sonner";
 import { useFrappeCreate } from "@/lib/useApiData";
 import CreatePageLayout from "@/components/CreatePageLayout";
-import FrappeSearchSelect from "@/components/FrappeSearchSelect";
+import CompanySelect from "@/components/CompanySelect";
 
 export default function HotelRoomCreate() {
     const navigate = useNavigate();
@@ -83,8 +83,7 @@ export default function HotelRoomCreate() {
                 <div className="space-y-5">
                     <div className="space-y-2">
                         <Label>{t("hotelReservations.hotel", "Hotel")} <span className="text-red-500">*</span></Label>
-                        <FrappeSearchSelect
-                            doctype="Company"
+                        <CompanySelect
                             label="company_name"
                             value={form.company}
                             onChange={(v) => handleChange("company", v)}
