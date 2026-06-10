@@ -27,6 +27,7 @@ class CheeseQuotation(Document):
 
 	def validate(self):
 		"""Validate quotation data"""
+		self.sync_company_from_establishment()
 		# Auto-calculate pricing from experiences
 		self.calculate_totals()
 		self.validate_relationships()
@@ -38,6 +39,13 @@ class CheeseQuotation(Document):
 				_("Quotation validity date cannot be in the past."),
 				frappe.ValidationError,
 			)
+
+	def sync_company_from_establishment(self):
+		"""Keep tenant-scoping `company` in sync with the visible establishment field."""
+		if self.establishment:
+			self.company = self.establishment
+		elif self.company and not self.establishment:
+			self.establishment = self.company
 
 	def validate_relationships(self):
 		"""Validate route/experience/slot/establishment relationships."""

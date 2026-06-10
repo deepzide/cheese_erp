@@ -298,7 +298,21 @@ def cheese_route_query(user):
 
 
 def cheese_quotation_query(user):
-	return _build_company_condition("Cheese Quotation", user)
+	"""Scope quotations by company (synced from establishment)."""
+	if _is_super_admin(user):
+		return ""
+
+	companies = get_user_companies(user)
+	table = "tabCheese Quotation"
+	if not companies:
+		return _none_visible(table)
+
+	quoted = _quote_list(companies)
+	if frappe.db.has_column("Cheese Quotation", "company"):
+		return f"`{table}`.`company` IN ({quoted})"
+	if frappe.db.has_column("Cheese Quotation", "establishment"):
+		return f"`{table}`.`establishment` IN ({quoted})"
+	return _none_visible(table)
 
 
 def cheese_deposit_query(user):
@@ -345,23 +359,49 @@ def cheese_lead_query(user):
 	)
 
 
+def _contact_visibility_subqueries(companies: List[str]) -> str:
+	"""SQL OR-clauses for contacts visible to the given companies."""
+	quoted = _quote_list(companies)
+	parts = [
+		(
+			f"`tabCheese Contact`.name IN ("
+			f"SELECT parent FROM `tabCheese Contact Company` "
+			f"WHERE parenttype = 'Cheese Contact' AND company IN ({quoted}))"
+		),
+		(
+			f"`tabCheese Contact`.name IN ("
+			f"SELECT DISTINCT contact FROM `tabCheese Ticket` "
+			f"WHERE COALESCE(contact, '') <> '' AND company IN ({quoted}))"
+		),
+		(
+			f"`tabCheese Contact`.name IN ("
+			f"SELECT DISTINCT contact FROM `tabCheese Lead` "
+			f"WHERE COALESCE(contact, '') <> '' AND company IN ({quoted}))"
+		),
+	]
+	if frappe.db.has_column("Cheese Message", "company"):
+		parts.append(
+			(
+				f"`tabCheese Contact`.name IN ("
+				f"SELECT DISTINCT c.contact FROM `tabConversation` c "
+				f"INNER JOIN `tabCheese Message` m ON m.conversation = c.name "
+				f"WHERE COALESCE(c.contact, '') <> '' AND m.company IN ({quoted}))"
+			)
+		)
+	return f"({' OR '.join(parts)})"
+
+
 def cheese_contact_query(user):
-    """Cheese Contact uses a child table `companies` for many-to-many visibility."""
-    if _is_super_admin(user):
-        return ""
+	"""Cheese Contact visibility via companies child table and linked activity."""
+	if _is_super_admin(user):
+		return ""
 
-    companies = get_user_companies(user)
-    table = "tabCheese Contact"
-    if not companies:
-        return _none_visible(table)
+	companies = get_user_companies(user)
+	table = "tabCheese Contact"
+	if not companies:
+		return _none_visible(table)
 
-    quoted = _quote_list(companies)
-    return (
-        f"`{table}`.name IN ("
-        f"SELECT parent FROM `tabCheese Contact Company` "
-        f"WHERE parenttype = 'Cheese Contact' AND company IN ({quoted})"
-        f")"
-    )
+	return _contact_visibility_subqueries(companies).replace("`tabCheese Contact`", f"`{table}`")
 
 
 def cheese_message_query(user):
@@ -460,7 +500,7 @@ def cheese_quotation_experience_query(user):
 
 
 def _doc_company(doc) -> Optional[str]:
-    return getattr(doc, "company", None)
+	return getattr(doc, "company", None) or getattr(doc, "establishment", None)
 
 
 def has_company_permission(doc, ptype="read", user=None):
@@ -517,17 +557,61 @@ def has_lead_permission(doc, ptype="read", user=None):
 	return bool(contact_companies & set(companies))
 
 
+def _contact_visible_to_companies(contact_id: str, companies: Iterable[str]) -> bool:
+	company_set = set(companies)
+	if not company_set:
+		return False
+
+	linked = set(
+		frappe.get_all(
+			"Cheese Contact Company",
+			filters={"parent": contact_id, "parenttype": "Cheese Contact"},
+			pluck="company",
+		)
+	)
+	if linked & company_set:
+		return True
+
+	if frappe.db.exists(
+		"Cheese Ticket",
+		{"contact": contact_id, "company": ["in", list(company_set)]},
+	):
+		return True
+
+	if frappe.db.exists(
+		"Cheese Lead",
+		{"contact": contact_id, "company": ["in", list(company_set)]},
+	):
+		return True
+
+	if frappe.db.has_column("Cheese Message", "company"):
+		conversation_ids = frappe.get_all(
+			"Conversation",
+			filters={"contact": contact_id},
+			pluck="name",
+		)
+		if conversation_ids and frappe.db.exists(
+			"Cheese Message",
+			{
+				"conversation": ["in", conversation_ids],
+				"company": ["in", list(company_set)],
+			},
+		):
+			return True
+
+	return False
+
+
 def has_contact_permission(doc, ptype="read", user=None):
-    user = user or frappe.session.user
-    if _is_super_admin(user):
-        return True
+	user = user or frappe.session.user
+	if _is_super_admin(user):
+		return True
 
-    companies = get_user_companies(user)
-    if not companies:
-        return False
+	companies = get_user_companies(user)
+	if not companies:
+		return False
 
-    contact_companies = {row.company for row in (doc.get("companies") or [])}
-    return bool(contact_companies & set(companies))
+	return _contact_visible_to_companies(doc.name, companies)
 
 
 def has_bank_account_permission(doc, ptype="read", user=None):

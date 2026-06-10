@@ -17,3 +17,4 @@ cheese.patches.v1_0.backfill_slot_company
 cheese.patches.v1_0.reload_ticket_and_slot_doctypes
 cheese.patches.v1_0.add_message_company_field
 cheese.patches.v1_0.clear_conversation_company_defaults
+cheese.patches.v1_0.add_quotation_company_field

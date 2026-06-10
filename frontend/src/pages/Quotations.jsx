@@ -77,7 +77,9 @@ export default function Quotations() {
             <div className="p-6 flex flex-col items-center justify-center min-h-[400px] text-center">
                 <AlertCircle className="w-12 h-12 text-red-400 mb-4" />
                 <h2 className="text-lg font-semibold mb-2">{t("quotations.loadFailed", "Failed to load quotations")}</h2>
-                <p className="text-sm text-muted-foreground mb-4">{error?.message}</p>
+                <p className="text-sm text-muted-foreground mb-4">
+                    {t("quotations.loadFailedDetail", "We couldn't load your quotations right now. Please try again.")}
+                </p>
                 <Button onClick={() => refetch()} variant="outline"><RefreshCw className="w-4 h-4 mr-2" /> {t("common.retry", "Retry")}</Button>
             </div>
         );
