@@ -162,6 +162,7 @@ has_permission = {
 	"Cheese Contact": "cheese.cheese.utils.permissions.has_contact_permission",
 	"Cheese Contact Company": "cheese.cheese.utils.permissions.has_contact_company_permission",
 	"Cheese Lead": "cheese.cheese.utils.permissions.has_lead_permission",
+	"Cheese Lead Company": "cheese.cheese.utils.permissions.has_lead_company_permission",
 	"Company": "cheese.cheese.utils.permissions.has_company_doc_permission",
 	"Cheese Route": "cheese.cheese.utils.permissions.has_route_permission",
 	"Cheese Quotation": "cheese.cheese.utils.permissions.has_company_permission",

@@ -162,6 +162,24 @@ def assert_record_access(doctype: str, name: str) -> None:
 		frappe.throw(frappe._("Unauthorized"), frappe.PermissionError)
 
 
+def assert_lead_access(lead_id: str) -> None:
+	"""Raise ``PermissionError`` when the current user may not access a lead.
+
+	Visibility mirrors ``permissions.has_lead_permission``: linked companies
+	child table, primary company field, and linked contact companies.
+	"""
+	if _is_super_admin(frappe.session.user):
+		return
+	user_company = _get_current_user_company()
+	if not user_company:
+		return
+
+	from cheese.cheese.utils.permissions import _lead_visible_to_companies
+
+	if not _lead_visible_to_companies(lead_id, [user_company]):
+		frappe.throw(frappe._("Unauthorized"), frappe.PermissionError)
+
+
 def assert_contact_access(contact_id: str) -> None:
 	"""Raise ``PermissionError`` when the current user may not access a contact.
 

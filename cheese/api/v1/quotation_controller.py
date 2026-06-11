@@ -34,7 +34,9 @@ def create_quotation(lead_id, conversation_id=None, route_id=None, experiences=N
 		if not frappe.db.exists("Cheese Lead", lead_id):
 			return not_found("Lead", lead_id)
 
-		assert_record_access("Cheese Lead", lead_id)
+		from cheese.cheese.utils.access import assert_lead_access
+
+		assert_lead_access(lead_id)
 
 		# Validate route or experiences
 		if route_id:

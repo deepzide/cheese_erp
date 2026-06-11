@@ -393,6 +393,39 @@
                         "description": "ERP: Creates/consolidates lead per contact; status \"not converted/converted\". Bot: Detects intent and records it."
                     },
                     "response": []
+                },
+                {
+                    "name": "Append Company To Lead",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "token {{token}}"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"lead_id\": \"LEAD-001\",\n  \"company_id\": \"Moad\",\n  \"notes\": \"Linked from ERP-BOT\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/method/cheese.api.v1.lead_controller.append_company_to_lead",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "method",
+                                "cheese.api.v1.lead_controller.append_company_to_lead"
+                            ]
+                        },
+                        "description": "ERP-BOT: Link an establishment/company to a lead. Idempotent if the company is already linked."
+                    },
+                    "response": []
                 }
             ]
         },

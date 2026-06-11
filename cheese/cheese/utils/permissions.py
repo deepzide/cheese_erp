@@ -339,8 +339,19 @@ def cheese_deposit_query(user):
 	)
 
 
+def _lead_company_visibility_clause(table: str, quoted: str) -> str:
+	"""SQL OR-clauses for leads visible via child-table company links."""
+	if not frappe.db.has_table("tabCheese Lead Company"):
+		return ""
+	return (
+		f"`{table}`.name IN ("
+		f"SELECT parent FROM `tabCheese Lead Company` "
+		f"WHERE parenttype = 'Cheese Lead' AND company IN ({quoted}))"
+	)
+
+
 def cheese_lead_query(user):
-	"""Leads are scoped by explicit company or via the linked contact's companies."""
+	"""Leads are scoped by linked companies child table, primary company, or contact."""
 	if _is_super_admin(user):
 		return ""
 
@@ -350,13 +361,18 @@ def cheese_lead_query(user):
 		return _none_visible(table)
 
 	quoted = _quote_list(companies)
-	return (
-		f"(`{table}`.`company` IN ({quoted})"
-		f" OR `{table}`.contact IN ("
-		f"SELECT parent FROM `tabCheese Contact Company` "
-		f"WHERE parenttype = 'Cheese Contact' AND company IN ({quoted})"
-		f"))"
-	)
+	child_clause = _lead_company_visibility_clause(table, quoted)
+	parts = [
+		f"`{table}`.`company` IN ({quoted})",
+		(
+			f"`{table}`.contact IN ("
+			f"SELECT parent FROM `tabCheese Contact Company` "
+			f"WHERE parenttype = 'Cheese Contact' AND company IN ({quoted}))"
+		),
+	]
+	if child_clause:
+		parts.append(child_clause)
+	return f"({' OR '.join(parts)})"
 
 
 def _contact_visibility_subqueries(companies: List[str]) -> str:
@@ -375,10 +391,19 @@ def _contact_visibility_subqueries(companies: List[str]) -> str:
 		),
 		(
 			f"`tabCheese Contact`.name IN ("
-			f"SELECT DISTINCT contact FROM `tabCheese Lead` "
-			f"WHERE COALESCE(contact, '') <> '' AND company IN ({quoted}))"
+			f"SELECT DISTINCT l.contact FROM `tabCheese Lead` l "
+			f"WHERE COALESCE(l.contact, '') <> '' AND l.company IN ({quoted}))"
 		),
 	]
+	if frappe.db.has_table("tabCheese Lead Company"):
+		parts.append(
+			(
+				f"`tabCheese Contact`.name IN ("
+				f"SELECT DISTINCT l.contact FROM `tabCheese Lead` l "
+				f"INNER JOIN `tabCheese Lead Company` lc ON lc.parent = l.name "
+				f"WHERE COALESCE(l.contact, '') <> '' AND lc.company IN ({quoted}))"
+			)
+		)
 	if frappe.db.has_column("Cheese Message", "company"):
 		parts.append(
 			(
@@ -534,6 +559,44 @@ def has_conversation_permission(doc, ptype="read", user=None):
 	)
 
 
+def _lead_companies(lead_id: Optional[str] = None, doc=None) -> set:
+	"""Companies linked on a lead via child table and primary field."""
+	companies = set()
+	if doc:
+		companies.update(
+			row.company for row in (doc.get("companies") or []) if row.company
+		)
+		if doc.get("company"):
+			companies.add(doc.company)
+	if lead_id:
+		companies.update(
+			frappe.get_all(
+				"Cheese Lead Company",
+				filters={"parent": lead_id, "parenttype": "Cheese Lead"},
+				pluck="company",
+			)
+		)
+		primary = frappe.db.get_value("Cheese Lead", lead_id, "company")
+		if primary:
+			companies.add(primary)
+	return companies
+
+
+def _lead_visible_to_companies(lead_id: str, companies: Iterable[str]) -> bool:
+	company_set = set(companies)
+	if not company_set:
+		return False
+
+	lead_companies = _lead_companies(lead_id=lead_id)
+	if lead_companies & company_set:
+		return True
+
+	contact_id = frappe.db.get_value("Cheese Lead", lead_id, "contact")
+	if contact_id:
+		return _contact_visible_to_companies(contact_id, company_set)
+	return False
+
+
 def has_lead_permission(doc, ptype="read", user=None):
 	user = user or frappe.session.user
 	if _is_super_admin(user):
@@ -543,18 +606,36 @@ def has_lead_permission(doc, ptype="read", user=None):
 	if not companies:
 		return False
 
-	if doc.get("company") and doc.company in companies:
+	lead_companies = _lead_companies(doc=doc)
+	if lead_companies & set(companies):
 		return True
 
-	contact_companies = set()
 	if doc.contact:
-		rows = frappe.get_all(
-			"Cheese Contact Company",
-			filters={"parent": doc.contact, "parenttype": "Cheese Contact"},
-			pluck="company",
-		)
-		contact_companies = set(rows)
-	return bool(contact_companies & set(companies))
+		return _contact_visible_to_companies(doc.contact, companies)
+	return False
+
+
+def has_lead_company_permission(doc, ptype="read", user=None):
+	"""Child-table permission for Cheese Lead Company rows."""
+	user = user or frappe.session.user
+	if _is_super_admin(user):
+		return True
+
+	companies = get_user_companies(user)
+	if not companies:
+		return False
+
+	parent = doc.get("parent")
+	if not parent:
+		return False
+
+	if not _lead_visible_to_companies(parent, companies):
+		return False
+
+	if ptype == "read":
+		return True
+
+	return doc.get("company") in companies
 
 
 def _contact_visible_to_companies(contact_id: str, companies: Iterable[str]) -> bool:
@@ -583,6 +664,22 @@ def _contact_visible_to_companies(contact_id: str, companies: Iterable[str]) -> 
 		{"contact": contact_id, "company": ["in", list(company_set)]},
 	):
 		return True
+
+	if frappe.db.has_table("tabCheese Lead Company"):
+		lead_ids = frappe.get_all(
+			"Cheese Lead",
+			filters={"contact": contact_id},
+			pluck="name",
+		)
+		if lead_ids and frappe.db.exists(
+			"Cheese Lead Company",
+			{
+				"parent": ["in", lead_ids],
+				"parenttype": "Cheese Lead",
+				"company": ["in", list(company_set)],
+			},
+		):
+			return True
 
 	if frappe.db.has_column("Cheese Message", "company"):
 		conversation_ids = frappe.get_all(

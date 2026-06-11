@@ -14,11 +14,19 @@ def _lead_scope_sql(user=None, table_alias="l", company=None):
 	user = user or frappe.session.user
 	if company:
 		quoted = _quote_list([company])
+		child_clause = ""
+		if frappe.db.has_table("tabCheese Lead Company"):
+			child_clause = (
+				f" OR `{table_alias}`.name IN ("
+				f"SELECT parent FROM `tabCheese Lead Company` "
+				f"WHERE parenttype = 'Cheese Lead' AND company IN ({quoted}))"
+			)
 		return (
 			f"(`{table_alias}`.company = %(lead_company)s"
 			f" OR `{table_alias}`.contact IN ("
 			f"SELECT parent FROM `tabCheese Contact Company` "
-			f"WHERE parenttype = 'Cheese Contact' AND company IN ({quoted})))",
+			f"WHERE parenttype = 'Cheese Contact' AND company IN ({quoted}))"
+			f"{child_clause})",
 			{"lead_company": company},
 		)
 	if _is_super_admin(user):
@@ -27,11 +35,19 @@ def _lead_scope_sql(user=None, table_alias="l", company=None):
 	if not companies:
 		return "1=0", {}
 	quoted = _quote_list(companies)
+	child_clause = ""
+	if frappe.db.has_table("tabCheese Lead Company"):
+		child_clause = (
+			f" OR `{table_alias}`.name IN ("
+			f"SELECT parent FROM `tabCheese Lead Company` "
+			f"WHERE parenttype = 'Cheese Lead' AND company IN ({quoted}))"
+		)
 	return (
 		f"(`{table_alias}`.company IN ({quoted})"
 		f" OR `{table_alias}`.contact IN ("
 		f"SELECT parent FROM `tabCheese Contact Company` "
-		f"WHERE parenttype = 'Cheese Contact' AND company IN ({quoted})))",
+		f"WHERE parenttype = 'Cheese Contact' AND company IN ({quoted}))"
+		f"{child_clause})",
 		{},
 	)
 

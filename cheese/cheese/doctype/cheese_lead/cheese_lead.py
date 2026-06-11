@@ -42,6 +42,13 @@ class CheeseLead(Document):
 
 		self.name = name
 
+	def load_from_db(self):
+		"""Apply tenant filtering after every DB load (API + desk)."""
+		super().load_from_db()
+		from cheese.cheese.utils.events import filter_lead_companies_for_user
+
+		filter_lead_companies_for_user(self)
+
 	def validate(self):
 		"""Enforce one active lead per contact and validate status transitions"""
 		# Check for active leads

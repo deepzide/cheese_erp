@@ -459,7 +459,9 @@ def link_conversation_entity(conversation_id, entity_type, entity_id):
 			if entity_type == "lead":
 				if not frappe.db.exists("Cheese Lead", entity_id):
 					return not_found("Lead", entity_id)
-				assert_record_access("Cheese Lead", entity_id)
+				from cheese.cheese.utils.access import assert_lead_access
+
+				assert_lead_access(entity_id)
 				conversation.lead = entity_id
 			elif entity_type == "ticket":
 				if not frappe.db.exists("Cheese Ticket", entity_id):
