@@ -614,6 +614,36 @@ def has_contact_permission(doc, ptype="read", user=None):
 	return _contact_visible_to_companies(doc.name, companies)
 
 
+def has_contact_company_permission(doc, ptype="read", user=None):
+	"""Child-table permission for Cheese Contact Company rows.
+
+	Frappe validates every child row when loading a parent Cheese Contact.
+	A contact linked to multiple establishments must remain readable when the
+	user is scoped to *any* of those companies — we must not fail the whole
+	document because other companies' child rows are present.
+	"""
+	user = user or frappe.session.user
+	if _is_super_admin(user):
+		return True
+
+	companies = get_user_companies(user)
+	if not companies:
+		return False
+
+	parent = doc.get("parent")
+	if not parent:
+		return False
+
+	if not _contact_visible_to_companies(parent, companies):
+		return False
+
+	if ptype == "read":
+		return True
+
+	# Writes limited to the tenant's own company row(s).
+	return doc.get("company") in companies
+
+
 def has_bank_account_permission(doc, ptype="read", user=None):
     user = user or frappe.session.user
     if _is_super_admin(user):

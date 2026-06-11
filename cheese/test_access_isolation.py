@@ -258,6 +258,27 @@ class TestTenantIsolationHelpers(FrappeTestCase):
 		with self.assertRaises(frappe.PermissionError):
 			assert_contact_access(self.contact_b)
 
+	def test_multi_company_contact_doc_loads_for_scoped_user(self):
+		"""Contacts linked to several companies must open for any scoped tenant."""
+		phone = "+100000000099"
+		contact_id = _ensure_contact(phone, COMPANY_A)
+		contact = frappe.get_doc("Cheese Contact", contact_id)
+		existing = {row.company for row in (contact.companies or [])}
+		if COMPANY_B not in existing:
+			contact.append(
+				"companies",
+				{"doctype": "Cheese Contact Company", "company": COMPANY_B},
+			)
+			contact.save(ignore_permissions=True)
+			frappe.db.commit()
+
+		frappe.set_user(EST_USER)
+		loaded = frappe.get_doc("Cheese Contact", contact_id)
+		self.assertEqual(loaded.name, contact_id)
+		visible_companies = {row.company for row in (loaded.companies or [])}
+		self.assertIn(COMPANY_A, visible_companies)
+		self.assertNotIn(COMPANY_B, visible_companies)
+
 	# -- list views never expose another company's rows -------------------
 
 	def test_experience_list_is_scoped(self):

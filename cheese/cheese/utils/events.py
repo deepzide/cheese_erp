@@ -274,3 +274,20 @@ def link_contact_to_ticket_company(doc, method=None):
 		{"company": doc.company, "linked_at": now_datetime()},
 	)
 	contact.save(ignore_permissions=True)
+
+
+def filter_contact_companies_for_user(doc, method=None):
+	"""Hide other establishments' company links from establishment users."""
+	from cheese.cheese.utils.permissions import _is_super_admin, get_user_companies
+
+	if _is_super_admin(frappe.session.user):
+		return
+
+	companies = set(get_user_companies(frappe.session.user))
+	if not companies:
+		doc.companies = []
+		return
+
+	doc.companies = [
+		row for row in (doc.get("companies") or []) if row.company in companies
+	]

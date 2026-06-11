@@ -104,7 +104,7 @@ export default function Conversations() {
                                 <DropdownMenu>
                                     <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8 opacity-0 group-hover:opacity-100" onClick={(e) => e.stopPropagation()}><MoreHorizontal className="w-4 h-4" /></Button></DropdownMenuTrigger>
                                     <DropdownMenuContent align="end">
-                                        {convo.contact && <DropdownMenuItem onClick={(e) => { e.stopPropagation(); navigate(`/cheese/contacts?search=${convo.contact}`); }}><User className="w-3 h-3 mr-2" /> {t("common.contact", "Contact")}</DropdownMenuItem>}
+                                        {convo.contact && <DropdownMenuItem onClick={(e) => { e.stopPropagation(); navigate(`/cheese/contacts/${encodeURIComponent(convo.contact)}`); }}><User className="w-3 h-3 mr-2" /> {t("common.contact", "Contact")}</DropdownMenuItem>}
                                         {convo.ticket && <DropdownMenuItem onClick={(e) => { e.stopPropagation(); navigate(`/cheese/tickets?search=${convo.ticket}`); }}><Ticket className="w-3 h-3 mr-2" /> {t("ticket.newTicket", "Ticket")}</DropdownMenuItem>}
                                         {convo.route_booking && <DropdownMenuItem onClick={(e) => { e.stopPropagation(); navigate(`/cheese/bookings?search=${convo.route_booking}`); }}><ShoppingCart className="w-3 h-3 mr-2" /> {t("booking.title", "Booking")}</DropdownMenuItem>}
                                         {convo.lead && <DropdownMenuItem onClick={(e) => { e.stopPropagation(); navigate(`/cheese/leads?search=${convo.lead}`); }}>{t("nav.leads", "Lead")}</DropdownMenuItem>}

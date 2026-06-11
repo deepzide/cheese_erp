@@ -160,6 +160,7 @@ has_permission = {
 	"Cheese Document": "cheese.cheese.utils.permissions.has_document_permission",
 	"Cheese Route Booking": "cheese.cheese.utils.permissions.has_route_booking_permission",
 	"Cheese Contact": "cheese.cheese.utils.permissions.has_contact_permission",
+	"Cheese Contact Company": "cheese.cheese.utils.permissions.has_contact_company_permission",
 	"Cheese Lead": "cheese.cheese.utils.permissions.has_lead_permission",
 	"Company": "cheese.cheese.utils.permissions.has_company_doc_permission",
 	"Cheese Route": "cheese.cheese.utils.permissions.has_route_permission",
