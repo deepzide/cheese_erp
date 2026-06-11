@@ -69,6 +69,7 @@
             "in_list_view": 1,
             "in_standard_filter": 1,
             "label": "Status",
+            "description": "Primary establishment status (mirrored from Linked Companies for the scoped viewer).",
             "options": "OPEN\nIN_PROGRESS\nCONVERTED\nLOST\nDISCARDED",
             "reqd": 1
         },

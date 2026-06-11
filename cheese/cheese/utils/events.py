@@ -237,19 +237,31 @@ def set_lead_company(doc, method=None):
 	contact_companies = _contact_company_list(doc.contact)
 	lead_companies = _lead_company_set(doc)
 
+	lead_status = doc.get("status") or "OPEN"
+
 	if doc.is_new() and not lead_companies and contact_companies:
 		for company in contact_companies:
 			doc.append(
 				"companies",
-				{"company": company, "linked_at": now_datetime()},
+				{
+					"company": company,
+					"status": lead_status,
+					"linked_at": now_datetime(),
+					"last_interaction_at": doc.get("last_interaction_at") or now_datetime(),
+				},
 			)
-		lead_companies = _lead_company_set(doc)
+			lead_companies = _lead_company_set(doc)
 
 	if doc.get("company") and doc.company not in lead_companies:
 		if doc.company in contact_companies or not contact_companies:
 			doc.append(
 				"companies",
-				{"company": doc.company, "linked_at": now_datetime()},
+				{
+					"company": doc.company,
+					"status": lead_status,
+					"linked_at": now_datetime(),
+					"last_interaction_at": doc.get("last_interaction_at") or now_datetime(),
+				},
 			)
 			lead_companies = _lead_company_set(doc)
 		elif contact_companies:
@@ -262,13 +274,23 @@ def set_lead_company(doc, method=None):
 			doc.company = contact_companies[0]
 			doc.append(
 				"companies",
-				{"company": doc.company, "linked_at": now_datetime()},
+				{
+					"company": doc.company,
+					"status": lead_status,
+					"linked_at": now_datetime(),
+					"last_interaction_at": doc.get("last_interaction_at") or now_datetime(),
+				},
 			)
 
 	if doc.get("company") and doc.company not in _lead_company_set(doc):
 		doc.append(
 			"companies",
-			{"company": doc.company, "linked_at": now_datetime()},
+			{
+				"company": doc.company,
+				"status": lead_status,
+				"linked_at": now_datetime(),
+				"last_interaction_at": doc.get("last_interaction_at") or now_datetime(),
+			},
 		)
 
 	# Normalize invalid primary company to the first child row.
@@ -282,6 +304,10 @@ def set_lead_company(doc, method=None):
 			(c for c in contact_companies if c in linked),
 			_lead_company_rows(doc)[0].company,
 		)
+
+	from cheese.cheese.utils.lead_company import sync_company_rows_from_parent
+
+	sync_company_rows_from_parent(doc)
 
 
 def set_booking_policy_company(doc, method=None):
@@ -351,6 +377,20 @@ def filter_lead_companies_for_user(doc, method=None):
 		doc.companies = []
 		return
 
-	doc.companies = [
+	filtered = [
 		row for row in (doc.get("companies") or []) if row.company in companies
 	]
+	doc.companies = filtered
+
+	if len(filtered) == 1:
+		from cheese.cheese.utils.lead_company import apply_company_row_to_parent
+
+		apply_company_row_to_parent(doc, filtered[0].company)
+	elif filtered:
+		from cheese.api.v1.user_controller import _get_current_user_company
+
+		user_company = _get_current_user_company()
+		if user_company and user_company in companies:
+			from cheese.cheese.utils.lead_company import apply_company_row_to_parent
+
+			apply_company_row_to_parent(doc, user_company)

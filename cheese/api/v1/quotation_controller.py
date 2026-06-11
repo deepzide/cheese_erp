@@ -313,8 +313,13 @@ def accept_quotation(quotation_id):
 		quotation.status = "ACCEPTED"
 		quotation.save()
 		
-		# Update lead status
-		lead.status = "CONVERTED"
+		from cheese.cheese.utils.lead_company import set_company_row_status
+
+		quotation_company = quotation.company or quotation.establishment or lead.company
+		if quotation_company:
+			set_company_row_status(lead, quotation_company, "CONVERTED")
+		else:
+			lead.status = "CONVERTED"
 		lead.save()
 		
 		frappe.db.commit()

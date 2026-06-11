@@ -73,16 +73,31 @@ def _lead_status_counts_in_period(start_date, end_date, company=None, user=None)
 		conditions.append(scope_sql)
 	params.update(scope_params)
 
-	rows = frappe.db.sql(
-		f"""
-		SELECT l.status AS status, COUNT(*) AS count
-		FROM `tabCheese Lead` l
-		WHERE {" AND ".join(conditions)}
-		GROUP BY l.status
-		""",
-		params,
-		as_dict=True,
-	)
+	if company and frappe.db.has_table("tabCheese Lead Company"):
+		rows = frappe.db.sql(
+			f"""
+			SELECT lc.status AS status, COUNT(*) AS count
+			FROM `tabCheese Lead` l
+			INNER JOIN `tabCheese Lead Company` lc
+				ON lc.parent = l.name AND lc.parenttype = 'Cheese Lead'
+			WHERE {" AND ".join(conditions)}
+			  AND lc.company = %(scoped_company)s
+			GROUP BY lc.status
+			""",
+			{**params, "scoped_company": company},
+			as_dict=True,
+		)
+	else:
+		rows = frappe.db.sql(
+			f"""
+			SELECT l.status AS status, COUNT(*) AS count
+			FROM `tabCheese Lead` l
+			WHERE {" AND ".join(conditions)}
+			GROUP BY l.status
+			""",
+			params,
+			as_dict=True,
+		)
 	return {r.status: cint(r.count) for r in rows}
 
 

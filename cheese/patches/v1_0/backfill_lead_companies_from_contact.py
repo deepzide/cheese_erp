@@ -50,9 +50,14 @@ def _backfill_lead_companies_from_contacts():
 			lead = frappe.get_doc("Cheese Lead", pair.lead_id)
 		except frappe.DoesNotExistError:
 			continue
+		lead_status = frappe.db.get_value("Cheese Lead", pair.lead_id, "status") or "OPEN"
 		lead.append(
 			"companies",
-			{"company": pair.company, "linked_at": now_datetime()},
+			{
+				"company": pair.company,
+				"status": lead_status,
+				"linked_at": now_datetime(),
+			},
 		)
 		lead.save(ignore_permissions=True)
 

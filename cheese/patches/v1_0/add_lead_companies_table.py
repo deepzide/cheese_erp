@@ -47,8 +47,13 @@ def _backfill_from_lead_company_field():
 			lead = frappe.get_doc("Cheese Lead", row.name)
 		except frappe.DoesNotExistError:
 			continue
+		lead_status = row.company and frappe.db.get_value("Cheese Lead", row.name, "status") or "OPEN"
 		lead.append(
 			"companies",
-			{"company": row.company, "linked_at": now_datetime()},
+			{
+				"company": row.company,
+				"status": lead_status,
+				"linked_at": now_datetime(),
+			},
 		)
 		lead.save(ignore_permissions=True)
