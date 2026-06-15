@@ -718,7 +718,9 @@
     "deleteQuotation": "Delete Quotation",
     "deleteConfirm": "Delete this quotation?",
     "deleteSuccess": "Quotation deleted",
-    "deleteError": "Failed to delete quotation"
+    "deleteError": "Failed to delete quotation",
+    "loadFailed": "Failed to load quotations",
+    "loadFailedDetail": "We couldn't load your quotations right now. Please try again."
   },
   "users": {
     "title": "Users",

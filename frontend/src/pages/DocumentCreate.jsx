@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import { useFrappeCreate } from "@/lib/useApiData";
 import CreatePageLayout from "@/components/CreatePageLayout";
 import FrappeSearchSelect from "@/components/FrappeSearchSelect";
+import CompanySelect from "@/components/CompanySelect";
 import { apiRequest } from "@/api/client";
 import { useTranslation } from "react-i18next";
 
@@ -152,13 +153,22 @@ export default function DocumentCreate() {
                     <div className="space-y-2">
                         <Label>{t("documents.relatedTo", "Related")} {form.entity_type || t("deposits.entityType", "Entity")} <span className="text-red-500">*</span></Label>
                         {entityConfig ? (
-                            <FrappeSearchSelect
-                                doctype={entityConfig.doctype}
-                                label={entityConfig.label}
-                                value={form.entity_id}
-                                onChange={(v) => setForm(f => ({ ...f, entity_id: v }))}
-                                placeholder={`Seleccionar ${form.entity_type.toLowerCase()}...`}
-                            />
+                            form.entity_type === "Company" ? (
+                                <CompanySelect
+                                    label={entityConfig.label}
+                                    value={form.entity_id}
+                                    onChange={(v) => setForm(f => ({ ...f, entity_id: v }))}
+                                    placeholder={`Seleccionar ${form.entity_type.toLowerCase()}...`}
+                                />
+                            ) : (
+                                <FrappeSearchSelect
+                                    doctype={entityConfig.doctype}
+                                    label={entityConfig.label}
+                                    value={form.entity_id}
+                                    onChange={(v) => setForm(f => ({ ...f, entity_id: v }))}
+                                    placeholder={`Seleccionar ${form.entity_type.toLowerCase()}...`}
+                                />
+                            )
                         ) : (
                             <Input placeholder={t("common.selectTypeFirst", "Seleccione un tipo primero...")} disabled />
                         )}

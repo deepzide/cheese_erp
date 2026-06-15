@@ -13,6 +13,7 @@
         "quotation_info",
         "lead",
         "establishment",
+        "company",
         "route",
         "conversation",
         "valid_until",
@@ -45,6 +46,15 @@
             "in_standard_filter": 1,
             "label": "Establishment",
             "options": "Company"
+        },
+        {
+            "fieldname": "company",
+            "fieldtype": "Link",
+            "hidden": 1,
+            "in_standard_filter": 1,
+            "label": "Company",
+            "options": "Company",
+            "read_only": 1
         },
         {
             "fieldname": "route",

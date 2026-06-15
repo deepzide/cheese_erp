@@ -208,34 +208,106 @@ def set_conversation_company(doc, method=None):
 		doc.company = company
 
 
-def set_lead_company(doc, method=None):
-	"""Align Cheese Lead.company with the linked contact companies.
+def _contact_company_list(contact_name):
+	if not contact_name:
+		return []
+	return frappe.get_all(
+		"Cheese Contact Company",
+		filters={"parent": contact_name, "parenttype": "Cheese Contact"},
+		pluck="company",
+		order_by="idx asc",
+	)
 
-	If the lead has no company, use the contact's primary company.
-	If the lead already has a company but that company is not linked to the
-	contact, normalize it to the contact's primary company to avoid cross-tenant
-	leakage caused by user default company values.
+
+def _lead_company_rows(doc):
+	return list(doc.get("companies") or [])
+
+
+def _lead_company_set(doc):
+	return {row.company for row in _lead_company_rows(doc) if row.company}
+
+
+def set_lead_company(doc, method=None):
+	"""Sync Cheese Lead companies child table and primary `company` field.
+
+	On new leads, copy contact company links when the lead has none yet.
+	Ensure the primary `company` field matches a row in the child table and
+	remains one of the linked contact's companies when possible.
 	"""
-	company = _company_from_contact(doc.contact)
-	if not company:
-		return
+	contact_companies = _contact_company_list(doc.contact)
+	lead_companies = _lead_company_set(doc)
+
+	lead_status = doc.get("status") or "OPEN"
+
+	if doc.is_new() and not lead_companies and contact_companies:
+		for company in contact_companies:
+			doc.append(
+				"companies",
+				{
+					"company": company,
+					"status": lead_status,
+					"linked_at": now_datetime(),
+					"last_interaction_at": doc.get("last_interaction_at") or now_datetime(),
+				},
+			)
+			lead_companies = _lead_company_set(doc)
+
+	if doc.get("company") and doc.company not in lead_companies:
+		if doc.company in contact_companies or not contact_companies:
+			doc.append(
+				"companies",
+				{
+					"company": doc.company,
+					"status": lead_status,
+					"linked_at": now_datetime(),
+					"last_interaction_at": doc.get("last_interaction_at") or now_datetime(),
+				},
+			)
+			lead_companies = _lead_company_set(doc)
+		elif contact_companies:
+			doc.company = contact_companies[0]
 
 	if not doc.get("company"):
-		doc.company = company
-		return
+		if lead_companies:
+			doc.company = _lead_company_rows(doc)[0].company
+		elif contact_companies:
+			doc.company = contact_companies[0]
+			doc.append(
+				"companies",
+				{
+					"company": doc.company,
+					"status": lead_status,
+					"linked_at": now_datetime(),
+					"last_interaction_at": doc.get("last_interaction_at") or now_datetime(),
+				},
+			)
 
-	if doc.company == company:
-		return
-
-	linked = set(
-		frappe.get_all(
-			"Cheese Contact Company",
-			filters={"parent": doc.contact, "parenttype": "Cheese Contact"},
-			pluck="company",
+	if doc.get("company") and doc.company not in _lead_company_set(doc):
+		doc.append(
+			"companies",
+			{
+				"company": doc.company,
+				"status": lead_status,
+				"linked_at": now_datetime(),
+				"last_interaction_at": doc.get("last_interaction_at") or now_datetime(),
+			},
 		)
-	)
-	if doc.company not in linked:
-		doc.company = company
+
+	# Normalize invalid primary company to the first child row.
+	linked = _lead_company_set(doc)
+	if linked and doc.get("company") and doc.company not in linked:
+		doc.company = _lead_company_rows(doc)[0].company
+	elif linked and doc.get("company") and doc.company in contact_companies:
+		pass
+	elif linked and contact_companies and doc.get("company") not in contact_companies:
+		doc.company = next(
+			(c for c in contact_companies if c in linked),
+			_lead_company_rows(doc)[0].company,
+		)
+
+	from cheese.cheese.utils.lead_company import sync_company_rows_from_parent
+
+	sync_company_rows_from_parent(doc)
 
 
 def set_booking_policy_company(doc, method=None):
@@ -274,3 +346,51 @@ def link_contact_to_ticket_company(doc, method=None):
 		{"company": doc.company, "linked_at": now_datetime()},
 	)
 	contact.save(ignore_permissions=True)
+
+
+def filter_contact_companies_for_user(doc, method=None):
+	"""Hide other establishments' company links from establishment users."""
+	from cheese.cheese.utils.permissions import _is_super_admin, get_user_companies
+
+	if _is_super_admin(frappe.session.user):
+		return
+
+	companies = set(get_user_companies(frappe.session.user))
+	if not companies:
+		doc.companies = []
+		return
+
+	doc.companies = [
+		row for row in (doc.get("companies") or []) if row.company in companies
+	]
+
+
+def filter_lead_companies_for_user(doc, method=None):
+	"""Hide other establishments' company links from establishment users."""
+	from cheese.cheese.utils.permissions import _is_super_admin, get_user_companies
+
+	if _is_super_admin(frappe.session.user):
+		return
+
+	companies = set(get_user_companies(frappe.session.user))
+	if not companies:
+		doc.companies = []
+		return
+
+	filtered = [
+		row for row in (doc.get("companies") or []) if row.company in companies
+	]
+	doc.companies = filtered
+
+	if len(filtered) == 1:
+		from cheese.cheese.utils.lead_company import apply_company_row_to_parent
+
+		apply_company_row_to_parent(doc, filtered[0].company)
+	elif filtered:
+		from cheese.api.v1.user_controller import _get_current_user_company
+
+		user_company = _get_current_user_company()
+		if user_company and user_company in companies:
+			from cheese.cheese.utils.lead_company import apply_company_row_to_parent
+
+			apply_company_row_to_parent(doc, user_company)

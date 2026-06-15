@@ -1270,6 +1270,7 @@
     "linkConversation": "Vincular una conversación...",
     "linkedToLead": "Vinculado al Prospecto",
     "loadFailed": "No se pudieron cargar las cotizaciones",
+    "loadFailedDetail": "No pudimos cargar sus cotizaciones en este momento. Por favor, inténtelo de nuevo.",
     "markAccepted": "Marcar Aceptada",
     "markAsAccepted": "Marcar como Aceptada",
     "newQuotationDesc": "Crear una cotización de precios para un prospecto",

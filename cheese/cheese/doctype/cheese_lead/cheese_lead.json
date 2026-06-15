@@ -12,6 +12,8 @@
         "lead_info",
         "contact",
         "company",
+        "companies_section",
+        "companies",
         "conversation",
         "status",
         "interest_type",
@@ -41,7 +43,19 @@
             "in_standard_filter": 1,
             "label": "Company",
             "options": "Company",
-            "description": "Establishment this lead belongs to. Auto-set from the contact when possible."
+            "description": "Primary establishment for this lead. Kept in sync with the first Linked Companies row."
+        },
+        {
+            "fieldname": "companies_section",
+            "fieldtype": "Section Break",
+            "label": "Linked Companies"
+        },
+        {
+            "fieldname": "companies",
+            "fieldtype": "Table",
+            "label": "Companies",
+            "options": "Cheese Lead Company",
+            "description": "Establishments this lead is associated with. Used for multi-tenant visibility."
         },
         {
             "fieldname": "conversation",
@@ -55,6 +69,7 @@
             "in_list_view": 1,
             "in_standard_filter": 1,
             "label": "Status",
+            "description": "Primary establishment status (mirrored from Linked Companies for the scoped viewer).",
             "options": "OPEN\nIN_PROGRESS\nCONVERTED\nLOST\nDISCARDED",
             "reqd": 1
         },

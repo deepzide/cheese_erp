@@ -203,13 +203,25 @@ def get_experience_detail(experience_id, include_next_availability=True):
 		# Get establishment image and details
 		establishment_google_maps_link = None
 		establishment_name = None
+		establishment_description = None
 		if experience.company:
-			company_details = frappe.db.get_value("Company", experience.company, ["company_name"], as_dict=True)
+			company_details = frappe.db.get_value(
+				"Company",
+				experience.company,
+				["company_name", "company_description"],
+				as_dict=True,
+			)
 			if company_details:
 				establishment_name = company_details.company_name
+				establishment_description = company_details.company_description
 				# Use custom google_maps_link field from Experience if available
 				if hasattr(experience, "google_maps_link") and experience.google_maps_link:
 					establishment_google_maps_link = experience.google_maps_link
+
+		description = experience.description
+		if experience.experience_type == "HOTEL" and experience.company:
+			hotel_description = establishment_description or ""
+			description = hotel_description or description
 
 		next_availability = None
 		include_next = True
@@ -279,10 +291,12 @@ def get_experience_detail(experience_id, include_next_availability=True):
 				"company": experience.company,
 				"establishment": {
 					"id": experience.company,
-					"name": establishment_name
+					"name": establishment_name,
+					"description": establishment_description,
 				},
 				"establishment_google_maps_link": establishment_google_maps_link,
-				"description": experience.description,
+				"description": description,
+				"experience_type": experience.experience_type,
 				"status": experience.status,
 				"package_mode": experience.package_mode,
 				"next_availability": next_availability,

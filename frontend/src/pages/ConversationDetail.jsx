@@ -35,6 +35,26 @@ const isSameDay = (dateA, dateB) => {
     );
 };
 
+const messageSortKey = (a, b) => {
+    const timeA = a?.timestamp ? new Date(a.timestamp).getTime() : 0;
+    const timeB = b?.timestamp ? new Date(b.timestamp).getTime() : 0;
+    if (timeA !== timeB) return timeA - timeB;
+    return (a?.message_order || 0) - (b?.message_order || 0);
+};
+
+/** Admin sees every company's transcript upload; show one bubble per logical message. */
+const dedupeConversationMessages = (messages) => {
+    const byKey = new Map();
+    for (const msg of messages) {
+        const key = `${msg.message_order}|${msg.role}|${msg.content}`;
+        const existing = byKey.get(key);
+        if (!existing || (!existing.company && msg.company)) {
+            byKey.set(key, msg);
+        }
+    }
+    return Array.from(byKey.values()).sort(messageSortKey);
+};
+
 export default function ConversationDetail() {
     const { t } = useTranslation();
     const { id } = useParams();
@@ -62,7 +82,7 @@ export default function ConversationDetail() {
             params.append("order_by", "timestamp asc, message_order asc");
             params.append("limit_page_length", MESSAGE_PAGE_SIZE);
             params.append("limit_start", String(pageParam));
-            params.append("fields", JSON.stringify(["name", "role", "content", "timestamp", "message_order"]));
+            params.append("fields", JSON.stringify(["name", "role", "content", "timestamp", "message_order", "company"]));
             params.append("filters", JSON.stringify([["Cheese Message", "conversation", "=", id]]));
             const result = await apiRequest(`/api/resource/Cheese%20Message?${params.toString()}`);
             const payload = result?.data?.message || result?.data || result;
@@ -82,12 +102,7 @@ export default function ConversationDetail() {
 
     const messages = useMemo(() => {
         const flat = (pages?.pages || []).flatMap((page) => (Array.isArray(page) ? page : []));
-        return flat.sort((a, b) => {
-            const timeA = a?.timestamp ? new Date(a.timestamp).getTime() : 0;
-            const timeB = b?.timestamp ? new Date(b.timestamp).getTime() : 0;
-            if (timeA !== timeB) return timeA - timeB;
-            return (a?.message_order || 0) - (b?.message_order || 0);
-        });
+        return dedupeConversationMessages(flat);
     }, [pages]);
 
     useEffect(() => {

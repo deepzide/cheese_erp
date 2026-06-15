@@ -17,3 +17,9 @@ cheese.patches.v1_0.backfill_slot_company
 cheese.patches.v1_0.reload_ticket_and_slot_doctypes
 cheese.patches.v1_0.add_message_company_field
 cheese.patches.v1_0.clear_conversation_company_defaults
+cheese.patches.v1_0.add_quotation_company_field
+cheese.patches.v1_0.add_lead_companies_table
+cheese.patches.v1_0.backfill_lead_companies_from_contact
+cheese.patches.v1_0.fix_pending_tickets_number_card_filter
+cheese.patches.v1_0.backfill_lead_company_status
+cheese.patches.v1_0.fix_open_leads_number_card

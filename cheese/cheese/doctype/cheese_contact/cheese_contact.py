@@ -63,6 +63,13 @@ class CheeseContact(Document):
 			# Phone is required before insert; fallback avoids empty name if autoname runs early.
 			self.name = frappe.generate_hash(length=12)
 
+	def load_from_db(self):
+		"""Apply tenant filtering after every DB load (API + desk)."""
+		super().load_from_db()
+		from cheese.cheese.utils.events import filter_contact_companies_for_user
+
+		filter_contact_companies_for_user(self)
+
 	def validate(self):
 		"""Validate contact data and enforce deduplication rules"""
 		# Ensure at least phone or email is provided

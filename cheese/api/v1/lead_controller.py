@@ -5,11 +5,42 @@ import frappe
 from frappe import _
 from frappe.utils import now_datetime, cint
 from cheese.api.common.responses import success, created, error, not_found, validation_error, paginated_response
-from cheese.cheese.utils.access import assert_record_access, assert_contact_access, scope_filters
+from cheese.cheese.utils.access import (
+	assert_lead_access,
+	assert_contact_access,
+	assert_company_value,
+	scope_filters,
+	current_scope_company,
+)
+from cheese.cheese.utils.permissions import _is_super_admin
+from cheese.cheese.utils.lead_company import (
+	enrich_lead_dict_for_company,
+	get_company_row_status,
+	set_company_row_status,
+)
+
+
+def _resolve_lead_company(company_id=None):
+	company = company_id
+	if company:
+		assert_company_value(company)
+		return company
+	if _is_super_admin(frappe.session.user):
+		return None
+	return current_scope_company()
+
+
+def _find_lead_for_contact(contact_id):
+	return frappe.db.get_value(
+		"Cheese Lead",
+		{"contact": contact_id},
+		"name",
+		order_by="modified desc",
+	)
 
 
 @frappe.whitelist()
-def upsert_lead(contact_id, conversation_id=None, interest_type=None, status=None):
+def upsert_lead(contact_id, conversation_id=None, interest_type=None, status=None, company_id=None):
 	"""
 	Create or consolidate lead per contact; status "not converted/converted"
 	Detects intent and records it. Creates/consolidates lead per contact.
@@ -18,7 +49,8 @@ def upsert_lead(contact_id, conversation_id=None, interest_type=None, status=Non
 		contact_id: Contact ID (required)
 		conversation_id: Conversation ID (optional)
 		interest_type: Interest type (Route/Experience)
-		status: Status (if not provided, defaults to OPEN for new, keeps existing for update)
+		status: Status for the scoped establishment (defaults to OPEN for new rows)
+		company_id: Establishment scope (optional; defaults to the user's company)
 		
 	Returns:
 		Success response with lead data
@@ -31,51 +63,51 @@ def upsert_lead(contact_id, conversation_id=None, interest_type=None, status=Non
 			return not_found("Contact", contact_id)
 
 		assert_contact_access(contact_id)
+		company = _resolve_lead_company(company_id)
+		lead_status = status or "OPEN"
 
-		# Check for existing lead (any status except DISCARDED)
-		existing_lead = frappe.db.get_value(
-			"Cheese Lead",
-			{
-				"contact": contact_id,
-				"status": ["!=", "DISCARDED"]
-			},
-			"name",
-			order_by="modified desc"
-		)
+		existing_lead = _find_lead_for_contact(contact_id)
 		
 		if existing_lead:
-			# Consolidate/update existing lead
 			lead = frappe.get_doc("Cheese Lead", existing_lead)
 			if conversation_id:
 				lead.conversation = conversation_id
 			if interest_type:
 				lead.interest_type = interest_type
-			if status:
+			if company:
+				set_company_row_status(lead, company, lead_status)
+			elif status:
 				lead.status = status
 			lead.last_interaction_at = now_datetime()
 			lead.save()
 			frappe.db.commit()
+
+			response_status = (
+				get_company_row_status(lead.name, company) if company else lead.status
+			)
 			
 			return success(
 				"Lead consolidated successfully",
 				{
 					"lead_id": lead.name,
 					"contact_id": contact_id,
-					"status": lead.status,
+					"company_id": company,
+					"status": response_status,
 					"is_new": False
 				}
 			)
 		
-		# Create new lead
-		lead_status = status or "OPEN"
 		lead = frappe.get_doc({
 			"doctype": "Cheese Lead",
 			"contact": contact_id,
 			"conversation": conversation_id,
 			"interest_type": interest_type,
 			"status": lead_status,
+			"company": company,
 			"last_interaction_at": now_datetime()
 		})
+		if company:
+			set_company_row_status(lead, company, lead_status)
 		lead.insert()
 		frappe.db.commit()
 		
@@ -84,7 +116,8 @@ def upsert_lead(contact_id, conversation_id=None, interest_type=None, status=Non
 			{
 				"lead_id": lead.name,
 				"contact_id": contact_id,
-				"status": lead.status,
+				"company_id": company,
+				"status": get_company_row_status(lead.name, company) if company else lead.status,
 				"is_new": True
 			}
 		)
@@ -111,82 +144,90 @@ def create_lead(contact_id, conversation_id=None, interest_type=None, status="OP
 		Success response with lead data
 	"""
 	return upsert_lead(contact_id, conversation_id, interest_type, status)
-	try:
-		if not contact_id:
-			return validation_error("contact_id is required")
-		
-		if not frappe.db.exists("Cheese Contact", contact_id):
-			return not_found("Contact", contact_id)
-		
-		# Check for existing active lead (OPEN or IN_PROGRESS)
-		existing_lead = frappe.db.get_value(
-			"Cheese Lead",
-			{
-				"contact": contact_id,
-				"status": ["in", ["OPEN", "IN_PROGRESS"]]
-			},
-			"name",
-			order_by="modified desc"
-		)
-		
-		if existing_lead:
-			# Update existing lead
-			lead = frappe.get_doc("Cheese Lead", existing_lead)
-			if conversation_id:
-				lead.conversation = conversation_id
-			if interest_type:
-				lead.interest_type = interest_type
-			lead.last_interaction_at = now_datetime()
-			lead.save()
-			frappe.db.commit()
-			
-			return success(
-				"Lead updated successfully",
-				{
-					"lead_id": lead.name,
-					"contact_id": contact_id,
-					"status": lead.status,
-					"is_new": False
-				}
-			)
-		
-		# Create new lead
-		lead = frappe.get_doc({
-			"doctype": "Cheese Lead",
-			"contact": contact_id,
-			"conversation": conversation_id,
-			"interest_type": interest_type,
-			"status": status,
-			"last_interaction_at": now_datetime()
-		})
-		lead.insert()
-		frappe.db.commit()
-		
-		return created(
-			"Lead created successfully",
-			{
-				"lead_id": lead.name,
-				"contact_id": contact_id,
-				"status": lead.status,
-				"is_new": True
-			}
-		)
-	except frappe.ValidationError as e:
-		return validation_error(str(e))
-	except Exception as e:
-		frappe.log_error(f"Error in create_lead: {str(e)}")
-		return error("Failed to create lead", "SERVER_ERROR", {"error": str(e)}, 500)
 
 
 @frappe.whitelist()
-def update_lead_status(lead_id, status, lost_reason=None):
+def append_company_to_lead(lead_id=None, company_id=None, notes=None, status="OPEN"):
 	"""
-	Update lead status
+	Append a company/establishment link to a Cheese Lead (idempotent).
+
+	Args:
+		lead_id: Cheese Lead name
+		company_id: Company name to link
+		notes: Optional note for the relation row
+		status: Initial status for this establishment (default OPEN)
+
+	Returns:
+		Success response with link status
+	"""
+	try:
+		if not lead_id:
+			return validation_error("lead_id is required")
+		if not company_id:
+			return validation_error("company_id is required")
+		if status not in ["OPEN", "IN_PROGRESS", "CONVERTED", "LOST", "DISCARDED"]:
+			return validation_error(f"Invalid status: {status}")
+
+		if not frappe.db.exists("Cheese Lead", lead_id):
+			return not_found("Lead", lead_id)
+		if not frappe.db.exists("Company", company_id):
+			return not_found("Company", company_id)
+
+		assert_lead_access(lead_id)
+		assert_company_value(company_id)
+
+		lead = frappe.get_doc("Cheese Lead", lead_id)
+		existing = {row.company for row in (lead.get("companies") or [])}
+
+		if company_id in existing:
+			return success(
+				"Company already linked to lead",
+				{
+					"lead_id": lead_id,
+					"company_id": company_id,
+					"status": get_company_row_status(lead_id, company_id),
+					"linked": False,
+				},
+			)
+
+		set_company_row_status(lead, company_id, status)
+		if notes is not None:
+			row = next((r for r in lead.companies if r.company == company_id), None)
+			if row:
+				row.notes = notes
+		if not lead.get("company"):
+			lead.company = company_id
+		lead.save(ignore_permissions=True)
+		frappe.db.commit()
+
+		return created(
+			"Company linked to lead successfully",
+			{
+				"lead_id": lead_id,
+				"company_id": company_id,
+				"status": status,
+				"linked": True,
+			},
+		)
+	except frappe.ValidationError as e:
+		return validation_error(str(e))
+	except frappe.PermissionError:
+		return error("Unauthorized", "FORBIDDEN", {}, 403)
+	except Exception as e:
+		frappe.log_error(f"Error in append_company_to_lead: {str(e)}")
+		return error("Failed to append company to lead", "SERVER_ERROR", {"error": str(e)}, 500)
+
+
+@frappe.whitelist()
+def update_lead_status(lead_id, status, lost_reason=None, company_id=None):
+	"""
+	Update lead status for a specific establishment
 	
 	Args:
 		lead_id: Lead ID
 		status: New status (OPEN/IN_PROGRESS/CONVERTED/LOST/DISCARDED)
 		lost_reason: Lost reason (required if status is LOST)
+		company_id: Establishment scope (optional; defaults to the user's company)
 		
 	Returns:
 		Success response with updated lead data
@@ -203,16 +244,17 @@ def update_lead_status(lead_id, status, lost_reason=None):
 		if not frappe.db.exists("Cheese Lead", lead_id):
 			return not_found("Lead", lead_id)
 
-		assert_record_access("Cheese Lead", lead_id)
+		assert_lead_access(lead_id)
+		company = _resolve_lead_company(company_id) or frappe.db.get_value(
+			"Cheese Lead", lead_id, "company"
+		)
+		if not company:
+			return validation_error("company_id is required for this lead")
 
 		lead = frappe.get_doc("Cheese Lead", lead_id)
-		old_status = lead.status
-		
-		lead.status = status
-		if status == "LOST" and lost_reason:
-			lead.lost_reason = lost_reason
-		lead.last_interaction_at = now_datetime()
-		
+		old_status = get_company_row_status(lead.name, company) or lead.status
+
+		set_company_row_status(lead, company, status, lost_reason=lost_reason)
 		lead.save()
 		frappe.db.commit()
 		
@@ -220,8 +262,9 @@ def update_lead_status(lead_id, status, lost_reason=None):
 			"Lead status updated successfully",
 			{
 				"lead_id": lead.name,
+				"company_id": company,
 				"old_status": old_status,
-				"new_status": lead.status,
+				"new_status": get_company_row_status(lead.name, company),
 				"lost_reason": lead.lost_reason
 			}
 		)
@@ -250,7 +293,7 @@ def get_lead_details(lead_id):
 		if not frappe.db.exists("Cheese Lead", lead_id):
 			return not_found("Lead", lead_id)
 
-		assert_record_access("Cheese Lead", lead_id)
+		assert_lead_access(lead_id)
 
 		lead = frappe.get_doc("Cheese Lead", lead_id)
 		
@@ -289,6 +332,18 @@ def get_lead_details(lead_id):
 					"summary": conversation.summary if conversation else None
 				} if conversation else None,
 				"status": lead.status,
+				"company_id": lead.company,
+				"companies": [
+					{
+						"company_id": row.company,
+						"status": row.status,
+						"lost_reason": row.lost_reason,
+						"last_interaction_at": str(row.last_interaction_at) if row.last_interaction_at else None,
+						"linked_at": str(row.linked_at) if row.linked_at else None,
+						"notes": row.notes,
+					}
+					for row in (lead.get("companies") or [])
+				],
 				"interest_type": lead.interest_type,
 				"lost_reason": lead.lost_reason,
 				"last_interaction_at": str(lead.last_interaction_at) if lead.last_interaction_at else None,
@@ -319,31 +374,75 @@ def list_leads(page=1, page_size=20, status=None, contact_id=None, interest_type
 	try:
 		page = cint(page) or 1
 		page_size = cint(page_size) or 20
-		
-		filters = scope_filters({})
-		if status:
-			filters["status"] = status
-		if contact_id:
-			filters["contact"] = contact_id
-		if interest_type:
-			filters["interest_type"] = interest_type
-		
-		leads = frappe.get_all(
-			"Cheese Lead",
-			filters=filters,
-			fields=["name", "contact", "conversation", "status", "interest_type", "lost_reason", "last_interaction_at", "modified"],
-			limit_start=(page - 1) * page_size,
-			limit_page_length=page_size,
-			order_by="modified desc"
-		)
-		
-		# Enrich with contact names
+		scoped_company = _resolve_lead_company()
+
+		if scoped_company and status and frappe.db.has_table("tabCheese Lead Company"):
+			conditions = [
+				"lc.parenttype = 'Cheese Lead'",
+				"lc.company = %(company)s",
+				"lc.status = %(status)s",
+			]
+			params = {"company": scoped_company, "status": status}
+			if contact_id:
+				conditions.append("l.contact = %(contact_id)s")
+				params["contact_id"] = contact_id
+			if interest_type:
+				conditions.append("l.interest_type = %(interest_type)s")
+				params["interest_type"] = interest_type
+			where = " AND ".join(conditions)
+			leads = frappe.db.sql(
+				f"""
+				SELECT l.name, l.contact, l.conversation, lc.status, l.interest_type,
+				       lc.lost_reason, lc.last_interaction_at, l.modified, l.company
+				FROM `tabCheese Lead Company` lc
+				INNER JOIN `tabCheese Lead` l ON l.name = lc.parent
+				WHERE {where}
+				ORDER BY l.modified DESC
+				LIMIT %(limit)s OFFSET %(offset)s
+				""",
+				{
+					**params,
+					"limit": page_size,
+					"offset": (page - 1) * page_size,
+				},
+				as_dict=True,
+			)
+			total = frappe.db.sql(
+				f"""
+				SELECT COUNT(*)
+				FROM `tabCheese Lead Company` lc
+				INNER JOIN `tabCheese Lead` l ON l.name = lc.parent
+				WHERE {where}
+				""",
+				params,
+			)[0][0]
+		else:
+			filters = scope_filters({})
+			if status and not scoped_company:
+				filters["status"] = status
+			if contact_id:
+				filters["contact"] = contact_id
+			if interest_type:
+				filters["interest_type"] = interest_type
+
+			leads = frappe.get_all(
+				"Cheese Lead",
+				filters=filters,
+				fields=[
+					"name", "contact", "conversation", "status", "company",
+					"interest_type", "lost_reason", "last_interaction_at", "modified",
+				],
+				limit_start=(page - 1) * page_size,
+				limit_page_length=page_size,
+				order_by="modified desc",
+			)
+			total = frappe.db.count("Cheese Lead", filters=filters)
+
 		for lead in leads:
 			if lead.contact:
 				contact = frappe.db.get_value("Cheese Contact", lead.contact, "full_name", as_dict=True)
 				lead["contact_name"] = contact.full_name if contact else None
-		
-		total = frappe.db.count("Cheese Lead", filters=filters)
+			enrich_lead_dict_for_company(lead, scoped_company or lead.get("company"))
 		
 		return paginated_response(
 			leads,
@@ -384,7 +483,7 @@ def convert_lead_to_reservation(lead_id, experience_id, slot_id, party_size):
 		if not frappe.db.exists("Cheese Lead", lead_id):
 			return not_found("Lead", lead_id)
 
-		assert_record_access("Cheese Lead", lead_id)
+		assert_lead_access(lead_id)
 
 		lead = frappe.get_doc("Cheese Lead", lead_id)
 		
@@ -403,9 +502,12 @@ def convert_lead_to_reservation(lead_id, experience_id, slot_id, party_size):
 		
 		ticket_id = ticket_result.get("data", {}).get("ticket_id")
 		
-		# Update lead status to CONVERTED
-		lead.status = "CONVERTED"
-		lead.last_interaction_at = now_datetime()
+		ticket_company = frappe.db.get_value("Cheese Experience", experience_id, "company")
+		if ticket_company:
+			set_company_row_status(lead, ticket_company, "CONVERTED")
+		else:
+			lead.status = "CONVERTED"
+			lead.last_interaction_at = now_datetime()
 		lead.save()
 		frappe.db.commit()
 		

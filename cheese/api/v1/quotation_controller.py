@@ -34,7 +34,9 @@ def create_quotation(lead_id, conversation_id=None, route_id=None, experiences=N
 		if not frappe.db.exists("Cheese Lead", lead_id):
 			return not_found("Lead", lead_id)
 
-		assert_record_access("Cheese Lead", lead_id)
+		from cheese.cheese.utils.access import assert_lead_access
+
+		assert_lead_access(lead_id)
 
 		# Validate route or experiences
 		if route_id:
@@ -311,8 +313,13 @@ def accept_quotation(quotation_id):
 		quotation.status = "ACCEPTED"
 		quotation.save()
 		
-		# Update lead status
-		lead.status = "CONVERTED"
+		from cheese.cheese.utils.lead_company import set_company_row_status
+
+		quotation_company = quotation.company or quotation.establishment or lead.company
+		if quotation_company:
+			set_company_row_status(lead, quotation_company, "CONVERTED")
+		else:
+			lead.status = "CONVERTED"
 		lead.save()
 		
 		frappe.db.commit()

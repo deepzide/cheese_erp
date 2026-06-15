@@ -10,6 +10,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supportService } from "@/api/supportService";
 import CreatePageLayout from "@/components/CreatePageLayout";
 import FrappeSearchSelect from "@/components/FrappeSearchSelect";
+import CompanySelect from "@/components/CompanySelect";
 
 export default function SupportCreate() {
     const navigate = useNavigate();
@@ -99,9 +100,7 @@ export default function SupportCreate() {
                     </div>
                     <div className="space-y-2">
                         <Label>{t("support.establishmentOptional", "Establishment (optional)")}</Label>
-                        <FrappeSearchSelect
-                            doctype="Company"
-                            label="name"
+                        <CompanySelect
                             value={form.company_id}
                             onChange={(v) => setForm(f => ({ ...f, company_id: v }))}
                             placeholder={t("support.filterByEstablishment", "Filter context by establishment...")}

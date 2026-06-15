@@ -465,12 +465,10 @@ class CheeseTicket(Document):
 			)
 
 			if active_lead:
-				lead = frappe.get_doc("Cheese Lead", active_lead)
-				if lead.status != "CONVERTED":
-					lead.status = "CONVERTED"
-					lead.last_interaction_at = now_datetime()
-					lead.save(ignore_permissions=True)
-					frappe.db.commit()
+				from cheese.cheese.utils.lead_company import advance_lead_company_status
+
+				advance_lead_company_status(active_lead, self.company, "CONVERTED")
+				frappe.db.commit()
 		except Exception as e:
 			# Silently fail if lead conversion fails
 			frappe.log_error(

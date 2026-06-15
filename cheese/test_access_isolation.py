@@ -17,11 +17,13 @@ from cheese.cheese.utils.access import (
 	assert_company_value,
 	assert_contact_access,
 	assert_experience_access,
+	assert_lead_access,
 	assert_record_access,
 	assert_route_access,
 	current_scope_company,
 	scope_filters,
 )
+from cheese.api.v1.lead_controller import append_company_to_lead
 from cheese.cheese.utils.permissions import NO_COMPANY_SENTINEL
 
 COMPANY_A = "Cheese ISO Company A"
@@ -119,6 +121,27 @@ def _ensure_contact(phone, company):
 			"full_name": f"Contact {phone}",
 			"phone": phone,
 			"companies": [{"doctype": "Cheese Contact Company", "company": company}],
+		}
+	)
+	doc.insert(ignore_permissions=True)
+	return doc.name
+
+
+def _ensure_lead(contact, company):
+	lead_name = frappe.db.get_value(
+		"Cheese Lead",
+		{"contact": contact, "status": ["!=", "DISCARDED"]},
+		"name",
+		order_by="modified desc",
+	)
+	if lead_name:
+		return lead_name
+	doc = frappe.get_doc(
+		{
+			"doctype": "Cheese Lead",
+			"contact": contact,
+			"company": company,
+			"status": "OPEN",
 		}
 	)
 	doc.insert(ignore_permissions=True)
@@ -257,6 +280,49 @@ class TestTenantIsolationHelpers(FrappeTestCase):
 		assert_contact_access(self.contact_a)
 		with self.assertRaises(frappe.PermissionError):
 			assert_contact_access(self.contact_b)
+
+	def test_assert_lead_access_via_linked_companies(self):
+		lead_a = _ensure_lead(self.contact_a, COMPANY_A)
+		lead_b = _ensure_lead(self.contact_b, COMPANY_B)
+		frappe.set_user(EST_USER)
+		assert_lead_access(lead_a)
+		with self.assertRaises(frappe.PermissionError):
+			assert_lead_access(lead_b)
+
+	def test_append_company_to_lead_is_idempotent(self):
+		lead_id = _ensure_lead(self.contact_a, COMPANY_A)
+		frappe.set_user(EST_USER)
+		first = append_company_to_lead(lead_id=lead_id, company_id=COMPANY_A)
+		self.assertTrue(first.get("success"))
+		self.assertFalse(first["data"]["linked"])
+		second = append_company_to_lead(
+			lead_id=lead_id,
+			company_id=COMPANY_A,
+			notes="still linked",
+		)
+		self.assertTrue(second.get("success"))
+		self.assertFalse(second["data"]["linked"])
+
+	def test_multi_company_contact_doc_loads_for_scoped_user(self):
+		"""Contacts linked to several companies must open for any scoped tenant."""
+		phone = "+100000000099"
+		contact_id = _ensure_contact(phone, COMPANY_A)
+		contact = frappe.get_doc("Cheese Contact", contact_id)
+		existing = {row.company for row in (contact.companies or [])}
+		if COMPANY_B not in existing:
+			contact.append(
+				"companies",
+				{"doctype": "Cheese Contact Company", "company": COMPANY_B},
+			)
+			contact.save(ignore_permissions=True)
+			frappe.db.commit()
+
+		frappe.set_user(EST_USER)
+		loaded = frappe.get_doc("Cheese Contact", contact_id)
+		self.assertEqual(loaded.name, contact_id)
+		visible_companies = {row.company for row in (loaded.companies or [])}
+		self.assertIn(COMPANY_A, visible_companies)
+		self.assertNotIn(COMPANY_B, visible_companies)
 
 	# -- list views never expose another company's rows -------------------
 

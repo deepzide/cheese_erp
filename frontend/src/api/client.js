@@ -95,7 +95,22 @@ const stripHtmlTags = (str) => {
     return text;
 };
 
-export const extractErrorMessage = (error) => {
+const INTERNAL_ERROR_PATTERNS = [
+    /Traceback \(most recent call last\)/i,
+    /OperationalError/i,
+    /pymysql\.err/i,
+    /frappe\.exceptions/i,
+    /File "[^"]+\.py"/,
+    /Unknown column 'tab/i,
+    /PermissionError/i,
+];
+
+const isInternalErrorMessage = (message) => {
+    if (!message || typeof message !== 'string') return false;
+    return INTERNAL_ERROR_PATTERNS.some((pattern) => pattern.test(message));
+};
+
+export const extractErrorMessage = (error, { fallback = 'An error occurred' } = {}) => {
     let errorMessage = null;
     if (error?._server_messages) {
         try {
@@ -115,8 +130,12 @@ export const extractErrorMessage = (error) => {
         if (typeof error?.error?.message === 'string') errorMessage = error.error.message;
         else if (typeof error?.exc === 'string') errorMessage = error.exc;
     }
-    if (errorMessage) return stripHtmlTags(errorMessage);
-    return 'An error occurred';
+    if (errorMessage) {
+        const cleaned = stripHtmlTags(errorMessage);
+        if (isInternalErrorMessage(cleaned)) return fallback;
+        return cleaned;
+    }
+    return fallback;
 };
 
 const doFetch = async (url, config) => {

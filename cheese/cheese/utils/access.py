@@ -86,6 +86,9 @@ def _resolve_record_company(doctype: str, name: str) -> Optional[str]:
 	if meta.has_field("company"):
 		return frappe.db.get_value(doctype, name, "company")
 
+	if meta.has_field("establishment"):
+		return frappe.db.get_value(doctype, name, "establishment")
+
 	if doctype == "Cheese Route":
 		exp = frappe.get_all(
 			"Cheese Route Experience",
@@ -159,24 +162,39 @@ def assert_record_access(doctype: str, name: str) -> None:
 		frappe.throw(frappe._("Unauthorized"), frappe.PermissionError)
 
 
-def assert_contact_access(contact_id: str) -> None:
-	"""Raise ``PermissionError`` when the current user may not access a contact.
+def assert_lead_access(lead_id: str) -> None:
+	"""Raise ``PermissionError`` when the current user may not access a lead.
 
-	Cheese Contact uses a many-to-many ``companies`` child table. A contact
-	with no company links is treated as ownerless and allowed through (legacy
-	data); otherwise at least one linked company must match the user's company.
+	Visibility mirrors ``permissions.has_lead_permission``: linked companies
+	child table, primary company field, and linked contact companies.
 	"""
 	if _is_super_admin(frappe.session.user):
 		return
 	user_company = _get_current_user_company()
 	if not user_company:
 		return
-	linked = frappe.get_all(
-		"Cheese Contact Company",
-		filters={"parent": contact_id, "parenttype": "Cheese Contact"},
-		pluck="company",
-	)
-	if linked and user_company not in linked:
+
+	from cheese.cheese.utils.permissions import _lead_visible_to_companies
+
+	if not _lead_visible_to_companies(lead_id, [user_company]):
+		frappe.throw(frappe._("Unauthorized"), frappe.PermissionError)
+
+
+def assert_contact_access(contact_id: str) -> None:
+	"""Raise ``PermissionError`` when the current user may not access a contact.
+
+	Visibility mirrors ``permissions.has_contact_permission``: explicit company
+	links plus tickets, leads, and conversation messages for the tenant.
+	"""
+	if _is_super_admin(frappe.session.user):
+		return
+	user_company = _get_current_user_company()
+	if not user_company:
+		return
+
+	from cheese.cheese.utils.permissions import _contact_visible_to_companies
+
+	if not _contact_visible_to_companies(contact_id, [user_company]):
 		frappe.throw(frappe._("Unauthorized"), frappe.PermissionError)
 
 
