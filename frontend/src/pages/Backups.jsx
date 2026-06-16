@@ -9,7 +9,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { apiRequest } from "@/api/client";
@@ -384,14 +383,26 @@ bench --site frontend restore sites/frontend/private/backups/[nombre_archivo]-da
                                             })
                                         )}
                                     </div>
-
+                                    
                                     {/* Switched options */}
                                     <div className="flex items-center justify-between p-4 bg-muted/30 border border-border rounded-lg">
                                         <div className="space-y-0.5">
                                             <label className="text-sm font-semibold">Resolver dependencias automáticamente</label>
                                             <p className="text-xs text-muted-foreground">Recomendado. Agrega tablas vinculadas necesarias para evitar errores de integridad referencial.</p>
                                         </div>
-                                        <Switch checked={resolveDeps} onCheckedChange={setResolveDeps} />
+                                        <button
+                                            type="button"
+                                            onClick={() => setResolveDeps(!resolveDeps)}
+                                            className={`${
+                                                resolveDeps ? 'bg-cheese-500' : 'bg-muted'
+                                            } relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none`}
+                                        >
+                                            <span
+                                                className={`${
+                                                    resolveDeps ? 'translate-x-5 bg-black' : 'translate-x-0 bg-background'
+                                                } pointer-events-none inline-block h-5 w-5 transform rounded-full shadow ring-0 transition duration-200 ease-in-out`}
+                                            />
+                                        </button>
                                     </div>
                                     
                                     <div className="text-xs text-red-500 font-semibold mt-2">
