@@ -51,8 +51,8 @@ export default function Backups() {
         setLoadingBackups(true);
         try {
             const res = await apiRequest("/api/method/cheese.api.v1.database_controller.get_backup_list");
-            const data = res?.data?.message?.data || res?.data?.data || [];
-            setBackups(data);
+            const data = res?.data?.message?.data?.backups || res?.data?.data?.backups || [];
+            setBackups(Array.isArray(data) ? data : []);
         } catch (err) {
             toast.error(err?.message || "Error al obtener la lista de respaldos");
         } finally {
@@ -65,10 +65,11 @@ export default function Backups() {
         try {
             const res = await apiRequest("/api/method/cheese.api.v1.database_controller.get_preservable_doctypes");
             const list = res?.data?.message?.data?.doctypes || res?.data?.data?.doctypes || [];
-            setDocTypes(list);
+            const secureList = Array.isArray(list) ? list : [];
+            setDocTypes(secureList);
             
             // Pre-select master DocTypes if present in the fetched list
-            const initialSelection = list
+            const initialSelection = secureList
                 .filter(dt => PRE_SELECTED_DOCTYPES.includes(dt.name))
                 .map(dt => dt.name);
             setSelectedDocTypes(initialSelection);
