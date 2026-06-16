@@ -24,6 +24,7 @@
     "hotelReservations": "Reservations",
     "hotelAvailability": "Availability",
     "users": "Users",
+    "backups": "Backups",
     "systemEvents": "System Events"
   },
   "sections": {
@@ -852,5 +853,22 @@
     "system": "System",
     "noEvents": "No events found",
     "loadFailed": "Failed to load events"
+  },
+  "database": {
+    "title": "Database & Backups",
+    "description": "Manage your ERP database backups or reset the environment while preserving master data.",
+    "backupsTab": "Backups",
+    "resetTab": "Reset Environment",
+    "backupsList": "Backup History",
+    "backupsListDesc": "Server backups available for emergency restores.",
+    "createBackup": "Create Backup",
+    "noBackups": "No backups found.",
+    "file": "File",
+    "type": "Type",
+    "size": "Size",
+    "date": "Date",
+    "restoreNoticeTitle": "Restore Procedure",
+    "resetTitle": "Reset Environment (Env Reset)",
+    "selectMasterData": "Select DocTypes to preserve:"
   }
 }
