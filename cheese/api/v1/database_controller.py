@@ -160,22 +160,100 @@ def reset_environment(doctypes, resolve_deps=True, dry_run=False, skip_backup=Fa
 				}
 			})
 		
-		# 2. Execute full workflow (Wipe & Restore)
-		result = orchestrator.execute(
-			plan=plan,
-			skip_backup=skip_backup
-		)
+		# 2. Execute full workflow in a detached background process to prevent WSGI connection/session drop errors
+		import subprocess
+		import sys
+		import shutil
 		
-		if result.success:
-			return success("Restablecimiento del entorno completado con éxito", {
-				"doctypes_processed": result.doctypes_processed,
-				"records_imported": result.records_imported,
-				"records_failed": result.records_failed,
-				"output_dir": result.output_dir
-			})
-		else:
-			return error(f"Fallo en el restablecimiento: {result.error_message}")
+		# Resolve site and bench root
+		site = frappe.local.site
+		if not site:
+			raise ValueError("No se pudo identificar el sitio actual (frappe.local.site es None)")
+		bench_root = os.path.abspath(os.path.join(frappe.get_site_path(), "..", ".."))
+		
+		# Find the bench executable path
+		bench_cmd = "bench"
+		candidates = [
+			"bench",
+			os.path.join(bench_root, "env", "bin", "bench"),
+			"/usr/local/bin/bench",
+			"/home/frappe/.local/bin/bench",
+			os.path.expanduser("~/.local/bin/bench")
+		]
+		if sys.platform == "win32":
+			candidates.extend([
+				os.path.join(bench_root, "env", "Scripts", "bench.exe"),
+				os.path.join(bench_root, "env", "Scripts", "bench")
+			])
+		for c in candidates:
+			if os.path.isabs(c):
+				if os.path.exists(c):
+					bench_cmd = c
+					break
+			else:
+				resolved = shutil.which(c)
+				if resolved:
+					bench_cmd = resolved
+					break
+		
+		# Build command line
+		cmd = [bench_cmd, "--site", site, "env-reset"]
+		for dt in doctypes:
+			cmd.extend(["-s", dt])
+		if not resolve_deps:
+			cmd.append("--no-deps")
+		if skip_backup:
+			cmd.append("--skip-backup")
+		
+		# Bypass the CLI click confirmation prompts using the new --yes flag
+		cmd.append("--yes")
+		
+		try:
+			sys.stderr.write(f"DEBUG: Launching background reset command: {cmd} with cwd={bench_root}\n")
+			sys.stderr.flush()
+			
+			if sys.platform == "win32":
+				# Windows detached process flags
+				DETACHED_PROCESS = 0x00000008
+				subprocess.Popen(
+					cmd,
+					cwd=bench_root,
+					creationflags=DETACHED_PROCESS,
+					close_fds=True
+				)
+			else:
+				# Unix detached process using start_new_session (safer than preexec_fn)
+				subprocess.Popen(
+					cmd,
+					cwd=bench_root,
+					start_new_session=True,
+					close_fds=True
+				)
+			
+			sys.stderr.write("DEBUG: Background reset command launched successfully.\n")
+			sys.stderr.flush()
+			return success("El restablecimiento del entorno ha sido iniciado en segundo plano. El sistema se reiniciará en unos momentos y tu sesión se cerrará automáticamente.")
+		except Exception as err:
+			import traceback
+			sys.stderr.write(f"ERROR: Exception while launching subprocess: {str(err)}\n")
+			traceback.print_exc(file=sys.stderr)
+			sys.stderr.flush()
+			try:
+				frappe.log_error(f"Failed to launch background env-reset process: {str(err)}")
+			except Exception as log_err:
+				sys.stderr.write(f"ERROR: Failed to write to Frappe DB error log: {str(log_err)}\n")
+				sys.stderr.flush()
+			return error(f"No se pudo iniciar el proceso de reseteo en segundo plano: {str(err)}")
 			
 	except Exception as e:
-		frappe.log_error(f"Error in reset_environment: {str(e)}")
+		import traceback
+		import sys
+		sys.stderr.write(f"ERROR: Exception in reset_environment: {str(e)}\n")
+		traceback.print_exc(file=sys.stderr)
+		sys.stderr.flush()
+		try:
+			frappe.log_error(f"Error in reset_environment: {str(e)}")
+		except Exception as log_err:
+			sys.stderr.write(f"ERROR: Failed to write to Frappe DB error log: {str(log_err)}\n")
+			sys.stderr.flush()
 		return error(f"Error crítico al ejecutar el reseteo: {str(e)}")
