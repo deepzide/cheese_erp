@@ -10,6 +10,7 @@ WORKDIR /home/frappe/frappe-bench
 
 RUN --mount=type=secret,id=CHEESE_ERP_URL,uid=1000 \
   : "${CACHE_BUST}" && \
+  bench get-app https://github.com/cegomezpy/frappe_helpers.git && \
   bench get-app --branch "${APP_BRANCH}" "$(cat /run/secrets/CHEESE_ERP_URL)" && \
   find apps -mindepth 1 -path "*/.git" | xargs rm -fr
 

@@ -77,7 +77,7 @@ services:
           fi
         done;
         echo "sites/common_site_config.json found";
-        bench new-site --mariadb-user-host-login-scope='%' --admin-password=admin --db-root-username=root --db-root-password=admin --install-app erpnext --install-app hrms --install-app payments --install-app cheese --set-default frontend;
+        bench new-site --mariadb-user-host-login-scope='%' --admin-password=admin --db-root-username=root --db-root-password=admin --install-app erpnext --install-app hrms --install-app payments --install-app frappe_helpers --install-app cheese --set-default frontend;
         bench --site frontend enable-scheduler;
     environment:
       TZ: UTC
