@@ -24,6 +24,7 @@
     "hotelReservations": "Reservaciones",
     "hotelAvailability": "Disponibilidad",
     "users": "Usuarios",
+    "backups": "Copias de Seguridad",
     "systemEvents": "Eventos del Sistema",
     "eventsLog": "Registro de Eventos",
     "supportCase": "Caso de Soporte",
@@ -1426,5 +1427,22 @@
     "allChannels": "Todos los Canales",
     "noConversations": "No se encontraron conversaciones",
     "loadFailed": "No se pudieron cargar las conversaciones"
+  },
+  "database": {
+    "title": "Base de Datos y Respaldos",
+    "description": "Administra las copias de seguridad de tu ERP o restablece el entorno preservando los datos maestros.",
+    "backupsTab": "Copias de Seguridad",
+    "resetTab": "Restablecer Entorno",
+    "backupsList": "Historial de Salvas",
+    "backupsListDesc": "Respaldos disponibles en el servidor para restauras de de de emergencia.",
+    "createBackup": "Crear Salva",
+    "noBackups": "No se encontraron copias de seguridad.",
+    "file": "Archivo",
+    "type": "Tipo",
+    "size": "Tamaño",
+    "date": "Fecha",
+    "restoreNoticeTitle": "Procedimiento de Restauración",
+    "resetTitle": "Restablecer Entorno (Env Reset)",
+    "selectMasterData": "Selecciona los DocTypes a preservar:"
   }
 }

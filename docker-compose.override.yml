@@ -26,15 +26,19 @@ services:
   backend:
     volumes:
       - .:/home/frappe/frappe-bench/apps/cheese
+      - ../frappe_helpers:/home/frappe/frappe-bench/apps/frappe_helpers
 
   queue-long:
     volumes:
       - .:/home/frappe/frappe-bench/apps/cheese
+      - ../frappe_helpers:/home/frappe/frappe-bench/apps/frappe_helpers
 
   queue-short:
     volumes:
       - .:/home/frappe/frappe-bench/apps/cheese
+      - ../frappe_helpers:/home/frappe/frappe-bench/apps/frappe_helpers
 
   scheduler:
     volumes:
       - .:/home/frappe/frappe-bench/apps/cheese
+      - ../frappe_helpers:/home/frappe/frappe-bench/apps/frappe_helpers

@@ -24,6 +24,12 @@ case "$cmd" in
       echo ">>> Creating site..."
       $COMPOSE run --rm create-site
     fi
+    echo ">>> Installing/Updating frappe_helpers..."
+    $COMPOSE exec -T backend pip install -e apps/frappe_helpers
+    if ! $COMPOSE exec -T backend bench --site frontend list-apps 2>/dev/null | grep -q "frappe_helpers"; then
+      echo ">>> Installing frappe_helpers app onto site frontend..."
+      $COMPOSE exec -T backend bench --site frontend install-app frappe_helpers
+    fi
     echo ">>> Running migrations..."
     $COMPOSE exec -T backend bench --site frontend migrate
     echo ">>> Clearing cache..."

@@ -7,7 +7,7 @@ import {
     Users, UserPlus, FileText, Wallet, ShoppingCart,
     Bell, Menu, LogOut, ChevronDown, ChevronRight, X,
     Zap, Settings, Sun, Moon, Globe,
-    Shield, Landmark, UserCheck, QrCode, Star, Activity, MessageSquare, Building2, ScanLine, Hotel, BedDouble
+    Shield, Landmark, UserCheck, QrCode, Star, Activity, MessageSquare, Building2, ScanLine, Hotel, BedDouble, Database
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -61,6 +61,7 @@ const navigationItems = [
     { titleKey: "nav.documents", url: createPageUrl("documents"), icon: FileText, section: "operations" },
     { titleKey: "nav.surveys", url: createPageUrl("surveys"), icon: Star, section: "operations" },
     { titleKey: "nav.users", url: createPageUrl("users"), icon: Users, section: "system" },
+    { titleKey: "nav.backups", url: createPageUrl("backups"), icon: Database, section: "system" },
     { titleKey: "nav.systemEvents", url: createPageUrl("events"), icon: Activity, section: "system" },
 ];
 
@@ -90,9 +91,10 @@ export default function Layout({ children }) {
     const visibleNavigationItems = React.useMemo(() => {
         return navigationItems.filter((item) => {
             if (item.section === "hotel") return hasHotelAccess;
+            if (item.url.endsWith("backups") || item.url.endsWith("events") || item.url.endsWith("users")) return isAdmin;
             return true;
         });
-    }, [hasHotelAccess]);
+    }, [hasHotelAccess, isAdmin]);
 
     const toggleLanguage = () => {
         const next = i18n.language === "es" ? "en" : "es";

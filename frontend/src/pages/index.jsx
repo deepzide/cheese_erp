@@ -25,6 +25,7 @@ import Documents from './Documents';
 import QRTokens from './QRTokens';
 import SurveyResponses from './SurveyResponses';
 import SystemEvents from './SystemEvents';
+import Backups from './Backups';
 import Conversations from './Conversations';
 import ConversationDetail from './ConversationDetail';
 import ContactDetail from './ContactDetail';
@@ -122,6 +123,7 @@ export default function Pages() {
                     <Route path="surveys" element={<SurveyResponses />} />
                     <Route path="scan" element={<QRScan />} />
                     <Route path="events" element={<SystemEvents />} />
+                    <Route path="backups" element={<Backups />} />
                     <Route path="conversations" element={<Conversations />} />
                     <Route path="conversations/:id" element={<ConversationDetail />} />
                     <Route path="hotels" element={<HotelRouteGuard><Hotels /></HotelRouteGuard>} />

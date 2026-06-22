@@ -16,6 +16,10 @@
     "branch": "version-15"
   },
   {
+    "url": "https://github.com/cegomezpy/frappe_helpers",
+    "branch": "main"
+  },
+  {
     "url": "https://github.com/deepzide/cheese_erp",
     "branch": "main"
   }
