@@ -200,3 +200,7 @@ export const apiRequest = async (endpoint, options = {}) => {
         throw { message: error.message || 'Network error. Please check your connection.', code: 'NETWORK_ERROR', details: {}, status: 0 };
     }
 };
+
+/** Unwrap payload from a Frappe /api/method response ({ message: { data } }). */
+export const unwrapFrappeMethodData = (result, fallback = undefined) =>
+    result?.data?.message?.data ?? result?.data?.data ?? fallback;
