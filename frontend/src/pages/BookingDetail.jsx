@@ -4,7 +4,7 @@ import { useTranslation } from "react-i18next";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useFrappeDoc, useFrappeList } from "@/lib/useApiData";
 import DetailPageLayout from "@/components/DetailPageLayout";
-import { apiRequest } from "@/api/client";
+import { apiRequest, unwrapFrappeMethodData } from "@/api/client";
 import { useHotelAccess } from "@/lib/useHotelAccess";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -50,7 +50,7 @@ export default function BookingDetail() {
                 method: "POST",
                 body: JSON.stringify({ route_booking_id: booking.name }),
             });
-            return res?.data?.data || {};
+            return unwrapFrappeMethodData(res, {});
         },
     });
 
