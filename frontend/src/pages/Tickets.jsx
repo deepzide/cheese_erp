@@ -270,13 +270,13 @@ export default function Tickets() {
                                                             navigate(`/cheese/tickets/${ticket.name}`);
                                                         }
                                                     }}>
-                                                        <CardContent className="p-3">
-                                                            <div className="flex items-center justify-between mb-2">
-                                                                <span className="text-xs font-mono text-muted-foreground">{ticket.name}</span>
+                                                        <CardContent className="p-3 overflow-hidden">
+                                                            <div className="flex items-center gap-2 mb-2 min-w-0">
+                                                                <span className="text-xs font-mono text-muted-foreground truncate min-w-0 flex-1">{ticket.name}</span>
                                                                 <DropdownMenu>
                                                                     <DropdownMenuTrigger asChild>
-                                                                        <Button variant="ghost" size="icon" className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity" onClick={(e) => e.stopPropagation()}>
-                                                                            <MoreHorizontal className="w-3 h-3" />
+                                                                        <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0 text-muted-foreground hover:text-foreground" onClick={(e) => e.stopPropagation()}>
+                                                                            <MoreHorizontal className="w-3.5 h-3.5" />
                                                                         </Button>
                                                                     </DropdownMenuTrigger>
                                                                     <DropdownMenuContent align="end">
@@ -290,15 +290,15 @@ export default function Tickets() {
                                                                     </DropdownMenuContent>
                                                                 </DropdownMenu>
                                                             </div>
-                                                            <div className="flex items-center gap-2 mb-2">
-                                                                <div className="w-7 h-7 rounded-full bg-cheese-100 dark:bg-cheese-900/30 flex items-center justify-center">
+                                                            <div className="flex items-center gap-2 mb-2 min-w-0">
+                                                                <div className="w-7 h-7 shrink-0 rounded-full bg-cheese-100 dark:bg-cheese-900/30 flex items-center justify-center">
                                                                     <User className="w-3.5 h-3.5 text-cheese-700 dark:text-cheese-400" />
                                                                 </div>
-                                                                <div className="min-w-0">
+                                                                <div className="min-w-0 flex-1">
                                                                     <p className="text-sm font-medium text-foreground truncate">{ticket.contact_name || ticket.contact || t("common.unknown", "Unknown")}</p>
                                                                 </div>
                                                             </div>
-                                                            <p className="text-xs text-muted-foreground mb-2 truncate">{ticket.experience || '—'}</p>
+                                                            <p className="text-xs text-muted-foreground mb-2 truncate min-w-0" title={ticket.experience || undefined}>{ticket.experience || '—'}</p>
                                                             <div className="flex items-center justify-between text-xs">
                                                                 <span className="flex items-center gap-1 text-muted-foreground">
                                                                     <Clock className="w-3 h-3" /> {ticket.slot_date || '—'} {ticket.slot_time ? `· ${ticket.slot_time}` : ''}
@@ -308,9 +308,10 @@ export default function Tickets() {
                                                                 </span>
                                                             </div>
                                                             {ticket.route && (
-                                                                <div className="mt-2 pt-2 border-t border-border">
-                                                                    <span className="text-[10px] text-muted-foreground flex items-center gap-1">
-                                                                        <MapPin className="w-2.5 h-2.5" /> {ticket.route}
+                                                                <div className="mt-2 pt-2 border-t border-border min-w-0">
+                                                                    <span className="text-[10px] text-muted-foreground flex items-center gap-1 min-w-0">
+                                                                        <MapPin className="w-2.5 h-2.5 shrink-0" />
+                                                                        <span className="truncate" title={ticket.route}>{ticket.route}</span>
                                                                     </span>
                                                                 </div>
                                                             )}
