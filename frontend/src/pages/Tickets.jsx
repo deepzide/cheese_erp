@@ -244,7 +244,7 @@ export default function Tickets() {
                     const columnTickets = ticketsByStatus[status] || [];
 
                     return (
-                        <div key={status} className="flex-shrink-0 w-72">
+                        <div key={status} className="flex-shrink-0 w-72 min-w-0">
                             <div className="flex items-center gap-2 mb-3 px-1">
                                 <div className={`w-2.5 h-2.5 rounded-full ${config.color}`} />
                                 <span className="text-sm font-semibold text-foreground">{t(`status.${status}`, config.label)}</span>
@@ -253,8 +253,8 @@ export default function Tickets() {
                                 </Badge>
                             </div>
 
-                            <ScrollArea className="kanban-column">
-                                <div className="space-y-2 pr-1">
+                            <ScrollArea className="kanban-column [&>[data-radix-scroll-area-viewport]>div]:!min-w-0 [&>[data-radix-scroll-area-viewport]>div]:!block">
+                                <div className="space-y-2 pr-1 w-full max-w-full min-w-0">
                                     {isLoading ? (
                                         Array.from({ length: 2 }).map((_, i) => (
                                             <Card key={i} className="border border-border"><CardContent className="p-3 space-y-2">
@@ -264,19 +264,18 @@ export default function Tickets() {
                                     ) : (
                                         <>
                                             {columnTickets.map((ticket) => (
-                                                <motion.div key={ticket.name} layout initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} whileHover={{ scale: 1.02, y: -2 }} transition={{ duration: 0.2 }}>
-                                                    <Card className="border border-border shadow-sm hover:shadow-md transition-all group cursor-pointer" onClick={(e) => {
+                                                <motion.div key={ticket.name} layout initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} whileHover={{ scale: 1.02, y: -2 }} transition={{ duration: 0.2 }} className="w-full max-w-full min-w-0">
+                                                    <Card className="border border-border shadow-sm hover:shadow-md transition-all group cursor-pointer w-full max-w-full overflow-hidden" onClick={(e) => {
                                                         if (!e.target.closest('[role="menuitem"]') && !e.target.closest('button')) {
                                                             navigate(`/cheese/tickets/${ticket.name}`);
                                                         }
                                                     }}>
-                                                        <CardContent className="p-3 overflow-hidden">
-                                                            <div className="flex items-center gap-2 mb-2 min-w-0">
-                                                                <span className="text-xs font-mono text-muted-foreground truncate min-w-0 flex-1">{ticket.name}</span>
+                                                        <CardContent className="p-3 pr-9 relative overflow-hidden min-w-0">
+                                                            <div className="absolute top-2 right-1.5 z-10">
                                                                 <DropdownMenu>
                                                                     <DropdownMenuTrigger asChild>
-                                                                        <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0 text-muted-foreground hover:text-foreground" onClick={(e) => e.stopPropagation()}>
-                                                                            <MoreHorizontal className="w-3.5 h-3.5" />
+                                                                        <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0 text-muted-foreground hover:text-foreground bg-card/80" onClick={(e) => e.stopPropagation()}>
+                                                                            <MoreHorizontal className="w-4 h-4" />
                                                                         </Button>
                                                                     </DropdownMenuTrigger>
                                                                     <DropdownMenuContent align="end">
@@ -290,20 +289,29 @@ export default function Tickets() {
                                                                     </DropdownMenuContent>
                                                                 </DropdownMenu>
                                                             </div>
-                                                            <div className="flex items-center gap-2 mb-2 min-w-0">
+                                                            <div className="mb-2 min-w-0">
+                                                                <span className="text-xs font-mono text-muted-foreground block truncate">{ticket.name}</span>
+                                                            </div>
+                                                            <div className="flex items-center gap-2 mb-1.5 min-w-0">
                                                                 <div className="w-7 h-7 shrink-0 rounded-full bg-cheese-100 dark:bg-cheese-900/30 flex items-center justify-center">
                                                                     <User className="w-3.5 h-3.5 text-cheese-700 dark:text-cheese-400" />
                                                                 </div>
-                                                                <div className="min-w-0 flex-1">
+                                                                <div className="min-w-0 flex-1 overflow-hidden">
                                                                     <p className="text-sm font-medium text-foreground truncate">{ticket.contact_name || ticket.contact || t("common.unknown", "Unknown")}</p>
                                                                 </div>
                                                             </div>
-                                                            <p className="text-xs text-muted-foreground mb-2 truncate min-w-0" title={ticket.experience || undefined}>{ticket.experience || '—'}</p>
-                                                            <div className="flex items-center justify-between text-xs">
-                                                                <span className="flex items-center gap-1 text-muted-foreground">
-                                                                    <Clock className="w-3 h-3" /> {ticket.slot_date || '—'} {ticket.slot_time ? `· ${ticket.slot_time}` : ''}
+                                                            <p
+                                                                className="text-[10px] leading-snug text-muted-foreground mb-2 line-clamp-2 break-words"
+                                                                title={ticket.experience || undefined}
+                                                            >
+                                                                {ticket.experience || '—'}
+                                                            </p>
+                                                            <div className="flex items-center justify-between gap-2 text-xs min-w-0">
+                                                                <span className="flex items-center gap-1 text-muted-foreground min-w-0 truncate">
+                                                                    <Clock className="w-3 h-3 shrink-0" />
+                                                                    <span className="truncate">{ticket.slot_date || '—'}{ticket.slot_time ? ` · ${ticket.slot_time}` : ''}</span>
                                                                 </span>
-                                                                <span className="flex items-center gap-1 text-muted-foreground">
+                                                                <span className="flex items-center gap-1 text-muted-foreground shrink-0">
                                                                     <UsersIcon className="w-3 h-3" /> {ticket.party_size || 1}
                                                                 </span>
                                                             </div>
