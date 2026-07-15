@@ -58,16 +58,27 @@ def _default_email(company: str) -> str:
     return f"bot.{_slug(company)}@{BOT_EMAIL_DOMAIN}"
 
 
+def _ensure_role_doc(role: str) -> None:
+    """Create the Role doc if it is missing so scoping roles always exist.
+
+    The tenant-isolation layer keys off the ``Cheese Establishment User`` /
+    ``Establishment User`` roles; on a fresh site these may not exist yet, and
+    silently skipping them would leave the bot user unscoped at the Desk layer.
+    """
+    if not frappe.db.exists("Role", role):
+        frappe.get_doc(
+            {"doctype": "Role", "role_name": role, "desk_access": 1}
+        ).insert(ignore_permissions=True)
+
+
 def _ensure_roles(user_doc) -> bool:
-    """Append any missing bot roles that exist as Role docs. Returns True if changed."""
+    """Ensure every bot role exists as a Role doc and is assigned. Returns True if changed."""
     existing = {r.role for r in user_doc.roles}
     changed = False
     for role in BOT_ROLES:
         if role in existing:
             continue
-        if not frappe.db.exists("Role", role):
-            # Establishment User may not exist on every site; skip silently.
-            continue
+        _ensure_role_doc(role)
         user_doc.append("roles", {"role": role})
         changed = True
     return changed

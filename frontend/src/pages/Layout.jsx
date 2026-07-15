@@ -7,7 +7,7 @@ import {
     Users, UserPlus, FileText, Wallet, ShoppingCart,
     Bell, Menu, LogOut, ChevronDown, ChevronRight, X,
     Zap, Settings, Sun, Moon, Globe,
-    Shield, Landmark, UserCheck, QrCode, Star, Activity, MessageSquare, Building2, ScanLine, Hotel, BedDouble, Database, Webhook, FileSearch, History
+    Shield, Landmark, UserCheck, QrCode, Star, Activity, MessageSquare, Building2, ScanLine, Hotel, BedDouble, Database, Webhook, FileSearch, History, Bot
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -61,6 +61,7 @@ const navigationItems = [
     { titleKey: "nav.documents", url: createPageUrl("documents"), icon: FileText, section: "operations" },
     { titleKey: "nav.surveys", url: createPageUrl("surveys"), icon: Star, section: "operations" },
     { titleKey: "nav.users", url: createPageUrl("users"), icon: Users, section: "system" },
+    { titleKey: "nav.botUsers", url: createPageUrl("bot-users"), icon: Bot, section: "system" },
     { titleKey: "nav.backups", url: createPageUrl("backups"), icon: Database, section: "system" },
     { titleKey: "nav.webhookSettings", url: createPageUrl("webhook-settings"), icon: Webhook, section: "system" },
     { titleKey: "nav.semanticSearch", url: createPageUrl("semantic-search"), icon: FileSearch, section: "system" },
@@ -94,7 +95,7 @@ export default function Layout({ children }) {
     const visibleNavigationItems = React.useMemo(() => {
         return navigationItems.filter((item) => {
             if (item.section === "hotel") return hasHotelAccess;
-            const adminOnlyPages = ["backups", "events", "users", "webhook-settings", "semantic-search", "search-history"];
+            const adminOnlyPages = ["backups", "events", "users", "bot-users", "webhook-settings", "semantic-search", "search-history"];
             if (adminOnlyPages.some((page) => item.url.endsWith(page))) return isAdmin;
             return true;
         });

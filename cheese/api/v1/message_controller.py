@@ -5,6 +5,7 @@ import frappe
 from frappe import _
 from frappe.utils import now_datetime
 from cheese.api.common.responses import success, created, error, not_found, validation_error
+from cheese.cheese.utils.access import assert_company_value
 import json
 
 
@@ -62,6 +63,12 @@ def upload_message_transcript(phone_number, messages, company_id, conversation_i
 		resolved_company = _resolve_company_id(company_id)
 		if not resolved_company:
 			return not_found("Company", company_id)
+
+		# Tenant isolation: a scoped (bot) user may only upload messages for its
+		# own establishment; super admins may target any company. Without this a
+		# bot scoped to company A could write messages tagged to company B, which
+		# also leaks the conversation/contact to B.
+		assert_company_value(resolved_company)
 		
 		# Parse messages if string
 		if isinstance(messages, str):
@@ -161,6 +168,9 @@ def upload_message_transcript(phone_number, messages, company_id, conversation_i
 				"message_ids": message_ids
 			}
 		)
+	except frappe.PermissionError:
+		# Let Frappe surface a 403 instead of masking it as a 500.
+		raise
 	except frappe.ValidationError as e:
 		return validation_error(str(e))
 	except Exception as e:
