@@ -13,6 +13,7 @@ def _expire_ticket(ticket_name: str) -> str | None:
 		return None
 	ticket.status = "EXPIRED"
 	ticket.flags.ignore_validate = True
+	ticket.flags.status_change_trigger = "scheduler:expire_pending_tickets"
 	ticket.save(ignore_permissions=True)
 	return ticket.slot
 

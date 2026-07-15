@@ -6,7 +6,7 @@ import json
 import frappe
 from frappe import _
 from frappe.model.document import Document
-from frappe.utils import add_to_date, getdate, now_datetime
+from frappe.utils import add_to_date, cint, getdate, now_datetime
 
 from cheese.cheese.utils.pricing import calculate_deposit_amount, calculate_ticket_price
 
@@ -86,6 +86,7 @@ class CheeseTicket(Document):
 		if self.is_new():
 			self.apply_experience_deposit_policy()
 			self.create_snapshots()
+			self.apply_auto_confirmation(experience_doc)
 			self.set_expires_at()
 			# Update slot capacity when ticket is created
 			self.update_capacity()
@@ -336,6 +337,21 @@ class CheeseTicket(Document):
 		self.deposit_amount = calculate_deposit_amount(self.experience, total_price, route_id=self.route)
 		self.deposit_required = 1 if self.deposit_amount > 0 else 0
 
+	def apply_auto_confirmation(self, experience_doc=None):
+		"""Auto-confirm tickets born PENDING when the experience does not require
+		manual confirmation.
+
+		Lives on the doctype (not the API controller) so every creation origin —
+		bot API, SPA resource API, desk — gets identical behaviour.
+		"""
+		if self.status != "PENDING":
+			return
+		if not experience_doc:
+			experience_doc = frappe.get_doc("Cheese Experience", self.experience)
+		if not cint(experience_doc.manual_confirmation):
+			self.status = "CONFIRMED"
+			self.flags.status_change_trigger = "auto_confirm_on_create"
+
 	def set_expires_at(self):
 		"""Set expiration time for PENDING tickets"""
 		if self.status == "PENDING":
@@ -391,15 +407,28 @@ class CheeseTicket(Document):
 				)
 
 	def log_status_change(self):
-		"""Log status change to System Event"""
+		"""Log status change to System Event, including what triggered it.
+
+		`old_status` is None on insert (the ticket is born in its first status).
+		`trigger` distinguishes automatic transitions (scheduler jobs,
+		auto-confirmation) from manual ones so status changes can be audited;
+		automatic callers must set `doc.flags.status_change_trigger` before save.
+		"""
 		try:
 			from cheese.cheese.utils.events import log_event
 
+			before = getattr(self, "_doc_before_save", None)
+			trigger_source = self.flags.get("status_change_trigger")
 			log_event(
 				entity_type="Cheese Ticket",
 				entity_id=self.name,
 				event_type="status_change",
-				payload={"old_status": self._doc_before_save.status, "new_status": self.status},
+				payload={
+					"old_status": before.status if before else None,
+					"new_status": self.status,
+					"trigger": "automatic" if trigger_source else "manual",
+					"trigger_source": trigger_source or frappe.session.user,
+				},
 			)
 		except Exception:
 			# Silently fail if event logging fails

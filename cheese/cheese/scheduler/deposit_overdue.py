@@ -39,6 +39,7 @@ def process_overdue_deposits():
 				ticket = frappe.get_doc("Cheese Ticket", deposit_data.entity_id)
 				if ticket.status in ["PENDING", "CONFIRMED"]:
 					ticket.status = "CANCELLED"
+					ticket.flags.status_change_trigger = "scheduler:process_overdue_deposits"
 					ticket.save(ignore_permissions=True)
 					
 					# Track slot for capacity update
@@ -68,6 +69,7 @@ def process_overdue_deposits():
 									ticket = frappe.get_doc("Cheese Ticket", ticket_row.ticket)
 									if ticket.status in ["PENDING", "CONFIRMED"]:
 										ticket.status = "CANCELLED"
+										ticket.flags.status_change_trigger = "scheduler:process_overdue_deposits"
 										ticket.save(ignore_permissions=True)
 										
 										# Track slot for capacity update

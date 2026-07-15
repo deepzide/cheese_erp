@@ -66,11 +66,26 @@ def process_no_shows():
 			# This keeps overdue unpaid bookings out of NO_SHOW analytics.
 			next_status = "CANCELLED" if _has_unpaid_deposit(row.name) else "NO_SHOW"
 			# Use db.set_value so we do not re-run capacity validation (party may already
-			# equal slot max). Document hooks are skipped — notify the bot explicitly.
+			# equal slot max). Document hooks are skipped — notify the bot and log
+			# the status-change event explicitly.
 			frappe.db.set_value("Cheese Ticket", row.name, "status", next_status)
 			from cheese.cheese.utils.notifications import enqueue_ticket_status_webhook
 
 			enqueue_ticket_status_webhook(row.name, next_status)
+
+			from cheese.cheese.utils.events import log_event
+
+			log_event(
+				entity_type="Cheese Ticket",
+				entity_id=row.name,
+				event_type="status_change",
+				payload={
+					"old_status": "CONFIRMED",
+					"new_status": next_status,
+					"trigger": "automatic",
+					"trigger_source": "scheduler:process_no_shows",
+				},
+			)
 			no_show_count += 1
 			slots_to_update.add(row.slot)
 		except Exception as e:

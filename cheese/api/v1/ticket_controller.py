@@ -128,11 +128,6 @@ def _recalculate_ticket_financials(ticket):
 	ticket.deposit_amount = deposit_amount
 
 
-def _initial_ticket_status(experience_doc) -> str:
-	"""Auto-confirm when manual confirmation is disabled on the experience."""
-	return "PENDING" if cint(experience_doc.manual_confirmation) else "CONFIRMED"
-
-
 @frappe.whitelist()
 def create_pending_reservation(contact_id, experience_id, slot_id, party_size=1, selected_date=None, route_id=None, check_in_date=None, check_out_date=None, rooms_requested=None, notes=None):
 	"""
@@ -288,7 +283,10 @@ def create_pending_ticket(contact_id, experience_id, slot_id, party_size=1, sele
 			"slot": slot_id,
 			"route": route_id,
 			"party_size": party_size,
-			"status": _initial_ticket_status(experience),
+			# Born PENDING; CheeseTicket.apply_auto_confirmation flips it to
+			# CONFIRMED on insert when the experience allows instant booking,
+			# identically for every creation origin.
+			"status": "PENDING",
 			"total_price": price_data["total_price"],
 			"deposit_required": bool(deposit_amount > 0),
 			"deposit_amount": deposit_amount,
