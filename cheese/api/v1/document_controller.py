@@ -324,6 +324,7 @@ def get_document_details(document_id):
 			if not _is_entity_accessible(doc.entity_type, doc.entity_id):
 				return error("Unauthorized", "UNAUTHORIZED", {}, 403)
 			
+			extracted_text = doc.extracted_text or ""
 			return success(
 				"Document details retrieved successfully",
 				{
@@ -332,10 +333,19 @@ def get_document_details(document_id):
 					"entity_id": doc.entity_id,
 					"file_url": doc.file_url,
 					"title": doc.title,
+					"document_type": doc.document_type,
 					"tags": doc.tags,
 					"language": doc.language,
 					"status": doc.status,
-					"created_at": str(doc.creation) if doc.creation else None
+					"version": doc.version,
+					"validity_date": str(doc.validity_date) if doc.validity_date else None,
+					"embedding_status": doc.embedding_status or "",
+					"embedding_model": doc.embedding_model,
+					"embedding_error": doc.embedding_error,
+					"extracted_text_preview": extracted_text[:3000],
+					"extracted_text_length": len(extracted_text),
+					"created_at": str(doc.creation) if doc.creation else None,
+					"modified_at": str(doc.modified) if doc.modified else None
 				}
 			)
 		except Exception:
@@ -773,3 +783,52 @@ def list_semantic_search_logs(page=1, page_size=20, search=None, source=None):
 	except Exception as e:
 		frappe.log_error(f"Error in list_semantic_search_logs: {str(e)}")
 		return error("Failed to list search logs", "SERVER_ERROR", {"error": str(e)}, 500)
+
+
+@frappe.whitelist()
+def vectorize_document_now(document_id):
+	"""
+	Queue (re)vectorization of one document for semantic search.
+
+	Args:
+		document_id: Cheese Document ID
+	"""
+	try:
+		if not document_id:
+			return validation_error("document_id is required")
+		if not frappe.db.exists("Cheese Document", document_id):
+			return not_found("Document", document_id)
+
+		doc = frappe.get_doc("Cheese Document", document_id)
+		if not _is_entity_accessible(doc.entity_type, doc.entity_id):
+			return error("Unauthorized", "UNAUTHORIZED", {}, 403)
+
+		from cheese.cheese.utils.document_embeddings import get_embedding_settings
+
+		settings = get_embedding_settings()
+		if not settings["enabled"] or not settings["api_key"]:
+			return error(
+				"Semantic search is not configured (enable embeddings and set the OpenAI API key in Cheese Bot Setting)",
+				"NOT_CONFIGURED",
+				{},
+				503,
+			)
+
+		frappe.db.set_value(
+			"Cheese Document", document_id, "embedding_status", "PENDING", update_modified=False
+		)
+		frappe.enqueue(
+			"cheese.cheese.utils.document_embeddings.vectorize_document",
+			document_name=document_id,
+			queue="long",
+			is_async=True,
+		)
+		frappe.db.commit()
+
+		return success(
+			"Document queued for vectorization",
+			{"document_id": document_id, "embedding_status": "PENDING"},
+		)
+	except Exception as e:
+		frappe.log_error(f"Error in vectorize_document_now: {str(e)}")
+		return error("Failed to queue vectorization", "SERVER_ERROR", {"error": str(e)}, 500)
