@@ -15,6 +15,16 @@ def _get_hotel_description(hotel_id):
     return frappe.db.get_value("Company", hotel_id, "company_description") or ""
 
 
+def _company_list_fields(*optional_fields):
+    """Build a Company field list, skipping custom columns that are not installed yet."""
+    meta = frappe.get_meta("Company")
+    fields = ["name", "company_name", "administrator_contact"]
+    for fieldname in optional_fields:
+        if meta.has_field(fieldname) and frappe.db.has_column("Company", fieldname):
+            fields.append(fieldname)
+    return fields
+
+
 @frappe.whitelist()
 def list_hotels(page=1, page_size=20, search=None):
     """
@@ -34,6 +44,9 @@ def list_hotels(page=1, page_size=20, search=None):
 
         user_company = _get_current_user_company()
 
+        if not frappe.db.has_column("Company", "cheese_is_hotel"):
+            return paginated_response([], "Hotels retrieved successfully", page=page, page_size=page_size, total=0)
+
         filters = {"cheese_is_hotel": 1}
         if user_company:
             filters["name"] = user_company
@@ -46,8 +59,11 @@ def list_hotels(page=1, page_size=20, search=None):
             "Company",
             filters=filters,
             or_filters=or_filters if or_filters else None,
-            fields=["name", "company_name", "administrator_contact", "cheese_is_hotel",
-                     "cheese_payment_methods", "cheese_operating_hours"],
+            fields=_company_list_fields(
+                "cheese_is_hotel",
+                "cheese_payment_methods",
+                "cheese_operating_hours",
+            ),
             limit_start=(page - 1) * page_size,
             limit_page_length=page_size,
             order_by="company_name asc",
@@ -569,10 +585,17 @@ def bot_get_hotel_catalog():
     Bot Endpoint: Get a catalog of all hotels and their available rooms.
     """
     try:
+        if not frappe.db.has_column("Company", "cheese_is_hotel"):
+            return success("Hotel catalog retrieved", {"hotels": []})
+
+        catalog_fields = ["name", "company_name", "company_description"]
+        if frappe.db.has_column("Company", "cheese_operating_hours"):
+            catalog_fields.append("cheese_operating_hours")
+
         hotels = frappe.get_all(
             "Company",
             filters={"cheese_is_hotel": 1},
-            fields=["name", "company_name", "company_description", "cheese_operating_hours"],
+            fields=catalog_fields,
             order_by="company_name asc",
         )
         for hotel in hotels:
