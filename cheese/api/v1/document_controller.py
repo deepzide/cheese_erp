@@ -488,6 +488,41 @@ def _document_search_base_filters(entity_type=None, entity_id=None, status="PUBL
 	return filters
 
 
+def _log_semantic_search(query, entity_type, entity_id, top_k, min_similarity, results, source):
+	"""Persist the search and its ranked results for auditing. Never breaks the search."""
+	try:
+		log = frappe.get_doc(
+			{
+				"doctype": "Cheese Semantic Search Log",
+				"query": query[:140],
+				"source": "TEST" if (source or "").upper() == "TEST" else "API",
+				"entity_type": entity_type,
+				"entity_id": entity_id,
+				"top_k": top_k,
+				"min_similarity": min_similarity,
+				"results_count": len(results),
+				"results_json": json.dumps(
+					[
+						{
+							"document_id": r["document_id"],
+							"title": r["title"],
+							"similarity": r["similarity"],
+							"file_url": r.get("file_url"),
+							"document_type": r.get("document_type"),
+							"entity_type": r.get("entity_type"),
+							"entity_id": r.get("entity_id"),
+						}
+						for r in results
+					]
+				),
+			}
+		)
+		log.insert(ignore_permissions=True)
+		frappe.db.commit()
+	except Exception as e:
+		frappe.log_error(f"Failed to log semantic search: {e}", "Semantic Search Log")
+
+
 @frappe.whitelist()
 def search_documents_semantic(
 	query,
@@ -498,6 +533,7 @@ def search_documents_semantic(
 	include_content=0,
 	content_max_chars=6000,
 	status="PUBLISHED",
+	search_source="API",
 ):
 	"""
 	Rank documents by semantic similarity against a natural-language query.
@@ -515,6 +551,7 @@ def search_documents_semantic(
 		include_content: When truthy, include the extracted text of each match
 		content_max_chars: Truncate included content to this many characters
 		status: Document status to search (default PUBLISHED)
+		search_source: Audit tag — "API" (bot/agent) or "TEST" (ERP test page)
 
 	Returns:
 		Success response with ranked documents: [{document_id, title,
@@ -595,6 +632,9 @@ def search_documents_semantic(
 		results.sort(key=lambda r: r["similarity"], reverse=True)
 		results = results[:top_k]
 
+		# Audit trail: every semantic search and its ranked results
+		_log_semantic_search(query, entity_type, entity_id, top_k, min_similarity, results, search_source)
+
 		if include_content and results:
 			for item in results:
 				content = frappe.db.get_value("Cheese Document", item["document_id"], "extracted_text") or ""
@@ -667,3 +707,69 @@ def reindex_documents():
 	except Exception as e:
 		frappe.log_error(f"Error in reindex_documents: {str(e)}")
 		return error("Failed to reindex documents", "SERVER_ERROR", {"error": str(e)}, 500)
+
+
+@frappe.whitelist()
+def list_semantic_search_logs(page=1, page_size=20, search=None, source=None):
+	"""
+	Paginated history of semantic searches with their ranked results (audit).
+
+	Args:
+		page: Page number
+		page_size: Items per page (max 100)
+		search: Optional substring filter on the query text
+		source: Optional filter: API (bot/agent) or TEST (ERP test page)
+	"""
+	try:
+		if frappe.session.user != "Administrator" and "System Manager" not in frappe.get_roles():
+			return error("Unauthorized", "UNAUTHORIZED", {}, 403)
+
+		page = cint(page) or 1
+		page_size = min(cint(page_size) or 20, 100)
+
+		filters = {}
+		if source and source.upper() in ("API", "TEST"):
+			filters["source"] = source.upper()
+		if search and str(search).strip():
+			filters["query"] = ["like", f"%{str(search).strip()}%"]
+
+		total = frappe.db.count("Cheese Semantic Search Log", filters=filters)
+		rows = frappe.get_all(
+			"Cheese Semantic Search Log",
+			filters=filters,
+			fields=[
+				"name", "query", "source", "entity_type", "entity_id",
+				"top_k", "min_similarity", "results_count", "results_json",
+				"owner", "creation",
+			],
+			order_by="creation desc",
+			limit_start=(page - 1) * page_size,
+			limit_page_length=page_size,
+		)
+
+		logs = []
+		for row in rows:
+			try:
+				results = json.loads(row.results_json) if row.results_json else []
+			except Exception:
+				results = []
+			logs.append(
+				{
+					"log_id": row.name,
+					"query": row.query,
+					"source": row.source,
+					"entity_type": row.entity_type,
+					"entity_id": row.entity_id,
+					"top_k": row.top_k,
+					"min_similarity": row.min_similarity,
+					"results_count": row.results_count,
+					"results": results,
+					"searched_by": row.owner,
+					"searched_at": str(row.creation),
+				}
+			)
+
+		return paginated_response(logs, "Search logs retrieved successfully", page=page, page_size=page_size, total=total)
+	except Exception as e:
+		frappe.log_error(f"Error in list_semantic_search_logs: {str(e)}")
+		return error("Failed to list search logs", "SERVER_ERROR", {"error": str(e)}, 500)

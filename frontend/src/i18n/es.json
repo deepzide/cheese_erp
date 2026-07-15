@@ -26,6 +26,8 @@
     "users": "Usuarios",
     "backups": "Copias de Seguridad",
     "webhookSettings": "Configuración del Webhook",
+    "semanticSearch": "Probar Búsqueda Semántica",
+    "searchHistory": "Historial de Búsquedas",
     "systemEvents": "Eventos del Sistema",
     "eventsLog": "Registro de Eventos",
     "supportCase": "Caso de Soporte",

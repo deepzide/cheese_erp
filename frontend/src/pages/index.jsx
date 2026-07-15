@@ -55,6 +55,8 @@ import HotelReservations from './HotelReservations';
 import HotelAvailability from './HotelAvailability';
 import UsersPage from './Users';
 import WebhookSettings from './WebhookSettings';
+import SemanticSearchTest from './SemanticSearchTest';
+import SemanticSearchLogs from './SemanticSearchLogs';
 import HotelCreate from './HotelCreate';
 import HotelRoomCreate from './HotelRoomCreate';
 import { useHotelAccess } from '@/lib/useHotelAccess';
@@ -137,6 +139,8 @@ export default function Pages() {
                     <Route path="hotel-availability" element={<HotelRouteGuard><HotelAvailability /></HotelRouteGuard>} />
                     <Route path="users" element={<UsersPage />} />
                     <Route path="webhook-settings" element={<WebhookSettings />} />
+                    <Route path="semantic-search" element={<SemanticSearchTest />} />
+                    <Route path="search-history" element={<SemanticSearchLogs />} />
                     <Route index element={<Navigate to="/cheese/dashboard" replace />} />
                     <Route path="*" element={<Navigate to="/cheese/dashboard" replace />} />
                 </Route>
