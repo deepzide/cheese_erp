@@ -11,6 +11,7 @@ against a natural-language query embedded with the same model.
 
 import json
 import math
+import re
 
 import frappe
 
@@ -21,6 +22,8 @@ EMBEDDING_REQUEST_TIMEOUT = 30
 MAX_EMBED_CHARS = 20000
 MAX_EXTRACTED_CHARS = 100000
 MAX_PDF_PAGES = 50
+REMOTE_DOWNLOAD_TIMEOUT = 30
+MAX_REMOTE_DOWNLOAD_BYTES = 20 * 1024 * 1024  # 20 MB
 
 # Fields whose change invalidates the stored embedding
 EMBEDDING_SOURCE_FIELDS = ("file_url", "title", "tags", "language", "entity_type", "entity_id")
@@ -97,6 +100,28 @@ def _resolve_local_file_path(file_url):
 	return None
 
 
+def _pdf_to_text(source):
+	"""Extract text from a PDF given a file path or a bytes buffer."""
+	try:
+		from pypdf import PdfReader
+	except ImportError:
+		from PyPDF2 import PdfReader
+
+	if isinstance(source, bytes):
+		import io
+
+		source = io.BytesIO(source)
+
+	reader = PdfReader(source)
+	parts = []
+	for page in reader.pages[:MAX_PDF_PAGES]:
+		try:
+			parts.append(page.extract_text() or "")
+		except Exception:
+			continue
+	return "\n".join(parts).strip()
+
+
 def _extract_pdf_text(file_url):
 	"""Extract text from a locally stored PDF. Returns '' when unavailable."""
 	import os
@@ -106,21 +131,98 @@ def _extract_pdf_text(file_url):
 		return ""
 
 	try:
-		try:
-			from pypdf import PdfReader
-		except ImportError:
-			from PyPDF2 import PdfReader
-
-		reader = PdfReader(path)
-		parts = []
-		for page in reader.pages[:MAX_PDF_PAGES]:
-			try:
-				parts.append(page.extract_text() or "")
-			except Exception:
-				continue
-		return "\n".join(parts).strip()
+		return _pdf_to_text(path)
 	except Exception as e:
 		frappe.log_error(f"PDF text extraction failed for {file_url}: {e}", "Document Embeddings")
+		return ""
+
+
+# ── Remote content (public Google Drive files, external PDFs) ───────────
+
+
+def _extract_drive_file_id(url):
+	"""Return the file id from any common Google Drive / Docs URL shape."""
+	for pattern in (r"/file/d/([\w-]{10,})", r"/document/d/([\w-]{10,})", r"[?&]id=([\w-]{10,})"):
+		match = re.search(pattern, url or "")
+		if match:
+			return match.group(1)
+	return None
+
+
+def _is_google_drive_url(url):
+	host = (url or "").lower()
+	return "drive.google.com" in host or "docs.google.com" in host or "drive.usercontent.google.com" in host
+
+
+def _download_capped(url):
+	"""GET a URL streaming at most MAX_REMOTE_DOWNLOAD_BYTES. Returns (bytes, content_type)."""
+	import requests
+
+	resp = requests.get(url, timeout=REMOTE_DOWNLOAD_TIMEOUT, stream=True, allow_redirects=True)
+	resp.raise_for_status()
+	chunks = []
+	total = 0
+	for chunk in resp.iter_content(chunk_size=65536):
+		chunks.append(chunk)
+		total += len(chunk)
+		if total > MAX_REMOTE_DOWNLOAD_BYTES:
+			break
+	return b"".join(chunks), (resp.headers.get("Content-Type") or "").lower()
+
+
+def _bytes_to_text(data, content_type):
+	"""Turn downloaded bytes into text: PDF via pypdf, otherwise plain text."""
+	if data[:5] == b"%PDF-":
+		try:
+			return _pdf_to_text(data)
+		except Exception:
+			return ""
+	if "text/html" in content_type or data[:15].lstrip().lower().startswith((b"<!doctype", b"<html")):
+		# HTML means a viewer/interstitial page, not the file content
+		return ""
+	if "text/" in content_type or "json" in content_type:
+		try:
+			return data.decode("utf-8", errors="ignore").strip()
+		except Exception:
+			return ""
+	return ""
+
+
+def _extract_google_drive_text(url):
+	"""Download a *public* Google Drive / Docs file and extract its text."""
+	file_id = _extract_drive_file_id(url)
+	if not file_id:
+		return ""
+
+	if "docs.google.com/document" in (url or "").lower():
+		candidates = [f"https://docs.google.com/document/d/{file_id}/export?format=txt"]
+	else:
+		# usercontent host first: skips the "can't scan for viruses" interstitial
+		candidates = [
+			f"https://drive.usercontent.google.com/download?id={file_id}&export=download&confirm=t",
+			f"https://drive.google.com/uc?export=download&confirm=t&id={file_id}",
+		]
+
+	for candidate in candidates:
+		try:
+			data, content_type = _download_capped(candidate)
+		except Exception:
+			continue
+		text = _bytes_to_text(data, content_type)
+		if text:
+			return text
+	return ""
+
+
+def _extract_remote_text(url):
+	"""Extract text from an external URL: Google Drive aware, PDFs and plain text."""
+	try:
+		if _is_google_drive_url(url):
+			return _extract_google_drive_text(url)
+		data, content_type = _download_capped(url)
+		return _bytes_to_text(data, content_type)
+	except Exception as e:
+		frappe.log_error(f"Remote text extraction failed for {url}: {e}", "Document Embeddings")
 		return ""
 
 
@@ -158,10 +260,15 @@ def extract_document_text(doc):
 		header_parts.append(entity_label)
 
 	body = ""
+	is_remote = (doc.file_url or "").lower().startswith(("http://", "https://"))
 	if doc.document_type == "PDF":
-		body = _extract_pdf_text(doc.file_url)
+		body = _extract_remote_text(doc.file_url) if is_remote else _extract_pdf_text(doc.file_url)
 	elif doc.document_type == "Link":
 		header_parts.append(f"Link: {doc.file_url}")
+		if is_remote:
+			# Public Google Drive files (and direct PDF/text links) contribute
+			# their real content to the embedding, not just the URL.
+			body = _extract_remote_text(doc.file_url)
 
 	text = "\n".join(p for p in header_parts if p)
 	if body:
