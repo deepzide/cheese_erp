@@ -53,6 +53,7 @@ import Hotels from './Hotels';
 import HotelReservations from './HotelReservations';
 import HotelAvailability from './HotelAvailability';
 import UsersPage from './Users';
+import WebhookSettings from './WebhookSettings';
 import HotelCreate from './HotelCreate';
 import HotelRoomCreate from './HotelRoomCreate';
 import { useHotelAccess } from '@/lib/useHotelAccess';
@@ -133,6 +134,7 @@ export default function Pages() {
                     <Route path="hotels/reservations/:id" element={<HotelRouteGuard><HotelReservationDetail /></HotelRouteGuard>} />
                     <Route path="hotel-availability" element={<HotelRouteGuard><HotelAvailability /></HotelRouteGuard>} />
                     <Route path="users" element={<UsersPage />} />
+                    <Route path="webhook-settings" element={<WebhookSettings />} />
                     <Route index element={<Navigate to="/cheese/dashboard" replace />} />
                     <Route path="*" element={<Navigate to="/cheese/dashboard" replace />} />
                 </Route>

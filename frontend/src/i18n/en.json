@@ -25,6 +25,7 @@
     "hotelAvailability": "Availability",
     "users": "Users",
     "backups": "Backups",
+    "webhookSettings": "Webhook Settings",
     "systemEvents": "System Events"
   },
   "sections": {

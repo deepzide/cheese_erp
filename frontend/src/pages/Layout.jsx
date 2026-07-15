@@ -7,7 +7,7 @@ import {
     Users, UserPlus, FileText, Wallet, ShoppingCart,
     Bell, Menu, LogOut, ChevronDown, ChevronRight, X,
     Zap, Settings, Sun, Moon, Globe,
-    Shield, Landmark, UserCheck, QrCode, Star, Activity, MessageSquare, Building2, ScanLine, Hotel, BedDouble, Database
+    Shield, Landmark, UserCheck, QrCode, Star, Activity, MessageSquare, Building2, ScanLine, Hotel, BedDouble, Database, Webhook
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -62,6 +62,7 @@ const navigationItems = [
     { titleKey: "nav.surveys", url: createPageUrl("surveys"), icon: Star, section: "operations" },
     { titleKey: "nav.users", url: createPageUrl("users"), icon: Users, section: "system" },
     { titleKey: "nav.backups", url: createPageUrl("backups"), icon: Database, section: "system" },
+    { titleKey: "nav.webhookSettings", url: createPageUrl("webhook-settings"), icon: Webhook, section: "system" },
     { titleKey: "nav.systemEvents", url: createPageUrl("events"), icon: Activity, section: "system" },
 ];
 
@@ -91,7 +92,7 @@ export default function Layout({ children }) {
     const visibleNavigationItems = React.useMemo(() => {
         return navigationItems.filter((item) => {
             if (item.section === "hotel") return hasHotelAccess;
-            if (item.url.endsWith("backups") || item.url.endsWith("events") || item.url.endsWith("users")) return isAdmin;
+            if (item.url.endsWith("backups") || item.url.endsWith("events") || item.url.endsWith("users") || item.url.endsWith("webhook-settings")) return isAdmin;
             return true;
         });
     }, [hasHotelAccess, isAdmin]);
