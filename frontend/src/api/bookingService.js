@@ -1,10 +1,15 @@
 import { apiRequest } from './client';
 
 const BASE = '/api/method/cheese.api.v1.booking_controller';
+const ROUTE_BOOKING_BASE = '/api/method/cheese.api.v1.route_booking_controller';
 
 export const bookingService = {
     createPendingBooking: async (data) => {
         return apiRequest(`${BASE}.create_pending_booking`, { method: 'POST', body: JSON.stringify(data) });
+    },
+
+    createRouteReservation: async (data) => {
+        return apiRequest(`${ROUTE_BOOKING_BASE}.create_route_reservation`, { method: 'POST', body: JSON.stringify(data) });
     },
 
     getBookingStatus: async (bookingId) => {

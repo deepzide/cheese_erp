@@ -509,10 +509,12 @@ export default function TicketDetail() {
                                         <Wallet className="w-4 h-4 mr-2" /> {t("tickets.payRemainingBalance", "Pay Remaining Balance")}
                                     </Button>
                                 )}
-                                <Button variant="outline" size="sm" className="justify-start" onClick={() => navigate(`/cheese/bookings/new?ticket=${id}`)}>
-                                    <Briefcase className="w-4 h-4 mr-2" /> {t("tickets.convertToFinalBooking", "Convert to Final Booking")}
-                                </Button>
-                                {ticket?.status !== "CONFIRMED" && (
+                                {ticket?.status === "PENDING" && (
+                                    <Button variant="outline" size="sm" className="justify-start" onClick={() => navigate(`/cheese/bookings/new?ticket=${id}`)}>
+                                        <Briefcase className="w-4 h-4 mr-2" /> {t("tickets.convertToFinalBooking", "Convert to Final Booking")}
+                                    </Button>
+                                )}
+                                {ticket?.status === "PENDING" && (
                                     <Button variant="outline" size="sm" className="justify-start text-emerald-700" onClick={() => updateMutation.mutate({ name: id, data: { status: "CONFIRMED" } })} disabled={updateMutation.isPending}>
                                         <CheckCircle className="w-4 h-4 mr-2" /> {t("tickets.markAsConfirmed", "Mark as Confirmed")}
                                     </Button>

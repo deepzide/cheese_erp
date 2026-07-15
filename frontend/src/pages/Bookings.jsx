@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ShoppingCart, Search, Filter, DollarSign, AlertCircle, RefreshCw, Users, Route, Ticket, MoreHorizontal, Eye, Wallet, Building2, TicketIcon } from "lucide-react";
+import { ShoppingCart, Search, Filter, DollarSign, AlertCircle, RefreshCw, Users, Route, Ticket, MoreHorizontal, Eye, Wallet, Building2, TicketIcon, Plus } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { useFrappeList } from "@/lib/useApiData";
 import { useHotelAccess } from "@/lib/useHotelAccess";
@@ -181,6 +181,10 @@ export default function Bookings() {
 
                     <Button variant="ghost" size="icon" onClick={refetchAll} className="h-9 w-9">
                         <RefreshCw className="w-4 h-4" />
+                    </Button>
+
+                    <Button className="h-9 bg-cheese-500 hover:bg-cheese-600 text-black font-semibold" onClick={() => navigate("/cheese/bookings/new-route")}>
+                        <Plus className="w-4 h-4 mr-1.5" /> {t("bookings.newRouteBooking", "New Route Reservation")}
                     </Button>
                 </div>
             </div>

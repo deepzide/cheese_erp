@@ -1549,7 +1549,16 @@ def convert_ticket_to_booking(ticket_id, route_id=None):
 			)
 
 		if ticket.status == "CONFIRMED":
-			return validation_error("Ticket is already confirmed")
+			# Idempotent: auto-confirmed tickets (instant-booking experiences)
+			# reach this endpoint from the UI with nothing left to do.
+			return success(
+				"Ticket is already confirmed",
+				{
+					"ticket_id": ticket.name,
+					"status": ticket.status,
+					"already_confirmed": True,
+				},
+			)
 
 		# Check TTL
 		if ticket.expires_at and ticket.expires_at < now_datetime():

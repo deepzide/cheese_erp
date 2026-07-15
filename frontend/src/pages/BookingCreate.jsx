@@ -52,7 +52,10 @@ export default function BookingCreate() {
                 throw new Error(payload?.error?.message || payload?.message || t("bookings.convertFailed", "Failed to convert ticket"));
             }
 
-            toast.success(t("bookings.ticketConfirmed", "Ticket confirmed as single-experience reservation"));
+            const alreadyConfirmed = payload?.message?.data?.already_confirmed || payload?.data?.already_confirmed;
+            toast.success(alreadyConfirmed
+                ? t("bookings.ticketAlreadyConfirmed", "Ticket was already confirmed")
+                : t("bookings.ticketConfirmed", "Ticket confirmed as single-experience reservation"));
             navigate(`/cheese/tickets/${encodeURIComponent(ticketId)}`);
         } catch (err) {
             toast.error(err?.message || t("bookings.createFailed", "Failed to create reservation"));
@@ -63,17 +66,17 @@ export default function BookingCreate() {
 
     return (
         <CreatePageLayout
-            title={t("bookings.convertTitle", "Convert Ticket to Reservation")}
+            title={t("bookings.convertTitle", "Confirm Ticket")}
             description={
                 ticketId
-                    ? `${t("bookings.convertDesc", "Create a route reservation from ticket")} ${ticketId}`
+                    ? `${t("bookings.convertDesc", "Confirm ticket as a single-experience reservation:")} ${ticketId}`
                     : t("bookings.missingTicket", "Missing ticket ID in URL")
             }
             icon={Ticket}
             backPath={ticketId ? `/cheese/tickets/${ticketId}` : "/cheese/tickets"}
             onSubmit={handleSubmit}
             isSubmitting={submitting}
-            submitLabel={t("bookings.createReservation", "Create Reservation")}
+            submitLabel={t("bookings.confirmTicket", "Confirm Ticket")}
             isLoading={isLoading && !!ticketId}
         >
             {ticketId ? (
@@ -117,7 +120,7 @@ export default function BookingCreate() {
                     </div>
 
                     <p className="text-xs text-muted-foreground">
-                        {t("bookings.conversionNote", "This conversion always confirms the ticket as a single-experience reservation.")}
+                        {t("bookings.conversionNote", "This action confirms the ticket as a single-experience reservation. It does not create a route reservation — use \"New Route Reservation\" on the Reservations page for that.")}
                     </p>
                 </div>
             ) : (
