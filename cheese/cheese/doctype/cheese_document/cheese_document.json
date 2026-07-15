@@ -20,7 +20,13 @@
         "tags",
         "language",
         "version",
-        "validity_date"
+        "validity_date",
+        "ai_section",
+        "embedding_status",
+        "embedding_model",
+        "embedding_error",
+        "extracted_text",
+        "embedding_json"
     ],
     "fields": [
         {
@@ -107,6 +113,45 @@
             "fieldtype": "Date",
             "label": "Validity Date",
             "description": "Document expiration date (optional)"
+        },
+        {
+            "fieldname": "ai_section",
+            "fieldtype": "Section Break",
+            "label": "Semantic Search",
+            "collapsible": 1
+        },
+        {
+            "fieldname": "embedding_status",
+            "fieldtype": "Select",
+            "label": "Embedding Status",
+            "options": "\nPENDING\nPROCESSING\nCOMPLETED\nFAILED",
+            "read_only": 1,
+            "in_standard_filter": 1
+        },
+        {
+            "fieldname": "embedding_model",
+            "fieldtype": "Data",
+            "label": "Embedding Model",
+            "read_only": 1
+        },
+        {
+            "fieldname": "embedding_error",
+            "fieldtype": "Small Text",
+            "label": "Embedding Error",
+            "read_only": 1
+        },
+        {
+            "fieldname": "extracted_text",
+            "fieldtype": "Long Text",
+            "label": "Extracted Text",
+            "read_only": 1,
+            "description": "Text extracted from the document, used for semantic search and agent context"
+        },
+        {
+            "fieldname": "embedding_json",
+            "fieldtype": "Long Text",
+            "label": "Embedding JSON",
+            "hidden": 1
         }
     ],
     "index_web_pages_for_search": 1,

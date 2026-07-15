@@ -469,3 +469,201 @@ def delete_document(document_id):
 	except Exception as e:
 		frappe.log_error(f"Error in delete_document: {str(e)}")
 		return error("Failed to delete document", "SERVER_ERROR", {"error": str(e)}, 500)
+
+
+# ── Semantic search (used by the chatbot agent) ─────────────────────────
+
+
+def _document_search_base_filters(entity_type=None, entity_id=None, status="PUBLISHED"):
+	"""Build tenant-aware filters for the semantic search candidate set."""
+	filters = {
+		"embedding_status": "COMPLETED",
+	}
+	if status:
+		filters["status"] = status
+	if entity_type:
+		filters["entity_type"] = entity_type
+	if entity_id:
+		filters["entity_id"] = entity_id
+	return filters
+
+
+@frappe.whitelist()
+def search_documents_semantic(
+	query,
+	entity_type=None,
+	entity_id=None,
+	top_k=5,
+	min_similarity=0.35,
+	include_content=0,
+	content_max_chars=6000,
+	status="PUBLISHED",
+):
+	"""
+	Rank documents by semantic similarity against a natural-language query.
+
+	The query is embedded with the same model used to vectorize documents
+	and compared with cosine similarity. Returns only matches at or above
+	``min_similarity`` (an empty list is a valid outcome).
+
+	Args:
+		query: Natural-language query (e.g. "ofertas gastronomicas de La Cremerie")
+		entity_type: Optional filter (Company / Cheese Experience / Cheese Route)
+		entity_id: Optional filter to one entity
+		top_k: Maximum documents to return (default 5, capped at 20)
+		min_similarity: Minimum cosine similarity in [0, 1] (default 0.35)
+		include_content: When truthy, include the extracted text of each match
+		content_max_chars: Truncate included content to this many characters
+		status: Document status to search (default PUBLISHED)
+
+	Returns:
+		Success response with ranked documents: [{document_id, title,
+		entity_type, entity_id, tags, language, document_type, file_url,
+		similarity, content?}]
+	"""
+	try:
+		from cheese.cheese.utils.document_embeddings import (
+			cosine_similarity,
+			generate_embedding,
+			get_embedding_settings,
+		)
+
+		query = (query or "").strip()
+		if not query:
+			return validation_error("query is required")
+
+		top_k = min(cint(top_k) or 5, 20)
+		content_max_chars = cint(content_max_chars) or 6000
+		try:
+			min_similarity = float(min_similarity)
+		except (TypeError, ValueError):
+			min_similarity = 0.35
+		include_content = cint(include_content) == 1 if not isinstance(include_content, bool) else include_content
+
+		settings = get_embedding_settings()
+		if not settings["enabled"] or not settings["api_key"]:
+			return error(
+				"Semantic search is not configured (enable embeddings and set the OpenAI API key in Cheese Bot Setting)",
+				"NOT_CONFIGURED",
+				{},
+				503,
+			)
+
+		if entity_type:
+			entity_type = _normalize_entity_type(entity_type)
+
+		query_embedding = generate_embedding(query, settings)
+
+		candidates = frappe.get_all(
+			"Cheese Document",
+			filters=_document_search_base_filters(entity_type, entity_id, status),
+			fields=[
+				"name", "title", "entity_type", "entity_id", "tags", "language",
+				"document_type", "file_url", "embedding_json", "embedding_model",
+			],
+		)
+
+		results = []
+		for row in candidates:
+			# Tenant isolation: establishment users only see their own documents
+			if not _is_entity_accessible(row.entity_type, row.entity_id):
+				continue
+			# Vectors from a different model are not comparable
+			if row.embedding_model and row.embedding_model != settings["model"]:
+				continue
+			try:
+				doc_embedding = json.loads(row.embedding_json)
+			except Exception:
+				continue
+			similarity = cosine_similarity(query_embedding, doc_embedding)
+			if similarity < min_similarity:
+				continue
+			results.append(
+				{
+					"document_id": row.name,
+					"title": row.title,
+					"entity_type": row.entity_type,
+					"entity_id": row.entity_id,
+					"tags": row.tags,
+					"language": row.language,
+					"document_type": row.document_type,
+					"file_url": row.file_url,
+					"similarity": round(similarity, 4),
+				}
+			)
+
+		results.sort(key=lambda r: r["similarity"], reverse=True)
+		results = results[:top_k]
+
+		if include_content and results:
+			for item in results:
+				content = frappe.db.get_value("Cheese Document", item["document_id"], "extracted_text") or ""
+				item["content"] = content[:content_max_chars]
+
+		return success(
+			f"Found {len(results)} document(s) with similarity >= {min_similarity}",
+			{"query": query, "results": results, "count": len(results)},
+		)
+	except frappe.ValidationError as e:
+		return validation_error(str(e))
+	except Exception as e:
+		frappe.log_error(f"Error in search_documents_semantic: {str(e)}")
+		return error("Failed to search documents", "SERVER_ERROR", {"error": str(e)}, 500)
+
+
+@frappe.whitelist()
+def get_document_content(document_id, max_chars=20000):
+	"""
+	Return the extracted text content of a document.
+
+	Extracts on demand when the document has not been vectorized yet, so
+	the agent can always read a document it discovered via search.
+	"""
+	try:
+		if not document_id:
+			return validation_error("document_id is required")
+		if not frappe.db.exists("Cheese Document", document_id):
+			return not_found("Document", document_id)
+
+		doc = frappe.get_doc("Cheese Document", document_id)
+		if not _is_entity_accessible(doc.entity_type, doc.entity_id):
+			return error("Unauthorized", "UNAUTHORIZED", {}, 403)
+
+		max_chars = cint(max_chars) or 20000
+		content = doc.extracted_text
+		if not content:
+			from cheese.cheese.utils.document_embeddings import extract_document_text
+
+			content = extract_document_text(doc)
+
+		return success(
+			"Document content retrieved successfully",
+			{
+				"document_id": doc.name,
+				"title": doc.title,
+				"entity_type": doc.entity_type,
+				"entity_id": doc.entity_id,
+				"document_type": doc.document_type,
+				"embedding_status": doc.embedding_status,
+				"content": (content or "")[:max_chars],
+			},
+		)
+	except Exception as e:
+		frappe.log_error(f"Error in get_document_content: {str(e)}")
+		return error("Failed to get document content", "SERVER_ERROR", {"error": str(e)}, 500)
+
+
+@frappe.whitelist()
+def reindex_documents():
+	"""Re-queue vectorization for documents without a completed embedding (admin)."""
+	try:
+		if frappe.session.user != "Administrator" and "System Manager" not in frappe.get_roles():
+			return error("Unauthorized", "UNAUTHORIZED", {}, 403)
+
+		from cheese.cheese.utils.document_embeddings import reindex_pending_documents
+
+		queued = reindex_pending_documents()
+		return success(f"Queued {queued} document(s) for vectorization", {"queued": queued})
+	except Exception as e:
+		frappe.log_error(f"Error in reindex_documents: {str(e)}")
+		return error("Failed to reindex documents", "SERVER_ERROR", {"error": str(e)}, 500)

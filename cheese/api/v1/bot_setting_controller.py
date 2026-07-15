@@ -49,12 +49,20 @@ def get_webhook_settings():
 		except Exception:
 			has_api_key = False
 
+		try:
+			has_openai_api_key = bool(doc.get_password("openai_api_key", raise_exception=False))
+		except Exception:
+			has_openai_api_key = False
+
 		return success(
 			"Configuración obtenida con éxito",
 			{
 				"webhook_url": doc.webhook_url or "",
 				"webhook_enabled": bool(doc.webhook_enabled),
 				"has_api_key": has_api_key,
+				"embeddings_enabled": bool(getattr(doc, "embeddings_enabled", 0)),
+				"embedding_model": getattr(doc, "embedding_model", None) or "text-embedding-3-small",
+				"has_openai_api_key": has_openai_api_key,
 			},
 		)
 	except frappe.PermissionError:
@@ -65,15 +73,25 @@ def get_webhook_settings():
 
 
 @frappe.whitelist()
-def update_webhook_settings(webhook_url=None, webhook_api_key=None, webhook_enabled=None):
+def update_webhook_settings(
+	webhook_url=None,
+	webhook_api_key=None,
+	webhook_enabled=None,
+	embeddings_enabled=None,
+	openai_api_key=None,
+	embedding_model=None,
+):
 	"""
-	Update the bot webhook configuration in Cheese Bot Setting.
+	Update the bot webhook and AI configuration in Cheese Bot Setting.
 
 	Args:
 		webhook_url: Full endpoint that receives the ticket status webhooks
 			(e.g. https://bot.example.com/erp/ticket-status)
 		webhook_api_key: New X-API-Key value. Leave empty/None to keep the stored one.
 		webhook_enabled: Enable/disable webhook sending.
+		embeddings_enabled: Enable/disable document vectorization and semantic search.
+		openai_api_key: New OpenAI key for embeddings. Leave empty/None to keep the stored one.
+		embedding_model: OpenAI embeddings model name.
 	"""
 	try:
 		_check_settings_access()
@@ -98,6 +116,15 @@ def update_webhook_settings(webhook_url=None, webhook_api_key=None, webhook_enab
 		if webhook_enabled is not None:
 			doc.webhook_enabled = 1 if sbool(webhook_enabled) else 0
 
+		if embeddings_enabled is not None:
+			doc.embeddings_enabled = 1 if sbool(embeddings_enabled) else 0
+
+		if openai_api_key:
+			doc.openai_api_key = openai_api_key.strip()
+
+		if embedding_model is not None and (embedding_model or "").strip():
+			doc.embedding_model = embedding_model.strip()
+
 		doc.save()
 
 		return success(
@@ -106,6 +133,9 @@ def update_webhook_settings(webhook_url=None, webhook_api_key=None, webhook_enab
 				"webhook_url": doc.webhook_url or "",
 				"webhook_enabled": bool(doc.webhook_enabled),
 				"has_api_key": bool(doc.get_password("webhook_api_key", raise_exception=False)),
+				"embeddings_enabled": bool(getattr(doc, "embeddings_enabled", 0)),
+				"embedding_model": getattr(doc, "embedding_model", None) or "text-embedding-3-small",
+				"has_openai_api_key": bool(doc.get_password("openai_api_key", raise_exception=False)),
 			},
 		)
 	except frappe.PermissionError:

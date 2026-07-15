@@ -17,8 +17,13 @@ class CheeseDocument(Document):
 		from frappe.types import DF
 
 		document_type: DF.Literal["PDF", "Image", "Link"]
+		embedding_error: DF.SmallText | None
+		embedding_json: DF.LongText | None
+		embedding_model: DF.Data | None
+		embedding_status: DF.Literal["", "PENDING", "PROCESSING", "COMPLETED", "FAILED"]
 		entity_id: DF.DynamicLink
 		entity_type: DF.Literal["Experience", "Route", "Company"]
+		extracted_text: DF.LongText | None
 		file_url: DF.Data
 		language: DF.Literal[
 			"", "English", "Spanish", "French", "German", "Italian", "Portuguese", "Other"

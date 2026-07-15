@@ -2482,6 +2482,110 @@
                     "response": []
                 }
             ]
+        },
+        {
+            "name": "17. Documents - Semantic Search",
+            "item": [
+                {
+                    "name": "Search Documents (Semantic)",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "token {{token}}"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"query\": \"ofertas gastronomicas de La Cremerie\",\n  \"entity_type\": \"Company\",\n  \"entity_id\": \"COMPANY-001\",\n  \"top_k\": 3,\n  \"min_similarity\": 0.35,\n  \"include_content\": 1,\n  \"content_max_chars\": 6000\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/method/cheese.api.v1.document_controller.search_documents_semantic",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "method",
+                                "cheese.api.v1.document_controller.search_documents_semantic"
+                            ]
+                        },
+                        "description": "ERP: Ranks vectorized documents by cosine similarity against a natural-language query embedded with the same OpenAI model. Only PUBLISHED documents with a completed embedding are searched; an empty results list is a valid outcome. entity_type/entity_id are optional filters (e.g. one establishment). Bot: the search_establishment_documents tool builds the query from the customer's request and uses the returned content as answer context."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Get Document Content",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "token {{token}}"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"document_id\": \"Company-COMPANY-001-Carta\",\n  \"max_chars\": 12000\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/method/cheese.api.v1.document_controller.get_document_content",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "method",
+                                "cheese.api.v1.document_controller.get_document_content"
+                            ]
+                        },
+                        "description": "ERP: Returns the extracted text of one Cheese Document (extracts on demand when not vectorized yet). Bot: the get_document_content tool reads a full document found via semantic search."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Reindex Documents (Admin)",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "token {{token}}"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/method/cheese.api.v1.document_controller.reindex_documents",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "method",
+                                "cheese.api.v1.document_controller.reindex_documents"
+                            ]
+                        },
+                        "description": "ERP: Re-queues background vectorization for every document without a completed embedding. Requires System Manager. Use after configuring the OpenAI API key or changing the embedding model in Cheese Bot Setting."
+                    },
+                    "response": []
+                }
+            ]
         }
     ],
     "variable": [

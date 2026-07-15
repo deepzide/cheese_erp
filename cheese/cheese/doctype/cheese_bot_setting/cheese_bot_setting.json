@@ -11,7 +11,11 @@
   "webhook_enabled",
   "bot_section",
   "bot_default_language",
-  "bot_notes"
+  "bot_notes",
+  "ai_section",
+  "embeddings_enabled",
+  "openai_api_key",
+  "embedding_model"
  ],
  "fields": [
   {
@@ -56,6 +60,31 @@
    "fieldtype": "Small Text",
    "label": "Notes",
    "description": "Internal notes about the bot configuration"
+  },
+  {
+   "fieldname": "ai_section",
+   "fieldtype": "Section Break",
+   "label": "AI / Semantic Document Search"
+  },
+  {
+   "fieldname": "embeddings_enabled",
+   "fieldtype": "Check",
+   "label": "Embeddings Enabled",
+   "default": "1",
+   "description": "Vectorize uploaded documents so the bot can search them semantically"
+  },
+  {
+   "fieldname": "openai_api_key",
+   "fieldtype": "Password",
+   "label": "OpenAI API Key",
+   "description": "Used to generate document and query embeddings"
+  },
+  {
+   "fieldname": "embedding_model",
+   "fieldtype": "Data",
+   "label": "Embedding Model",
+   "default": "text-embedding-3-small",
+   "description": "OpenAI embeddings model (documents must be reindexed after changing it)"
   }
  ],
  "index_web_pages_for_search": 0,

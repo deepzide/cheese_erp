@@ -16,6 +16,9 @@ class CheeseBotSetting(Document):
 
 		bot_default_language: DF.Data | None
 		bot_notes: DF.SmallText | None
+		embedding_model: DF.Data | None
+		embeddings_enabled: DF.Check
+		openai_api_key: DF.Password | None
 		webhook_api_key: DF.Password | None
 		webhook_enabled: DF.Check
 		webhook_url: DF.Data | None

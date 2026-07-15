@@ -20,4 +20,10 @@ export const botSettingService = {
             body: JSON.stringify(data),
         });
     },
+
+    reindexDocuments: async () => {
+        return apiRequest('/api/method/cheese.api.v1.document_controller.reindex_documents', {
+            method: 'POST',
+        });
+    },
 };

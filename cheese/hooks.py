@@ -218,6 +218,11 @@ doc_events = {
 	"Cheese Deposit": {
 		"on_update": "cheese.cheese.utils.qr_on_payment.on_deposit_paid",
 	},
+	"Cheese Document": {
+		# Fires on insert too; the handler skips saves that don't touch
+		# embedding source fields (title, tags, file_url, ...)
+		"on_update": "cheese.cheese.utils.document_embeddings.enqueue_vectorize_document",
+	},
 }
 
 # Scheduled Tasks
