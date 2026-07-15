@@ -301,13 +301,18 @@ def accept_quotation(quotation_id):
 		for exp_item in experiences_list:
 			exp_id = exp_item.get("experience_id")
 			slot_id = exp_item.get("slot_id")
-			
+
 			if exp_id and slot_id:
 				from cheese.api.v1.ticket_controller import create_pending_ticket
-				ticket_result = create_pending_ticket(contact_id, exp_id, slot_id, party_size)
-				
-				if ticket_result.get("success"):
-					tickets.append(ticket_result.get("data", {}).get("ticket_id"))
+				ticket_result = create_pending_ticket(contact_id, exp_id, slot_id, party_size, commit=False)
+
+				if not ticket_result.get("success"):
+					# Accepting a quotation must create every ticket or none:
+					# a partial itinerary silently marked ACCEPTED leaves the
+					# customer believing the full quotation was booked.
+					frappe.db.rollback()
+					return ticket_result
+				tickets.append(ticket_result.get("data", {}).get("ticket_id"))
 		
 		# Update quotation status
 		quotation.status = "ACCEPTED"
@@ -333,8 +338,10 @@ def accept_quotation(quotation_id):
 			}
 		)
 	except frappe.ValidationError as e:
+		frappe.db.rollback()
 		return validation_error(str(e))
 	except Exception as e:
+		frappe.db.rollback()
 		frappe.log_error(f"Error in accept_quotation: {str(e)}")
 		return error("Failed to accept quotation", "SERVER_ERROR", {"error": str(e)}, 500)
 

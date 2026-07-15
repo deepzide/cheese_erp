@@ -496,8 +496,10 @@ class CheeseTicket(Document):
 			if active_lead:
 				from cheese.cheese.utils.lead_company import advance_lead_company_status
 
+				# No mid-save commit here: the conversion must live and die with
+				# the enclosing transaction, otherwise it seals half-created
+				# documents (e.g. route bookings inserted with zeroed totals).
 				advance_lead_company_status(active_lead, self.company, "CONVERTED")
-				frappe.db.commit()
 		except Exception as e:
 			# Silently fail if lead conversion fails
 			frappe.log_error(

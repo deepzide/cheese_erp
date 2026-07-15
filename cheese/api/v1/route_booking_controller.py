@@ -418,6 +418,7 @@ def create_route_reservation(
 	time_from=None,
 	time_to=None,
 	combination_id=None,
+	commit=True,
 ):
 	"""
 	Create pending route reservation.
@@ -437,6 +438,8 @@ def create_route_reservation(
 		time_from: Preferred slot start time in HH:MM[:SS] for auto slot selection (optional)
 		time_to: Preferred slot end time in HH:MM[:SS] for auto slot selection (optional)
 		combination_id: Pre-validated combination identifier from get_route_combinations (optional)
+		commit: When False the caller owns the transaction (e.g. mixed bookings
+			that combine a route with individual reservations must stay atomic)
 
 	Returns:
 		Created response with route booking data
@@ -769,7 +772,6 @@ def create_route_reservation(
 			if is_hotel:
 				# Auto-resolve the slot for the check_in night
 				if not start_date:
-					route_booking.delete()
 					frappe.db.rollback()
 					return validation_error(
 						"date_from (check-in) is required when the route includes hotel experiences"
@@ -787,7 +789,6 @@ def create_route_reservation(
 					limit=1,
 				)
 				if not night_slots:
-					route_booking.delete()
 					frappe.db.rollback()
 					return validation_error(
 						f"No available slot found for hotel {experience_id} on check-in date {start_date}"
@@ -796,7 +797,6 @@ def create_route_reservation(
 			else:
 				slot_id = slot_map.get(experience_id)
 				if not slot_id:
-					route_booking.delete()
 					frappe.db.rollback()
 					return validation_error(
 						f"No slot provided for experience {experience_id} at sequence {exp_row.sequence}"
@@ -813,19 +813,13 @@ def create_route_reservation(
 				check_out_date=check_out,
 				rooms_requested=rooms,
 				notes=notes,
+				commit=False,
 			)
 
 			if not ticket_result.get("success"):
-				# Rollback created tickets and route booking
-				for ticket in tickets:
-					try:
-						ticket_doc = frappe.get_doc("Cheese Ticket", ticket)
-						ticket_doc.status = "CANCELLED"
-						ticket_doc.save()
-						update_slot_capacity(ticket_doc.slot)
-					except Exception:
-						pass
-				route_booking.delete()
+				# Tickets are created with commit=False, so nothing in this
+				# reservation has been committed yet: a single rollback removes
+				# the booking, its tickets and the slot capacity updates.
 				frappe.db.rollback()
 				return ticket_result
 
@@ -896,7 +890,8 @@ def create_route_reservation(
 			)
 			deposit.insert()
 
-		frappe.db.commit()
+		if commit:
+			frappe.db.commit()
 
 		booked_schedule = []
 		for ticket_id in tickets:
@@ -945,8 +940,10 @@ def create_route_reservation(
 			},
 		)
 	except frappe.ValidationError as e:
+		frappe.db.rollback()
 		return validation_error(str(e))
 	except Exception as e:
+		frappe.db.rollback()
 		frappe.log_error(f"Error in create_route_reservation: {e!s}")
 		return error("Failed to create route reservation", "SERVER_ERROR", {"error": str(e)}, 500)
 
