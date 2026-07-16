@@ -195,8 +195,9 @@ class CheeseRouteBooking(Document):
 						company = frappe.db.get_value("Cheese Ticket", row.ticket, "company")
 						if company:
 							break
+				# No mid-save commit here: the conversion must live and die with
+				# the enclosing transaction (see CheeseTicket.convert_associated_lead).
 				advance_lead_company_status(active_lead, company, "CONVERTED")
-				frappe.db.commit()
 		except Exception as e:
 			# Silently fail if lead conversion fails
 			frappe.log_error(f"Failed to auto-convert lead for route booking {self.name}: {e}", "Lead Conversion Error")

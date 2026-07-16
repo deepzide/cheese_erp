@@ -1,0 +1,113 @@
+{
+ "actions": [],
+ "autoname": "format:SEARCH-LOG-{#####}",
+ "creation": "2024-01-01 00:00:00",
+ "doctype": "DocType",
+ "name": "Cheese Semantic Search Log",
+ "engine": "InnoDB",
+ "field_order": [
+  "query",
+  "source",
+  "results_count",
+  "column_break_1",
+  "entity_type",
+  "entity_id",
+  "top_k",
+  "min_similarity",
+  "results_section",
+  "results_json"
+ ],
+ "fields": [
+  {
+   "fieldname": "query",
+   "fieldtype": "Data",
+   "label": "Query",
+   "reqd": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "source",
+   "fieldtype": "Select",
+   "label": "Source",
+   "options": "API\nTEST",
+   "default": "API",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "read_only": 1,
+   "description": "API: bot/agent search. TEST: manual test from the ERP UI"
+  },
+  {
+   "fieldname": "results_count",
+   "fieldtype": "Int",
+   "label": "Results Count",
+   "in_list_view": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "entity_type",
+   "fieldtype": "Data",
+   "label": "Entity Type Filter",
+   "read_only": 1
+  },
+  {
+   "fieldname": "entity_id",
+   "fieldtype": "Data",
+   "label": "Entity Filter",
+   "read_only": 1
+  },
+  {
+   "fieldname": "top_k",
+   "fieldtype": "Int",
+   "label": "Top K",
+   "read_only": 1
+  },
+  {
+   "fieldname": "min_similarity",
+   "fieldtype": "Float",
+   "label": "Min Similarity",
+   "read_only": 1
+  },
+  {
+   "fieldname": "results_section",
+   "fieldtype": "Section Break",
+   "label": "Results"
+  },
+  {
+   "fieldname": "results_json",
+   "fieldtype": "Long Text",
+   "label": "Results JSON",
+   "read_only": 1,
+   "description": "Ranked documents returned to the caller: document_id, title, similarity, file_url, document_type"
+  }
+ ],
+ "in_create": 1,
+ "index_web_pages_for_search": 0,
+ "links": [],
+ "modified": "2024-01-01 00:00:00",
+ "modified_by": "Administrator",
+ "module": "Cheese",
+ "naming_rule": "Expression",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1
+  }
+ ],
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 0
+}

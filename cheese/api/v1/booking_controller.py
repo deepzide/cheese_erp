@@ -91,6 +91,7 @@ def create_pending_booking(contact_id, items, preferred_dates=None, conversation
 			if item_type == "route":
 				route_id = item.get("route_id")
 				if not route_id:
+					frappe.db.rollback()
 					return validation_error("route_id is required for route items")
 				
 				# Get experiences_with_slots from item or preferred_dates
@@ -136,6 +137,7 @@ def create_pending_booking(contact_id, items, preferred_dates=None, conversation
 						experiences_with_slots = constructed_slots
 				
 				if not experiences_with_slots and not route_date:
+					frappe.db.rollback()
 					return validation_error("experiences_with_slots (or date) is required for route items")
 				
 				# Create route reservation
@@ -148,9 +150,12 @@ def create_pending_booking(contact_id, items, preferred_dates=None, conversation
 					date_from=route_date,
 					date_to=route_date,
 					notes=item.get("notes") if item.get("notes") is not None else notes,
+					commit=False,
 				)
 				
 				if not route_result.get("success"):
+					# Abort atomically: also discards earlier uncommitted items.
+					frappe.db.rollback()
 					return route_result
 				
 				route_booking_id = route_result.get("data", {}).get("route_booking_id")
@@ -161,6 +166,8 @@ def create_pending_booking(contact_id, items, preferred_dates=None, conversation
 					pass
 				
 				if not route_result.get("success"):
+					# Abort atomically: also discards earlier uncommitted items.
+					frappe.db.rollback()
 					return route_result
 				
 				route_booking_id = route_result.get("data", {}).get("route_booking_id")
@@ -184,6 +191,7 @@ def create_pending_booking(contact_id, items, preferred_dates=None, conversation
 				item_notes = item.get("notes") if item.get("notes") is not None else notes
 				
 				if not experience_id or not slot_id:
+					frappe.db.rollback()
 					return validation_error("experience_id and slot_id are required for experience items")
 
 				if (
@@ -201,9 +209,12 @@ def create_pending_booking(contact_id, items, preferred_dates=None, conversation
 					selected_date=item_selected_date,
 					route_id=item_route_id,
 					notes=item_notes,
+					commit=False,
 				)
-				
+
 				if not ticket_result.get("success"):
+					# Abort atomically: also discards earlier uncommitted items.
+					frappe.db.rollback()
 					return ticket_result
 				
 				ticket_id = ticket_result.get("data", {}).get("ticket_id")
@@ -222,6 +233,7 @@ def create_pending_booking(contact_id, items, preferred_dates=None, conversation
 					ticket_doc.conversation = conversation_id
 					ticket_doc.save()
 			else:
+				frappe.db.rollback()
 				return validation_error(f"Invalid item type: {item_type}. Must be 'route' or 'experience'")
 		
 		# Generate booking ID before commit
@@ -265,8 +277,10 @@ def create_pending_booking(contact_id, items, preferred_dates=None, conversation
 			}
 		)
 	except frappe.ValidationError as e:
+		frappe.db.rollback()
 		return validation_error(str(e))
 	except Exception as e:
+		frappe.db.rollback()
 		frappe.log_error(f"Error in create_pending_booking: {str(e)}")
 		return error("Failed to create booking", "SERVER_ERROR", {"error": str(e)}, 500)
 

@@ -38,6 +38,7 @@ import SupportCreate from './SupportCreate';
 import BookingPolicyCreate from './BookingPolicyCreate';
 import BankAccountCreate from './BankAccountCreate';
 import DocumentCreate from './DocumentCreate';
+import DocumentDetail from './DocumentDetail';
 import TicketCreate from './TicketCreate';
 import BookingCreate from './BookingCreate';
 import RouteBookingCreate from './RouteBookingCreate';
@@ -54,7 +55,10 @@ import Hotels from './Hotels';
 import HotelReservations from './HotelReservations';
 import HotelAvailability from './HotelAvailability';
 import UsersPage from './Users';
+import BotUsers from './BotUsers';
 import WebhookSettings from './WebhookSettings';
+import SemanticSearchTest from './SemanticSearchTest';
+import SemanticSearchLogs from './SemanticSearchLogs';
 import HotelCreate from './HotelCreate';
 import HotelRoomCreate from './HotelRoomCreate';
 import { useHotelAccess } from '@/lib/useHotelAccess';
@@ -122,6 +126,7 @@ export default function Pages() {
                     <Route path="attendance" element={<Attendance />} />
                     <Route path="documents" element={<Documents />} />
                     <Route path="documents/new" element={<DocumentCreate />} />
+                    <Route path="documents/:id" element={<DocumentDetail />} />
                     <Route path="qr-tokens" element={<QRTokens />} />
                     <Route path="surveys" element={<SurveyResponses />} />
                     <Route path="scan" element={<QRScan />} />
@@ -136,7 +141,10 @@ export default function Pages() {
                     <Route path="hotels/reservations/:id" element={<HotelRouteGuard><HotelReservationDetail /></HotelRouteGuard>} />
                     <Route path="hotel-availability" element={<HotelRouteGuard><HotelAvailability /></HotelRouteGuard>} />
                     <Route path="users" element={<UsersPage />} />
+                    <Route path="bot-users" element={<BotUsers />} />
                     <Route path="webhook-settings" element={<WebhookSettings />} />
+                    <Route path="semantic-search" element={<SemanticSearchTest />} />
+                    <Route path="search-history" element={<SemanticSearchLogs />} />
                     <Route index element={<Navigate to="/cheese/dashboard" replace />} />
                     <Route path="*" element={<Navigate to="/cheese/dashboard" replace />} />
                 </Route>

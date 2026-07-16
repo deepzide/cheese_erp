@@ -167,10 +167,10 @@ def get_reservation_status(reservation_id):
 
 
 @frappe.whitelist()
-def create_pending_ticket(contact_id, experience_id, slot_id, party_size=1, selected_date=None, route_id=None, check_in_date=None, check_out_date=None, rooms_requested=None, notes=None):
+def create_pending_ticket(contact_id, experience_id, slot_id, party_size=1, selected_date=None, route_id=None, check_in_date=None, check_out_date=None, rooms_requested=None, notes=None, commit=True):
 	"""
 	Create a pending ticket with TTL
-	
+
 	Args:
 		contact_id: ID of the contact
 		experience_id: ID of the experience
@@ -178,7 +178,10 @@ def create_pending_ticket(contact_id, experience_id, slot_id, party_size=1, sele
 		party_size: Number of people
 		selected_date: Optional date selected by the user (YYYY-MM-DD). If provided, stored in ticket.selected_date
 		notes: Optional free-text notes (e.g. dietary, accessibility requirements)
-		
+		commit: When False the caller owns the transaction (multi-ticket flows
+			such as route reservations must stay atomic so a failure can roll
+			back every ticket plus the parent booking).
+
 	Returns:
 		Success response with ticket data
 	"""
@@ -308,11 +311,12 @@ def create_pending_ticket(contact_id, experience_id, slot_id, party_size=1, sele
 
 		ticket = frappe.get_doc(ticket_data)
 		ticket.insert()
-		
+
 		# Update slot capacity
 		update_slot_capacity(slot_id)
-		
-		frappe.db.commit()
+
+		if commit:
+			frappe.db.commit()
 
 		return created(
 			"Ticket created successfully",

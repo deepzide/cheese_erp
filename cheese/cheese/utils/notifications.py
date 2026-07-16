@@ -436,7 +436,11 @@ def send_ticket_status_webhook(ticket_id, new_status, observations=None):
 
 
 def enqueue_ticket_status_webhook(ticket_id, new_status, observations=None):
-	"""Fire webhook in a background job so the document save is never blocked."""
+	"""Fire webhook in a background job so the document save is never blocked.
+
+	enqueue_after_commit keeps the job out of Redis until the transaction is
+	committed, so a rolled-back ticket never triggers a webhook.
+	"""
 	frappe.enqueue(
 		"cheese.cheese.utils.notifications.send_ticket_status_webhook",
 		ticket_id=ticket_id,
@@ -444,6 +448,7 @@ def enqueue_ticket_status_webhook(ticket_id, new_status, observations=None):
 		observations=observations,
 		queue="short",
 		is_async=True,
+		enqueue_after_commit=True,
 	)
 
 

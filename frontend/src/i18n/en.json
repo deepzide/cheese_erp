@@ -24,8 +24,11 @@
     "hotelReservations": "Reservations",
     "hotelAvailability": "Availability",
     "users": "Users",
+    "botUsers": "Bot Users",
     "backups": "Backups",
     "webhookSettings": "Webhook Settings",
+    "semanticSearch": "Test Semantic Search",
+    "searchHistory": "Search History",
     "systemEvents": "System Events"
   },
   "sections": {
