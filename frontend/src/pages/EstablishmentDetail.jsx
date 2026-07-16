@@ -84,6 +84,7 @@ export default function EstablishmentDetail() {
                 company_name: payload.company_name || "",
                 email: payload.email || "",
                 default_currency: payload.default_currency || "UYU",
+                accepted_currencies: String(payload.accepted_currencies || "").split(",").map((c) => c.trim().toUpperCase()).filter(Boolean),
                 fx_tolerance_percent: payload.fx_tolerance_percent ?? 3,
                 phone_no: payload.phone || "",
                 website: payload.website || "",
@@ -100,6 +101,7 @@ export default function EstablishmentDetail() {
                 company_name: form.company_name,
                 email: form.email,
                 default_currency: form.default_currency,
+                accepted_currencies: (form.accepted_currencies || []).join(","),
                 fx_tolerance_percent: form.fx_tolerance_percent,
                 phone_no: form.phone_no,
                 website: form.website,
@@ -294,6 +296,31 @@ export default function EstablishmentDetail() {
                                     <p className="text-sm">{payload?.fx_tolerance_percent ?? 3}%</p>
                                 )}
                                 <p className="text-xs text-muted-foreground">{t("establishments.fxToleranceHint", "Margen aceptado al convertir pagos recibidos en otra moneda.")}</p>
+                            </div>
+                            <div className="space-y-2 sm:col-span-2">
+                                <Label>{t("establishments.acceptedCurrencies", "Monedas aceptadas")}</Label>
+                                {editMode ? (
+                                    <div className="flex gap-4 flex-wrap">
+                                        {["UYU", "USD", "EUR", "BRL", "ARS"].map((c) => (
+                                            <label key={c} className="flex items-center gap-1.5 text-sm cursor-pointer">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={(form.accepted_currencies || []).includes(c)}
+                                                    onChange={(e) => setForm((f) => ({
+                                                        ...f,
+                                                        accepted_currencies: e.target.checked
+                                                            ? [...(f.accepted_currencies || []), c]
+                                                            : (f.accepted_currencies || []).filter((x) => x !== c),
+                                                    }))}
+                                                />
+                                                {c}
+                                            </label>
+                                        ))}
+                                    </div>
+                                ) : (
+                                    <p className="text-sm">{String(payload?.accepted_currencies || "") || t("establishments.allCurrencies", "Todas")}</p>
+                                )}
+                                <p className="text-xs text-muted-foreground">{t("establishments.acceptedCurrenciesHint", "Las demás monedas se rechazan en pagos y formularios. Vacío = todas.")}</p>
                             </div>
                             <div className="space-y-2">
                                 <Label>{t("common.phone", "Phone")}</Label>

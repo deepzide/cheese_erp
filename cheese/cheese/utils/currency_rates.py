@@ -184,6 +184,22 @@ def get_company_fx_tolerance(company):
 	return flt(value) if value not in (None, "", 0) else DEFAULT_FX_TOLERANCE_PERCENT
 
 
+def get_company_accepted_currencies(company):
+	"""Currencies the establishment accepts; empty config = all supported.
+
+	The preferred currency is always part of the accepted set.
+	"""
+	raw = frappe.db.get_value("Company", company, "accepted_currencies") if company else None
+	items = [c.strip().upper() for c in (raw or "").split(",") if c.strip()]
+	valid = [c for c in items if c in SUPPORTED_CURRENCIES]
+	if not valid:
+		return list(SUPPORTED_CURRENCIES)
+	default = get_company_currency(company)
+	if default and default not in valid:
+		valid.append(default)
+	return valid
+
+
 @frappe.whitelist()
 def sync_rates_now():
 	"""Manual trigger (System Manager) for the daily rate sync."""
