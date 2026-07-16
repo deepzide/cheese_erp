@@ -90,6 +90,7 @@ export default function ExperienceDetail() {
                 // Backend stores duration in seconds; convert to hours for UI and round for readability
                 event_duration: Number(hours.toFixed(2)),
                 individual_price: exp.individual_price || 0,
+                currency: exp.currency || "UYU",
                 route_price: exp.route_price || 0,
                 price_per_night: exp.price_per_night || 0,
                 max_occupancy_per_unit: exp.max_occupancy_per_unit || 2,
@@ -382,7 +383,20 @@ export default function ExperienceDetail() {
                                                 <EditableField label={t("experiences.packageAvailability", "Package Availability")} value={form.package_mode} editMode={false} />
                                             )}
                                         </div>
-                                        <div /> {/* Spacing */}
+                                        <div className="space-y-1">
+                                            <p className="text-xs text-muted-foreground">{t("experiences.currency", "Moneda de los precios")}</p>
+                                            {editMode ? (
+                                                <select
+                                                    value={form.currency}
+                                                    onChange={(e) => handleFieldChange("currency", e.target.value)}
+                                                    className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm"
+                                                >
+                                                    {["UYU","USD","EUR","BRL","ARS"].map((c) => <option key={c} value={c}>{c}</option>)}
+                                                </select>
+                                            ) : (
+                                                <p className="text-sm font-medium">{form.currency || "UYU"}</p>
+                                            )}
+                                        </div>
                                         {form.experience_type === "HOTEL" ? (
                                             <>
                                                 <EditableField label={t("experiences.pricePerNight", "Individual Price / Night ($)")} type="number" value={form.price_per_night} onChange={(v) => handleFieldChange("price_per_night", v)} editMode={editMode} />

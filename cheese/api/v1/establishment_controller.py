@@ -227,6 +227,8 @@ def list_establishments(page=1, page_size=20, search=None, status=None, locality
 				"email": company.email,
 				"phone": company.phone_no,
 				"website": company.website,
+				"default_currency": company.default_currency,
+				"fx_tolerance_percent": getattr(company, "fx_tolerance_percent", None),
 				"description": company.company_description,
 				"is_hotel": bool(getattr(company, "cheese_is_hotel", 0)) if _company_has_is_hotel_field() else False,
 				"cheese_is_hotel": 1 if bool(getattr(company, "cheese_is_hotel", 0)) else 0,
@@ -368,6 +370,8 @@ def get_establishment_details(company_id):
 				"email": company.email,
 				"phone": company.phone_no,
 				"website": company.website,
+				"default_currency": company.default_currency,
+				"fx_tolerance_percent": getattr(company, "fx_tolerance_percent", None),
 				"description": company.company_description,
 				"administrator_contact": getattr(company, "administrator_contact", None),
 				"address": address,
@@ -433,7 +437,7 @@ def create_establishment(
 			)
 
 		defaults = frappe.defaults.get_defaults()
-		currency = default_currency or defaults.get("currency") or "USD"
+		currency = default_currency or defaults.get("currency") or "UYU"
 		country_val = country or frappe.db.get_value("Company", template_company, "country")
 		if not country_val:
 			country_row = frappe.get_all("Country", fields=["name"], limit=1)
@@ -593,6 +597,7 @@ def update_establishment(company_id, **kwargs):
 		allowed_fields = [
 			"company_name", "email", "phone_no", "website", 
 			"company_description", "company_logo", "administrator_contact",
+			"default_currency", "fx_tolerance_percent",
 			"google_maps_link", "cheese_google_maps_link",
 		]
 		if _company_has_is_hotel_field():

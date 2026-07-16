@@ -83,6 +83,8 @@ export default function EstablishmentDetail() {
             setForm({
                 company_name: payload.company_name || "",
                 email: payload.email || "",
+                default_currency: payload.default_currency || "UYU",
+                fx_tolerance_percent: payload.fx_tolerance_percent ?? 3,
                 phone_no: payload.phone || "",
                 website: payload.website || "",
                 cheese_google_maps_link: payload.google_maps_link || "",
@@ -97,6 +99,8 @@ export default function EstablishmentDetail() {
             establishmentService.updateEstablishment(companyId, {
                 company_name: form.company_name,
                 email: form.email,
+                default_currency: form.default_currency,
+                fx_tolerance_percent: form.fx_tolerance_percent,
                 phone_no: form.phone_no,
                 website: form.website,
                 cheese_google_maps_link: form.cheese_google_maps_link,
@@ -260,6 +264,36 @@ export default function EstablishmentDetail() {
                                 ) : (
                                     <p className="text-sm">{payload?.email || "—"}</p>
                                 )}
+                            </div>
+                            <div className="space-y-2">
+                                <Label>{t("establishments.preferredCurrency", "Moneda preferida")}</Label>
+                                {editMode ? (
+                                    <select
+                                        value={form.default_currency}
+                                        onChange={(e) => setForm((f) => ({ ...f, default_currency: e.target.value }))}
+                                        className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm"
+                                    >
+                                        {["UYU","USD","EUR","BRL","ARS"].map((c) => <option key={c} value={c}>{c}</option>)}
+                                    </select>
+                                ) : (
+                                    <p className="text-sm">{payload?.default_currency || "UYU"}</p>
+                                )}
+                                <p className="text-xs text-muted-foreground">{t("establishments.preferredCurrencyHint", "Todos los montos se convierten a esta moneda.")}</p>
+                            </div>
+                            <div className="space-y-2">
+                                <Label>{t("establishments.fxTolerance", "Tolerancia FX (%)")}</Label>
+                                {editMode ? (
+                                    <Input
+                                        type="number"
+                                        min="0"
+                                        step="0.5"
+                                        value={form.fx_tolerance_percent}
+                                        onChange={(e) => setForm((f) => ({ ...f, fx_tolerance_percent: e.target.value }))}
+                                    />
+                                ) : (
+                                    <p className="text-sm">{payload?.fx_tolerance_percent ?? 3}%</p>
+                                )}
+                                <p className="text-xs text-muted-foreground">{t("establishments.fxToleranceHint", "Margen aceptado al convertir pagos recibidos en otra moneda.")}</p>
                             </div>
                             <div className="space-y-2">
                                 <Label>{t("common.phone", "Phone")}</Label>

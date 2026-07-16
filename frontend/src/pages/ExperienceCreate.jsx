@@ -22,6 +22,7 @@ export default function ExperienceCreate() {
         status: "OFFLINE",
         package_mode: "Both",
         individual_price: "",
+        currency: "UYU",
         route_price: "",
         event_duration_hours: "",
         price_per_night: "",
@@ -57,6 +58,7 @@ export default function ExperienceCreate() {
             deposit_required: form.deposit_required ? 1 : 0,
             deposit_type: form.deposit_type,
             deposit_value: form.deposit_value ? Number(form.deposit_value) : 0,
+            currency: form.currency || "UYU",
             individual_price: form.individual_price ? Number(form.individual_price) : 0,
             route_price: form.route_price ? Number(form.route_price) : 0,
             event_duration: hours > 0 ? Math.round(hours * 3600) : 0,
@@ -167,6 +169,16 @@ export default function ExperienceCreate() {
                         </Badge>
                     </div>
 
+                    <div className="space-y-2 max-w-[220px]">
+                        <Label>{t("experiences.currency", "Moneda de los precios")}</Label>
+                        <select
+                            value={form.currency}
+                            onChange={(e) => handleChange("currency", e.target.value)}
+                            className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm"
+                        >
+                            {["UYU","USD","EUR","BRL","ARS"].map((c) => <option key={c} value={c}>{c}</option>)}
+                        </select>
+                    </div>
                     {form.experience_type !== "HOTEL" && (
                         <div className="grid grid-cols-1 sm:grid-cols-3 gap-5 animate-in fade-in slide-in-from-bottom-2 duration-300">
                             <div className="space-y-2">

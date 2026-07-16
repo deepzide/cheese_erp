@@ -34,6 +34,7 @@ export default function DepositCreate() {
         entity_id: ticketId || bookingId || "",
         amount_required: "",
         payment_amount: "",
+        payment_currency: "UYU",
         due_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().slice(0, 16),
         bank_account: "",
     });
@@ -125,6 +126,7 @@ export default function DepositCreate() {
                     ticket_id: form.entity_id,
                     amount: Number(form.payment_amount),
                     verification_method: "Manual",
+                    currency: form.payment_currency || undefined,
                     bank_account: form.bank_account,
                 }),
             });
@@ -234,6 +236,17 @@ export default function DepositCreate() {
                             onChange={(e) => setForm((prev) => ({ ...prev, payment_amount: e.target.value }))}
                             className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm"
                         />
+                    </div>
+                    <div className="space-y-2">
+                        <p className="text-xs text-muted-foreground">{t("deposits.paymentCurrency", "Moneda del pago")}</p>
+                        <select
+                            value={form.payment_currency}
+                            onChange={(e) => setForm((prev) => ({ ...prev, payment_currency: e.target.value }))}
+                            className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm"
+                        >
+                            {["UYU","USD","EUR","BRL","ARS"].map((c) => <option key={c} value={c}>{c}</option>)}
+                        </select>
+                        <p className="text-[11px] text-muted-foreground">{t("deposits.paymentCurrencyHint", "Si difiere de la moneda del establecimiento, el monto se convierte con la tasa del día.")}</p>
                     </div>
                     <div className="space-y-2">
                         <p className="text-xs text-muted-foreground">{t("deposits.dueAt", "Due At")}</p>
