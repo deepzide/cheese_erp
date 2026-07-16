@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { FileText, Upload } from "lucide-react";
@@ -38,6 +39,7 @@ export default function DocumentCreate() {
         entity_type: initialEntityType,
         entity_id: initialEntityId,
         title: "",
+        description: "",
         document_type: "PDF",
         file_url: "",
         language: "Spanish",
@@ -177,6 +179,16 @@ export default function DocumentCreate() {
                 <div className="space-y-2">
                     <Label>{t("documents.title", "Título del documento")} <span className="text-red-500">*</span></Label>
                     <Input placeholder="ej. Certificado de seguro" value={form.title} onChange={(e) => setForm(f => ({ ...f, title: e.target.value }))} />
+                </div>
+                <div className="space-y-2">
+                    <Label>{t("documents.description", "Descripción")}</Label>
+                    <Textarea
+                        rows={3}
+                        placeholder={t("documents.descriptionPlaceholder", "Describe el contenido del documento — recomendado para imágenes y videos: qué muestra, ofertas, precios, etc.")}
+                        value={form.description}
+                        onChange={(e) => setForm(f => ({ ...f, description: e.target.value }))}
+                    />
+                    <p className="text-xs text-muted-foreground">{t("documents.descriptionHint", "Se incluye en la búsqueda semántica del bot.")}</p>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
                     <div className="space-y-2">

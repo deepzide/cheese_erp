@@ -13,6 +13,7 @@
         "entity_type",
         "entity_id",
         "title",
+        "description",
         "document_type",
         "file_url",
         "status",
@@ -59,6 +60,12 @@
             "in_standard_filter": 1,
             "label": "Title",
             "reqd": 1
+        },
+        {
+            "fieldname": "description",
+            "fieldtype": "Small Text",
+            "label": "Description",
+            "description": "Manual description of the document content. Included in semantic search embeddings - recommended for images and video links."
         },
         {
             "fieldname": "document_type",

@@ -41,7 +41,7 @@ VISION_PROMPT = (
 )
 
 # Fields whose change invalidates the stored embedding
-EMBEDDING_SOURCE_FIELDS = ("file_url", "title", "tags", "language", "entity_type", "entity_id")
+EMBEDDING_SOURCE_FIELDS = ("file_url", "title", "description", "tags", "language", "entity_type", "entity_id")
 
 
 def get_embedding_settings():
@@ -383,6 +383,8 @@ def extract_document_text(doc):
 	remain findable even without extractable body content.
 	"""
 	header_parts = [doc.title or ""]
+	if getattr(doc, "description", None):
+		header_parts.append(f"Description: {doc.description}")
 	if doc.tags:
 		header_parts.append(f"Tags: {doc.tags}")
 	if doc.language:

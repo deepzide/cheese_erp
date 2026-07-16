@@ -11,6 +11,13 @@ export const documentService = {
         return apiRequest(`${BASE}.get_document_content?document_id=${encodeURIComponent(documentId)}&max_chars=${maxChars}`);
     },
 
+    updateDocument: async (documentId, data) => {
+        return apiRequest(`/api/resource/${encodeURIComponent("Cheese Document")}/${encodeURIComponent(documentId)}`, {
+            method: 'PUT',
+            body: JSON.stringify(data),
+        });
+    },
+
     vectorize: async (documentId) => {
         return apiRequest(`${BASE}.vectorize_document_now`, {
             method: 'POST',

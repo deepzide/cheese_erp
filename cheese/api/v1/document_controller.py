@@ -53,7 +53,7 @@ def _is_entity_accessible(entity_type, entity_id):
 
 
 @frappe.whitelist()
-def upload_document(entity_type, entity_id, file_url, title, document_type="PDF", tags=None, language=None, status="DRAFT", version=None):
+def upload_document(entity_type, entity_id, file_url, title, document_type="PDF", tags=None, language=None, status="DRAFT", version=None, description=None):
 	"""
 	Upload a document (PDF/Image/Link) for an entity (US-08)
 	
@@ -64,6 +64,7 @@ def upload_document(entity_type, entity_id, file_url, title, document_type="PDF"
 		title: Document title
 		document_type: Document type (PDF/Image/Link)
 		tags: Comma-separated tags
+		description: Manual description included in semantic search embeddings
 		language: Language code
 		status: Status (DRAFT/PUBLISHED/ARCHIVED)
 		version: Document version (optional)
@@ -109,6 +110,7 @@ def upload_document(entity_type, entity_id, file_url, title, document_type="PDF"
 				"entity_id": entity_id,
 				"file_url": file_url,
 				"title": title,
+				"description": description,
 				"document_type": document_type,
 				"tags": tags,
 				"language": language,
@@ -229,7 +231,7 @@ def list_documents(entity_type=None, entity_id=None, status=None, document_type=
 			documents = frappe.get_all(
 				"Cheese Document",
 				filters=filters,
-				fields=["name", "entity_type", "entity_id", "file_url", "title", "document_type", "tags", "language", "status", "version", "modified"],
+				fields=["name", "entity_type", "entity_id", "file_url", "title", "description", "document_type", "tags", "language", "status", "version", "modified"],
 				limit_start=(page - 1) * page_size,
 				limit_page_length=page_size,
 				order_by="modified desc"
@@ -333,6 +335,7 @@ def get_document_details(document_id):
 					"entity_id": doc.entity_id,
 					"file_url": doc.file_url,
 					"title": doc.title,
+					"description": doc.description,
 					"document_type": doc.document_type,
 					"tags": doc.tags,
 					"language": doc.language,
@@ -605,7 +608,7 @@ def search_documents_semantic(
 			"Cheese Document",
 			filters=_document_search_base_filters(entity_type, entity_id, status),
 			fields=[
-				"name", "title", "entity_type", "entity_id", "tags", "language",
+				"name", "title", "description", "entity_type", "entity_id", "tags", "language",
 				"document_type", "file_url", "embedding_json", "embedding_model",
 			],
 		)
@@ -629,6 +632,7 @@ def search_documents_semantic(
 				{
 					"document_id": row.name,
 					"title": row.title,
+					"description": row.description,
 					"entity_type": row.entity_type,
 					"entity_id": row.entity_id,
 					"tags": row.tags,

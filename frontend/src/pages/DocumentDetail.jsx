@@ -8,6 +8,7 @@ import {
     Loader2, AlertTriangle, ScrollText
 } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -40,12 +41,16 @@ export default function DocumentDetail() {
     const [updatingStatus, setUpdatingStatus] = useState(false);
     const [deleteOpen, setDeleteOpen] = useState(false);
     const [deleting, setDeleting] = useState(false);
+    const [descriptionDraft, setDescriptionDraft] = useState("");
+    const [savingDescription, setSavingDescription] = useState(false);
 
     const fetchDoc = async () => {
         setLoading(true);
         try {
             const res = await documentService.getDetails(id);
-            setDoc(unwrapFrappeMethodData(res, null));
+            const data = unwrapFrappeMethodData(res, null);
+            setDoc(data);
+            setDescriptionDraft(data?.description || "");
         } catch (err) {
             toast.error(err?.message || t("documents.loadFailed", "Failed to load documents"));
         } finally {
@@ -72,6 +77,19 @@ export default function DocumentDetail() {
             }
         } finally {
             setVectorizing(false);
+        }
+    };
+
+    const handleSaveDescription = async () => {
+        setSavingDescription(true);
+        try {
+            await documentService.updateDocument(id, { description: descriptionDraft.trim() });
+            toast.success(t("documents.descriptionSaved", "Descripción guardada — el documento se re-vectorizará automáticamente"));
+            fetchDoc();
+        } catch (err) {
+            toast.error(err?.message || t("documents.descriptionSaveError", "Error al guardar la descripción"));
+        } finally {
+            setSavingDescription(false);
         }
     };
 
@@ -190,6 +208,24 @@ export default function DocumentDetail() {
                     <Field label={t("documents.fileUrl", "Archivo / URL")}>
                         <span className="font-mono text-xs break-all">{doc.file_url}</span>
                     </Field>
+                    <div className="space-y-2 sm:col-span-2 lg:col-span-3">
+                        <p className="text-xs text-muted-foreground">{t("documents.description", "Descripción")}</p>
+                        <Textarea
+                            rows={3}
+                            placeholder={t("documents.descriptionPlaceholder", "Describe el contenido del documento — recomendado para imágenes y videos: qué muestra, ofertas, precios, etc.")}
+                            value={descriptionDraft}
+                            onChange={(e) => setDescriptionDraft(e.target.value)}
+                        />
+                        <div className="flex items-center justify-between gap-3">
+                            <p className="text-xs text-muted-foreground">{t("documents.descriptionHint", "Se incluye en la búsqueda semántica del bot.")}</p>
+                            {descriptionDraft.trim() !== (doc.description || "").trim() && (
+                                <Button size="sm" onClick={handleSaveDescription} disabled={savingDescription} className="bg-cheese-500 hover:bg-cheese-600 text-black font-semibold shrink-0">
+                                    {savingDescription ? <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" /> : null}
+                                    {t("documents.saveDescription", "Guardar descripción")}
+                                </Button>
+                            )}
+                        </div>
+                    </div>
                 </CardContent>
             </Card>
 

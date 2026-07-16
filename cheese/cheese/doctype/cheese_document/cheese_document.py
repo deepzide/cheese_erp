@@ -16,6 +16,7 @@ class CheeseDocument(Document):
 	if TYPE_CHECKING:
 		from frappe.types import DF
 
+		description: DF.SmallText | None
 		document_type: DF.Literal["PDF", "Image", "Link"]
 		embedding_error: DF.SmallText | None
 		embedding_json: DF.LongText | None
