@@ -16,6 +16,7 @@ import re
 import frappe
 
 OPENAI_EMBEDDINGS_URL = "https://api.openai.com/v1/embeddings"
+OPENAI_CHAT_COMPLETIONS_URL = "https://api.openai.com/v1/chat/completions"
 DEFAULT_EMBEDDING_MODEL = "text-embedding-3-small"
 EMBEDDING_REQUEST_TIMEOUT = 30
 # text-embedding-3-* accept up to 8191 tokens; ~4 chars/token keeps us safe.
@@ -24,6 +25,20 @@ MAX_EXTRACTED_CHARS = 100000
 MAX_PDF_PAGES = 50
 REMOTE_DOWNLOAD_TIMEOUT = 30
 MAX_REMOTE_DOWNLOAD_BYTES = 20 * 1024 * 1024  # 20 MB
+
+# Vision extraction for Image documents (same OpenAI key as embeddings)
+DEFAULT_VISION_MODEL = "gpt-4o-mini"
+VISION_REQUEST_TIMEOUT = 60
+VISION_MAX_TOKENS = 1200
+MAX_VISION_IMAGE_BYTES = 15 * 1024 * 1024  # 15 MB
+VISION_PROMPT = (
+	"This image is a document uploaded by a tourism establishment (typically a menu, "
+	"gastronomic offer, flyer, price list, schedule or poster). First transcribe ALL "
+	"visible text exactly as written — names, dishes, prices, dates, schedules, contact "
+	"info. Then add a short paragraph describing what the image shows. Reply in the "
+	"language that predominates in the image. If the image contains no readable text, "
+	"just describe its content."
+)
 
 # Fields whose change invalidates the stored embedding
 EMBEDDING_SOURCE_FIELDS = ("file_url", "title", "tags", "language", "entity_type", "entity_id")
@@ -226,6 +241,123 @@ def _extract_remote_text(url):
 		return ""
 
 
+# ── Image content extraction (vision model) ─────────────────────────────
+
+
+def _image_mime(file_url, data=b""):
+	"""Detect the image MIME type from magic bytes, falling back to the extension."""
+	if data[:8] == b"\x89PNG\r\n\x1a\n":
+		return "image/png"
+	if data[:3] == b"\xff\xd8\xff":
+		return "image/jpeg"
+	if data[:6] in (b"GIF87a", b"GIF89a"):
+		return "image/gif"
+	if data[:4] == b"RIFF" and data[8:12] == b"WEBP":
+		return "image/webp"
+	ext = (file_url or "").lower().rsplit(".", 1)[-1]
+	return {
+		"png": "image/png",
+		"jpg": "image/jpeg",
+		"jpeg": "image/jpeg",
+		"gif": "image/gif",
+		"webp": "image/webp",
+	}.get(ext, "image/jpeg")
+
+
+def _load_document_image_bytes(file_url):
+	"""Raw bytes of an Image document: local upload, external URL or public Drive."""
+	import os
+
+	if (file_url or "").lower().startswith(("http://", "https://")):
+		if _is_google_drive_url(file_url):
+			file_id = _extract_drive_file_id(file_url)
+			if not file_id:
+				return b""
+			candidates = [
+				f"https://drive.usercontent.google.com/download?id={file_id}&export=download&confirm=t",
+				f"https://drive.google.com/uc?export=download&confirm=t&id={file_id}",
+			]
+			for candidate in candidates:
+				try:
+					data, content_type = _download_capped(candidate)
+				except Exception:
+					continue
+				if data and "text/html" not in content_type:
+					return data
+			return b""
+		try:
+			data, content_type = _download_capped(file_url)
+		except Exception:
+			return b""
+		return b"" if "text/html" in content_type else data
+
+	path = _resolve_local_file_path(file_url)
+	if not path or not os.path.exists(path):
+		return b""
+	with open(path, "rb") as f:
+		return f.read()
+
+
+def _extract_image_text(doc, settings=None):
+	"""Transcribe and describe an Image document with the OpenAI vision model.
+
+	Runs BEFORE embedding so the image's real content (menu items, prices,
+	schedules, ...) becomes searchable instead of just title/tags. Returns
+	'' on any failure so vectorization falls back to metadata-only.
+	"""
+	settings = settings or get_embedding_settings()
+	if not settings.get("api_key"):
+		return ""
+
+	try:
+		data = _load_document_image_bytes(doc.file_url)
+		if not data:
+			return ""
+		if len(data) > MAX_VISION_IMAGE_BYTES:
+			frappe.logger().info(
+				f"Skipping vision extraction for {doc.name}: image exceeds {MAX_VISION_IMAGE_BYTES} bytes"
+			)
+			return ""
+
+		import base64
+
+		import requests
+
+		data_uri = f"data:{_image_mime(doc.file_url, data)};base64,{base64.b64encode(data).decode()}"
+		resp = requests.post(
+			OPENAI_CHAT_COMPLETIONS_URL,
+			headers={
+				"Authorization": f"Bearer {settings['api_key']}",
+				"Content-Type": "application/json",
+			},
+			json={
+				"model": DEFAULT_VISION_MODEL,
+				"messages": [
+					{
+						"role": "user",
+						"content": [
+							{"type": "text", "text": VISION_PROMPT},
+							{"type": "image_url", "image_url": {"url": data_uri}},
+						],
+					}
+				],
+				"max_tokens": VISION_MAX_TOKENS,
+				"temperature": 0,
+			},
+			timeout=VISION_REQUEST_TIMEOUT,
+		)
+		if not resp.ok:
+			frappe.log_error(
+				f"Vision API error HTTP {resp.status_code} for {doc.name}: {resp.text[:300]}",
+				"Document Embeddings",
+			)
+			return ""
+		return (resp.json()["choices"][0]["message"]["content"] or "").strip()
+	except Exception as e:
+		frappe.log_error(f"Image content extraction failed for {doc.name}: {e}", "Document Embeddings")
+		return ""
+
+
 def _entity_label(doc):
 	"""Human-readable entity + company context to enrich the embedding."""
 	parts = []
@@ -263,6 +395,10 @@ def extract_document_text(doc):
 	is_remote = (doc.file_url or "").lower().startswith(("http://", "https://"))
 	if doc.document_type == "PDF":
 		body = _extract_remote_text(doc.file_url) if is_remote else _extract_pdf_text(doc.file_url)
+	elif doc.document_type == "Image":
+		# A vision model transcribes/describes the image before embedding so
+		# its real content (menu items, prices, schedules) is searchable.
+		body = _extract_image_text(doc)
 	elif doc.document_type == "Link":
 		header_parts.append(f"Link: {doc.file_url}")
 		if is_remote:
