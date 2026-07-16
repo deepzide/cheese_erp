@@ -687,6 +687,7 @@ def record_deposit_payment(
 	attach_receipt=True,
 	deposit_id=None,
 	payment_type=None,
+	currency=None,
 ):
 	"""
 	Record a deposit payment
@@ -695,6 +696,9 @@ def record_deposit_payment(
 		ticket_id: ID of the ticket (required unless deposit_id is provided)
 		amount: Payment amount
 		verification_method: Verification method (Manual/OCR)
+		currency: ISO currency of the payment (e.g. from receipt OCR). When it
+			differs from the establishment currency the amount is converted with
+			a rate snapshot and the establishment FX tolerance applies.
 		ocr_payload: Optional OCR payload JSON
 		attach_receipt: If true (default), accept multipart file field receipt/payment_receipt/file
 		deposit_id: Deposit ID (optional - if provided, looks up deposit directly)
@@ -803,6 +807,35 @@ def record_deposit_payment(
 
 			deposit = frappe.get_doc("Cheese Deposit", deposit_name)
 		old_status = deposit.status
+
+		# Multi-currency: a payment in a different currency than the establishment's
+		# is converted with a rate snapshot; original values stay on the deposit.
+		payment_currency = (currency or json_body.get("currency") or "").strip().upper() or None
+		if payment_currency:
+			from cheese.cheese.utils.currency_rates import (
+				convert_amount,
+				get_company_currency,
+				get_company_fx_tolerance,
+			)
+
+			try:
+				entity_company = frappe.db.get_value(deposit.entity_type, deposit.entity_id, "company")
+			except Exception:
+				entity_company = None
+			company_currency = get_company_currency(entity_company)
+			deposit.currency = company_currency
+			if payment_currency != company_currency:
+				snapshot = convert_amount(amount, payment_currency, company_currency)
+				deposit.payment_currency = payment_currency
+				deposit.payment_amount_original = amount
+				deposit.payment_exchange_rate = snapshot["exchange_rate"]
+				amount = snapshot["converted_amount"]
+				# FX tolerance: differences within the margin (rate fluctuation)
+				# count as covering the exact remaining requirement.
+				tolerance = get_company_fx_tolerance(entity_company)
+				remaining = max(0, flt(deposit.amount_required or 0) - flt(deposit.amount_paid or 0))
+				if remaining and abs(amount - remaining) <= remaining * tolerance / 100.0:
+					amount = remaining
 		if verification_method == "Manual" and not bank_account and deposit.entity_type == "Cheese Ticket":
 			ticket_for_bank = frappe.get_doc("Cheese Ticket", deposit.entity_id)
 			bank_accounts = _bank_accounts_for_ticket(ticket_for_bank)
@@ -843,6 +876,9 @@ def record_deposit_payment(
 
 		payload = {
 			"deposit_id": deposit.name,
+			"payment_currency": deposit.payment_currency,
+			"payment_amount_original": deposit.payment_amount_original,
+			"payment_exchange_rate": deposit.payment_exchange_rate,
 			"ticket_id": ticket_id,
 			"amount_paid": amount,
 			"total_amount_paid": deposit.amount_paid or 0,

@@ -319,6 +319,21 @@ class CheeseTicket(Document):
 				"route_price": experience.route_price,
 				"effective_unit_price": effective_unit_price,
 			}
+		# Currency snapshot: establishment currency + rate used when the
+		# experience prices are expressed in a different currency.
+		from cheese.cheese.utils.currency_rates import get_company_currency, get_rate
+
+		company_currency = get_company_currency(self.company or experience.company)
+		source_currency = (getattr(experience, "currency", None) or company_currency).upper()
+		price_data["currency"] = company_currency
+		price_data["source_currency"] = source_currency
+		if source_currency != company_currency:
+			try:
+				rate, rate_date = get_rate(source_currency, company_currency)
+				price_data["exchange_rate"] = rate
+				price_data["rate_date"] = rate_date
+			except Exception:
+				pass
 		self.price_snapshot = json.dumps(price_data)
 
 	def apply_experience_deposit_policy(self):

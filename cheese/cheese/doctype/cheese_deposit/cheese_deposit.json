@@ -17,6 +17,9 @@
         "amount_paid",
         "bank_account",
         "currency",
+        "payment_currency",
+        "payment_amount_original",
+        "payment_exchange_rate",
         "status",
         "timing_section",
         "due_at",
@@ -77,8 +80,31 @@
             "fieldname": "currency",
             "fieldtype": "Select",
             "label": "Currency",
-            "options": "UYU\nUSD",
-            "default": "UYU"
+            "options": "UYU\nUSD\nEUR\nBRL\nARS",
+            "default": "UYU",
+            "description": "Establishment currency in which amount_required/amount_paid are expressed"
+        },
+        {
+            "fieldname": "payment_currency",
+            "fieldtype": "Select",
+            "label": "Payment Currency",
+            "options": "\nUYU\nUSD\nEUR\nBRL\nARS",
+            "read_only": 1,
+            "description": "Currency of the received payment (e.g. from the receipt OCR) when it differs from the establishment currency"
+        },
+        {
+            "fieldname": "payment_amount_original",
+            "fieldtype": "Currency",
+            "label": "Payment Amount (Original Currency)",
+            "read_only": 1
+        },
+        {
+            "fieldname": "payment_exchange_rate",
+            "fieldtype": "Float",
+            "label": "Payment Exchange Rate",
+            "read_only": 1,
+            "precision": "6",
+            "description": "Rate used to convert the payment into the establishment currency (snapshot at payment time)"
         },
         {
             "fieldname": "status",

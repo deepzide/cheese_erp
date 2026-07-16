@@ -172,7 +172,7 @@
             "fieldname": "currency",
             "fieldtype": "Select",
             "label": "Currency",
-            "options": "UYU\nUSD",
+            "options": "UYU\nUSD\nEUR\nBRL\nARS",
             "default": "UYU"
         },
         {

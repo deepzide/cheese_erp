@@ -4,6 +4,36 @@
 import frappe
 
 
+def _localize_price_result(result, experience):
+	"""Convert a computed price into the establishment currency (snapshot)."""
+	from frappe.utils import flt
+
+	from cheese.cheese.utils.currency_rates import convert_amount, get_company_currency
+
+	company_currency = get_company_currency(experience.company)
+	source_currency = (getattr(experience, "currency", None) or company_currency or "UYU").upper()
+	result["currency"] = company_currency
+	result["source_currency"] = source_currency
+	if result.get("total_price") and source_currency != company_currency:
+		snap = convert_amount(result["total_price"], source_currency, company_currency)
+		result["total_price_original"] = flt(result["total_price"])
+		result["total_price"] = snap["converted_amount"]
+		result["exchange_rate"] = snap["exchange_rate"]
+		result["rate_date"] = snap["rate_date"]
+	return result
+
+
+def _fixed_amount_in_company_currency(value, experience):
+	"""Fixed deposit amounts are expressed in the experience currency."""
+	from cheese.cheese.utils.currency_rates import convert_amount, get_company_currency
+
+	company_currency = get_company_currency(experience.company)
+	source_currency = (getattr(experience, "currency", None) or company_currency or "UYU").upper()
+	if not value or source_currency == company_currency:
+		return value
+	return convert_amount(value, source_currency, company_currency)["converted_amount"]
+
+
 def calculate_ticket_price(experience_id, party_size, route_id=None, ticket=None):
 	"""
 	Calculate price for a ticket.
@@ -24,31 +54,31 @@ def calculate_ticket_price(experience_id, party_size, route_id=None, ticket=None
 			per_night = experience.route_price if experience.route_price is not None else 0
 		else:
 			per_night = experience.price_per_night or 0
-		return {
+		return _localize_price_result({
 			"total_price": per_night * nights * rooms,
 			"price_per_night": per_night,
 			"nights": nights,
 			"rooms": rooms,
 			"individual_price": experience.price_per_night,
 			"route_price": experience.route_price,
-		}
+		}, experience)
 
 	if route_id:
 		# In route context, per-ticket pricing must always come from the
 		# experience's route_price. Using route.price here can duplicate the
 		# full route total on every ticket.
 		unit_price = experience.route_price if experience.route_price is not None else 0
-		return {
+		return _localize_price_result({
 			"total_price": unit_price * party_size,
 			"individual_price": experience.individual_price,
 			"route_price": experience.route_price
-		}
+		}, experience)
 	
-	return {
+	return _localize_price_result({
 		"total_price": (experience.individual_price or 0) * party_size,
 		"individual_price": experience.individual_price,
 		"route_price": None
-	}
+	}, experience)
 
 
 def calculate_deposit_amount(experience_id, total_price, route_id=None):
@@ -68,7 +98,9 @@ def calculate_deposit_amount(experience_id, total_price, route_id=None):
 		route = frappe.get_doc("Cheese Route", route_id)
 		if route.deposit_required:
 			if route.deposit_type == "Amount":
-				return route.deposit_value
+				return _fixed_amount_in_company_currency(
+					route.deposit_value, frappe.get_doc("Cheese Experience", experience_id)
+				)
 			elif route.deposit_type == "%":
 				return (total_price * route.deposit_value) / 100
 	
@@ -76,7 +108,7 @@ def calculate_deposit_amount(experience_id, total_price, route_id=None):
 	experience = frappe.get_doc("Cheese Experience", experience_id)
 	if experience.deposit_required:
 		if experience.deposit_type == "Amount":
-			return experience.deposit_value
+			return _fixed_amount_in_company_currency(experience.deposit_value, experience)
 		elif experience.deposit_type == "%":
 			return (total_price * experience.deposit_value) / 100
 	
