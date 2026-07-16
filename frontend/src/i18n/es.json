@@ -27,6 +27,7 @@
     "botUsers": "Usuarios de Bot",
     "backups": "Copias de Seguridad",
     "webhookSettings": "Configuración del Webhook",
+    "emailServer": "Servidor de Correo",
     "semanticSearch": "Probar Búsqueda Semántica",
     "searchHistory": "Historial de Búsquedas",
     "systemEvents": "Eventos del Sistema",

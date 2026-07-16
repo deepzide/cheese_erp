@@ -56,6 +56,7 @@ import HotelReservations from './HotelReservations';
 import HotelAvailability from './HotelAvailability';
 import UsersPage from './Users';
 import BotUsers from './BotUsers';
+import EmailServer from './EmailServer';
 import WebhookSettings from './WebhookSettings';
 import SemanticSearchTest from './SemanticSearchTest';
 import SemanticSearchLogs from './SemanticSearchLogs';
@@ -142,6 +143,7 @@ export default function Pages() {
                     <Route path="hotel-availability" element={<HotelRouteGuard><HotelAvailability /></HotelRouteGuard>} />
                     <Route path="users" element={<UsersPage />} />
                     <Route path="bot-users" element={<BotUsers />} />
+                    <Route path="email-server" element={<EmailServer />} />
                     <Route path="webhook-settings" element={<WebhookSettings />} />
                     <Route path="semantic-search" element={<SemanticSearchTest />} />
                     <Route path="search-history" element={<SemanticSearchLogs />} />

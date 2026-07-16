@@ -7,7 +7,7 @@ import {
     Users, UserPlus, FileText, Wallet, ShoppingCart,
     Bell, Menu, LogOut, ChevronDown, ChevronRight, X,
     Zap, Settings, Sun, Moon, Globe,
-    Shield, Landmark, UserCheck, QrCode, Star, Activity, MessageSquare, Building2, ScanLine, Hotel, BedDouble, Database, Webhook, FileSearch, History, Bot
+    Shield, Landmark, UserCheck, QrCode, Star, Activity, MessageSquare, Building2, ScanLine, Hotel, BedDouble, Database, Webhook, FileSearch, History, Bot, Mail
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -64,6 +64,7 @@ const navigationItems = [
     { titleKey: "nav.botUsers", url: createPageUrl("bot-users"), icon: Bot, section: "system" },
     { titleKey: "nav.backups", url: createPageUrl("backups"), icon: Database, section: "system" },
     { titleKey: "nav.webhookSettings", url: createPageUrl("webhook-settings"), icon: Webhook, section: "system" },
+    { titleKey: "nav.emailServer", url: createPageUrl("email-server"), icon: Mail, section: "system" },
     { titleKey: "nav.semanticSearch", url: createPageUrl("semantic-search"), icon: FileSearch, section: "system" },
     { titleKey: "nav.searchHistory", url: createPageUrl("search-history"), icon: History, section: "system" },
     { titleKey: "nav.systemEvents", url: createPageUrl("events"), icon: Activity, section: "system" },
@@ -95,7 +96,7 @@ export default function Layout({ children }) {
     const visibleNavigationItems = React.useMemo(() => {
         return navigationItems.filter((item) => {
             if (item.section === "hotel") return hasHotelAccess;
-            const adminOnlyPages = ["backups", "events", "users", "bot-users", "webhook-settings", "semantic-search", "search-history"];
+            const adminOnlyPages = ["backups", "events", "users", "bot-users", "email-server", "webhook-settings", "semantic-search", "search-history"];
             if (adminOnlyPages.some((page) => item.url.endsWith(page))) return isAdmin;
             return true;
         });
