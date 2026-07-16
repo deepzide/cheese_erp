@@ -139,6 +139,9 @@ export default function BankAccountCreate() {
         entity_type: initialCompany ? "Company" : initialRoute ? "Cheese Route" : "Company",
         entity_id: initialCompany || initialRoute || "",
         holder: "", bank: "", account: "", description: "", iban: "", currency: "UYU",
+        category: "BANK_ACCOUNT",
+        account_email: "", paypal_me_link: "", mp_alias_cvu: "",
+        account_country: "", dlocal_provider_network: "", dlocal_agreement_id: "",
     });
     const createMutation = useFrappeCreate("Cheese Bank Account");
 
@@ -201,6 +204,13 @@ export default function BankAccountCreate() {
             description: form.description,
             iban: form.iban || undefined,
             currency: form.currency,
+            category: form.category,
+            account_email: form.account_email || undefined,
+            paypal_me_link: form.paypal_me_link || undefined,
+            mp_alias_cvu: form.mp_alias_cvu || undefined,
+            account_country: form.account_country || undefined,
+            dlocal_provider_network: form.dlocal_provider_network || undefined,
+            dlocal_agreement_id: form.dlocal_agreement_id || undefined,
             status: "ACTIVE",
         };
         if (form.entity_type === "Cheese Route") {
@@ -254,28 +264,87 @@ export default function BankAccountCreate() {
                         />
                     )}
                 </div>
+                <div className="space-y-2 max-w-[280px]">
+                    <Label>{t("bankAccounts.category", "Tipo de método de pago")}</Label>
+                    <select
+                        value={form.category}
+                        onChange={(e) => setForm(f => ({ ...f, category: e.target.value }))}
+                        className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm"
+                    >
+                            <option value="BANK_ACCOUNT">{t("bankAccounts.catBANK_ACCOUNT", "Cuenta Bancaria")}</option>
+                            <option value="PAYPAL">{t("bankAccounts.catPAYPAL", "PayPal")}</option>
+                            <option value="MERCADO_PAGO">{t("bankAccounts.catMERCADO_PAGO", "Mercado Pago")}</option>
+                            <option value="DLOCAL">{t("bankAccounts.catDLOCAL", "dLocal")}</option>
+                    </select>
+                </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                     <div className="space-y-2">
                         <Label>{t("bankAccounts.holderLabel", "Titular")}</Label>
                         <Input placeholder={t("bankAccounts.holderLabel", "Nombre de empresa")} value={form.holder} onChange={(e) => setForm(f => ({ ...f, holder: e.target.value }))} />
                     </div>
+                    {form.category === "BANK_ACCOUNT" && (
                     <div className="space-y-2">
                         <Label>{t("bankAccounts.bankLabel", "Banco")}</Label>
                         <Input placeholder={t("bankAccounts.bankLabel", "Nombre del banco")} value={form.bank} onChange={(e) => setForm(f => ({ ...f, bank: e.target.value }))} />
                     </div>
+                    )}
                 </div>
+                {form.category === "BANK_ACCOUNT" && (
                 <div className="space-y-2">
                         <Label>{t("bankAccounts.ibanLabel", "IBAN")}</Label>
                     <Input placeholder="FR76 3000 4000 0500 0006 7890 123" value={form.iban} onChange={(e) => setForm(f => ({ ...f, iban: e.target.value }))} className="font-mono" />
                 </div>
+                )}
+                {["PAYPAL", "MERCADO_PAGO"].includes(form.category) && (
+                    <div className="space-y-2">
+                        <Label>{form.category === "PAYPAL" ? t("bankAccounts.paypalEmail", "Correo de la cuenta (PayPal ID)") : t("bankAccounts.mpEmail", "Correo de la cuenta")}</Label>
+                        <Input type="email" placeholder="pagos@tunegocio.com" value={form.account_email} onChange={(e) => setForm(f => ({ ...f, account_email: e.target.value }))} />
+                    </div>
+                )}
+                {form.category === "PAYPAL" && (
+                    <div className="space-y-2">
+                        <Label>{t("bankAccounts.paypalMe", "Enlace PayPal.Me (opcional)")}</Label>
+                        <Input placeholder="paypal.me/TuNegocio" value={form.paypal_me_link} onChange={(e) => setForm(f => ({ ...f, paypal_me_link: e.target.value }))} />
+                    </div>
+                )}
+                {form.category === "MERCADO_PAGO" && (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                        <div className="space-y-2">
+                            <Label>{t("bankAccounts.mpAlias", "Alias / CVU")}</Label>
+                            <Input placeholder="tunegocio.mp" value={form.mp_alias_cvu} onChange={(e) => setForm(f => ({ ...f, mp_alias_cvu: e.target.value }))} className="font-mono" />
+                        </div>
+                        <div className="space-y-2">
+                            <Label>{t("bankAccounts.accountCountry", "País de la cuenta")}</Label>
+                            <Input placeholder="Uruguay" value={form.account_country} onChange={(e) => setForm(f => ({ ...f, account_country: e.target.value }))} />
+                        </div>
+                    </div>
+                )}
+                {form.category === "DLOCAL" && (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                        <div className="space-y-2">
+                            <Label>{t("bankAccounts.dlocalNetwork", "Proveedor local / Red")}</Label>
+                            <Input placeholder="OXXO, Abitab, RedPagos..." value={form.dlocal_provider_network} onChange={(e) => setForm(f => ({ ...f, dlocal_provider_network: e.target.value }))} />
+                        </div>
+                        <div className="space-y-2">
+                            <Label>{t("bankAccounts.dlocalAgreement", "ID de convenio / comitente")}</Label>
+                            <Input placeholder="12345" value={form.dlocal_agreement_id} onChange={(e) => setForm(f => ({ ...f, dlocal_agreement_id: e.target.value }))} className="font-mono" />
+                        </div>
+                        <div className="space-y-2">
+                            <Label>{t("bankAccounts.accountCountry", "País de recaudación")}</Label>
+                            <Input placeholder="México" value={form.account_country} onChange={(e) => setForm(f => ({ ...f, account_country: e.target.value }))} />
+                        </div>
+                    </div>
+                )}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                    {form.category === "BANK_ACCOUNT" && (
                     <div className="space-y-2">
                         <Label>{t("bankAccounts.account", "Numero de cuenta")}</Label>
                         <Input placeholder={t("bankAccounts.account", "Numero de cuenta")} value={form.account} onChange={(e) => setForm(f => ({ ...f, account: e.target.value }))} className="font-mono" />
                     </div>
+                    )}
                     <div className="space-y-2">
-                        <Label>{t("bankAccounts.description", "Descripcion")}</Label>
-                        <Input placeholder={t("bankAccounts.descriptionPlaceholder", "ej. Cuenta principal")} value={form.description} onChange={(e) => setForm(f => ({ ...f, description: e.target.value }))} />
+                        <Label>{t("bankAccounts.paymentInstructions", "Instrucciones de pago")}</Label>
+                        <Input placeholder={t("bankAccounts.paymentInstructionsPh", "ej. Seleccioná Bienes y Servicios / Convenio 12345 en OXXO")} value={form.description} onChange={(e) => setForm(f => ({ ...f, description: e.target.value }))} />
                     </div>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">

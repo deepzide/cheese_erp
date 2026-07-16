@@ -35,7 +35,7 @@ export default function BankAccounts() {
     const routeFilter = searchParams.get('route');
 
     const { data: accounts = [], isLoading, error, refetch } = useFrappeList("Cheese Bank Account", {
-        fields: ["name", "entity_type", "entity_id", "route", "status", "holder", "bank", "account", "iban", "currency", "creation"],
+        fields: ["name", "entity_type", "entity_id", "route", "status", "holder", "bank", "account", "iban", "currency", "creation", "category"],
         filters: routeFilter ? { entity_id: routeFilter } : undefined,
         pageSize: 100,
     });
@@ -106,7 +106,7 @@ export default function BankAccounts() {
                                         <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center"><Landmark className="w-5 h-5 text-white" /></div>
                                         <div>
                                             <h3 className="font-semibold text-foreground">{account.holder || account.name}</h3>
-                                            <span className="text-xs text-muted-foreground">{account.bank || "—"}</span>
+                                            <span className="text-xs text-muted-foreground">{({ PAYPAL: "PayPal", MERCADO_PAGO: "Mercado Pago", DLOCAL: "dLocal" })[account.category] || account.bank || "—"}</span>
                                         </div>
                                     </div>
                                     <DropdownMenu>

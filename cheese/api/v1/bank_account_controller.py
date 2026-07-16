@@ -12,11 +12,19 @@ def serialize_company_bank_account_row(row):
 	"""API/bot shape: account_number, bank_name, currency (+ optional ids)."""
 	return {
 		"bank_account_id": row.get("name"),
+		"category": row.get("category") or "BANK_ACCOUNT",
 		"account_number": (row.get("account") or "") or "",
 		"bank_name": (row.get("bank") or "") or "",
 		"currency": (row.get("currency") or "") or "",
 		"holder": row.get("holder"),
 		"iban": row.get("iban") or None,
+		"account_email": row.get("account_email") or None,
+		"paypal_me_link": row.get("paypal_me_link") or None,
+		"mp_alias_cvu": row.get("mp_alias_cvu") or None,
+		"account_country": row.get("account_country") or None,
+		"dlocal_provider_network": row.get("dlocal_provider_network") or None,
+		"dlocal_agreement_id": row.get("dlocal_agreement_id") or None,
+		"payment_instructions": row.get("description") or None,
 	}
 
 
@@ -27,7 +35,7 @@ def get_active_company_bank_accounts_list(company_id):
 	rows = frappe.get_all(
 		"Cheese Bank Account",
 		filters={"entity_type": "Company", "entity_id": company_id, "status": "ACTIVE"},
-		fields=["name", "account", "bank", "currency", "holder", "iban"],
+		fields=["name", "account", "bank", "currency", "holder", "iban", "category", "description", "account_email", "paypal_me_link", "mp_alias_cvu", "account_country", "dlocal_provider_network", "dlocal_agreement_id"],
 		order_by="modified asc",
 	)
 	return [serialize_company_bank_account_row(r) for r in rows]

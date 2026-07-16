@@ -13,7 +13,7 @@
     "quotations": "Quotations",
     "conversations": "Conversations",
     "deposits": "Deposits",
-    "bankAccounts": "Bank Accounts",
+    "bankAccounts": "Payment Methods",
     "support": "Support",
     "attendance": "Attendance",
     "qrTokens": "QR Tokens",
@@ -88,7 +88,7 @@
     "notProvided": "Not provided",
     "totalPrice": "Total Price",
     "documents": "Documents",
-    "bankAccounts": "Bank Accounts",
+    "bankAccounts": "Payment Methods",
     "failed": "Failed",
     "selected": "Selected",
     "more": "more",
@@ -815,21 +815,21 @@
       "thu": "Thu",
       "fri": "Fri",
       "sat": "Sat"
-    }
-    ,"repeat": "Repeat"
-    ,"customRecurrence": "Custom Recurrence"
-    ,"customRecurrenceDesc": "Set up a custom recurrence pattern for this slot"
-    ,"repeatEvery": "Repeat every"
-    ,"dayUnit": "day(s)"
-    ,"weekUnit": "week(s)"
-    ,"monthUnit": "month(s)"
-    ,"repeatOn": "Repeat on"
-    ,"ends": "Ends"
-    ,"never": "Never"
-    ,"on": "On"
-    ,"after": "After"
-    ,"occurrences": "occurrences"
-    ,"selectAtLeastOneDay": "Please select at least one day"
+    },
+    "repeat": "Repeat",
+    "customRecurrence": "Custom Recurrence",
+    "customRecurrenceDesc": "Set up a custom recurrence pattern for this slot",
+    "repeatEvery": "Repeat every",
+    "dayUnit": "day(s)",
+    "weekUnit": "week(s)",
+    "monthUnit": "month(s)",
+    "repeatOn": "Repeat on",
+    "ends": "Ends",
+    "never": "Never",
+    "on": "On",
+    "after": "After",
+    "occurrences": "occurrences",
+    "selectAtLeastOneDay": "Please select at least one day"
   },
   "qrScan": {
     "cameraDenied": "Camera access denied or not available. Use manual token entry below.",

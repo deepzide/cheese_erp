@@ -52,6 +52,13 @@ export default function BankAccountDetail() {
             setForm({
                 holder: account.holder || "",
                 bank: account.bank || "",
+                category: account.category || "BANK_ACCOUNT",
+                account_email: account.account_email || "",
+                paypal_me_link: account.paypal_me_link || "",
+                mp_alias_cvu: account.mp_alias_cvu || "",
+                account_country: account.account_country || "",
+                dlocal_provider_network: account.dlocal_provider_network || "",
+                dlocal_agreement_id: account.dlocal_agreement_id || "",
                 account: account.account || "",
                 description: account.description || "",
                 iban: account.iban || "",
@@ -63,7 +70,7 @@ export default function BankAccountDetail() {
 
     const handleSave = () => {
         const changes = {};
-        ["holder", "bank", "account", "description", "iban", "currency", "status"].forEach(key => {
+        ["holder", "bank", "account", "description", "iban", "currency", "status", "category", "account_email", "paypal_me_link", "mp_alias_cvu", "account_country", "dlocal_provider_network", "dlocal_agreement_id"].forEach(key => {
             if (form[key] !== (account[key] || "")) changes[key] = form[key];
         });
 
@@ -109,8 +116,45 @@ export default function BankAccountDetail() {
                         </CardHeader>
                         <CardContent className="p-6">
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-6 gap-x-8">
+                                <div className="space-y-1">
+                                    <p className="text-xs text-muted-foreground">{t("bankAccounts.category", "Tipo de método de pago")}</p>
+                                    {editMode ? (
+                                        <select
+                                            value={form.category}
+                                            onChange={(e) => setForm(f => ({ ...f, category: e.target.value }))}
+                                            className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm"
+                                        >
+                                            <option value="BANK_ACCOUNT">{t("bankAccounts.catBANK_ACCOUNT", "Cuenta Bancaria")}</option>
+                                            <option value="PAYPAL">PayPal</option>
+                                            <option value="MERCADO_PAGO">Mercado Pago</option>
+                                            <option value="DLOCAL">dLocal</option>
+                                        </select>
+                                    ) : (
+                                        <p className="text-sm font-medium">{({ BANK_ACCOUNT: t("bankAccounts.catBANK_ACCOUNT", "Cuenta Bancaria"), PAYPAL: "PayPal", MERCADO_PAGO: "Mercado Pago", DLOCAL: "dLocal" })[form.category] || form.category}</p>
+                                    )}
+                                </div>
                                 <EditableField label={t("bankAccounts.holder", "Account Holder")} value={form.holder} onChange={(v) => setForm(f => ({ ...f, holder: v }))} editMode={editMode} />
-                                <EditableField label={t("bankAccounts.bank", "Bank")} value={form.bank} onChange={(v) => setForm(f => ({ ...f, bank: v }))} editMode={editMode} />
+                                {form.category === "BANK_ACCOUNT" && (
+                                    <EditableField label={t("bankAccounts.bank", "Bank")} value={form.bank} onChange={(v) => setForm(f => ({ ...f, bank: v }))} editMode={editMode} />
+                                )}
+                                {["PAYPAL", "MERCADO_PAGO"].includes(form.category) && (
+                                    <EditableField label={form.category === "PAYPAL" ? t("bankAccounts.paypalEmail", "Correo de la cuenta (PayPal ID)") : t("bankAccounts.mpEmail", "Correo de la cuenta")} value={form.account_email} onChange={(v) => setForm(f => ({ ...f, account_email: v }))} editMode={editMode} />
+                                )}
+                                {form.category === "PAYPAL" && (
+                                    <EditableField label={t("bankAccounts.paypalMe", "Enlace PayPal.Me")} value={form.paypal_me_link} onChange={(v) => setForm(f => ({ ...f, paypal_me_link: v }))} editMode={editMode} />
+                                )}
+                                {form.category === "MERCADO_PAGO" && (
+                                    <EditableField label={t("bankAccounts.mpAlias", "Alias / CVU")} value={form.mp_alias_cvu} onChange={(v) => setForm(f => ({ ...f, mp_alias_cvu: v }))} editMode={editMode} />
+                                )}
+                                {["MERCADO_PAGO", "DLOCAL"].includes(form.category) && (
+                                    <EditableField label={t("bankAccounts.accountCountry", "País de la cuenta")} value={form.account_country} onChange={(v) => setForm(f => ({ ...f, account_country: v }))} editMode={editMode} />
+                                )}
+                                {form.category === "DLOCAL" && (
+                                    <>
+                                        <EditableField label={t("bankAccounts.dlocalNetwork", "Proveedor local / Red")} value={form.dlocal_provider_network} onChange={(v) => setForm(f => ({ ...f, dlocal_provider_network: v }))} editMode={editMode} />
+                                        <EditableField label={t("bankAccounts.dlocalAgreement", "ID de convenio / comitente")} value={form.dlocal_agreement_id} onChange={(v) => setForm(f => ({ ...f, dlocal_agreement_id: v }))} editMode={editMode} />
+                                    </>
+                                )}
                                 <EditableField label={t("bankAccounts.account", "Account Number")} value={form.account} onChange={(v) => setForm(f => ({ ...f, account: v }))} editMode={editMode} />
                                 <EditableField label={t("common.description", "Description")} value={form.description} onChange={(v) => setForm(f => ({ ...f, description: v }))} editMode={editMode} />
                                 <EditableField label="IBAN" value={form.iban} onChange={(v) => setForm(f => ({ ...f, iban: v }))} editMode={editMode} />
