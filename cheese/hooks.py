@@ -241,6 +241,7 @@ scheduler_events = {
 		"cheese.cheese.scheduler.deposit_reminders.send_deposit_reminders",
 	],
 	"daily": [
+		"cheese.cheese.utils.currency_rates.sync_exchange_rates",
 		"cheese.cheese.scheduler.survey.send_post_completion_surveys",
 		"cheese.cheese.scheduler.survey.create_support_cases_for_low_ratings",
 	],

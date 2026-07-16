@@ -19,6 +19,7 @@
   "min_nights_stay",
   "event_duration",
   "pricing_section",
+  "currency",
   "individual_price",
   "price_per_night",
   "route_price",
@@ -113,6 +114,14 @@
    "fieldname": "pricing_section",
    "fieldtype": "Section Break",
    "label": "Pricing"
+  },
+  {
+   "fieldname": "currency",
+   "fieldtype": "Select",
+   "label": "Currency",
+   "options": "UYU\nUSD\nEUR\nBRL\nARS",
+   "default": "UYU",
+   "description": "Currency in which this experience prices are expressed. Converted to the establishment currency at booking time."
   },
   {
    "fieldname": "individual_price",

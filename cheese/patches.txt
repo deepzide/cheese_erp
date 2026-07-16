@@ -24,3 +24,5 @@ cheese.patches.v1_0.backfill_lead_companies_from_contact
 cheese.patches.v1_0.fix_pending_tickets_number_card_filter
 cheese.patches.v1_0.backfill_lead_company_status
 cheese.patches.v1_0.fix_open_leads_number_card
+cheese.patches.v1_0.add_company_fx_tolerance_field
+
