@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import { Sparkles, MapPin } from "lucide-react";
 import { toast } from "sonner";
 import { useFrappeCreate } from "@/lib/useApiData";
+import { useAcceptedCurrencies } from "@/lib/useAcceptedCurrencies";
 import CreatePageLayout from "@/components/CreatePageLayout";
 import CompanySelect from "@/components/CompanySelect";
 import { Input } from "@/components/ui/input";
@@ -35,6 +36,8 @@ export default function ExperienceCreate() {
         deposit_type: "Amount",
         deposit_value: "",
     });
+
+    const acceptedCurrencies = useAcceptedCurrencies(form.company);
 
     const handleChange = (field, value) => {
         setForm((prev) => ({ ...prev, [field]: value }));
@@ -176,7 +179,7 @@ export default function ExperienceCreate() {
                             onChange={(e) => handleChange("currency", e.target.value)}
                             className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm"
                         >
-                            {["UYU","USD","EUR","BRL","ARS"].map((c) => <option key={c} value={c}>{c}</option>)}
+                            {acceptedCurrencies.map((c) => <option key={c} value={c}>{c}</option>)}
                         </select>
                     </div>
                     {form.experience_type !== "HOTEL" && (

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { useFrappeDoc, useFrappeUpdate, useFrappeList } from "@/lib/useApiData";
+import { useAcceptedCurrencies } from "@/lib/useAcceptedCurrencies";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import DocumentGallery from "@/components/DocumentGallery";
@@ -111,6 +112,8 @@ export default function ExperienceDetail() {
             });
         }
     }, [exp]);
+
+    const acceptedCurrencies = useAcceptedCurrencies(form.company);
 
     const handleFieldChange = (field, value) => {
         setForm(prev => ({ ...prev, [field]: value }));
@@ -391,7 +394,7 @@ export default function ExperienceDetail() {
                                                     onChange={(e) => handleFieldChange("currency", e.target.value)}
                                                     className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm"
                                                 >
-                                                    {["UYU","USD","EUR","BRL","ARS"].map((c) => <option key={c} value={c}>{c}</option>)}
+                                                    {acceptedCurrencies.map((c) => <option key={c} value={c}>{c}</option>)}
                                                 </select>
                                             ) : (
                                                 <p className="text-sm font-medium">{form.currency || "UYU"}</p>

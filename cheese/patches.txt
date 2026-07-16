@@ -26,3 +26,4 @@ cheese.patches.v1_0.backfill_lead_company_status
 cheese.patches.v1_0.fix_open_leads_number_card
 cheese.patches.v1_0.add_company_fx_tolerance_field
 
+cheese.patches.v1_0.add_company_accepted_currencies_field

@@ -8,6 +8,7 @@ import CreatePageLayout from "@/components/CreatePageLayout";
 import FrappeSearchSelect from "@/components/FrappeSearchSelect";
 import { useFrappeDoc } from "@/lib/useApiData";
 import { apiRequest } from "@/api/client";
+import { useAcceptedCurrencies } from "@/lib/useAcceptedCurrencies";
 
 export default function DepositCreate() {
     const queryClient = useQueryClient();
@@ -104,6 +105,8 @@ export default function DepositCreate() {
             }));
         }
     }, [form.entity_type, ticket, booking]);
+
+    const acceptedCurrencies = useAcceptedCurrencies();
 
     const handleSubmit = async () => {
         if (!form.entity_type || !form.entity_id) {
@@ -244,7 +247,7 @@ export default function DepositCreate() {
                             onChange={(e) => setForm((prev) => ({ ...prev, payment_currency: e.target.value }))}
                             className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm"
                         >
-                            {["UYU","USD","EUR","BRL","ARS"].map((c) => <option key={c} value={c}>{c}</option>)}
+                            {acceptedCurrencies.map((c) => <option key={c} value={c}>{c}</option>)}
                         </select>
                         <p className="text-[11px] text-muted-foreground">{t("deposits.paymentCurrencyHint", "Si difiere de la moneda del establecimiento, el monto se convierte con la tasa del día.")}</p>
                     </div>

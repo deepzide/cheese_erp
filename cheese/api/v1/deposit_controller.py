@@ -449,6 +449,7 @@ def get_payment_link_or_instructions(ticket_id=None, deposit_id=None, payment_ty
 				"status": deposit_doc.status,
 				"payment_type": effective_payment_type,
 				"bank_account": bank_account,
+					"accepted_currencies": _accepted_currencies_for_ticket(ticket),
 				"instructions": instructions,
 			},
 		)
@@ -458,6 +459,16 @@ def get_payment_link_or_instructions(ticket_id=None, deposit_id=None, payment_ty
 
 
 @frappe.whitelist()
+def _accepted_currencies_for_ticket(ticket):
+	"""Accepted payment currencies of the ticket's establishment (for the bot)."""
+	try:
+		from cheese.cheese.utils.currency_rates import get_company_accepted_currencies
+
+		return get_company_accepted_currencies(getattr(ticket, "company", None))
+	except Exception:
+		return []
+
+
 def get_deposit_instructions(ticket_id, payment_type=None):
 	"""
 	Get deposit payment instructions for a ticket
@@ -493,6 +504,7 @@ def get_deposit_instructions(ticket_id, payment_type=None):
 					"deposit_required": False,
 					"ticket_id": ticket_id,
 					"bank_account": bank_account,
+					"accepted_currencies": _accepted_currencies_for_ticket(ticket),
 				},
 			)
 
@@ -629,6 +641,7 @@ def get_deposit_instructions(ticket_id, payment_type=None):
 				"due_at": str(deposit_doc.due_at) if deposit_doc.due_at else None,
 				"status": deposit_doc.status,
 				"bank_account": bank_account,
+					"accepted_currencies": _accepted_currencies_for_ticket(ticket),
 				"contact": contact_info,
 				"ticket_total_price": total_price,
 				"total_received": total_received,
@@ -816,12 +829,21 @@ def record_deposit_payment(
 				convert_amount,
 				get_company_currency,
 				get_company_fx_tolerance,
+				get_company_accepted_currencies,
 			)
 
 			try:
 				entity_company = frappe.db.get_value(deposit.entity_type, deposit.entity_id, "company")
 			except Exception:
 				entity_company = None
+			# Bank accounts belong to the same establishment as the entity, so the
+			# entity company defines the accepted-currency set for this payment.
+			accepted_currencies = get_company_accepted_currencies(entity_company)
+			if payment_currency not in accepted_currencies:
+				return validation_error(
+					f"Currency {payment_currency} is not accepted by this establishment. "
+					f"Accepted currencies: {', '.join(accepted_currencies)}"
+				)
 			company_currency = get_company_currency(entity_company)
 			deposit.currency = company_currency
 			if payment_currency != company_currency:
