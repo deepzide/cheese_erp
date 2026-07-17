@@ -24,6 +24,8 @@ export default function ExperienceCreate() {
         package_mode: "Both",
         individual_price: "",
         currency: "UYU",
+        differentiate_by_weekday: 0,
+        differentiate_by_age_group: 0,
         route_price: "",
         event_duration_hours: "",
         price_per_night: "",
@@ -62,6 +64,8 @@ export default function ExperienceCreate() {
             deposit_type: form.deposit_type,
             deposit_value: form.deposit_value ? Number(form.deposit_value) : 0,
             currency: form.currency || "UYU",
+            differentiate_by_weekday: form.differentiate_by_weekday,
+            differentiate_by_age_group: form.differentiate_by_age_group,
             individual_price: form.individual_price ? Number(form.individual_price) : 0,
             route_price: form.route_price ? Number(form.route_price) : 0,
             event_duration: hours > 0 ? Math.round(hours * 3600) : 0,
@@ -182,6 +186,21 @@ export default function ExperienceCreate() {
                             {acceptedCurrencies.map((c) => <option key={c} value={c}>{c}</option>)}
                         </select>
                     </div>
+                    <div className="flex gap-6 flex-wrap">
+                        <label className="flex items-center gap-2 text-sm cursor-pointer">
+                            <input type="checkbox" checked={!!form.differentiate_by_weekday}
+                                onChange={(e) => handleChange("differentiate_by_weekday", e.target.checked ? 1 : 0)} />
+                            {t("experiences.diffWeekday", "Diferenciar por día (lun-vie / fin de semana)")}
+                        </label>
+                        <label className="flex items-center gap-2 text-sm cursor-pointer">
+                            <input type="checkbox" checked={!!form.differentiate_by_age_group}
+                                onChange={(e) => handleChange("differentiate_by_age_group", e.target.checked ? 1 : 0)} />
+                            {t("experiences.diffAge", "Diferenciar por grupo etario")}
+                        </label>
+                    </div>
+                    {(form.differentiate_by_weekday || form.differentiate_by_age_group) ? (
+                        <p className="text-xs text-muted-foreground -mt-3">{t("experiences.matrixCreateHint", "Las líneas de precio por día/grupo etario se definen en el detalle de la experiencia después de crearla.")}</p>
+                    ) : null}
                     {form.experience_type !== "HOTEL" && (
                         <div className="grid grid-cols-1 sm:grid-cols-3 gap-5 animate-in fade-in slide-in-from-bottom-2 duration-300">
                             <div className="space-y-2">
