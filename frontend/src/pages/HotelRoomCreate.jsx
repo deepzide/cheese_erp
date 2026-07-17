@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { BedDouble } from "lucide-react";
 import { toast } from "sonner";
 import { useFrappeCreate } from "@/lib/useApiData";
+import { useAcceptedCurrencies } from "@/lib/useAcceptedCurrencies";
 import CreatePageLayout from "@/components/CreatePageLayout";
 import CompanySelect from "@/components/CompanySelect";
 
@@ -22,6 +23,7 @@ export default function HotelRoomCreate() {
         status: "ONLINE",
         is_room: 1,
         room_size: "2",
+        currency: "UYU",
         price_per_night: "",
         max_occupancy_per_unit: "2",
         min_nights_stay: "1",
@@ -35,6 +37,7 @@ export default function HotelRoomCreate() {
     });
 
     const createMutation = useFrappeCreate("Cheese Experience");
+    const acceptedCurrencies = useAcceptedCurrencies(form.company);
 
     const handleChange = (field, value) => {
         setForm((prev) => ({ ...prev, [field]: value }));
@@ -53,6 +56,7 @@ export default function HotelRoomCreate() {
             deposit_ttl_days: parseInt(form.deposit_ttl_days) || 1,
             deposit_required: form.deposit_required ? 1 : 0,
             deposit_value: form.deposit_value ? Number(form.deposit_value) : 0,
+            currency: form.currency || "UYU",
             price_per_night: form.price_per_night ? Number(form.price_per_night) : 0,
             room_size: parseInt(form.room_size) || 1,
             max_occupancy_per_unit: parseInt(form.room_size) || parseInt(form.max_occupancy_per_unit) || 1,
@@ -99,9 +103,19 @@ export default function HotelRoomCreate() {
                             onChange={(e) => handleChange("name", e.target.value)}
                         />
                     </div>
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-3 gap-4">
                         <div className="space-y-2">
-                            <Label>{t("hotelReservations.pricePerNight", "Price Per Night ($)")} <span className="text-red-500">*</span></Label>
+                            <Label>{t("experiences.currency", "Moneda de los precios")}</Label>
+                            <select
+                                value={form.currency}
+                                onChange={(e) => handleChange("currency", e.target.value)}
+                                className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm"
+                            >
+                                {acceptedCurrencies.map((c) => <option key={c} value={c}>{c}</option>)}
+                            </select>
+                        </div>
+                        <div className="space-y-2">
+                            <Label>{t("hotelReservations.pricePerNight", "Precio por noche")} <span className="text-red-500">*</span></Label>
                             <Input
                                 type="number"
                                 min="0"

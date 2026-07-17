@@ -516,7 +516,7 @@
     "createRoom": "Create Room",
     "roomTypeName": "Room Type Name",
     "roomNamePlaceholder": "e.g. Deluxe Double Room",
-    "pricePerNight": "Price Per Night ($)",
+    "pricePerNight": "Price Per Night",
     "pricePlaceholder": "e.g. 150.00",
     "maxOccupancy": "Max Occupancy",
     "roomSize": "Room Size",
