@@ -19,6 +19,10 @@
         "check_out_date",
         "nights",
         "party_size",
+        "guest_ages",
+        "promotion",
+        "promotion_discount",
+        "price_before_discount",
         "rooms_requested",
         "room_number_assigned",
         "status",
@@ -112,6 +116,31 @@
             "in_list_view": 1,
             "label": "Party Size",
             "reqd": 1
+        },
+        {
+            "fieldname": "guest_ages",
+            "fieldtype": "Small Text",
+            "label": "Guest Ages",
+            "description": "JSON list with the age of each person (e.g. [34, 8, 65]). Used for age-group pricing and promotions."
+        },
+        {
+            "fieldname": "promotion",
+            "fieldtype": "Link",
+            "options": "Cheese Promotion",
+            "label": "Applied Promotion",
+            "read_only": 1
+        },
+        {
+            "fieldname": "promotion_discount",
+            "fieldtype": "Currency",
+            "label": "Promotion Discount",
+            "read_only": 1
+        },
+        {
+            "fieldname": "price_before_discount",
+            "fieldtype": "Currency",
+            "label": "Price Before Discount",
+            "read_only": 1
         },
         {
             "fieldname": "rooms_requested",

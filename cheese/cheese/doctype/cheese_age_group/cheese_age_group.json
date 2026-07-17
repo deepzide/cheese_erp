@@ -1,0 +1,79 @@
+{
+ "actions": [],
+ "creation": "2024-01-01 00:00:00",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "links": [],
+ "modified": "2024-01-01 00:00:00",
+ "modified_by": "Administrator",
+ "module": "Cheese",
+ "owner": "Administrator",
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "name": "Cheese Age Group",
+ "autoname": "format:AGE-{company}-{group_name}",
+ "naming_rule": "Expression",
+ "field_order": [
+  "company",
+  "group_name",
+  "min_age",
+  "max_age"
+ ],
+ "fields": [
+  {
+   "fieldname": "company",
+   "fieldtype": "Link",
+   "options": "Company",
+   "label": "Company",
+   "reqd": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "group_name",
+   "fieldtype": "Data",
+   "label": "Group Name",
+   "reqd": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "min_age",
+   "fieldtype": "Int",
+   "label": "Min Age",
+   "reqd": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "max_age",
+   "fieldtype": "Int",
+   "label": "Max Age",
+   "reqd": 1,
+   "in_list_view": 1,
+   "description": "Inclusive. Ranges of two age groups of the same company cannot overlap."
+  }
+ ],
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Cheese Booking Manager",
+   "write": 1
+  }
+ ],
+ "track_changes": 1
+}

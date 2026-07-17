@@ -1,0 +1,106 @@
+{
+ "actions": [],
+ "creation": "2024-01-01 00:00:00",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "links": [],
+ "modified": "2024-01-01 00:00:00",
+ "modified_by": "Administrator",
+ "module": "Cheese",
+ "owner": "Administrator",
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "name": "Cheese Season",
+ "autoname": "format:SEASON-{#####}",
+ "naming_rule": "Expression",
+ "field_order": [
+  "company",
+  "season_name",
+  "percent",
+  "is_active",
+  "date_from",
+  "date_to",
+  "experiences_section",
+  "experiences"
+ ],
+ "fields": [
+  {
+   "fieldname": "company",
+   "fieldtype": "Link",
+   "options": "Company",
+   "label": "Company",
+   "reqd": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "season_name",
+   "fieldtype": "Data",
+   "label": "Season Name",
+   "reqd": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "percent",
+   "fieldtype": "Float",
+   "label": "Percent (+increase / -discount)",
+   "reqd": 1,
+   "in_list_view": 1,
+   "description": "Second-level adjustment applied over every price defined on the experiences (weekday/weekend, age groups and route prices). E.g. 20 = +20%, -15 = -15%."
+  },
+  {
+   "fieldname": "is_active",
+   "fieldtype": "Check",
+   "label": "Active",
+   "default": "1",
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "date_from",
+   "fieldtype": "Date",
+   "label": "From",
+   "reqd": 1
+  },
+  {
+   "fieldname": "date_to",
+   "fieldtype": "Date",
+   "label": "To",
+   "reqd": 1
+  },
+  {
+   "fieldname": "experiences_section",
+   "fieldtype": "Section Break",
+   "label": "Applies To"
+  },
+  {
+   "fieldname": "experiences",
+   "fieldtype": "Table",
+   "options": "Cheese Season Experience",
+   "label": "Experiences"
+  }
+ ],
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Cheese Booking Manager",
+   "write": 1
+  }
+ ],
+ "track_changes": 1
+}

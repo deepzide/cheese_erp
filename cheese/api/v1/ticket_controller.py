@@ -129,7 +129,7 @@ def _recalculate_ticket_financials(ticket):
 
 
 @frappe.whitelist()
-def create_pending_reservation(contact_id, experience_id, slot_id, party_size=1, selected_date=None, route_id=None, check_in_date=None, check_out_date=None, rooms_requested=None, notes=None):
+def create_pending_reservation(contact_id, experience_id, slot_id, party_size=1, selected_date=None, route_id=None, check_in_date=None, check_out_date=None, rooms_requested=None, notes=None, guest_ages=None):
 	"""
 	Create pending reservation (individual) - alias for create_pending_ticket
 	
@@ -149,7 +149,7 @@ def create_pending_reservation(contact_id, experience_id, slot_id, party_size=1,
 		Success response with reservation data
 	"""
 	route_id = _read_route_id_input(route_id)
-	return create_pending_ticket(contact_id, experience_id, slot_id, party_size, selected_date=selected_date, route_id=route_id, check_in_date=check_in_date, check_out_date=check_out_date, rooms_requested=rooms_requested, notes=notes)
+	return create_pending_ticket(contact_id, experience_id, slot_id, party_size, selected_date=selected_date, route_id=route_id, check_in_date=check_in_date, check_out_date=check_out_date, rooms_requested=rooms_requested, notes=notes, guest_ages=guest_ages)
 
 
 @frappe.whitelist()
@@ -167,7 +167,7 @@ def get_reservation_status(reservation_id):
 
 
 @frappe.whitelist()
-def create_pending_ticket(contact_id, experience_id, slot_id, party_size=1, selected_date=None, route_id=None, check_in_date=None, check_out_date=None, rooms_requested=None, notes=None, commit=True):
+def create_pending_ticket(contact_id, experience_id, slot_id, party_size=1, selected_date=None, route_id=None, check_in_date=None, check_out_date=None, rooms_requested=None, notes=None, commit=True, guest_ages=None):
 	"""
 	Create a pending ticket with TTL
 
@@ -278,6 +278,10 @@ def create_pending_ticket(contact_id, experience_id, slot_id, party_size=1, sele
 		# Calculate deposit
 		deposit_amount = calculate_deposit_amount(experience_id, price_data["total_price"], route_id=route_id)
 
+		from cheese.cheese.utils.seasonal_pricing import parse_guest_ages
+
+		ages_list = parse_guest_ages(guest_ages)
+
 		ticket_data = {
 			"doctype": "Cheese Ticket",
 			"contact": contact_id,
@@ -286,6 +290,7 @@ def create_pending_ticket(contact_id, experience_id, slot_id, party_size=1, sele
 			"slot": slot_id,
 			"route": route_id,
 			"party_size": party_size,
+			"guest_ages": json.dumps(ages_list) if ages_list else None,
 			# Born PENDING; CheeseTicket.apply_auto_confirmation flips it to
 			# CONFIRMED on insert when the experience allows instant booking,
 			# identically for every creation origin.

@@ -1,0 +1,56 @@
+{
+ "actions": [],
+ "creation": "2024-01-01 00:00:00",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "links": [],
+ "modified": "2024-01-01 00:00:00",
+ "modified_by": "Administrator",
+ "module": "Cheese",
+ "owner": "Administrator",
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "name": "Cheese Experience Price",
+ "istable": 1,
+ "field_order": [
+  "day_type",
+  "age_group",
+  "price",
+  "route_price"
+ ],
+ "fields": [
+  {
+   "fieldname": "day_type",
+   "fieldtype": "Select",
+   "label": "Day Type",
+   "options": "ALL\nWEEKDAY\nWEEKEND",
+   "default": "ALL",
+   "in_list_view": 1,
+   "description": "WEEKDAY = Monday-Friday, WEEKEND = Saturday-Sunday, ALL = any day"
+  },
+  {
+   "fieldname": "age_group",
+   "fieldtype": "Link",
+   "options": "Cheese Age Group",
+   "label": "Age Group",
+   "in_list_view": 1,
+   "description": "Empty = applies to every age"
+  },
+  {
+   "fieldname": "price",
+   "fieldtype": "Currency",
+   "label": "Price",
+   "in_list_view": 1,
+   "description": "Individual booking price per person for this combination"
+  },
+  {
+   "fieldname": "route_price",
+   "fieldtype": "Currency",
+   "label": "Route Price",
+   "in_list_view": 1,
+   "description": "Per-person price when the experience is booked inside a route"
+  }
+ ],
+ "permissions": []
+}

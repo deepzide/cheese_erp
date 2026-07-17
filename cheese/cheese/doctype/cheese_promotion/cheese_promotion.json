@@ -1,0 +1,156 @@
+{
+ "actions": [],
+ "creation": "2024-01-01 00:00:00",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "links": [],
+ "modified": "2024-01-01 00:00:00",
+ "modified_by": "Administrator",
+ "module": "Cheese",
+ "owner": "Administrator",
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "name": "Cheese Promotion",
+ "autoname": "format:PROMO-{#####}",
+ "naming_rule": "Expression",
+ "field_order": [
+  "company",
+  "promo_name",
+  "is_active",
+  "discount_section",
+  "discount_type",
+  "percent",
+  "free_tickets",
+  "dates_section",
+  "date_from",
+  "date_to",
+  "requirements_section",
+  "requirements",
+  "experiences_section",
+  "all_experiences",
+  "experiences"
+ ],
+ "fields": [
+  {
+   "fieldname": "company",
+   "fieldtype": "Link",
+   "options": "Company",
+   "label": "Company",
+   "reqd": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "promo_name",
+   "fieldtype": "Data",
+   "label": "Promotion Name",
+   "reqd": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "is_active",
+   "fieldtype": "Check",
+   "label": "Active",
+   "default": "1",
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "discount_section",
+   "fieldtype": "Section Break",
+   "label": "Discount"
+  },
+  {
+   "fieldname": "discount_type",
+   "fieldtype": "Select",
+   "label": "Discount Type",
+   "options": "PERCENT\nFREE_TICKETS",
+   "default": "PERCENT",
+   "reqd": 1,
+   "in_list_view": 1,
+   "description": "PERCENT: % off the original price when requirements match. FREE_TICKETS: X free entries when requirements match."
+  },
+  {
+   "fieldname": "percent",
+   "fieldtype": "Float",
+   "label": "Discount %",
+   "depends_on": "eval:doc.discount_type==\"PERCENT\""
+  },
+  {
+   "fieldname": "free_tickets",
+   "fieldtype": "Int",
+   "label": "Free Tickets",
+   "depends_on": "eval:doc.discount_type==\"FREE_TICKETS\""
+  },
+  {
+   "fieldname": "dates_section",
+   "fieldtype": "Section Break",
+   "label": "Validity"
+  },
+  {
+   "fieldname": "date_from",
+   "fieldtype": "Date",
+   "label": "From",
+   "reqd": 1
+  },
+  {
+   "fieldname": "date_to",
+   "fieldtype": "Date",
+   "label": "To",
+   "reqd": 1
+  },
+  {
+   "fieldname": "requirements_section",
+   "fieldtype": "Section Break",
+   "label": "Match Requirements",
+   "description": "Every line must be satisfied by the booking party for the promo to apply."
+  },
+  {
+   "fieldname": "requirements",
+   "fieldtype": "Table",
+   "options": "Cheese Promotion Requirement",
+   "label": "Requirements"
+  },
+  {
+   "fieldname": "experiences_section",
+   "fieldtype": "Section Break",
+   "label": "Applies To"
+  },
+  {
+   "fieldname": "all_experiences",
+   "fieldtype": "Check",
+   "label": "All establishment experiences",
+   "default": "0"
+  },
+  {
+   "fieldname": "experiences",
+   "fieldtype": "Table",
+   "options": "Cheese Promotion Experience",
+   "label": "Experiences",
+   "depends_on": "eval:!doc.all_experiences"
+  }
+ ],
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Cheese Booking Manager",
+   "write": 1
+  }
+ ],
+ "track_changes": 1
+}

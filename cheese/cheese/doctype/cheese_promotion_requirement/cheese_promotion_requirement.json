@@ -1,0 +1,38 @@
+{
+ "actions": [],
+ "creation": "2024-01-01 00:00:00",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "links": [],
+ "modified": "2024-01-01 00:00:00",
+ "modified_by": "Administrator",
+ "module": "Cheese",
+ "owner": "Administrator",
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "name": "Cheese Promotion Requirement",
+ "istable": 1,
+ "field_order": [
+  "age_group",
+  "min_people"
+ ],
+ "fields": [
+  {
+   "fieldname": "age_group",
+   "fieldtype": "Link",
+   "options": "Cheese Age Group",
+   "label": "Age Group",
+   "in_list_view": 1,
+   "description": "Empty = TODOS (any age counts toward this line)"
+  },
+  {
+   "fieldname": "min_people",
+   "fieldtype": "Int",
+   "label": "Min People",
+   "reqd": 1,
+   "in_list_view": 1
+  }
+ ],
+ "permissions": []
+}

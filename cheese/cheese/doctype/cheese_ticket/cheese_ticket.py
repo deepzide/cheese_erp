@@ -349,6 +349,10 @@ class CheeseTicket(Document):
 		price_data = calculate_ticket_price(self.experience, party_size, route_id=self.route, ticket=self)
 		total_price = price_data.get("total_price", 0)
 		self.total_price = total_price
+		# Automatic promotion (applies to manual and bot bookings alike)
+		self.promotion = price_data.get("promotion")
+		self.promotion_discount = price_data.get("promotion_discount") or 0
+		self.price_before_discount = price_data.get("price_before_discount")
 		self.deposit_amount = calculate_deposit_amount(self.experience, total_price, route_id=self.route)
 		self.deposit_required = 1 if self.deposit_amount > 0 else 0
 

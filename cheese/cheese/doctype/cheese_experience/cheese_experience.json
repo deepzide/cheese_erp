@@ -23,6 +23,10 @@
   "individual_price",
   "price_per_night",
   "route_price",
+  "pricing_matrix_section",
+  "differentiate_by_weekday",
+  "differentiate_by_age_group",
+  "price_lines",
   "package_mode",
   "deposit_section",
   "deposit_required",
@@ -140,6 +144,32 @@
    "fieldname": "route_price",
    "fieldtype": "Currency",
    "label": "Route Price"
+  },
+  {
+   "fieldname": "pricing_matrix_section",
+   "fieldtype": "Section Break",
+   "label": "Pricing by Day and Age Group",
+   "collapsible": 1
+  },
+  {
+   "fieldname": "differentiate_by_weekday",
+   "fieldtype": "Check",
+   "label": "Differentiate prices by weekday/weekend",
+   "default": "0"
+  },
+  {
+   "fieldname": "differentiate_by_age_group",
+   "fieldtype": "Check",
+   "label": "Differentiate prices by age group",
+   "default": "0"
+  },
+  {
+   "fieldname": "price_lines",
+   "fieldtype": "Table",
+   "options": "Cheese Experience Price",
+   "label": "Price Lines",
+   "depends_on": "eval:doc.differentiate_by_weekday || doc.differentiate_by_age_group",
+   "description": "Optional prices per weekday/weekend and age group (individual and route). Missing combinations fall back to the base prices above."
   },
   {
    "fieldname": "package_mode",

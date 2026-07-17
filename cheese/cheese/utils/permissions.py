@@ -927,3 +927,15 @@ def has_route_experience_permission(doc, ptype="read", user=None):
 
 def has_quotation_experience_permission(doc, ptype="read", user=None):
 	return has_route_experience_permission(doc, ptype, user)
+
+
+def cheese_season_query(user):
+    return _build_company_condition("Cheese Season", user)
+
+
+def cheese_promotion_query(user):
+    return _build_company_condition("Cheese Promotion", user)
+
+
+def cheese_age_group_query(user):
+    return _build_company_condition("Cheese Age Group", user)

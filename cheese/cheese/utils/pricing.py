@@ -34,51 +34,95 @@ def _fixed_amount_in_company_currency(value, experience):
 	return convert_amount(value, source_currency, company_currency)["converted_amount"]
 
 
-def calculate_ticket_price(experience_id, party_size, route_id=None, ticket=None):
+def calculate_ticket_price(experience_id, party_size, route_id=None, ticket=None, selected_date=None, guest_ages=None):
 	"""
 	Calculate price for a ticket.
-	
-	- Individual ticket (no route): individual_price * party_size
-	- Route ticket: always use experience.route_price * party_size
-	- HOTEL ticket (standalone): price_per_night * nights * rooms_requested
-	- HOTEL ticket (within a route): route_price * nights * rooms_requested
+
+	- Individual ticket (no route): per-person price * party_size
+	- Route ticket: per-person route price * party_size
+	- HOTEL: price_per_night * nights * rooms (route_price per night in routes)
+
+	Per-person prices come from the experience price matrix (weekday/weekend
+	x age group, entry date decides the day type) with fallback to the base
+	prices; an active season percent adjusts them, and an active matching
+	promotion discounts the total automatically.
 	"""
+	from frappe.utils import flt
+
+	from cheese.cheese.utils.seasonal_pricing import (
+		apply_promotion,
+		compute_party_prices,
+		find_matching_promotion,
+		get_active_season,
+	)
+
 	experience = frappe.get_doc("Cheese Experience", experience_id)
-	
+
+	if ticket is not None:
+		selected_date = selected_date or ticket.get("selected_date") or ticket.get("check_in_date")
+		guest_ages = guest_ages or ticket.get("guest_ages")
+
+	def _convert_extras(result):
+		rate = result.get("exchange_rate")
+		if rate:
+			for key in ("promotion_discount", "price_before_discount", "price_before_season"):
+				if result.get(key):
+					result[key] = flt(result[key] * rate, 2)
+		return result
+
 	if experience.experience_type == "HOTEL":
 		nights = ticket.nights if ticket else 1
 		rooms = party_size  # For HOTEL, party_size passed is actually rooms_requested
-		# Within a route package, hotel pricing must use the configured Route
-		# Price per night, never the standalone nightly price.
 		if route_id:
 			per_night = experience.route_price if experience.route_price is not None else 0
 		else:
 			per_night = experience.price_per_night or 0
-		return _localize_price_result({
+		result = {
 			"total_price": per_night * nights * rooms,
 			"price_per_night": per_night,
 			"nights": nights,
 			"rooms": rooms,
 			"individual_price": experience.price_per_night,
 			"route_price": experience.route_price,
-		}, experience)
+		}
+		season = get_active_season(experience.company, experience_id, selected_date)
+		if season and season.percent:
+			result["price_before_season"] = result["total_price"]
+			result["season"] = dict(season)
+			result["total_price"] = flt(result["total_price"] * (1 + flt(season.percent) / 100.0), 2)
+		return _convert_extras(_localize_price_result(result, experience))
 
-	if route_id:
-		# In route context, per-ticket pricing must always come from the
-		# experience's route_price. Using route.price here can duplicate the
-		# full route total on every ticket.
-		unit_price = experience.route_price if experience.route_price is not None else 0
-		return _localize_price_result({
-			"total_price": unit_price * party_size,
-			"individual_price": experience.individual_price,
-			"route_price": experience.route_price
-		}, experience)
-	
-	return _localize_price_result({
-		"total_price": (experience.individual_price or 0) * party_size,
+	party = compute_party_prices(
+		experience,
+		party_size,
+		selected_date=selected_date,
+		guest_ages=guest_ages,
+		in_route=bool(route_id),
+	)
+	subtotal = flt(sum(party["unit_prices"]), 2)
+	result = {
+		"total_price": subtotal,
 		"individual_price": experience.individual_price,
-		"route_price": None
-	}, experience)
+		"route_price": experience.route_price if route_id else None,
+		"day_type": party["day_type"],
+		"season": party["season"],
+		# Per-person detail in the experience currency (before conversion)
+		"price_breakdown": party["breakdown"],
+	}
+
+	promo = find_matching_promotion(
+		experience.company, experience_id, selected_date, guest_ages, party_size
+	)
+	if promo:
+		discount = apply_promotion(promo, party["unit_prices"])
+		if discount > 0:
+			result["price_before_discount"] = subtotal
+			result["promotion"] = promo.name
+			result["promotion_name"] = promo.promo_name
+			result["promotion_discount"] = discount
+			result["total_price"] = flt(max(0, subtotal - discount), 2)
+
+	return _convert_extras(_localize_price_result(result, experience))
 
 
 def calculate_deposit_amount(experience_id, total_price, route_id=None):

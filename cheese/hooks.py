@@ -144,6 +144,9 @@ permission_query_conditions = {
 	"Cheese System Event": "cheese.cheese.utils.permissions.cheese_system_event_query",
 	"Cheese Route Experience": "cheese.cheese.utils.permissions.cheese_route_experience_query",
 	"Cheese Quotation Experience": "cheese.cheese.utils.permissions.cheese_quotation_experience_query",
+	"Cheese Season": "cheese.cheese.utils.permissions.cheese_season_query",
+	"Cheese Promotion": "cheese.cheese.utils.permissions.cheese_promotion_query",
+	"Cheese Age Group": "cheese.cheese.utils.permissions.cheese_age_group_query",
 }
 
 has_permission = {
@@ -172,6 +175,9 @@ has_permission = {
 	"Cheese System Event": "cheese.cheese.utils.permissions.has_system_event_permission",
 	"Cheese Route Experience": "cheese.cheese.utils.permissions.has_route_experience_permission",
 	"Cheese Quotation Experience": "cheese.cheese.utils.permissions.has_quotation_experience_permission",
+	"Cheese Season": "cheese.cheese.utils.permissions.has_company_permission",
+	"Cheese Promotion": "cheese.cheese.utils.permissions.has_company_permission",
+	"Cheese Age Group": "cheese.cheese.utils.permissions.has_company_permission",
 }
 
 # DocType Class
