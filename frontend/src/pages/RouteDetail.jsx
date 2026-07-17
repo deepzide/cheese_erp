@@ -130,26 +130,41 @@ export default function RouteDetail() {
 
     const experiences = Array.isArray(experiencesRaw) ? experiencesRaw : [];
     const expById = useMemo(() => Object.fromEntries(experiences.map((e) => [e.name, e])), [experiences]);
-    // Route price is the sum of included experiences' route prices.
-    // HOTEL experiences contribute their Hotel Price (`price_per_night`).
-    const computedRoutePrice = useMemo(() => {
-        return experienceIds.reduce((sum, expId) => {
-            return sum + getExperienceRouteUnitPrice(expById[expId]);
-        }, 0);
-    }, [experienceIds, expById]);
 
-    // Keep price consistent with "sum from experiences" rule while editing experiences.
+    // Route price = the converted sum of each experience's route price, taken
+    // to that experience's establishment currency (mirrors the booking total).
+    // Computed on the backend because currency conversion needs the daily FX
+    // rates; the raw client-side sum would mix currencies.
+    const { data: routePricePreview } = useQuery({
+        queryKey: ["route-price-preview", experienceIds],
+        queryFn: async () => {
+            const res = await apiRequest(
+                "/api/method/cheese.api.v1.pricing_controller.get_route_price_preview",
+                { method: "POST", body: JSON.stringify({ experience_ids: experienceIds, party_size: 1 }) }
+            );
+            return res?.data?.message?.data || res?.data?.data || { total: 0, currency: null, mixed: false };
+        },
+        enabled: experienceIds.length > 0,
+    });
+    const computedRoutePrice = routePricePreview?.total || 0;
+    const routeCurrency = routePricePreview?.currency || null;
+    const routeMixedCurrency = !!routePricePreview?.mixed;
+
+    // Keep price consistent with "sum from experiences" rule while editing.
+    // Guard on the fetched preview so we don't clobber the price with 0 while
+    // the converted total is still loading.
     useEffect(() => {
         if (!editMode) return;
+        if (routePricePreview?.total == null) return;
         setForm((prev) => {
             if (!prev) return prev;
             return {
                 ...prev,
                 price_mode: "Manual",
-                price: computedRoutePrice,
+                price: routePricePreview.total,
             };
         });
-    }, [computedRoutePrice, editMode]);
+    }, [routePricePreview, editMode]);
 
     const { data: documents = [], isLoading: documentsLoading } = useFrappeList("Cheese Document", {
         enabled: !!id,
@@ -516,9 +531,17 @@ export default function RouteDetail() {
                                         <EditableField label={t("routes.price", "Price ($)")} type="number" value={form.price} onChange={(v) => handleFieldChange("price", v)} editMode={editMode} />
                                     </div>
                                     {editMode && (
-                                        <p className="text-xs text-muted-foreground mt-4 px-3 py-2 bg-muted/30 rounded-md border border-border/60">
-                                            {t("routes.priceAutoSumNote", "Price auto-syncs to the sum of each experience's Route Price. Current sum:")} ${Number(computedRoutePrice || 0).toLocaleString()}
-                                        </p>
+                                        <div className="text-xs text-muted-foreground mt-4 px-3 py-2 bg-muted/30 rounded-md border border-border/60">
+                                            <span>
+                                                {t("routes.priceAutoSumNote", "Price auto-syncs to the converted sum of each experience's Route Price. Current sum:")}{" "}
+                                                <span className="font-medium">{routeCurrency ? `${routeCurrency} ` : ""}{Number(computedRoutePrice || 0).toLocaleString()}</span>
+                                            </span>
+                                            {routeMixedCurrency && (
+                                                <span className="block mt-1 text-amber-600">
+                                                    {t("routes.priceMixedCurrency", "The experiences use different establishment currencies; the total mixes currencies and each ticket is charged in its own establishment's currency.")}
+                                                </span>
+                                            )}
+                                        </div>
                                     )}
                                     {!editMode && form.price_mode === "Sum" && (
                                         <p className="text-xs text-amber-600 mt-4 px-3 py-2 bg-amber-50 rounded-md border border-amber-100">
@@ -636,7 +659,7 @@ export default function RouteDetail() {
                                                                     ) : null}
                                                                     {exp ? (
                                                                         <span className="text-xs text-muted-foreground">
-                                                                            {t("routes.routePriceUnit", "Route Price")}: ${Number(unitPrice).toLocaleString()}
+                                                                            {t("routes.routePriceUnit", "Route Price")}: {exp?.currency ? `${exp.currency} ` : ""}{Number(unitPrice).toLocaleString()}
                                                                         </span>
                                                                     ) : null}
                                                                 </div>

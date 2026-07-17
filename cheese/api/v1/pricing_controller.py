@@ -3,9 +3,9 @@
 
 import frappe
 from frappe import _
-from frappe.utils import get_datetime, now_datetime
+from frappe.utils import cint, flt, get_datetime, now_datetime
 from cheese.api.common.responses import success, error, not_found, validation_error
-from cheese.cheese.utils.pricing import calculate_ticket_price, calculate_deposit_amount
+from cheese.cheese.utils.pricing import calculate_ticket_price, calculate_deposit_amount, calculate_route_price
 from cheese.cheese.utils.validation import validate_booking_policy
 from cheese.cheese.utils.access import assert_record_access
 import json
@@ -93,17 +93,10 @@ def get_pricing_preview(items, party_size=1):
 				
 				route = frappe.get_doc("Cheese Route", route_id)
 				
-				# Calculate route price
-				if route.price_mode == "Manual" and route.price:
-					route_price = route.price * party_size
-				elif route.price_mode == "Sum":
-					route_price = 0
-					for exp_row in route.experiences:
-						exp = frappe.get_doc("Cheese Experience", exp_row.experience)
-						route_unit = exp.route_price if exp.route_price is not None else 0
-						route_price += route_unit * party_size
-				else:
-					route_price = 0
+				# Route price (Manual per-person, or the converted sum of each
+				# experience's route price) — delegate to the single source of
+				# truth so previews match the actual booking total.
+				route_price = calculate_route_price(route_id, party_size)
 				
 				# Calculate deposit
 				deposit = 0
@@ -144,6 +137,65 @@ def get_pricing_preview(items, party_size=1):
 	except Exception as e:
 		frappe.log_error(f"Error in get_pricing_preview: {str(e)}")
 		return error("Failed to calculate pricing preview", "SERVER_ERROR", {"error": str(e)}, 500)
+
+
+@frappe.whitelist()
+def get_route_price_preview(experience_ids, party_size=1):
+	"""Converted route price preview for a set of experiences.
+
+	Route-detail edit mode needs the price of an unsaved experience selection,
+	so this takes a raw experience-id list (not a saved route). Each experience
+	route unit price is converted from the experience currency to that
+	experience's establishment currency before summing — mirroring the actual
+	booking total. Returns the summed total, the shared currency when every
+	experience resolves to the same establishment currency, and a `mixed` flag
+	for cross-establishment routes that span more than one currency.
+	"""
+	try:
+		from cheese.cheese.utils.currency_rates import convert_amount, get_company_currency
+
+		if isinstance(experience_ids, str):
+			try:
+				experience_ids = json.loads(experience_ids)
+			except Exception:
+				experience_ids = [e.strip() for e in experience_ids.split(",") if e.strip()]
+		if not isinstance(experience_ids, list):
+			return validation_error("experience_ids must be a list")
+
+		party_size = cint(party_size) or 1
+		total = 0.0
+		currencies = set()
+
+		for exp_id in experience_ids:
+			exp = frappe.db.get_value(
+				"Cheese Experience",
+				exp_id,
+				["company", "currency", "experience_type", "route_price", "individual_price", "price_per_night"],
+				as_dict=True,
+			)
+			if not exp:
+				continue
+			fallback = exp.price_per_night if exp.experience_type == "HOTEL" else exp.individual_price
+			unit = exp.route_price if exp.route_price is not None else (fallback or 0)
+			company_currency = get_company_currency(exp.company)
+			source_currency = (exp.currency or company_currency or "UYU").upper()
+			if unit and source_currency != company_currency:
+				unit = convert_amount(unit, source_currency, company_currency)["converted_amount"]
+			currencies.add(company_currency)
+			total += flt(unit) * party_size
+
+		return success(
+			"Route price preview calculated successfully",
+			{
+				"total": flt(total, 2),
+				"currency": next(iter(currencies)) if len(currencies) == 1 else None,
+				"mixed": len(currencies) > 1,
+				"party_size": party_size,
+			},
+		)
+	except Exception as e:
+		frappe.log_error(f"Error in get_route_price_preview: {str(e)}")
+		return error("Failed to compute route price preview", "SERVER_ERROR", {"error": str(e)}, 500)
 
 
 @frappe.whitelist()

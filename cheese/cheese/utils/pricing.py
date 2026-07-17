@@ -172,17 +172,24 @@ def calculate_route_price(route_id, party_size):
 	When summing a route, we use route_price for both ACTIVITY and HOTEL experiences,
 	falling back to the per-type individual price if route_price is not set.
 	"""
+	from cheese.cheese.utils.currency_rates import convert_amount, get_company_currency
+
 	route = frappe.get_doc("Cheese Route", route_id)
-	
+
 	if route.price_mode == "Manual" and route.price:
 		return route.price * party_size
 
+	# Sum mode: each experience's route unit price is defined in its own
+	# experience currency; convert it to that experience's establishment
+	# currency before summing, mirroring what the booking total does (the
+	# route booking total is the sum of per-establishment converted tickets).
 	total = 0
 	for exp_row in route.experiences:
 		experience = frappe.get_doc("Cheese Experience", exp_row.experience)
-		if experience.experience_type == "HOTEL":
-			unit = experience.route_price if experience.route_price is not None else 0
-		else:
-			unit = experience.route_price if experience.route_price is not None else 0
+		unit = experience.route_price if experience.route_price is not None else 0
+		company_currency = get_company_currency(experience.company)
+		source_currency = (getattr(experience, "currency", None) or company_currency or "UYU").upper()
+		if unit and source_currency != company_currency:
+			unit = convert_amount(unit, source_currency, company_currency)["converted_amount"]
 		total += unit * party_size
 	return total

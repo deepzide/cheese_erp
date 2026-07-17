@@ -933,7 +933,7 @@
     "priceMode": "Modo de Precio",
     "priceManual": "Manual",
     "priceSum": "Suma (Calculado desde Experiencias)",
-    "price": "Precio ($)",
+    "price": "Precio (por persona)",
     "priceSumNote": "Nota: Cuando el Modo de Precio es 'Suma', el precio final de la ruta se calcula desde las Experiencias vinculadas.",
     "depositRequiredCb": "Depósito Requerido en Reservas",
     "tiedExperiences": "Experiencias Vinculadas",

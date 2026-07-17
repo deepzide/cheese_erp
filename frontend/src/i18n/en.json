@@ -481,7 +481,7 @@
     "priceMode": "Price Mode",
     "priceManual": "Manual",
     "priceSum": "Sum (Calc from Experiences)",
-    "price": "Price ($)",
+    "price": "Price (per person)",
     "priceSumNote": "Note: When Price Mode is 'Sum', the final route price cascades from the linked Cheese Experiences.",
     "depositRequiredCb": "Deposit Required on Bookings",
     "tiedExperiences": "Tied Experiences",
