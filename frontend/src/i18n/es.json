@@ -1113,7 +1113,7 @@
     }
   },
   "bankAccounts": {
-    "newBankAccount": "Nueva Cuenta Bancaria",
+    "newBankAccount": "Nuevo Método de Pago",
     "createBankAccount": "Crear Cuenta Bancaria",
     "accountCreated": "Cuenta bancaria creada",
     "createError": "No se pudo crear la cuenta bancaria",
@@ -1143,7 +1143,7 @@
     "holder": "Titular",
     "noAccounts": "No se encontraron cuentas bancarias",
     "loadFailed": "No se pudieron cargar las cuentas bancarias",
-    "addBankAccount": "Agregar Cuenta Bancaria",
+    "addBankAccount": "Agregar Método de Pago",
     "linkDescription": "Vincular una cuenta bancaria a una ruta o establecimiento",
     "linkTo": "Vincular A",
     "establishment": "Establecimiento",

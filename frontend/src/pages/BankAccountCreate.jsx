@@ -224,13 +224,13 @@ export default function BankAccountCreate() {
 
     return (
         <CreatePageLayout
-            title={t("bankAccounts.newBankAccount", "Nueva Cuenta Bancaria")}
+            title={t("bankAccounts.newBankAccount", "Nuevo Método de Pago")}
             description={t("bankAccounts.linkDescription", "Vincular una cuenta bancaria a una ruta o establecimiento")}
             icon={Landmark}
             backPath="/cheese/bank-accounts"
             onSubmit={handleSubmit}
             isSubmitting={createMutation.isPending}
-            submitLabel={t("bankAccounts.addBankAccount", "Agregar Cuenta Bancaria")}
+            submitLabel={t("bankAccounts.addBankAccount", "Agregar Método de Pago")}
         >
             <div className="space-y-5">
                 <div className="space-y-2">

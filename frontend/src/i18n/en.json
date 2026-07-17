@@ -631,7 +631,7 @@
     }
   },
   "bankAccounts": {
-    "newBankAccount": "New Bank Account",
+    "newBankAccount": "New Payment Method",
     "createBankAccount": "Create Bank Account",
     "accountCreated": "Bank account created",
     "createError": "Failed to create bank account",
