@@ -1,0 +1,108 @@
+{
+ "actions": [],
+ "creation": "2024-01-01 00:00:00",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "links": [],
+ "modified": "2024-01-01 00:00:00",
+ "modified_by": "Administrator",
+ "module": "Cheese",
+ "owner": "Administrator",
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "name": "Cheese Room Stay",
+ "autoname": "format:STAY-{#####}",
+ "naming_rule": "Expression",
+ "field_order": [
+  "company",
+  "room",
+  "ticket",
+  "status",
+  "check_in",
+  "check_out",
+  "reason"
+ ],
+ "fields": [
+  {
+   "fieldname": "company",
+   "fieldtype": "Link",
+   "options": "Company",
+   "label": "Hotel (Company)",
+   "reqd": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "room",
+   "fieldtype": "Link",
+   "options": "Cheese Hotel Room",
+   "label": "Room",
+   "reqd": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "ticket",
+   "fieldtype": "Link",
+   "options": "Cheese Ticket",
+   "label": "Ticket",
+   "in_list_view": 1,
+   "description": "Empty for maintenance/blocking stays without a booking"
+  },
+  {
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "label": "Status",
+   "options": "RESERVED\nOCCUPIED\nCOMPLETED\nCANCELLED\nBLOCKED",
+   "default": "RESERVED",
+   "reqd": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "description": "BLOCKED = maintenance block without a ticket"
+  },
+  {
+   "fieldname": "check_in",
+   "fieldtype": "Date",
+   "label": "Check In",
+   "reqd": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "check_out",
+   "fieldtype": "Date",
+   "label": "Check Out",
+   "reqd": 1,
+   "in_list_view": 1,
+   "description": "Half-open range: the room is free again on the check-out date"
+  },
+  {
+   "fieldname": "reason",
+   "fieldtype": "Small Text",
+   "label": "Reason",
+   "description": "Why the room is blocked (for BLOCKED stays)"
+  }
+ ],
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Cheese Booking Manager",
+   "write": 1
+  }
+ ],
+ "track_changes": 1
+}

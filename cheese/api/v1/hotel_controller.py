@@ -269,6 +269,22 @@ def get_hotel_availability(experience_id, date_from=None, date_to=None, guests=N
         return error("Failed to get hotel availability", "SERVER_ERROR", {"error": str(e)}, 500)
 
 
+def _room_capacity_warning(experience_id, rooms_available):
+    """Soft warning when slot capacity exceeds the physical ACTIVE rooms of the type.
+
+    Returns None when no rooms are registered yet (phase-1 compatibility).
+    """
+    active_rooms = frappe.db.count(
+        "Cheese Hotel Room", {"room_type": experience_id, "status": "ACTIVE"}
+    )
+    if active_rooms and cint(rooms_available) > active_rooms:
+        return (
+            f"Slot capacity ({rooms_available}) exceeds the {active_rooms} ACTIVE "
+            f"physical room(s) registered for this type"
+        )
+    return None
+
+
 @frappe.whitelist()
 def create_hotel_slots(experience_id, date_from, date_to, rooms_available, price_override=None):
     """
@@ -354,6 +370,7 @@ def create_hotel_slots(experience_id, date_from, date_to, rooms_available, price
                 "experience_id": experience_id,
                 "date_range": {"from": str(start_date), "to": str(end_date)},
                 "rooms_available": rooms_available,
+                "capacity_warning": _room_capacity_warning(experience_id, rooms_available),
             },
         )
     except frappe.ValidationError as e:
