@@ -7,7 +7,7 @@ import {
     Users, UserPlus, FileText, Wallet, ShoppingCart,
     Bell, Menu, LogOut, ChevronDown, ChevronRight, X,
     Zap, Settings, Sun, Moon, Globe,
-    Shield, Landmark, UserCheck, QrCode, Star, Activity, MessageSquare, Building2, ScanLine, Hotel, BedDouble, Database, Webhook, FileSearch, History, Bot, Mail
+    Shield, Landmark, UserCheck, QrCode, Star, Activity, MessageSquare, Building2, ScanLine, Hotel, BedDouble, Database, Webhook, FileSearch, History, Bot, Mail, BadgePercent, Users2, CalendarRange, Settings2
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -54,6 +54,9 @@ const navigationItems = [
     { titleKey: "nav.conversations", url: createPageUrl("conversations"), icon: MessageSquare, section: "crm" },
     { titleKey: "nav.deposits", url: createPageUrl("deposits"), icon: Wallet, section: "finance" },
     { titleKey: "nav.bankAccounts", url: createPageUrl("bank-accounts"), icon: Landmark, section: "finance" },
+    { titleKey: "nav.promotions", url: createPageUrl("promotions"), icon: BadgePercent, section: "companyConfig" },
+    { titleKey: "nav.ageGroups", url: createPageUrl("age-groups"), icon: Users2, section: "companyConfig" },
+    { titleKey: "nav.seasons", url: createPageUrl("seasons"), icon: CalendarRange, section: "companyConfig" },
     { titleKey: "nav.support", url: createPageUrl("support"), icon: Shield, section: "operations" },
     { titleKey: "nav.attendance", url: createPageUrl("attendance"), icon: UserCheck, section: "operations" },
     { titleKey: "nav.qrTokens", url: createPageUrl("qr-tokens"), icon: QrCode, section: "operations" },
@@ -77,6 +80,7 @@ const sectionDefs = {
     hotel: { labelKey: "sections.hotel", icon: Hotel },
     crm: { labelKey: "sections.crm", icon: Users },
     finance: { labelKey: "sections.finance", icon: Wallet },
+    companyConfig: { labelKey: "sections.companyConfig", icon: Settings2 },
     operations: { labelKey: "sections.operations", icon: Shield },
     system: { labelKey: "sections.system", icon: Activity },
 };

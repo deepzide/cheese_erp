@@ -46,6 +46,9 @@ import BookingDetail from './BookingDetail';
 import DepositCreate from './DepositCreate';
 import DepositDetail from './DepositDetail';
 import BankAccountDetail from './BankAccountDetail';
+import Promotions from './Promotions';
+import AgeGroups from './AgeGroups';
+import Seasons from './Seasons';
 import SupportDetail from './SupportDetail';
 import Establishments from './Establishments';
 import EstablishmentCreate from './EstablishmentCreate';
@@ -124,6 +127,9 @@ export default function Pages() {
                     <Route path="bank-accounts" element={<BankAccounts />} />
                     <Route path="bank-accounts/new" element={<BankAccountCreate />} />
                     <Route path="bank-accounts/:id" element={<BankAccountDetail />} />
+                    <Route path="promotions" element={<Promotions />} />
+                    <Route path="age-groups" element={<AgeGroups />} />
+                    <Route path="seasons" element={<Seasons />} />
                     <Route path="attendance" element={<Attendance />} />
                     <Route path="documents" element={<Documents />} />
                     <Route path="documents/new" element={<DocumentCreate />} />

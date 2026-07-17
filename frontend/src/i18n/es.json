@@ -34,7 +34,10 @@
     "eventsLog": "Registro de Eventos",
     "supportCase": "Caso de Soporte",
     "viewLead": "Ver Prospecto",
-    "viewRoute": "Ver Ruta"
+    "viewRoute": "Ver Ruta",
+    "promotions": "Promociones",
+    "ageGroups": "Grupos Etarios",
+    "seasons": "Temporadas"
   },
   "sections": {
     "commandCenter": "Centro de Control",
@@ -44,7 +47,8 @@
     "crm": "CRM",
     "finance": "Finanzas",
     "operations": "Operaciones",
-    "system": "Sistema"
+    "system": "Sistema",
+    "companyConfig": "Configuración de la Compañía"
   },
   "common": {
     "search": "Buscar",

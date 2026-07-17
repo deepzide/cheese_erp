@@ -30,7 +30,10 @@
     "emailServer": "Email Server",
     "semanticSearch": "Test Semantic Search",
     "searchHistory": "Search History",
-    "systemEvents": "System Events"
+    "systemEvents": "System Events",
+    "promotions": "Promotions",
+    "ageGroups": "Age Groups",
+    "seasons": "Seasons"
   },
   "sections": {
     "commandCenter": "Command Center",
@@ -40,7 +43,8 @@
     "crm": "CRM",
     "finance": "Finance",
     "operations": "Operations",
-    "system": "System"
+    "system": "System",
+    "companyConfig": "Company Settings"
   },
   "common": {
     "search": "Search",
