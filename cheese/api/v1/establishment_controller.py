@@ -230,6 +230,7 @@ def list_establishments(page=1, page_size=20, search=None, status=None, locality
 				"default_currency": company.default_currency,
 				"fx_tolerance_percent": getattr(company, "fx_tolerance_percent", None),
 				"accepted_currencies": getattr(company, "accepted_currencies", None),
+				"derive_hotel_capacity": cint(getattr(company, "derive_hotel_capacity", 0)),
 				"description": company.company_description,
 				"is_hotel": bool(getattr(company, "cheese_is_hotel", 0)) if _company_has_is_hotel_field() else False,
 				"cheese_is_hotel": 1 if bool(getattr(company, "cheese_is_hotel", 0)) else 0,
@@ -374,6 +375,7 @@ def get_establishment_details(company_id):
 				"default_currency": company.default_currency,
 				"fx_tolerance_percent": getattr(company, "fx_tolerance_percent", None),
 				"accepted_currencies": getattr(company, "accepted_currencies", None),
+				"derive_hotel_capacity": cint(getattr(company, "derive_hotel_capacity", 0)),
 				"description": company.company_description,
 				"administrator_contact": getattr(company, "administrator_contact", None),
 				"address": address,
@@ -600,6 +602,7 @@ def update_establishment(company_id, **kwargs):
 			"company_name", "email", "phone_no", "website", 
 			"company_description", "company_logo", "administrator_contact",
 			"default_currency", "fx_tolerance_percent", "accepted_currencies",
+			"derive_hotel_capacity",
 			"google_maps_link", "cheese_google_maps_link",
 		]
 		if _company_has_is_hotel_field():

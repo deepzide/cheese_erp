@@ -85,6 +85,7 @@ export default function EstablishmentDetail() {
                 email: payload.email || "",
                 default_currency: payload.default_currency || "UYU",
                 accepted_currencies: String(payload.accepted_currencies || "").split(",").map((c) => c.trim().toUpperCase()).filter(Boolean),
+                derive_hotel_capacity: Boolean(payload.derive_hotel_capacity),
                 fx_tolerance_percent: payload.fx_tolerance_percent ?? 3,
                 phone_no: payload.phone || "",
                 website: payload.website || "",
@@ -102,6 +103,7 @@ export default function EstablishmentDetail() {
                 email: form.email,
                 default_currency: form.default_currency,
                 accepted_currencies: (form.accepted_currencies || []).join(","),
+                derive_hotel_capacity: form.derive_hotel_capacity ? 1 : 0,
                 fx_tolerance_percent: form.fx_tolerance_percent,
                 phone_no: form.phone_no,
                 website: form.website,
@@ -322,6 +324,20 @@ export default function EstablishmentDetail() {
                                 )}
                                 <p className="text-xs text-muted-foreground">{t("establishments.acceptedCurrenciesHint", "Las demás monedas se rechazan en pagos y formularios. Vacío = todas.")}</p>
                             </div>
+                            {(form.cheese_is_hotel || payload?.cheese_is_hotel || payload?.is_hotel) && (
+                                <div className="space-y-2 sm:col-span-2">
+                                    <label className="flex items-center gap-2 text-sm cursor-pointer font-medium">
+                                        <input
+                                            type="checkbox"
+                                            disabled={!editMode}
+                                            checked={!!form.derive_hotel_capacity}
+                                            onChange={(e) => setForm((f) => ({ ...f, derive_hotel_capacity: e.target.checked }))}
+                                        />
+                                        {t("establishments.deriveCapacity", "Capacidad derivada de habitaciones físicas (Fase 2)")}
+                                    </label>
+                                    <p className="text-xs text-muted-foreground">{t("establishments.deriveCapacityHint", "La disponibilidad por noche se calcula desde las habitaciones ACTIVAS registradas menos bloqueos por mantenimiento, ignorando la capacidad manual de los slots.")}</p>
+                                </div>
+                            )}
                             <div className="space-y-2">
                                 <Label>{t("common.phone", "Phone")}</Label>
                                 {editMode ? (

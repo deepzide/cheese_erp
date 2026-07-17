@@ -112,7 +112,45 @@ def get_available_capacity(slot_name, selected_date=None):
 	"""
 	slot = frappe.get_doc("Cheese Experience Slot", slot_name)
 	reserved = calculate_reserved_capacity(slot_name, selected_date)
-	return slot.max_capacity - reserved
+	max_capacity = _effective_max_capacity(slot, selected_date)
+	return max_capacity - reserved
+
+
+def _effective_max_capacity(slot, selected_date=None):
+	"""Max capacity of a slot.
+
+	Phase 2 (Company.derive_hotel_capacity): for HOTEL room types the nightly
+	max is derived from physical inventory — ACTIVE rooms of the type minus
+	BLOCKED stays overlapping that night — instead of the manual slot value.
+	"""
+	exp = frappe.db.get_value(
+		"Cheese Experience", slot.experience, ["experience_type", "company"], as_dict=True
+	)
+	if not exp or exp.experience_type != "HOTEL":
+		return slot.max_capacity
+	if not frappe.db.get_value("Company", exp.company, "derive_hotel_capacity"):
+		return slot.max_capacity
+
+	active_rooms = frappe.db.count(
+		"Cheese Hotel Room", {"room_type": slot.experience, "status": "ACTIVE"}
+	)
+	night = str(selected_date or slot.date_from)
+	blocked = frappe.db.count(
+		"Cheese Room Stay",
+		{
+			"status": "BLOCKED",
+			"check_in": ["<=", night],
+			"check_out": [">", night],
+			"room": [
+				"in",
+				frappe.get_all(
+					"Cheese Hotel Room", filters={"room_type": slot.experience}, pluck="name"
+				)
+				or ["__none__"],
+			],
+		},
+	)
+	return max(0, active_rooms - blocked)
 
 
 def update_slot_capacity(slot_name):
