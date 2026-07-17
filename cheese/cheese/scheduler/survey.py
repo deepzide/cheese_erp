@@ -9,48 +9,52 @@ def send_post_completion_surveys():
 	"""
 	Send surveys for COMPLETED tickets that don't have a survey response yet
 	Run daily
+
+	Uses plain frappe.get_all + Python filtering instead of query-builder
+	functions (TimestampDiff / Exists are not available in every pypika
+	version bundled with frappe, and crashed this job on build).
 	"""
-	# Get completed tickets from last 24 hours without survey
-	from frappe.query_builder import functions as fn
-	from frappe.query_builder import DocType
+	from cheese.api.v1.survey_controller import send_survey
+	from cheese.cheese.scheduler.completion import _ticket_effective_end
 
-	ticket = DocType("Cheese Ticket")
-	survey = DocType("Cheese Survey Response")
-	slot = DocType("Cheese Experience Slot")
-
-	# Only send surveys for tickets that have been COMPLETED for at least 30 minutes
-	# AND whose slot end time has definitively passed
+	# Only send surveys for tickets that have been COMPLETED for at least 30
+	# minutes AND whose experience end (slot end / hotel checkout) has passed.
 	survey_delay_minutes = 30
 	now = now_datetime()
 
-	effective_date = fn.Coalesce(ticket.selected_date, slot.date_to, slot.date_from)
-	effective_end = fn.Concat(effective_date, " ", fn.Coalesce(slot.time_to, "23:59:59"))
+	completed_tickets = frappe.get_all(
+		"Cheese Ticket",
+		filters={
+			"status": "COMPLETED",
+			"modified": [">=", add_to_date(now, days=-1, as_string=False)],
+		},
+		fields=["name", "slot", "selected_date", "experience", "check_out_date"],
+	)
+	if not completed_tickets:
+		return 0
 
-	completed_tickets = (
-		frappe.qb.from_(ticket)
-		.left_join(slot).on(ticket.slot == slot.name)
-		.select(ticket.name)
-		.where(ticket.status == "COMPLETED")
-		.where(ticket.modified >= add_to_date(now, days=-1, as_string=False))
-		.where(
-			# Ensure the slot end time has actually passed + buffer
-			fn.TimestampDiff("MINUTE", effective_end, now) >= survey_delay_minutes
+	already_surveyed = set(
+		frappe.get_all(
+			"Cheese Survey Response",
+			filters={"ticket": ["in", [t.name for t in completed_tickets]]},
+			pluck="ticket",
 		)
-		.where(
-			~fn.Exists(
-				frappe.qb.from_(survey)
-				.select("*")
-				.where(survey.ticket == ticket.name)
-			)
-		)
-	).run(as_dict=True)
+	)
 
 	survey_count = 0
 
 	for ticket_data in completed_tickets:
+		if ticket_data.name in already_surveyed:
+			continue
 		try:
-			# Import here to avoid circular dependency
-			from cheese.api.v1.survey_controller import send_survey
+			# Same end-of-experience semantics as the auto-complete scheduler
+			# (slot end for activities, checkout time for hotels).
+			effective_end = _ticket_effective_end(ticket_data)
+			if not effective_end:
+				continue
+			if (now - effective_end).total_seconds() < survey_delay_minutes * 60:
+				continue
+
 			send_survey(ticket_data.name)
 			survey_count += 1
 		except Exception as e:
@@ -69,29 +73,27 @@ def create_support_cases_for_low_ratings():
 	Create support cases for survey responses with rating <= 2
 	Run daily
 	"""
-	# Get survey responses with rating <= 2 that don't have a support case
-	from frappe.query_builder import functions as fn
-	from frappe.query_builder import DocType
+	low_rating_surveys = frappe.get_all(
+		"Cheese Survey Response",
+		filters={"rating": ["<=", 2]},
+		fields=["name", "ticket", "contact", "rating", "comment"],
+	)
+	if not low_rating_surveys:
+		return 0
 
-	survey = DocType("Cheese Survey Response")
-	support_case = DocType("Cheese Support Case")
-
-	low_rating_surveys = (
-		frappe.qb.from_(survey)
-		.select(survey.name, survey.ticket, survey.contact, survey.rating, survey.comment)
-		.where(survey.rating <= 2)
-		.where(
-			~fn.Exists(
-				frappe.qb.from_(support_case)
-				.select("*")
-				.where(support_case.survey_response == survey.name)
-			)
+	surveys_with_case = set(
+		frappe.get_all(
+			"Cheese Support Case",
+			filters={"survey_response": ["in", [s.name for s in low_rating_surveys]]},
+			pluck="survey_response",
 		)
-	).run(as_dict=True)
+	)
 
 	case_count = 0
 
 	for survey_data in low_rating_surveys:
+		if survey_data.name in surveys_with_case:
+			continue
 		try:
 			# Enrich with ticket context for better support case information
 			ticket_info = {}
@@ -121,10 +123,11 @@ def create_support_cases_for_low_ratings():
 
 			description = "\n".join(desc_parts)
 
-			# Create support case with full context
+			# Create support case with full context. Survey rows created via
+			# submit_survey have no contact of their own — fall back to the ticket's.
 			support_case_doc = frappe.get_doc({
 				"doctype": "Cheese Support Case",
-				"contact": survey_data.contact,
+				"contact": survey_data.contact or ticket_info.get("contact"),
 				"ticket": survey_data.ticket,
 				"survey_response": survey_data.name,
 				"description": description,
