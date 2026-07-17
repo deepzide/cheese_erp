@@ -7,7 +7,7 @@ import {
     Users, UserPlus, FileText, Wallet, ShoppingCart,
     Bell, Menu, LogOut, ChevronDown, ChevronRight, X,
     Zap, Settings, Sun, Moon, Globe,
-    Shield, Landmark, UserCheck, QrCode, Star, Activity, MessageSquare, Building2, ScanLine, Hotel, BedDouble, Database, Webhook, FileSearch, History, Bot, Mail, BadgePercent, Users2, CalendarRange, Settings2
+    Shield, Landmark, UserCheck, QrCode, Star, Activity, MessageSquare, Building2, ScanLine, Hotel, BedDouble, Database, Webhook, FileSearch, History, Bot, Mail, BadgePercent, Users2, CalendarRange, Settings2, DoorOpen
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -48,6 +48,7 @@ const navigationItems = [
     { titleKey: "nav.hotels", url: createPageUrl("hotels"), icon: Hotel, section: "hotel" },
     { titleKey: "nav.hotelReservations", url: createPageUrl("hotel-reservations"), icon: BedDouble, section: "hotel" },
     { titleKey: "nav.hotelAvailability", url: createPageUrl("hotel-availability"), icon: CalendarDays, section: "hotel" },
+    { titleKey: "nav.hotelRooms", url: createPageUrl("hotel-rooms"), icon: DoorOpen, section: "hotel" },
     { titleKey: "nav.contacts", url: createPageUrl("contacts"), icon: Users, section: "crm" },
     { titleKey: "nav.leads", url: createPageUrl("leads"), icon: UserPlus, section: "crm" },
     { titleKey: "nav.quotations", url: createPageUrl("quotations"), icon: FileText, section: "crm" },

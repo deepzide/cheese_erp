@@ -33,7 +33,8 @@
     "systemEvents": "System Events",
     "promotions": "Promotions",
     "ageGroups": "Age Groups",
-    "seasons": "Seasons"
+    "seasons": "Seasons",
+    "hotelRooms": "Rooms"
   },
   "sections": {
     "commandCenter": "Command Center",

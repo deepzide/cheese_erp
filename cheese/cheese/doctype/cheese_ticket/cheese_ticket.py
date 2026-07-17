@@ -414,6 +414,14 @@ class CheeseTicket(Document):
 			elif self.status == "EXPIRED":
 				self.send_status_notification("expired")
 
+			# Physical room assignment lifecycle (hotel tickets only, never blocks)
+			try:
+				from cheese.cheese.utils.room_assignment import on_ticket_status_change
+
+				on_ticket_status_change(self, self.status)
+			except Exception as e:
+				frappe.log_error(f"room assignment hook failed for {self.name}: {e}", "Room Assignment")
+
 			# Fire bot webhook for all relevant status changes
 			try:
 				from cheese.cheese.utils.notifications import enqueue_ticket_status_webhook

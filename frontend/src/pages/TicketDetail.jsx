@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import { useFrappeDoc, useFrappeUpdate, useFrappeList } from "@/lib/useApiData";
 import { toast } from "sonner";
 import DetailPageLayout from "@/components/DetailPageLayout";
+import TicketRooms from "@/components/TicketRooms";
 import EditableField from "@/components/EditableField";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -494,6 +495,8 @@ export default function TicketDetail() {
                             </div>
                         </CardContent>
                     </Card>
+
+                    <TicketRooms ticketId={id} isHotel={!!ticket?.check_in_date} />
 
                     <Card className="border-border/60 shadow-sm bg-primary/5 border-primary/20">
                         <CardHeader className="pb-2">
