@@ -44,19 +44,44 @@ def _deposit_names_for_company(company):
 	return [r[0] for r in rows]
 
 
-def _instructions_for_deposit(amount_remaining, bank_accounts):
-	if not bank_accounts:
-		return _("Please make payment to complete your booking")
-	parts = []
-	for ba in bank_accounts:
-		parts.append(
-			_("{0} — {1} ({2})").format(
+def _describe_payment_method(ba):
+	"""One-line customer-facing description of a payment method, per category."""
+	category = (ba.get("category") or "BANK_ACCOUNT").upper()
+	if category == "PAYPAL":
+		parts = [_("PayPal: {0}").format(ba.get("account_email") or "")]
+		if ba.get("paypal_me_link"):
+			parts.append(ba.get("paypal_me_link"))
+	elif category == "MERCADO_PAGO":
+		parts = [_("Mercado Pago: alias/CVU {0}").format(ba.get("mp_alias_cvu") or ba.get("account_email") or "")]
+		if ba.get("account_country"):
+			parts.append(ba.get("account_country"))
+	elif category == "DLOCAL":
+		parts = [
+			_("Cash network {0} — agreement {1}").format(
+				ba.get("dlocal_provider_network") or "",
+				ba.get("dlocal_agreement_id") or "",
+			)
+		]
+	else:
+		parts = [
+			"{0} — {1} ({2})".format(
 				ba.get("bank_name") or "",
 				ba.get("account_number") or "",
 				ba.get("currency") or "",
 			)
-		)
-	accounts_txt = "; ".join(parts)
+		]
+	if ba.get("payment_instructions"):
+		parts.append(ba.get("payment_instructions"))
+	if ba.get("holder"):
+		parts.append(_("Holder: {0}").format(ba.get("holder")))
+	return " · ".join(str(x).strip() for x in parts if x and str(x).strip())
+
+
+def _instructions_for_deposit(amount_remaining, bank_accounts):
+	if not bank_accounts:
+		return _("Please make payment to complete your booking")
+	parts = [_describe_payment_method(ba) for ba in bank_accounts]
+	accounts_txt = "; ".join(p for p in parts if p)
 	first_cur = bank_accounts[0].get("currency") or ""
 	return _("Please transfer {0} {1}. Pay to one of: {2}").format(amount_remaining, first_cur, accounts_txt)
 
