@@ -37,6 +37,8 @@ import QuotationCreate from './QuotationCreate';
 import SupportCreate from './SupportCreate';
 import BookingPolicyCreate from './BookingPolicyCreate';
 import BankAccountCreate from './BankAccountCreate';
+import CurrencyConverter from './CurrencyConverter';
+import ConversionHistory from './ConversionHistory';
 import DocumentCreate from './DocumentCreate';
 import DocumentDetail from './DocumentDetail';
 import TicketCreate from './TicketCreate';
@@ -128,6 +130,8 @@ export default function Pages() {
                     <Route path="bank-accounts" element={<BankAccounts />} />
                     <Route path="bank-accounts/new" element={<BankAccountCreate />} />
                     <Route path="bank-accounts/:id" element={<BankAccountDetail />} />
+                    <Route path="currency-converter" element={<CurrencyConverter />} />
+                    <Route path="conversion-history" element={<ConversionHistory />} />
                     <Route path="promotions" element={<Promotions />} />
                     <Route path="age-groups" element={<AgeGroups />} />
                     <Route path="seasons" element={<Seasons />} />

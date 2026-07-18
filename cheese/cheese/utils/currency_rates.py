@@ -169,6 +169,37 @@ def convert_amount(amount, from_currency, to_currency):
 	}
 
 
+def log_conversion(snapshot, trigger, reference_doctype=None, reference_name=None, company=None):
+	"""
+	Persist an automatic conversion for audit (Cheese Currency Conversion Log).
+
+	Called only from the points where a conversion is actually committed to a
+	real business document (ticket/route booking pricing, deposit payments) —
+	not from price previews. Best-effort: never raises, so a logging failure
+	can never block the booking/payment it is auditing.
+	"""
+	if not snapshot or snapshot.get("from_currency") == snapshot.get("to_currency"):
+		return
+	try:
+		frappe.get_doc(
+			{
+				"doctype": "Cheese Currency Conversion Log",
+				"trigger": trigger,
+				"company": company,
+				"from_currency": snapshot.get("from_currency"),
+				"to_currency": snapshot.get("to_currency"),
+				"original_amount": snapshot.get("original_amount"),
+				"converted_amount": snapshot.get("converted_amount"),
+				"exchange_rate": snapshot.get("exchange_rate"),
+				"rate_date": snapshot.get("rate_date"),
+				"reference_doctype": reference_doctype,
+				"reference_name": reference_name,
+			}
+		).insert(ignore_permissions=True)
+	except Exception as e:
+		frappe.log_error(f"Failed to log currency conversion: {e}", "Currency Conversion Log")
+
+
 def get_company_currency(company):
 	"""Preferred currency of an establishment (Company.default_currency)."""
 	return (

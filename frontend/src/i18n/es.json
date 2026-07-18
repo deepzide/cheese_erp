@@ -38,7 +38,9 @@
     "promotions": "Promociones",
     "ageGroups": "Grupos Etarios",
     "seasons": "Temporadas",
-    "hotelRooms": "Habitaciones"
+    "hotelRooms": "Habitaciones",
+    "currencyConverter": "Convertidor de Monedas",
+    "conversionHistory": "Historial de Conversiones"
   },
   "sections": {
     "commandCenter": "Centro de Control",

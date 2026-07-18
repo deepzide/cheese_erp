@@ -1,0 +1,134 @@
+{
+ "actions": [],
+ "creation": "2024-01-01 00:00:00",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "links": [],
+ "modified": "2024-01-01 00:00:00",
+ "modified_by": "Administrator",
+ "module": "Cheese",
+ "owner": "Administrator",
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": [],
+ "name": "Cheese Currency Conversion Log",
+ "autoname": "format:CONV-{#####}",
+ "naming_rule": "Expression",
+ "field_order": [
+  "trigger",
+  "company",
+  "column_break_1",
+  "from_currency",
+  "to_currency",
+  "amounts_section",
+  "original_amount",
+  "converted_amount",
+  "exchange_rate",
+  "rate_date",
+  "reference_section",
+  "reference_doctype",
+  "reference_name"
+ ],
+ "fields": [
+  {
+   "fieldname": "trigger",
+   "fieldtype": "Select",
+   "label": "Trigger",
+   "options": "TICKET_PRICING\nROUTE_BOOKING_PRICING\nDEPOSIT_PAYMENT",
+   "reqd": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "description": "What automatic system action performed this conversion"
+  },
+  {
+   "fieldname": "company",
+   "fieldtype": "Link",
+   "options": "Company",
+   "label": "Establishment",
+   "in_list_view": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "column_break_1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "from_currency",
+   "fieldtype": "Data",
+   "label": "From Currency",
+   "reqd": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "to_currency",
+   "fieldtype": "Data",
+   "label": "To Currency",
+   "reqd": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "amounts_section",
+   "fieldtype": "Section Break",
+   "label": "Amounts"
+  },
+  {
+   "fieldname": "original_amount",
+   "fieldtype": "Float",
+   "label": "Original Amount",
+   "reqd": 1,
+   "in_list_view": 1,
+   "precision": "2"
+  },
+  {
+   "fieldname": "converted_amount",
+   "fieldtype": "Float",
+   "label": "Converted Amount",
+   "reqd": 1,
+   "in_list_view": 1,
+   "precision": "2"
+  },
+  {
+   "fieldname": "exchange_rate",
+   "fieldtype": "Float",
+   "label": "Exchange Rate",
+   "reqd": 1,
+   "precision": "6"
+  },
+  {
+   "fieldname": "rate_date",
+   "fieldtype": "Date",
+   "label": "Rate Date"
+  },
+  {
+   "fieldname": "reference_section",
+   "fieldtype": "Section Break",
+   "label": "Reference"
+  },
+  {
+   "fieldname": "reference_doctype",
+   "fieldtype": "Data",
+   "label": "Reference Doctype"
+  },
+  {
+   "fieldname": "reference_name",
+   "fieldtype": "Data",
+   "label": "Reference Name",
+   "in_list_view": 1
+  }
+ ],
+ "in_create": 1,
+ "index_web_pages_for_search": 0,
+ "permissions": [
+  {
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1
+  }
+ ],
+ "track_changes": 0
+}

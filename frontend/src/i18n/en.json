@@ -34,7 +34,9 @@
     "promotions": "Promotions",
     "ageGroups": "Age Groups",
     "seasons": "Seasons",
-    "hotelRooms": "Rooms"
+    "hotelRooms": "Rooms",
+    "currencyConverter": "Currency Converter",
+    "conversionHistory": "Conversion History"
   },
   "sections": {
     "commandCenter": "Command Center",

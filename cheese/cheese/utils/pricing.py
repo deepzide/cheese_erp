@@ -4,11 +4,16 @@
 import frappe
 
 
-def _localize_price_result(result, experience):
-	"""Convert a computed price into the establishment currency (snapshot)."""
+def _localize_price_result(result, experience, log_context=None):
+	"""Convert a computed price into the establishment currency (snapshot).
+
+	log_context, when given ({"trigger", "reference_doctype", "reference_name"}),
+	records the conversion in the audit log — pass it only from real booking
+	commits, never from price previews.
+	"""
 	from frappe.utils import flt
 
-	from cheese.cheese.utils.currency_rates import convert_amount, get_company_currency
+	from cheese.cheese.utils.currency_rates import convert_amount, get_company_currency, log_conversion
 
 	company_currency = get_company_currency(experience.company)
 	source_currency = (getattr(experience, "currency", None) or company_currency or "UYU").upper()
@@ -20,21 +25,38 @@ def _localize_price_result(result, experience):
 		result["total_price"] = snap["converted_amount"]
 		result["exchange_rate"] = snap["exchange_rate"]
 		result["rate_date"] = snap["rate_date"]
+		if log_context:
+			log_conversion(
+				snap,
+				trigger=log_context["trigger"],
+				reference_doctype=log_context.get("reference_doctype"),
+				reference_name=log_context.get("reference_name"),
+				company=experience.company,
+			)
 	return result
 
 
-def _fixed_amount_in_company_currency(value, experience):
+def _fixed_amount_in_company_currency(value, experience, log_context=None):
 	"""Fixed deposit amounts are expressed in the experience currency."""
-	from cheese.cheese.utils.currency_rates import convert_amount, get_company_currency
+	from cheese.cheese.utils.currency_rates import convert_amount, get_company_currency, log_conversion
 
 	company_currency = get_company_currency(experience.company)
 	source_currency = (getattr(experience, "currency", None) or company_currency or "UYU").upper()
 	if not value or source_currency == company_currency:
 		return value
-	return convert_amount(value, source_currency, company_currency)["converted_amount"]
+	snap = convert_amount(value, source_currency, company_currency)
+	if log_context:
+		log_conversion(
+			snap,
+			trigger=log_context["trigger"],
+			reference_doctype=log_context.get("reference_doctype"),
+			reference_name=log_context.get("reference_name"),
+			company=experience.company,
+		)
+	return snap["converted_amount"]
 
 
-def calculate_ticket_price(experience_id, party_size, route_id=None, ticket=None, selected_date=None, guest_ages=None):
+def calculate_ticket_price(experience_id, party_size, route_id=None, ticket=None, selected_date=None, guest_ages=None, log_context=None):
 	"""
 	Calculate price for a ticket.
 
@@ -90,7 +112,7 @@ def calculate_ticket_price(experience_id, party_size, route_id=None, ticket=None
 			result["price_before_season"] = result["total_price"]
 			result["season"] = dict(season)
 			result["total_price"] = flt(result["total_price"] * (1 + flt(season.percent) / 100.0), 2)
-		return _convert_extras(_localize_price_result(result, experience))
+		return _convert_extras(_localize_price_result(result, experience, log_context=log_context))
 
 	party = compute_party_prices(
 		experience,
@@ -122,10 +144,10 @@ def calculate_ticket_price(experience_id, party_size, route_id=None, ticket=None
 			result["promotion_discount"] = discount
 			result["total_price"] = flt(max(0, subtotal - discount), 2)
 
-	return _convert_extras(_localize_price_result(result, experience))
+	return _convert_extras(_localize_price_result(result, experience, log_context=log_context))
 
 
-def calculate_deposit_amount(experience_id, total_price, route_id=None):
+def calculate_deposit_amount(experience_id, total_price, route_id=None, log_context=None):
 	"""
 	Calculate deposit amount
 	
@@ -143,7 +165,7 @@ def calculate_deposit_amount(experience_id, total_price, route_id=None):
 		if route.deposit_required:
 			if route.deposit_type == "Amount":
 				return _fixed_amount_in_company_currency(
-					route.deposit_value, frappe.get_doc("Cheese Experience", experience_id)
+					route.deposit_value, frappe.get_doc("Cheese Experience", experience_id), log_context=log_context
 				)
 			elif route.deposit_type == "%":
 				return (total_price * route.deposit_value) / 100
@@ -152,14 +174,14 @@ def calculate_deposit_amount(experience_id, total_price, route_id=None):
 	experience = frappe.get_doc("Cheese Experience", experience_id)
 	if experience.deposit_required:
 		if experience.deposit_type == "Amount":
-			return _fixed_amount_in_company_currency(experience.deposit_value, experience)
+			return _fixed_amount_in_company_currency(experience.deposit_value, experience, log_context=log_context)
 		elif experience.deposit_type == "%":
 			return (total_price * experience.deposit_value) / 100
 	
 	return 0
 
 
-def calculate_route_price(route_id, party_size):
+def calculate_route_price(route_id, party_size, log_context=None):
 	"""
 	Calculate total price for a route booking.
 
@@ -172,7 +194,7 @@ def calculate_route_price(route_id, party_size):
 	When summing a route, we use route_price for both ACTIVITY and HOTEL experiences,
 	falling back to the per-type individual price if route_price is not set.
 	"""
-	from cheese.cheese.utils.currency_rates import convert_amount, get_company_currency
+	from cheese.cheese.utils.currency_rates import convert_amount, get_company_currency, log_conversion
 
 	route = frappe.get_doc("Cheese Route", route_id)
 
@@ -190,6 +212,15 @@ def calculate_route_price(route_id, party_size):
 		company_currency = get_company_currency(experience.company)
 		source_currency = (getattr(experience, "currency", None) or company_currency or "UYU").upper()
 		if unit and source_currency != company_currency:
-			unit = convert_amount(unit, source_currency, company_currency)["converted_amount"]
+			snap = convert_amount(unit, source_currency, company_currency)
+			unit = snap["converted_amount"]
+			if log_context:
+				log_conversion(
+					snap,
+					trigger=log_context["trigger"],
+					reference_doctype=log_context.get("reference_doctype"),
+					reference_name=log_context.get("reference_name"),
+					company=experience.company,
+				)
 		total += unit * party_size
 	return total

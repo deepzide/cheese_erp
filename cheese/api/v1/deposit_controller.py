@@ -873,6 +873,15 @@ def record_deposit_payment(
 			deposit.currency = company_currency
 			if payment_currency != company_currency:
 				snapshot = convert_amount(amount, payment_currency, company_currency)
+				from cheese.cheese.utils.currency_rates import log_conversion
+
+				log_conversion(
+					snapshot,
+					trigger="DEPOSIT_PAYMENT",
+					reference_doctype="Cheese Deposit",
+					reference_name=deposit.name,
+					company=entity_company,
+				)
 				deposit.payment_currency = payment_currency
 				deposit.payment_amount_original = amount
 				deposit.payment_exchange_rate = snapshot["exchange_rate"]

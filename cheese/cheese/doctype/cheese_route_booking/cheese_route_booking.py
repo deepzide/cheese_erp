@@ -110,7 +110,15 @@ class CheeseRouteBooking(Document):
 				return
 
 		party_size = int((self.tickets[0].party_size or 1)) if self.tickets and len(self.tickets) > 0 else 1
-		self.total_price = calculate_route_price(self.route, party_size)
+		self.total_price = calculate_route_price(
+			self.route,
+			party_size,
+			log_context={
+				"trigger": "ROUTE_BOOKING_PRICING",
+				"reference_doctype": "Cheese Route Booking",
+				"reference_name": self.name,
+			},
+		)
 
 	def on_update(self):
 		"""Handle post-update logic"""
