@@ -125,7 +125,8 @@ def list_experiences(page=1, page_size=20, status=None, company=None, establishm
 			filters=filters,
 			or_filters=or_filters if or_filters else None,
 			fields=["name", "name as id", "name as experience_name", "company", "company as establishment", "description", "status", "package_mode",
-				"individual_price", "route_price", "price_per_night", "currency", "deposit_required", "is_room", "room_size", "experience_type"],
+				"individual_price", "route_price", "price_per_night", "currency", "deposit_required", "is_room", "room_size", "experience_type",
+				"differentiate_by_weekday", "differentiate_by_age_group"],
 			limit_start=(page - 1) * page_size,
 			limit_page_length=page_size,
 			order_by="name asc"
@@ -142,6 +143,11 @@ def list_experiences(page=1, page_size=20, status=None, company=None, establishm
 			else:
 				row["is_room"] = 1 if row.get("is_room") else 0
 			row["bank_account"] = bank_map.get(row.get("company"), [])
+			# Base prices are not the whole story when the matrix / a season /
+			# a promotion applies — consumers should fetch the detail then.
+			row["has_price_variants"] = bool(
+				row.get("differentiate_by_weekday") or row.get("differentiate_by_age_group")
+			)
 
 		return paginated_response(
 			experiences,
@@ -282,6 +288,19 @@ def get_experience_detail(experience_id, include_next_availability=True):
 			for link in media["links"]
 		]
 
+		# Full price-variant knowledge (matrix, seasons, promotions) so
+		# catalog consumers — the chatbot in particular — can explain every
+		# price without extra round-trips.
+		from cheese.cheese.utils.seasonal_pricing import get_pricing_catalog
+
+		pricing_block = {
+			"individual_price": experience.individual_price,
+			"route_price": experience.route_price,
+			"price_per_night": experience.get("price_per_night"),
+			"currency": experience.get("currency"),
+		}
+		pricing_block.update(get_pricing_catalog(experience))
+
 		return success(
 			"Experience details retrieved successfully",
 			{
@@ -300,10 +319,7 @@ def get_experience_detail(experience_id, include_next_availability=True):
 				"status": experience.status,
 				"package_mode": experience.package_mode,
 				"next_availability": next_availability,
-				"pricing": {
-					"individual_price": experience.individual_price,
-					"route_price": experience.route_price
-				},
+				"pricing": pricing_block,
 				"is_room": 1 if experience.experience_type == "HOTEL" else (1 if experience.is_room else 0),
 				"room_size": experience.room_size,
 				"deposit": {

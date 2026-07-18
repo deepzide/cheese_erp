@@ -251,3 +251,120 @@ def apply_promotion(promo, unit_prices):
 		free = min(cint(promo.free_tickets), len(unit_prices))
 		return flt(sum(sorted(unit_prices)[:free]), 2)
 	return 0.0
+
+
+def get_pricing_catalog(experience_doc, date_value=None):
+	"""Every price variant of an experience, resolved for catalog consumers
+	(the chatbot, the SPA): the day-type x age-group matrix with age ranges
+	spelled out, the company age-group nomenclator, and the current and
+	upcoming active seasons and promotions that cover the experience.
+
+	Purely informational — booking-time math stays in compute_party_prices.
+	"""
+	from frappe.utils import nowdate
+
+	company = experience_doc.company
+	today = str(getdate(date_value or nowdate()))
+
+	age_groups = frappe.get_all(
+		"Cheese Age Group",
+		filters={"company": company},
+		fields=["name", "group_name", "min_age", "max_age"],
+		order_by="min_age asc",
+	)
+	group_map = {g.name: g for g in age_groups}
+
+	def _group_fields(group_id):
+		g = group_map.get(group_id)
+		if not g:
+			return {"age_group": None, "age_group_name": None, "min_age": None, "max_age": None}
+		return {
+			"age_group": g.name,
+			"age_group_name": g.group_name,
+			"min_age": g.min_age,
+			"max_age": g.max_age,
+		}
+
+	price_lines = []
+	for row in experience_doc.get("price_lines") or []:
+		line = {
+			"day_type": (row.day_type or "ALL").upper(),
+			"price": flt(row.price),
+			"route_price": flt(row.route_price),
+		}
+		line.update(_group_fields(row.age_group))
+		price_lines.append(line)
+
+	def _covers(child_doctype, name):
+		linked = frappe.get_all(child_doctype, filters={"parent": name}, pluck="experience")
+		return not linked or experience_doc.name in linked
+
+	seasons = []
+	for season in frappe.get_all(
+		"Cheese Season",
+		filters={"company": company, "is_active": 1, "date_to": [">=", today]},
+		fields=["name", "season_name", "percent", "date_from", "date_to"],
+		order_by="date_from asc",
+	):
+		if not _covers("Cheese Season Experience", season.name):
+			continue
+		seasons.append(
+			{
+				"season_id": season.name,
+				"season_name": season.season_name,
+				"percent": flt(season.percent),
+				"date_from": str(season.date_from) if season.date_from else None,
+				"date_to": str(season.date_to) if season.date_to else None,
+				"active_today": bool(
+					season.date_from and str(season.date_from) <= today
+				),
+			}
+		)
+
+	promotions = []
+	for row in frappe.get_all(
+		"Cheese Promotion",
+		filters={"company": company, "is_active": 1, "date_to": [">=", today]},
+		fields=["name"],
+		order_by="date_from asc",
+	):
+		promo = frappe.get_doc("Cheese Promotion", row.name)
+		if not promo.all_experiences:
+			linked = [r.experience for r in (promo.experiences or [])]
+			if experience_doc.name not in linked:
+				continue
+		requirements = []
+		for req in promo.requirements or []:
+			entry = {"min_people": cint(req.min_people)}
+			entry.update(_group_fields(req.age_group))
+			requirements.append(entry)
+		promotions.append(
+			{
+				"promotion_id": promo.name,
+				"promo_name": promo.promo_name,
+				"discount_type": promo.discount_type,
+				"percent": flt(promo.percent),
+				"free_tickets": cint(promo.free_tickets),
+				"date_from": str(promo.date_from) if promo.date_from else None,
+				"date_to": str(promo.date_to) if promo.date_to else None,
+				"active_today": bool(promo.date_from and str(promo.date_from) <= today),
+				"requirements": requirements,
+			}
+		)
+
+	return {
+		"differentiate_by_weekday": bool(cint(experience_doc.get("differentiate_by_weekday"))),
+		"differentiate_by_age_group": bool(cint(experience_doc.get("differentiate_by_age_group"))),
+		"price_lines": price_lines,
+		"age_groups": [
+			{
+				"age_group": g.name,
+				"age_group_name": g.group_name,
+				"min_age": g.min_age,
+				"max_age": g.max_age,
+			}
+			for g in age_groups
+		],
+		"seasons": seasons,
+		"promotions": promotions,
+	}
