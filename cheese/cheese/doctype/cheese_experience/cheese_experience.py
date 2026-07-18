@@ -65,3 +65,19 @@ class CheeseExperience(Document):
 			# Validate pricing for activities
 			if self.package_mode == "Route" and not self.route_price:
 				frappe.throw(_("Route Price is required when Package Mode is Route"))
+
+		self._normalize_price_lines()
+
+	def _normalize_price_lines(self):
+		"""A price line may only carry the dimensions the experience differentiates by.
+
+		Without weekday differentiation every line applies to every day; without
+		age group differentiation every line applies to every age.
+		"""
+		from frappe.utils import cint
+
+		for line in self.get("price_lines") or []:
+			if not cint(self.differentiate_by_weekday):
+				line.day_type = "ALL"
+			if not cint(self.differentiate_by_age_group):
+				line.age_group = None

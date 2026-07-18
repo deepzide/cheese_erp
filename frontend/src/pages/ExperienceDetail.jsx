@@ -133,6 +133,26 @@ export default function ExperienceDetail() {
         setForm(prev => ({ ...prev, [field]: value }));
     };
 
+    // Al desmarcar una pleca, las líneas existentes pierden esa dimensión: sin
+    // diferenciación por día valen para todos los días, sin diferenciación por
+    // grupo etario valen para todas las edades.
+    const handlePriceModeToggle = (field, enabled) => {
+        setForm(prev => ({
+            ...prev,
+            [field]: enabled ? 1 : 0,
+            price_lines: (prev.price_lines || []).map(line => ({
+                ...line,
+                day_type: !enabled && field === "differentiate_by_weekday" ? "ALL" : line.day_type,
+                age_group: !enabled && field === "differentiate_by_age_group" ? "" : line.age_group,
+            })),
+        }));
+    };
+
+    // Clases literales (Tailwind no genera valores arbitrarios interpolados).
+    const priceGridClass = form.differentiate_by_weekday && form.differentiate_by_age_group
+        ? "grid grid-cols-[1fr_1fr_100px_100px_32px] gap-2"
+        : "grid grid-cols-[1fr_100px_100px_32px] gap-2";
+
     const handleSave = () => {
         if (!form.company) {
             toast.error(t("experiences.companyRequired", "Company is required."));
@@ -432,42 +452,46 @@ export default function ExperienceDetail() {
                                                 <label className="flex items-center gap-2 text-sm cursor-pointer">
                                                     <input type="checkbox" disabled={!editMode}
                                                         checked={!!form.differentiate_by_weekday}
-                                                        onChange={(e) => handleFieldChange("differentiate_by_weekday", e.target.checked ? 1 : 0)} />
+                                                        onChange={(e) => handlePriceModeToggle("differentiate_by_weekday", e.target.checked)} />
                                                     {t("experiences.diffWeekday", "Diferenciar por día (lun-vie / fin de semana)")}
                                                 </label>
                                                 <label className="flex items-center gap-2 text-sm cursor-pointer">
                                                     <input type="checkbox" disabled={!editMode}
                                                         checked={!!form.differentiate_by_age_group}
-                                                        onChange={(e) => handleFieldChange("differentiate_by_age_group", e.target.checked ? 1 : 0)} />
+                                                        onChange={(e) => handlePriceModeToggle("differentiate_by_age_group", e.target.checked)} />
                                                     {t("experiences.diffAge", "Diferenciar por grupo etario")}
                                                 </label>
                                             </div>
                                             {(form.differentiate_by_weekday || form.differentiate_by_age_group) ? (
                                                 <div className="space-y-2">
-                                                    <div className="grid grid-cols-[1fr_1fr_100px_100px_32px] gap-2 text-[11px] text-muted-foreground font-semibold uppercase">
-                                                        <span>{t("experiences.dayType", "Día")}</span>
-                                                        <span>{t("experiences.ageGroup", "Grupo etario")}</span>
+                                                    <div className={`${priceGridClass} text-[11px] text-muted-foreground font-semibold uppercase`}>
+                                                        {!!form.differentiate_by_weekday && <span>{t("experiences.dayType", "Día")}</span>}
+                                                        {!!form.differentiate_by_age_group && <span>{t("experiences.ageGroup", "Grupo etario")}</span>}
                                                         <span>{t("experiences.priceInd", "Precio")}</span>
                                                         <span>{t("experiences.priceRoute", "Precio en ruta")}</span>
                                                         <span />
                                                     </div>
                                                     {(form.price_lines || []).map((line, i) => (
-                                                        <div key={i} className="grid grid-cols-[1fr_1fr_100px_100px_32px] gap-2 items-center">
-                                                            <select value={line.day_type} disabled={!editMode}
-                                                                onChange={(e) => handleFieldChange("price_lines", form.price_lines.map((r, idx) => idx === i ? { ...r, day_type: e.target.value } : r))}
-                                                                className="flex h-8 rounded-md border border-input bg-background px-2 text-sm">
-                                                                <option value="ALL">{t("experiences.anyDay", "Cualquier día")}</option>
-                                                                <option value="WEEKDAY">{t("experiences.weekday", "Lunes a viernes")}</option>
-                                                                <option value="WEEKEND">{t("experiences.weekend", "Fin de semana")}</option>
-                                                            </select>
-                                                            <select value={line.age_group} disabled={!editMode}
-                                                                onChange={(e) => handleFieldChange("price_lines", form.price_lines.map((r, idx) => idx === i ? { ...r, age_group: e.target.value } : r))}
-                                                                className="flex h-8 rounded-md border border-input bg-background px-2 text-sm">
-                                                                <option value="">{t("experiences.allAges", "Todas las edades")}</option>
-                                                                {companyAgeGroups.map(g => (
-                                                                    <option key={g.name} value={g.name}>{g.group_name} ({g.min_age}-{g.max_age})</option>
-                                                                ))}
-                                                            </select>
+                                                        <div key={i} className={`${priceGridClass} items-center`}>
+                                                            {!!form.differentiate_by_weekday && (
+                                                                <select value={line.day_type} disabled={!editMode}
+                                                                    onChange={(e) => handleFieldChange("price_lines", form.price_lines.map((r, idx) => idx === i ? { ...r, day_type: e.target.value } : r))}
+                                                                    className="flex h-8 rounded-md border border-input bg-background px-2 text-sm">
+                                                                    <option value="ALL">{t("experiences.anyDay", "Cualquier día")}</option>
+                                                                    <option value="WEEKDAY">{t("experiences.weekday", "Lunes a viernes")}</option>
+                                                                    <option value="WEEKEND">{t("experiences.weekend", "Fin de semana")}</option>
+                                                                </select>
+                                                            )}
+                                                            {!!form.differentiate_by_age_group && (
+                                                                <select value={line.age_group} disabled={!editMode}
+                                                                    onChange={(e) => handleFieldChange("price_lines", form.price_lines.map((r, idx) => idx === i ? { ...r, age_group: e.target.value } : r))}
+                                                                    className="flex h-8 rounded-md border border-input bg-background px-2 text-sm">
+                                                                    <option value="">{t("experiences.allAges", "Todas las edades")}</option>
+                                                                    {companyAgeGroups.map(g => (
+                                                                        <option key={g.name} value={g.name}>{g.group_name} ({g.min_age}-{g.max_age})</option>
+                                                                    ))}
+                                                                </select>
+                                                            )}
                                                             <input type="number" min="0" step="0.01" value={line.price} disabled={!editMode}
                                                                 onChange={(e) => handleFieldChange("price_lines", form.price_lines.map((r, idx) => idx === i ? { ...r, price: e.target.value } : r))}
                                                                 className="flex h-8 rounded-md border border-input bg-background px-2 text-sm" />
@@ -486,6 +510,12 @@ export default function ExperienceDetail() {
                                                             onClick={() => handleFieldChange("price_lines", [...(form.price_lines || []), { day_type: "ALL", age_group: "", price: "", route_price: "" }])}>
                                                             + {t("experiences.addPriceLine", "Agregar línea de precio")}
                                                         </button>
+                                                    )}
+                                                    {!form.differentiate_by_weekday && (
+                                                        <p className="text-xs text-muted-foreground">{t("experiences.matrixAllDays", "Sin diferenciación por día: estos precios se aplican todos los días de la semana.")}</p>
+                                                    )}
+                                                    {!form.differentiate_by_age_group && (
+                                                        <p className="text-xs text-muted-foreground">{t("experiences.matrixAllAges", "Sin diferenciación por grupo etario: estos precios se aplican a todas las edades.")}</p>
                                                     )}
                                                     <p className="text-xs text-muted-foreground">{t("experiences.matrixHint", "Las combinaciones no definidas usan los precios base. La temporada activa ajusta estos precios con su %.")}</p>
                                                 </div>

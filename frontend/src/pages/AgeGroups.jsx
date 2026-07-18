@@ -136,6 +136,19 @@ export default function AgeGroups() {
                         <DialogTitle>{editing ? t("ageGroups.edit", "Editar grupo etario") : t("ageGroups.new", "Nuevo grupo")}</DialogTitle>
                     </DialogHeader>
                     <div className="space-y-4">
+                        {isAdmin && !editing && (
+                            <div className="space-y-1">
+                                <Label>{t("common.company", "Establecimiento")} <span className="text-red-500">*</span></Label>
+                                <CompanySelect value={company} onChange={setCompany} />
+                                <p className="text-xs text-muted-foreground">{t("ageGroups.companyPickHint", "Elige el establecimiento al que pertenece este grupo etario.")}</p>
+                            </div>
+                        )}
+                        {isAdmin && editing && (
+                            <div className="space-y-1">
+                                <Label>{t("common.company", "Establecimiento")}</Label>
+                                <p className="text-sm font-medium">{editing.company}</p>
+                            </div>
+                        )}
                         <div className="space-y-1">
                             <Label>{t("ageGroups.name", "Nombre")}</Label>
                             <Input placeholder="Niños" value={form.group_name} onChange={(e) => setForm(f => ({ ...f, group_name: e.target.value }))} />
