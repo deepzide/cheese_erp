@@ -194,6 +194,19 @@ export default function Promotions() {
                         <DialogTitle>{editing ? t("promotions.edit", "Editar promoción") : t("promotions.new", "Nueva promoción")}</DialogTitle>
                     </DialogHeader>
                     <div className="space-y-4">
+                        {isAdmin && !editing && (
+                            <div className="space-y-1">
+                                <Label>{t("common.company", "Establecimiento")} <span className="text-red-500">*</span></Label>
+                                <CompanySelect value={company} onChange={setCompany} />
+                                <p className="text-xs text-muted-foreground">{t("promotions.companyPickHint", "Elige el establecimiento para poder seleccionar sus experiencias y grupos etarios.")}</p>
+                            </div>
+                        )}
+                        {isAdmin && editing && (
+                            <div className="space-y-1">
+                                <Label>{t("common.company", "Establecimiento")}</Label>
+                                <p className="text-sm font-medium">{editing.company}</p>
+                            </div>
+                        )}
                         <div className="grid grid-cols-2 gap-3">
                             <div className="space-y-1 col-span-2">
                                 <Label>{t("promotions.name", "Nombre")}</Label>

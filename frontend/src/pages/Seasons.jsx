@@ -166,6 +166,19 @@ export default function Seasons() {
                         <DialogTitle>{editing ? t("seasons.edit", "Editar temporada") : t("seasons.new", "Nueva temporada")}</DialogTitle>
                     </DialogHeader>
                     <div className="space-y-4">
+                        {isAdmin && !editing && (
+                            <div className="space-y-1">
+                                <Label>{t("common.company", "Establecimiento")} <span className="text-red-500">*</span></Label>
+                                <CompanySelect value={company} onChange={setCompany} />
+                                <p className="text-xs text-muted-foreground">{t("seasons.companyPickHint", "Elige el establecimiento para poder seleccionar sus experiencias.")}</p>
+                            </div>
+                        )}
+                        {isAdmin && editing && (
+                            <div className="space-y-1">
+                                <Label>{t("common.company", "Establecimiento")}</Label>
+                                <p className="text-sm font-medium">{editing.company}</p>
+                            </div>
+                        )}
                         <div className="grid grid-cols-2 gap-3">
                             <div className="space-y-1">
                                 <Label>{t("seasons.name", "Nombre")}</Label>

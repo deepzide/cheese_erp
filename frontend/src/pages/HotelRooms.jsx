@@ -228,6 +228,13 @@ export default function HotelRooms() {
                 <DialogContent className="max-w-md">
                     <DialogHeader><DialogTitle>{t("rooms.bulkAdd", "Alta masiva de habitaciones")}</DialogTitle></DialogHeader>
                     <div className="space-y-3">
+                        {isAdmin && (
+                            <div className="space-y-1">
+                                <Label>{t("common.company", "Hotel")} <span className="text-red-500">*</span></Label>
+                                <CompanySelect value={company} onChange={setCompany} />
+                                <p className="text-xs text-muted-foreground">{t("rooms.companyPickHint", "Elige el hotel para poder listar sus tipos de habitación.")}</p>
+                            </div>
+                        )}
                         <div className="space-y-1">
                             <Label>{t("rooms.roomType", "Tipo de habitación")}</Label>
                             <select value={bulk.room_type} onChange={(e) => setBulk(b => ({ ...b, room_type: e.target.value }))}

@@ -7,7 +7,7 @@ import {
     Users, UserPlus, FileText, Wallet, ShoppingCart,
     Bell, Menu, LogOut, ChevronDown, ChevronRight, X,
     Zap, Settings, Sun, Moon, Globe,
-    Shield, Landmark, UserCheck, QrCode, Star, Activity, MessageSquare, Building2, ScanLine, Hotel, BedDouble, Database, Webhook, FileSearch, History, Bot, Mail, BadgePercent, Users2, CalendarRange, Settings2, DoorOpen
+    Shield, Landmark, UserCheck, QrCode, Star, Activity, MessageSquare, Building2, ScanLine, Hotel, BedDouble, Database, Webhook, FileSearch, History, Bot, Mail, BadgePercent, Users2, CalendarRange, Settings2, DoorOpen, ArrowLeftRight
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -55,6 +55,8 @@ const navigationItems = [
     { titleKey: "nav.conversations", url: createPageUrl("conversations"), icon: MessageSquare, section: "crm" },
     { titleKey: "nav.deposits", url: createPageUrl("deposits"), icon: Wallet, section: "finance" },
     { titleKey: "nav.bankAccounts", url: createPageUrl("bank-accounts"), icon: Landmark, section: "finance" },
+    { titleKey: "nav.currencyConverter", url: createPageUrl("currency-converter"), icon: ArrowLeftRight, section: "finance" },
+    { titleKey: "nav.conversionHistory", url: createPageUrl("conversion-history"), icon: History, section: "finance" },
     { titleKey: "nav.promotions", url: createPageUrl("promotions"), icon: BadgePercent, section: "companyConfig" },
     { titleKey: "nav.ageGroups", url: createPageUrl("age-groups"), icon: Users2, section: "companyConfig" },
     { titleKey: "nav.seasons", url: createPageUrl("seasons"), icon: CalendarRange, section: "companyConfig" },
@@ -86,52 +88,20 @@ const sectionDefs = {
     system: { labelKey: "sections.system", icon: Activity },
 };
 
-export default function Layout({ children }) {
-    const location = useLocation();
-    const navigate = useNavigate();
-    const { t, i18n } = useTranslation();
-    const [sidebarOpen, setSidebarOpen] = useState(false);
-    const [collapsedSections, setCollapsedSections] = useState({});
-    const { theme, setTheme, resolvedTheme } = useTheme();
-
-    const currentUser = getStoredCredentials();
-    const user = currentUser || { full_name: "Cheese Admin", role: "admin" };
-    const { hasHotelAccess, establishmentName, isLoading: establishmentLoading, isAdmin } = useHotelAccess();
-
-    const visibleNavigationItems = React.useMemo(() => {
-        return navigationItems.filter((item) => {
-            if (item.section === "hotel") return hasHotelAccess;
-            const adminOnlyPages = ["backups", "events", "users", "bot-users", "email-server", "webhook-settings", "semantic-search", "search-history"];
-            if (adminOnlyPages.some((page) => item.url.endsWith(page))) return isAdmin;
-            return true;
-        });
-    }, [hasHotelAccess, isAdmin]);
-
-    const toggleLanguage = () => {
-        const next = i18n.language === "es" ? "en" : "es";
-        i18n.changeLanguage(next);
-    };
-
-    const toggleSection = (key) => {
-        setCollapsedSections(prev => ({ ...prev, [key]: !prev[key] }));
-    };
-
-    const toggleTheme = () => {
-        setTheme(resolvedTheme === "dark" ? "light" : "dark");
-    };
-
-    const handleLogout = async () => {
-        try {
-            const { authService } = await import('@/api/authService');
-            await authService.logout();
-        } catch (err) { }
-        queryClient.clear();
-        localStorage.clear();
-        sessionStorage.clear();
-        navigate("/cheese/login");
-    };
-
-    const SidebarContent = () => (
+/**
+ * Sidebar content, hoisted to module scope (NOT defined inside Layout's
+ * render body). Defining it inline inside Layout gave it a fresh function
+ * identity on every re-render (e.g. every toggleSection click), which made
+ * React unmount+remount this whole subtree — including the Radix
+ * ScrollArea — resetting the sidebar scroll position to the top on every
+ * collapsible-section click. Keeping it a stable top-level component lets
+ * React reconcile in place instead, so scroll position survives re-renders.
+ */
+function SidebarContent({
+    t, establishmentLoading, establishmentName, visibleNavigationItems,
+    location, collapsedSections, toggleSection, setSidebarOpen, user, handleLogout,
+}) {
+    return (
         <>
             {/* Logo */}
             <div className="p-5 border-b border-white/10">
@@ -162,6 +132,7 @@ export default function Layout({ children }) {
                     return (
                         <div key={key} className="mb-3">
                             <button
+                                type="button"
                                 onClick={() => toggleSection(key)}
                                 className={`w-full flex items-center justify-between px-3 py-2 text-[11px] font-semibold uppercase tracking-widest rounded-lg transition-colors ${isGroupActive ? 'text-cheese-400' : 'text-white/30 hover:text-white/50'
                                     }`}
@@ -224,12 +195,63 @@ export default function Layout({ children }) {
             </div>
         </>
     );
+}
+
+export default function Layout({ children }) {
+    const location = useLocation();
+    const navigate = useNavigate();
+    const { t, i18n } = useTranslation();
+    const [sidebarOpen, setSidebarOpen] = useState(false);
+    const [collapsedSections, setCollapsedSections] = useState({});
+    const { theme, setTheme, resolvedTheme } = useTheme();
+
+    const currentUser = getStoredCredentials();
+    const user = currentUser || { full_name: "Cheese Admin", role: "admin" };
+    const { hasHotelAccess, establishmentName, isLoading: establishmentLoading, isAdmin } = useHotelAccess();
+
+    const visibleNavigationItems = React.useMemo(() => {
+        return navigationItems.filter((item) => {
+            if (item.section === "hotel") return hasHotelAccess;
+            const adminOnlyPages = ["backups", "events", "users", "bot-users", "email-server", "webhook-settings", "semantic-search", "search-history"];
+            if (adminOnlyPages.some((page) => item.url.endsWith(page))) return isAdmin;
+            return true;
+        });
+    }, [hasHotelAccess, isAdmin]);
+
+    const toggleLanguage = () => {
+        const next = i18n.language === "es" ? "en" : "es";
+        i18n.changeLanguage(next);
+    };
+
+    const toggleSection = (key) => {
+        setCollapsedSections(prev => ({ ...prev, [key]: !prev[key] }));
+    };
+
+    const toggleTheme = () => {
+        setTheme(resolvedTheme === "dark" ? "light" : "dark");
+    };
+
+    const handleLogout = async () => {
+        try {
+            const { authService } = await import('@/api/authService');
+            await authService.logout();
+        } catch (err) { }
+        queryClient.clear();
+        localStorage.clear();
+        sessionStorage.clear();
+        navigate("/cheese/login");
+    };
+
+    const sidebarProps = {
+        t, establishmentLoading, establishmentName, visibleNavigationItems,
+        location, collapsedSections, toggleSection, setSidebarOpen, user, handleLogout,
+    };
 
     return (
         <div className="min-h-screen flex w-full bg-background">
             {/* Desktop Sidebar */}
             <aside className="hidden lg:flex flex-col w-64 bg-[#0d0d0d] border-r border-white/5 fixed inset-y-0 left-0 z-40">
-                <SidebarContent />
+                <SidebarContent {...sidebarProps} />
             </aside>
 
             {/* Mobile Sidebar Overlay */}
@@ -238,12 +260,13 @@ export default function Layout({ children }) {
                     <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setSidebarOpen(false)} />
                     <aside className="relative w-72 h-full bg-[#0d0d0d] flex flex-col animate-slide-in-right">
                         <button
+                            type="button"
                             onClick={() => setSidebarOpen(false)}
                             className="absolute top-4 right-4 text-white/40 hover:text-white"
                         >
                             <X className="w-5 h-5" />
                         </button>
-                        <SidebarContent />
+                        <SidebarContent {...sidebarProps} />
                     </aside>
                 </div>
             )}
@@ -254,6 +277,7 @@ export default function Layout({ children }) {
                 <header className="sticky top-0 z-30 glass-surface border-b border-border px-6 py-3 flex items-center justify-between">
                     <div className="flex items-center gap-3">
                         <button
+                            type="button"
                             onClick={() => setSidebarOpen(true)}
                             className="lg:hidden p-2 rounded-lg hover:bg-accent transition-colors"
                         >
