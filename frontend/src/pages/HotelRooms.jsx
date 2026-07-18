@@ -152,7 +152,7 @@ export default function HotelRooms() {
             {isAdmin && (
                 <div className="max-w-xs space-y-1">
                     <Label>{t("common.company", "Hotel")}</Label>
-                    <CompanySelect value={company} onChange={setCompany} />
+                    <CompanySelect value={company} onChange={setCompany} filters={{ cheese_is_hotel: 1 }} />
                 </div>
             )}
 
@@ -231,7 +231,7 @@ export default function HotelRooms() {
                         {isAdmin && (
                             <div className="space-y-1">
                                 <Label>{t("common.company", "Hotel")} <span className="text-red-500">*</span></Label>
-                                <CompanySelect value={company} onChange={setCompany} />
+                                <CompanySelect value={company} onChange={setCompany} filters={{ cheese_is_hotel: 1 }} />
                                 <p className="text-xs text-muted-foreground">{t("rooms.companyPickHint", "Elige el hotel para poder listar sus tipos de habitación.")}</p>
                             </div>
                         )}

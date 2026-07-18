@@ -3,7 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { useFrappeDoc, useFrappeUpdate, useFrappeList } from "@/lib/useApiData";
 import { useAcceptedCurrencies } from "@/lib/useAcceptedCurrencies";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import DocumentGallery from "@/components/DocumentGallery";
 import InlineDocumentUploadDialog from "@/components/InlineDocumentUploadDialog";
@@ -152,6 +152,39 @@ export default function ExperienceDetail() {
     const priceGridClass = form.differentiate_by_weekday && form.differentiate_by_age_group
         ? "grid grid-cols-[1fr_1fr_100px_100px_32px] gap-2"
         : "grid grid-cols-[1fr_100px_100px_32px] gap-2";
+
+    // Temporada activa hoy: los precios efectivos incluyen su % de ajuste.
+    const { data: seasonPayload } = useQuery({
+        queryKey: ["experience-active-season", id],
+        enabled: !!id,
+        queryFn: async () => {
+            const res = await apiRequest(
+                `/api/method/cheese.api.v1.pricing_controller.get_active_season_for_experience?experience_id=${encodeURIComponent(id)}`
+            );
+            return res?.data?.message || res?.data || {};
+        },
+    });
+    const activeSeason = seasonPayload?.data?.season || null;
+    const seasonPercent = Number(activeSeason?.percent) || 0;
+    const seasonFactor = 1 + seasonPercent / 100;
+    const seasonPrice = (v) => {
+        const n = parseFloat(v);
+        if (!activeSeason || !seasonPercent || isNaN(n) || !n) return null;
+        return (n * seasonFactor).toLocaleString(undefined, { maximumFractionDigits: 2 });
+    };
+    const seasonHint = (v) => {
+        const adjusted = seasonPrice(v);
+        if (!adjusted || editMode) return null;
+        return (
+            <p className={`text-xs font-medium ${seasonPercent > 0 ? "text-amber-600" : "text-emerald-600"}`}>
+                {t("experiences.seasonEffective", "En temporada: {{price}} ({{sign}}{{percent}}%)", {
+                    price: adjusted,
+                    sign: seasonPercent > 0 ? "+" : "",
+                    percent: seasonPercent,
+                })}
+            </p>
+        );
+    };
 
     const handleSave = () => {
         if (!form.company) {
@@ -405,6 +438,24 @@ export default function ExperienceDetail() {
                         </TabsContent>
 
                         <TabsContent value="pricing" className="pt-4 space-y-6">
+                            {activeSeason && seasonPercent !== 0 && (
+                                <div className={`rounded-lg border px-4 py-3 text-sm ${seasonPercent > 0
+                                    ? "border-amber-500/40 bg-amber-500/10 text-amber-700 dark:text-amber-400"
+                                    : "border-emerald-500/40 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400"}`}>
+                                    <p className="font-semibold">
+                                        {t("experiences.seasonBanner", "Temporada \"{{name}}\" activa: {{sign}}{{percent}}% ({{from}} → {{to}})", {
+                                            name: activeSeason.season_name || activeSeason.name,
+                                            sign: seasonPercent > 0 ? "+" : "",
+                                            percent: seasonPercent,
+                                            from: activeSeason.date_from,
+                                            to: activeSeason.date_to,
+                                        })}
+                                    </p>
+                                    <p className="text-xs opacity-80 mt-0.5">
+                                        {t("experiences.seasonBannerHint", "Los precios base se muestran junto a su valor efectivo en temporada. Las reservas de estas fechas usan el precio ajustado.")}
+                                    </p>
+                                </div>
+                            )}
                             {/* Pricing Strategy Card */}
                             <Card className="border-border/60 shadow-sm">
                                 <CardHeader className="border-b bg-muted/20 pb-4">
@@ -492,12 +543,22 @@ export default function ExperienceDetail() {
                                                                     ))}
                                                                 </select>
                                                             )}
-                                                            <input type="number" min="0" step="0.01" value={line.price} disabled={!editMode}
-                                                                onChange={(e) => handleFieldChange("price_lines", form.price_lines.map((r, idx) => idx === i ? { ...r, price: e.target.value } : r))}
-                                                                className="flex h-8 rounded-md border border-input bg-background px-2 text-sm" />
-                                                            <input type="number" min="0" step="0.01" value={line.route_price} disabled={!editMode}
-                                                                onChange={(e) => handleFieldChange("price_lines", form.price_lines.map((r, idx) => idx === i ? { ...r, route_price: e.target.value } : r))}
-                                                                className="flex h-8 rounded-md border border-input bg-background px-2 text-sm" />
+                                                            <div className="space-y-0.5">
+                                                                <input type="number" min="0" step="0.01" value={line.price} disabled={!editMode}
+                                                                    onChange={(e) => handleFieldChange("price_lines", form.price_lines.map((r, idx) => idx === i ? { ...r, price: e.target.value } : r))}
+                                                                    className="flex h-8 w-full rounded-md border border-input bg-background px-2 text-sm" />
+                                                                {!editMode && seasonPrice(line.price) && (
+                                                                    <p className={`text-[11px] font-medium ${seasonPercent > 0 ? "text-amber-600" : "text-emerald-600"}`}>→ {seasonPrice(line.price)}</p>
+                                                                )}
+                                                            </div>
+                                                            <div className="space-y-0.5">
+                                                                <input type="number" min="0" step="0.01" value={line.route_price} disabled={!editMode}
+                                                                    onChange={(e) => handleFieldChange("price_lines", form.price_lines.map((r, idx) => idx === i ? { ...r, route_price: e.target.value } : r))}
+                                                                    className="flex h-8 w-full rounded-md border border-input bg-background px-2 text-sm" />
+                                                                {!editMode && seasonPrice(line.route_price) && (
+                                                                    <p className={`text-[11px] font-medium ${seasonPercent > 0 ? "text-amber-600" : "text-emerald-600"}`}>→ {seasonPrice(line.route_price)}</p>
+                                                                )}
+                                                            </div>
                                                             {editMode ? (
                                                                 <button type="button" className="text-red-500 text-sm"
                                                                     onClick={() => handleFieldChange("price_lines", form.price_lines.filter((_, idx) => idx !== i))}>✕</button>
@@ -525,8 +586,8 @@ export default function ExperienceDetail() {
                                         </div>
                                         {form.experience_type === "HOTEL" ? (
                                             <>
-                                                <EditableField label={t("experiences.pricePerNight", "Individual Price / Night ($)")} type="number" value={form.price_per_night} onChange={(v) => handleFieldChange("price_per_night", v)} editMode={editMode} />
-                                                <EditableField label={t("experiences.routePrice", "Route Price ($)")} type="number" value={form.route_price} onChange={(v) => handleFieldChange("route_price", v)} editMode={editMode} />
+                                                <EditableField label={t("experiences.pricePerNight", "Individual Price / Night ($)")} type="number" value={form.price_per_night} onChange={(v) => handleFieldChange("price_per_night", v)} editMode={editMode} hint={seasonHint(form.price_per_night)} />
+                                                <EditableField label={t("experiences.routePrice", "Route Price ($)")} type="number" value={form.route_price} onChange={(v) => handleFieldChange("route_price", v)} editMode={editMode} hint={seasonHint(form.route_price)} />
                                                 <EditableField label={t("experiences.maxOccupancy", "Max Occupancy / Room")} type="number" value={form.max_occupancy_per_unit} onChange={(v) => handleFieldChange("max_occupancy_per_unit", v)} editMode={editMode} />
                                                 <EditableField label={t("experiences.minNightsStay", "Min Nights Stay")} type="number" value={form.min_nights_stay} onChange={(v) => handleFieldChange("min_nights_stay", v)} editMode={editMode} />
                                                 <div className="space-y-1">
@@ -558,8 +619,8 @@ export default function ExperienceDetail() {
                                             </>
                                         ) : (
                                             <>
-                                                <EditableField label={t("experiences.individualPrice", "Individual Price ($)")} type="number" value={form.individual_price} onChange={(v) => handleFieldChange("individual_price", v)} editMode={editMode} />
-                                                <EditableField label={t("experiences.routePrice", "Route Price ($)")} type="number" value={form.route_price} onChange={(v) => handleFieldChange("route_price", v)} editMode={editMode} />
+                                                <EditableField label={t("experiences.individualPrice", "Individual Price ($)")} type="number" value={form.individual_price} onChange={(v) => handleFieldChange("individual_price", v)} editMode={editMode} hint={seasonHint(form.individual_price)} />
+                                                <EditableField label={t("experiences.routePrice", "Route Price ($)")} type="number" value={form.route_price} onChange={(v) => handleFieldChange("route_price", v)} editMode={editMode} hint={seasonHint(form.route_price)} />
                                             </>
                                         )}
                                     </div>

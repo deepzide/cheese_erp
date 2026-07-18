@@ -12,7 +12,8 @@ export default function EditableField({
     onChange,
     placeholder = "—",
     doctype = null, // If provided, uses FrappeSearchSelect
-    searchLabel = "name"
+    searchLabel = "name",
+    hint = null, // Extra read-only line under the value (view mode only)
 }) {
     // When not editing, show the display value
     if (!editMode) {
@@ -22,6 +23,7 @@ export default function EditableField({
                 <div className="font-medium text-sm border-b border-transparent py-2 min-h-[38px] break-words">
                     {value || <span className="text-muted-foreground italic">Empty</span>}
                 </div>
+                {hint}
             </div>
         );
     }

@@ -385,3 +385,35 @@ def get_cancellation_impact(reservation_id=None, experience_id=None, slot_dateti
 	except Exception as e:
 		frappe.log_error(f"Error in get_cancellation_impact: {str(e)}")
 		return error("Failed to get cancellation impact", "SERVER_ERROR", {"error": str(e)}, 500)
+
+
+@frappe.whitelist()
+def get_active_season_for_experience(experience_id, date=None):
+	"""Active season applying to the experience on the date (default: today).
+
+	Lets the experience detail view show the season-adjusted effective prices.
+	"""
+	try:
+		if not experience_id:
+			return validation_error("experience_id is required")
+		if not frappe.db.exists("Cheese Experience", experience_id):
+			return not_found("Experience", experience_id)
+		if not frappe.has_permission("Cheese Experience", "read", experience_id):
+			return error("Not permitted to access this experience", "PERMISSION_DENIED", {}, 403)
+
+		from frappe.utils import nowdate
+		from cheese.cheese.utils.seasonal_pricing import get_active_season
+
+		company = frappe.db.get_value("Cheese Experience", experience_id, "company")
+		season = get_active_season(company, experience_id, date or nowdate())
+		if season:
+			season = dict(season)
+			dates = frappe.db.get_value(
+				"Cheese Season", season["name"], ["date_from", "date_to"], as_dict=True
+			) or {}
+			season["date_from"] = str(dates.get("date_from") or "")
+			season["date_to"] = str(dates.get("date_to") or "")
+		return success("Active season resolved", {"season": season})
+	except Exception as e:
+		frappe.log_error(f"Error in get_active_season_for_experience: {str(e)}")
+		return error("Failed to resolve active season", "SERVER_ERROR", {"error": str(e)}, 500)
