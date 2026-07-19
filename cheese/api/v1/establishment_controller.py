@@ -893,3 +893,61 @@ def upload_establishment_media(company_id, file_url, title, document_type="PDF",
 	except Exception as e:
 		frappe.log_error(f"Error in upload_establishment_media: {str(e)}")
 		return error("Failed to upload establishment media", "SERVER_ERROR", {"error": str(e)}, 500)
+
+
+@frappe.whitelist()
+def get_establishment_profiles():
+	"""Per-establishment feature flags for the sidebar / global selector.
+
+	Admins get every company; establishment users get theirs. Flags are
+	derived from real data (no manual configuration):
+	- is_hotel: the Company.cheese_is_hotel custom field
+	- has_activities: at least one non-HOTEL experience
+	- in_routes: one of its experiences appears in a non-archived route
+	"""
+	try:
+		user_company = _get_current_user_company()
+		filters = {"name": user_company} if user_company else {}
+
+		fields = ["name", "company_name", "default_currency"]
+		has_hotel_field = _company_has_is_hotel_field()
+		if has_hotel_field:
+			fields.append("cheese_is_hotel")
+		companies = frappe.get_all("Company", filters=filters, fields=fields, order_by="company_name asc")
+
+		activity_rows = frappe.get_all(
+			"Cheese Experience",
+			filters={"experience_type": ["!=", "HOTEL"]},
+			fields=["company"],
+			distinct=True,
+		)
+		activity_companies = {r.company for r in activity_rows}
+
+		route_companies = {
+			r[0]
+			for r in frappe.db.sql(
+				"""
+				SELECT DISTINCT exp.company
+				FROM `tabCheese Route Experience` re
+				JOIN `tabCheese Experience` exp ON exp.name = re.experience
+				JOIN `tabCheese Route` route ON route.name = re.parent
+				WHERE route.status != 'ARCHIVED'
+				"""
+			)
+		}
+
+		data = [
+			{
+				"company_id": c.name,
+				"company_name": c.company_name or c.name,
+				"currency": c.default_currency,
+				"is_hotel": bool(getattr(c, "cheese_is_hotel", 0)) if has_hotel_field else False,
+				"has_activities": c.name in activity_companies,
+				"in_routes": c.name in route_companies,
+			}
+			for c in companies
+		]
+		return success("Establishment profiles retrieved", {"establishments": data})
+	except Exception as e:
+		frappe.log_error(f"Error in get_establishment_profiles: {str(e)}")
+		return error("Failed to get establishment profiles", "SERVER_ERROR", {"error": str(e)}, 500)

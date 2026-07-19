@@ -18,6 +18,7 @@ import { toast } from "sonner";
 import { supportService } from "@/api/supportService";
 import FrappeSearchSelect from "@/components/FrappeSearchSelect";
 import CompanySelect from "@/components/CompanySelect";
+import { useActiveEstablishment } from "@/lib/ActiveEstablishmentContext";
 
 const STATUS_CONFIG = {
     OPEN: { label: "Abierto", badge: "bg-red-500/15 text-red-700 dark:text-red-400" },
@@ -39,7 +40,7 @@ export default function Support() {
     const [searchTerm, setSearchTerm] = useState("");
     const [filterStatus, setFilterStatus] = useState("all");
     const [routeId, setRouteId] = useState("");
-    const [companyId, setCompanyId] = useState("");
+    const { activeEstablishment: companyId } = useActiveEstablishment();
     const [createOpen, setCreateOpen] = useState(false);
     const [form, setForm] = useState({
         contact_id: searchParams.get('contact') || "",
@@ -115,9 +116,6 @@ export default function Support() {
                     </Select>
                     <div className="w-48">
                         <FrappeSearchSelect doctype="Cheese Route" label="name" value={routeId} onChange={setRouteId} placeholder={t("nav.routes", "Route...")} />
-                    </div>
-                    <div className="w-48">
-                        <CompanySelect value={companyId} onChange={setCompanyId} placeholder={t("experiences.establishment", "Establecimiento...")} />
                     </div>
                     <Button className="cheese-gradient text-black font-semibold border-0 h-9" onClick={() => navigate("/cheese/support/new")}><Plus className="w-4 h-4 mr-1" /> {t("support.newCase", "New Case")}</Button>
                     <Button variant="ghost" size="icon" onClick={() => refetch()} className="h-9 w-9"><RefreshCw className="w-4 h-4" /></Button>

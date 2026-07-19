@@ -11,7 +11,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useFrappeList } from "@/lib/useApiData";
 import FrappeSearchSelect from "@/components/FrappeSearchSelect";
-import CompanySelect from "@/components/CompanySelect";
+import { useActiveEstablishment } from "@/lib/ActiveEstablishmentContext";
 import { useTranslation } from "react-i18next";
 
 export default function SurveyResponses() {
@@ -21,7 +21,7 @@ export default function SurveyResponses() {
     const ticketParam = searchParams.get('ticket') || "";
     const [searchTerm, setSearchTerm] = useState(searchParams.get('experience') || "");
     const [routeId, setRouteId] = useState("");
-    const [companyId, setCompanyId] = useState("");
+    const { activeEstablishment: companyId } = useActiveEstablishment();
     const [ratingFilter, setRatingFilter] = useState("all");
     const [selected, setSelected] = useState(null);
 
@@ -64,7 +64,6 @@ export default function SurveyResponses() {
                 <div className="flex gap-2 flex-wrap">
                     <div className="relative"><Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" /><Input placeholder={t("surveyResponses.searchTicket", "Buscar ticket...")} value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-9 w-56 h-9" /></div>
                     <div className="w-44"><FrappeSearchSelect doctype="Cheese Route" label="name" value={routeId} onChange={setRouteId} placeholder={t("surveyResponses.route", "Ruta...")} /></div>
-                    <div className="w-44"><CompanySelect value={companyId} onChange={setCompanyId} placeholder={t("surveyResponses.establishment", "Establecimiento...")} /></div>
                     <Input placeholder={t("surveyResponses.ratingRange", "Calificación 1-5")} value={ratingFilter === "all" ? "" : ratingFilter} onChange={(e) => setRatingFilter(e.target.value ? e.target.value : "all")} className="w-24 h-9" />
                     <Button variant="ghost" size="icon" onClick={() => refetch()} className="h-9 w-9"><RefreshCw className="w-4 h-4" /></Button>
                 </div>

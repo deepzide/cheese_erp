@@ -7,7 +7,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
-import CompanySelect from "@/components/CompanySelect";
+import { useActiveEstablishment } from "@/lib/ActiveEstablishmentContext";
 import { currencyService } from "@/api/currencyService";
 import { useHotelAccess } from "@/lib/useHotelAccess";
 
@@ -22,7 +22,7 @@ const TRIGGER_META = {
 export default function ConversionHistory() {
     const { t } = useTranslation();
     const { isAdmin } = useHotelAccess();
-    const [company, setCompany] = useState("");
+    const { activeEstablishment: company } = useActiveEstablishment();
     const [trigger, setTrigger] = useState("all");
     const [logs, setLogs] = useState([]);
     const [loading, setLoading] = useState(false);
@@ -72,12 +72,6 @@ export default function ConversionHistory() {
             </div>
 
             <div className="flex flex-col sm:flex-row gap-3">
-                {isAdmin && (
-                    <div className="w-full sm:w-64 space-y-1">
-                        <Label className="text-xs">{t("common.company", "Establecimiento")}</Label>
-                        <CompanySelect value={company} onChange={setCompany} placeholder={t("conversionHistory.allCompanies", "Todos los establecimientos")} />
-                    </div>
-                )}
                 <div className="w-full sm:w-56 space-y-1">
                     <Label className="text-xs">{t("conversionHistory.trigger", "Origen")}</Label>
                     <select

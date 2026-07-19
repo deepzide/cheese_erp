@@ -13,7 +13,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { toast } from "sonner";
 import { depositService } from "@/api/depositService";
 import FrappeSearchSelect from "@/components/FrappeSearchSelect";
-import CompanySelect from "@/components/CompanySelect";
+import { useActiveEstablishment } from "@/lib/ActiveEstablishmentContext";
 import { useTranslation } from "react-i18next";
 
 /** Matches Cheese Deposit status Select options */
@@ -34,7 +34,7 @@ export default function Deposits() {
     const [searchTerm, setSearchTerm] = useState("");
     const [filterStatus, setFilterStatus] = useState("all");
     const [routeId, setRouteId] = useState("");
-    const [companyId, setCompanyId] = useState("");
+    const { activeEstablishment: companyId } = useActiveEstablishment();
 
     const { data: depositsRaw, isLoading, error, refetch } = useQuery({
         queryKey: ['deposits', filterStatus, routeId, companyId],
@@ -103,13 +103,6 @@ export default function Deposits() {
                             value={routeId}
                             onChange={setRouteId}
                             placeholder={t("ticket.route", "Route") + "..."}
-                        />
-                    </div>
-                    <div className="w-48">
-                        <CompanySelect
-                            value={companyId}
-                            onChange={setCompanyId}
-                            placeholder={t("hotel.establishment", "Establishment") + "..."}
                         />
                     </div>
                     <Button className="cheese-gradient text-black font-semibold border-0 h-9" onClick={() => navigate("/cheese/deposits/new")}><Plus className="w-4 h-4 mr-1" /> {t("deposits.createNew", "Create New")}</Button>

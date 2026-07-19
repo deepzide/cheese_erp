@@ -12,7 +12,7 @@ import { UserCheck, Search, Filter, Clock, AlertCircle, RefreshCw, Ticket, QrCod
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { apiRequest } from "@/api/client";
 import FrappeSearchSelect from "@/components/FrappeSearchSelect";
-import CompanySelect from "@/components/CompanySelect";
+import { useActiveEstablishment } from "@/lib/ActiveEstablishmentContext";
 import { useTranslation } from "react-i18next";
 
 const STATUS_CONFIG = {
@@ -29,7 +29,7 @@ export default function Attendance() {
     const [searchTerm, setSearchTerm] = useState("");
     const [filterStatus, setFilterStatus] = useState("all");
     const [routeId, setRouteId] = useState("");
-    const [companyId, setCompanyId] = useState("");
+    const { activeEstablishment: companyId } = useActiveEstablishment();
 
     const { data: records = [], isLoading, error, refetch } = useQuery({
         queryKey: ["attendance", filterStatus, routeId, companyId],
@@ -82,9 +82,6 @@ export default function Attendance() {
                     </Select>
                     <div className="w-48">
                         <FrappeSearchSelect doctype="Cheese Route" label="name" value={routeId} onChange={setRouteId} placeholder={t("attendance.route", "Ruta...")} />
-                    </div>
-                    <div className="w-48">
-                        <CompanySelect value={companyId} onChange={setCompanyId} placeholder={t("attendance.establishment", "Establecimiento...")} />
                     </div>
                     <Button variant="ghost" size="icon" onClick={() => refetch()} className="h-9 w-9"><RefreshCw className="w-4 h-4" /></Button>
                 </div>

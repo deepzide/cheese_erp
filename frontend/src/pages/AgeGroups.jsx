@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import CompanySelect from "@/components/CompanySelect";
+import { useActiveEstablishment } from "@/lib/ActiveEstablishmentContext";
 import { useFrappeList, useFrappeCreate, useFrappeUpdate } from "@/lib/useApiData";
 import { useHotelAccess } from "@/lib/useHotelAccess";
 import { apiRequest } from "@/api/client";
@@ -21,6 +22,9 @@ export default function AgeGroups() {
     const { isAdmin, userCompanies } = useHotelAccess();
     const ownCompany = (Array.isArray(userCompanies) && userCompanies[0]) || "";
     const [company, setCompany] = useState("");
+    const { activeEstablishment } = useActiveEstablishment();
+    React.useEffect(() => { setCompany(activeEstablishment); }, [activeEstablishment]);
+
     const effectiveCompany = isAdmin ? company : ownCompany;
 
     const { data: groups = [], isLoading, refetch } = useFrappeList("Cheese Age Group", {
@@ -98,13 +102,6 @@ export default function AgeGroups() {
                     </Button>
                 </div>
             </div>
-
-            {isAdmin && (
-                <div className="max-w-xs space-y-1">
-                    <Label>{t("common.company", "Establecimiento")}</Label>
-                    <CompanySelect value={company} onChange={setCompany} />
-                </div>
-            )}
 
             <div className="space-y-2">
                 {isLoading ? (

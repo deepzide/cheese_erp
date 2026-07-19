@@ -2,7 +2,7 @@
   "nav": {
     "dashboard": "Dashboard",
     "tickets": "Tickets",
-    "routes": "Routes",
+    "routes": "Packages",
     "bookings": "Bookings",
     "experiences": "Experiences",
     "establishments": "Establishments",
@@ -47,7 +47,12 @@
     "finance": "Finance",
     "operations": "Operations",
     "system": "System",
-    "companyConfig": "Company Settings"
+    "companyConfig": "Company Settings",
+    "home": "Home",
+    "operation": "Operations",
+    "clients": "Clients",
+    "checkin": "Check-in",
+    "organization": "Organization"
   },
   "common": {
     "search": "Search",
@@ -290,7 +295,9 @@
     "switchToLight": "Switch to light mode",
     "switchToDark": "Switch to dark mode",
     "noEstablishment": "No establishment",
-    "allEstablishments": "All Establishments"
+    "allEstablishments": "All Establishments",
+    "wholeRoute": "Whole route",
+    "establishmentSelector": "Active establishment"
   },
   "deposit": {
     "title": "Deposits",

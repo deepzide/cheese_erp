@@ -2,7 +2,7 @@
   "nav": {
     "dashboard": "Panel",
     "tickets": "Tickets",
-    "routes": "Rutas",
+    "routes": "Paquetes",
     "bookings": "Reservas",
     "experiences": "Experiencias",
     "establishments": "Establecimientos",
@@ -51,7 +51,12 @@
     "finance": "Finanzas",
     "operations": "Operaciones",
     "system": "Sistema",
-    "companyConfig": "Configuración de la Compañía"
+    "companyConfig": "Configuración de la Compañía",
+    "home": "Inicio",
+    "operation": "Operación",
+    "clients": "Clientes",
+    "checkin": "Check-in",
+    "organization": "Organización"
   },
   "common": {
     "search": "Buscar",
@@ -488,7 +493,9 @@
     "switchToLight": "Cambiar a modo claro",
     "switchToDark": "Cambiar a modo oscuro",
     "noEstablishment": "Sin establecimiento",
-    "allEstablishments": "Todos los establecimientos"
+    "allEstablishments": "Todos los establecimientos",
+    "wholeRoute": "Toda la ruta",
+    "establishmentSelector": "Establecimiento activo"
   },
   "deposit": {
     "title": "Depósitos",

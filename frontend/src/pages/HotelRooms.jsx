@@ -12,6 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import CompanySelect from "@/components/CompanySelect";
+import { useActiveEstablishment } from "@/lib/ActiveEstablishmentContext";
 import { roomService } from "@/api/roomService";
 import { unwrapFrappeMethodData } from "@/api/client";
 import { useFrappeList } from "@/lib/useApiData";
@@ -34,6 +35,9 @@ export default function HotelRooms() {
     const { isAdmin, userCompanies } = useHotelAccess();
     const ownCompany = (Array.isArray(userCompanies) && userCompanies[0]) || "";
     const [company, setCompany] = useState("");
+    const { activeEstablishment } = useActiveEstablishment();
+    React.useEffect(() => { setCompany(activeEstablishment); }, [activeEstablishment]);
+
     const effectiveCompany = isAdmin ? company : ownCompany;
 
     const { data, isLoading, refetch } = useQuery({
@@ -148,13 +152,6 @@ export default function HotelRooms() {
                     </Button>
                 </div>
             </div>
-
-            {isAdmin && (
-                <div className="max-w-xs space-y-1">
-                    <Label>{t("common.company", "Hotel")}</Label>
-                    <CompanySelect value={company} onChange={setCompany} filters={{ cheese_is_hotel: 1 }} />
-                </div>
-            )}
 
             {!effectiveCompany ? (
                 <Card><CardContent className="py-12 text-center text-muted-foreground">

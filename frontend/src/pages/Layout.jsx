@@ -6,8 +6,8 @@ import {
     LayoutDashboard, Ticket, Route, Sparkles, CalendarDays,
     Users, UserPlus, FileText, Wallet, ShoppingCart,
     Bell, Menu, LogOut, ChevronDown, ChevronRight, X,
-    Zap, Settings, Sun, Moon, Globe,
-    Shield, Landmark, UserCheck, QrCode, Star, Activity, MessageSquare, Building2, ScanLine, Hotel, BedDouble, Database, Webhook, FileSearch, History, Bot, Mail, BadgePercent, Users2, CalendarRange, Settings2, DoorOpen, ArrowLeftRight
+    Zap, Sun, Moon, Globe,
+    Shield, Landmark, UserCheck, QrCode, Star, Activity, MessageSquare, Building2, ScanLine, Hotel, BedDouble, Database, Webhook, FileSearch, History, Bot, Mail, BadgePercent, Users2, CalendarRange, DoorOpen, ArrowLeftRight
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -20,6 +20,7 @@ import { getStoredCredentials } from "@/api/client";
 import { queryClient } from "@/lib/queryClient";
 import { useTheme } from "@/components/ThemeProvider";
 import { useHotelAccess } from "@/lib/useHotelAccess";
+import { ActiveEstablishmentProvider, useActiveEstablishment } from "@/lib/ActiveEstablishmentContext";
 
 const URL_ESTABLISHMENTS = createPageUrl("establishments");
 const URL_ESTABLISHMENTS_NEW = createPageUrl("establishments/new");
@@ -36,57 +37,74 @@ function isNavItemActive(item, pathname) {
     return pathname === item.url;
 }
 
+/**
+ * Viventi redesign (orden_panel_lateral.md): 8 groups ordered by frequency
+ * of use, plus SISTEMA for the technical extras this ERP already had.
+ * - `consolidated`: shown to the superadmin in "Toda la ruta" (Estado A).
+ * - `flag`: establishment feature flag that must be on for the item.
+ */
 const navigationItems = [
-    { titleKey: "nav.dashboard", url: createPageUrl("dashboard"), icon: LayoutDashboard, section: "main" },
-    { titleKey: "nav.tickets", url: createPageUrl("tickets"), icon: Ticket, section: "flow" },
-    { titleKey: "nav.routes", url: createPageUrl("routes"), icon: Route, section: "flow" },
-    { titleKey: "nav.bookings", url: createPageUrl("bookings"), icon: ShoppingCart, section: "flow" },
-    { titleKey: "nav.experiences", url: createPageUrl("experiences"), icon: Sparkles, section: "catalog" },
-    { titleKey: "nav.establishments", url: URL_ESTABLISHMENTS, icon: Building2, section: "catalog" },
-    { titleKey: "nav.calendar", url: createPageUrl("calendar"), icon: CalendarDays, section: "catalog" },
-    { titleKey: "nav.bookingPolicy", url: createPageUrl("booking-policy"), icon: Shield, section: "catalog" },
+    // INICIO
+    { titleKey: "nav.dashboard", url: createPageUrl("dashboard"), icon: LayoutDashboard, section: "inicio", consolidated: true },
+    // OPERACIÓN
+    { titleKey: "nav.tickets", url: createPageUrl("tickets"), icon: Ticket, section: "operacion", consolidated: true },
+    { titleKey: "nav.bookings", url: createPageUrl("bookings"), icon: ShoppingCart, section: "operacion" },
+    { titleKey: "nav.calendar", url: createPageUrl("calendar"), icon: CalendarDays, section: "operacion" },
+    { titleKey: "nav.conversations", url: createPageUrl("conversations"), icon: MessageSquare, section: "operacion" },
+    // HOTEL (solo si el establecimiento tiene hotel)
     { titleKey: "nav.hotels", url: createPageUrl("hotels"), icon: Hotel, section: "hotel" },
     { titleKey: "nav.hotelReservations", url: createPageUrl("hotel-reservations"), icon: BedDouble, section: "hotel" },
     { titleKey: "nav.hotelAvailability", url: createPageUrl("hotel-availability"), icon: CalendarDays, section: "hotel" },
     { titleKey: "nav.hotelRooms", url: createPageUrl("hotel-rooms"), icon: DoorOpen, section: "hotel" },
-    { titleKey: "nav.contacts", url: createPageUrl("contacts"), icon: Users, section: "crm" },
-    { titleKey: "nav.leads", url: createPageUrl("leads"), icon: UserPlus, section: "crm" },
-    { titleKey: "nav.quotations", url: createPageUrl("quotations"), icon: FileText, section: "crm" },
-    { titleKey: "nav.conversations", url: createPageUrl("conversations"), icon: MessageSquare, section: "crm" },
-    { titleKey: "nav.deposits", url: createPageUrl("deposits"), icon: Wallet, section: "finance" },
-    { titleKey: "nav.bankAccounts", url: createPageUrl("bank-accounts"), icon: Landmark, section: "finance" },
-    { titleKey: "nav.currencyConverter", url: createPageUrl("currency-converter"), icon: ArrowLeftRight, section: "finance" },
-    { titleKey: "nav.conversionHistory", url: createPageUrl("conversion-history"), icon: History, section: "finance" },
-    { titleKey: "nav.promotions", url: createPageUrl("promotions"), icon: BadgePercent, section: "companyConfig" },
-    { titleKey: "nav.ageGroups", url: createPageUrl("age-groups"), icon: Users2, section: "companyConfig" },
-    { titleKey: "nav.seasons", url: createPageUrl("seasons"), icon: CalendarRange, section: "companyConfig" },
-    { titleKey: "nav.support", url: createPageUrl("support"), icon: Shield, section: "operations" },
-    { titleKey: "nav.attendance", url: createPageUrl("attendance"), icon: UserCheck, section: "operations" },
-    { titleKey: "nav.qrTokens", url: createPageUrl("qr-tokens"), icon: QrCode, section: "operations" },
-    { titleKey: "nav.qrScan", url: createPageUrl("scan"), icon: ScanLine, section: "operations" },
-    { titleKey: "nav.documents", url: createPageUrl("documents"), icon: FileText, section: "operations" },
-    { titleKey: "nav.surveys", url: createPageUrl("surveys"), icon: Star, section: "operations" },
-    { titleKey: "nav.users", url: createPageUrl("users"), icon: Users, section: "system" },
-    { titleKey: "nav.botUsers", url: createPageUrl("bot-users"), icon: Bot, section: "system" },
-    { titleKey: "nav.backups", url: createPageUrl("backups"), icon: Database, section: "system" },
-    { titleKey: "nav.webhookSettings", url: createPageUrl("webhook-settings"), icon: Webhook, section: "system" },
-    { titleKey: "nav.emailServer", url: createPageUrl("email-server"), icon: Mail, section: "system" },
-    { titleKey: "nav.semanticSearch", url: createPageUrl("semantic-search"), icon: FileSearch, section: "system" },
-    { titleKey: "nav.searchHistory", url: createPageUrl("search-history"), icon: History, section: "system" },
-    { titleKey: "nav.systemEvents", url: createPageUrl("events"), icon: Activity, section: "system" },
+    // CLIENTES
+    { titleKey: "nav.contacts", url: createPageUrl("contacts"), icon: Users, section: "clientes" },
+    { titleKey: "nav.leads", url: createPageUrl("leads"), icon: UserPlus, section: "clientes", consolidated: true },
+    { titleKey: "nav.quotations", url: createPageUrl("quotations"), icon: FileText, section: "clientes", consolidated: true },
+    { titleKey: "nav.surveys", url: createPageUrl("surveys"), icon: Star, section: "clientes", consolidated: true },
+    { titleKey: "nav.support", url: createPageUrl("support"), icon: Shield, section: "clientes" },
+    // CATÁLOGO
+    { titleKey: "nav.experiences", url: createPageUrl("experiences"), icon: Sparkles, section: "catalogo", flag: "activities" },
+    { titleKey: "nav.routes", url: createPageUrl("routes"), icon: Route, section: "catalogo", flag: "routes", consolidated: true },
+    { titleKey: "nav.bookingPolicy", url: createPageUrl("booking-policy"), icon: Shield, section: "catalogo" },
+    { titleKey: "nav.documents", url: createPageUrl("documents"), icon: FileText, section: "catalogo" },
+    { titleKey: "nav.promotions", url: createPageUrl("promotions"), icon: BadgePercent, section: "catalogo" },
+    { titleKey: "nav.ageGroups", url: createPageUrl("age-groups"), icon: Users2, section: "catalogo" },
+    { titleKey: "nav.seasons", url: createPageUrl("seasons"), icon: CalendarRange, section: "catalogo" },
+    // FINANZAS
+    { titleKey: "nav.deposits", url: createPageUrl("deposits"), icon: Wallet, section: "finanzas" },
+    { titleKey: "nav.bankAccounts", url: createPageUrl("bank-accounts"), icon: Landmark, section: "finanzas" },
+    { titleKey: "nav.currencyConverter", url: createPageUrl("currency-converter"), icon: ArrowLeftRight, section: "finanzas" },
+    { titleKey: "nav.conversionHistory", url: createPageUrl("conversion-history"), icon: History, section: "finanzas" },
+    // CHECK-IN
+    { titleKey: "nav.qrScan", url: createPageUrl("scan"), icon: ScanLine, section: "checkin" },
+    { titleKey: "nav.qrTokens", url: createPageUrl("qr-tokens"), icon: QrCode, section: "checkin" },
+    { titleKey: "nav.attendance", url: createPageUrl("attendance"), icon: UserCheck, section: "checkin" },
+    // ORGANIZACIÓN
+    { titleKey: "nav.establishments", url: URL_ESTABLISHMENTS, icon: Building2, section: "organizacion", consolidated: true },
+    { titleKey: "nav.users", url: createPageUrl("users"), icon: Users, section: "organizacion", consolidated: true },
+    { titleKey: "nav.systemEvents", url: createPageUrl("events"), icon: Activity, section: "organizacion", consolidated: true },
+    // SISTEMA (extras técnicos, solo admin)
+    { titleKey: "nav.botUsers", url: createPageUrl("bot-users"), icon: Bot, section: "sistema" },
+    { titleKey: "nav.backups", url: createPageUrl("backups"), icon: Database, section: "sistema" },
+    { titleKey: "nav.webhookSettings", url: createPageUrl("webhook-settings"), icon: Webhook, section: "sistema" },
+    { titleKey: "nav.emailServer", url: createPageUrl("email-server"), icon: Mail, section: "sistema" },
+    { titleKey: "nav.semanticSearch", url: createPageUrl("semantic-search"), icon: FileSearch, section: "sistema" },
+    { titleKey: "nav.searchHistory", url: createPageUrl("search-history"), icon: History, section: "sistema" },
 ];
 
 const sectionDefs = {
-    main: { labelKey: "sections.commandCenter", icon: Zap },
-    flow: { labelKey: "sections.flowControl", icon: Route },
-    catalog: { labelKey: "sections.catalog", icon: Sparkles },
+    inicio: { labelKey: "sections.home", icon: Zap },
+    operacion: { labelKey: "sections.operation", icon: Ticket },
     hotel: { labelKey: "sections.hotel", icon: Hotel },
-    crm: { labelKey: "sections.crm", icon: Users },
-    finance: { labelKey: "sections.finance", icon: Wallet },
-    companyConfig: { labelKey: "sections.companyConfig", icon: Settings2 },
-    operations: { labelKey: "sections.operations", icon: Shield },
-    system: { labelKey: "sections.system", icon: Activity },
+    clientes: { labelKey: "sections.clients", icon: Users },
+    catalogo: { labelKey: "sections.catalog", icon: Sparkles },
+    finanzas: { labelKey: "sections.finance", icon: Wallet },
+    checkin: { labelKey: "sections.checkin", icon: ScanLine },
+    organizacion: { labelKey: "sections.organization", icon: Building2 },
+    sistema: { labelKey: "sections.system", icon: Activity },
 };
+
+const ADMIN_ONLY_PAGES = ["backups", "events", "users", "bot-users", "email-server", "webhook-settings", "semantic-search", "search-history"];
 
 /**
  * Sidebar content, hoisted to module scope (NOT defined inside Layout's
@@ -100,25 +118,42 @@ const sectionDefs = {
 function SidebarContent({
     t, establishmentLoading, establishmentName, visibleNavigationItems,
     location, collapsedSections, toggleSection, setSidebarOpen, user, handleLogout,
+    isAdmin, establishments, activeEstablishment, setActiveEstablishment,
 }) {
     return (
         <>
-            {/* Logo */}
+            {/* Logo + global establishment selector */}
             <div className="p-5 border-b border-white/10">
                 <div className="flex items-center gap-3">
                     <div className="w-10 h-10 cheese-gradient rounded-xl flex items-center justify-center shadow-lg shadow-yellow-500/20">
                         <span className="text-xl font-black text-black">🧀</span>
                     </div>
-                    <div>
+                    <div className="flex-1 min-w-0">
                         <h2 className="font-bold text-cheese-400 text-lg tracking-tight">Cheese</h2>
-                        <p className="text-[11px] text-white/40 font-medium">{t("sections.commandCenter")}</p>
-                        <p className="text-[11px] text-white/60 mt-1 truncate">
-                            {establishmentLoading
-                                ? t("common.loading", "Loading...")
-                                : establishmentName || t("layout.noEstablishment", "No establishment")}
-                        </p>
+                        {!isAdmin && (
+                            <p className="text-[11px] text-white/60 mt-0.5 truncate">
+                                {establishmentLoading
+                                    ? t("common.loading", "Loading...")
+                                    : establishmentName || t("layout.noEstablishment", "No establishment")}
+                            </p>
+                        )}
                     </div>
                 </div>
+                {isAdmin && (
+                    <select
+                        value={activeEstablishment}
+                        onChange={(e) => setActiveEstablishment(e.target.value)}
+                        className="mt-3 w-full h-9 rounded-lg bg-white/5 border border-white/10 text-white/90 text-sm px-2 focus:outline-none focus:border-cheese-400/60 [&>option]:bg-[#1a1a1a]"
+                        title={t("layout.establishmentSelector", "Establecimiento activo")}
+                    >
+                        <option value="">🌐 {t("layout.wholeRoute", "Toda la ruta")}</option>
+                        {establishments.map((e) => (
+                            <option key={e.company_id} value={e.company_id}>
+                                {e.is_hotel ? "🏨 " : ""}{e.company_name}
+                            </option>
+                        ))}
+                    </select>
+                )}
             </div>
 
             {/* Navigation */}
@@ -197,7 +232,7 @@ function SidebarContent({
     );
 }
 
-export default function Layout({ children }) {
+function LayoutInner({ children }) {
     const location = useLocation();
     const navigate = useNavigate();
     const { t, i18n } = useTranslation();
@@ -207,16 +242,29 @@ export default function Layout({ children }) {
 
     const currentUser = getStoredCredentials();
     const user = currentUser || { full_name: "Cheese Admin", role: "admin" };
-    const { hasHotelAccess, establishmentName, isLoading: establishmentLoading, isAdmin } = useHotelAccess();
+    const { establishmentName, isLoading: establishmentLoading, isAdmin } = useHotelAccess();
+    const {
+        establishments, activeEstablishment, setActiveEstablishment,
+        isAllEstablishments, activeProfile,
+    } = useActiveEstablishment();
 
     const visibleNavigationItems = React.useMemo(() => {
+        // While the profile hasn't loaded yet, show everything (no flash of missing menu).
+        const flags = activeProfile || { is_hotel: true, has_activities: true, in_routes: true };
         return navigationItems.filter((item) => {
-            if (item.section === "hotel") return hasHotelAccess;
-            const adminOnlyPages = ["backups", "events", "users", "bot-users", "email-server", "webhook-settings", "semantic-search", "search-history"];
-            if (adminOnlyPages.some((page) => item.url.endsWith(page))) return isAdmin;
+            if (item.section === "sistema" && !isAdmin) return false;
+            if (ADMIN_ONLY_PAGES.some((page) => item.url.endsWith(page)) && !isAdmin) return false;
+            // Estado A: superadmin en "Toda la ruta" ve el menú consolidado + SISTEMA.
+            if (isAdmin && isAllEstablishments) {
+                return item.consolidated || item.section === "sistema";
+            }
+            // Estado B / owner: menú completo del establecimiento, cortado por flags.
+            if (item.section === "hotel" && !flags.is_hotel) return false;
+            if (item.flag === "activities" && !flags.has_activities) return false;
+            if (item.flag === "routes" && !flags.in_routes) return false;
             return true;
         });
-    }, [hasHotelAccess, isAdmin]);
+    }, [isAdmin, isAllEstablishments, activeProfile]);
 
     const toggleLanguage = () => {
         const next = i18n.language === "es" ? "en" : "es";
@@ -242,9 +290,14 @@ export default function Layout({ children }) {
         navigate("/cheese/login");
     };
 
+    const activeScopeLabel = isAdmin
+        ? (activeProfile?.company_name || t("layout.wholeRoute", "Toda la ruta"))
+        : (establishmentName || t("layout.noEstablishment", "No establishment"));
+
     const sidebarProps = {
         t, establishmentLoading, establishmentName, visibleNavigationItems,
         location, collapsedSections, toggleSection, setSidebarOpen, user, handleLogout,
+        isAdmin, establishments, activeEstablishment, setActiveEstablishment,
     };
 
     return (
@@ -290,10 +343,17 @@ export default function Layout({ children }) {
                             </h1>
                         </div>
                         <Badge variant="outline" className="max-w-[220px] truncate">
-                            {isAdmin
-                                ? t("layout.allEstablishments", "All Establishments")
-                                : (establishmentName || t("layout.noEstablishment", "No establishment"))}
+                            {activeScopeLabel}
                         </Badge>
+                        {isAdmin && activeProfile && (
+                            <Badge variant="secondary" className="hidden sm:inline-flex text-[11px]">
+                                {[
+                                    activeProfile.is_hotel ? "🏨" : null,
+                                    activeProfile.has_activities ? "🎟️" : null,
+                                    activeProfile.in_routes ? "🗺️" : null,
+                                ].filter(Boolean).join(" ")}
+                            </Badge>
+                        )}
                     </div>
 
                     <div className="flex items-center gap-2">
@@ -347,5 +407,13 @@ export default function Layout({ children }) {
                 </div>
             </main>
         </div>
+    );
+}
+
+export default function Layout({ children }) {
+    return (
+        <ActiveEstablishmentProvider>
+            <LayoutInner>{children}</LayoutInner>
+        </ActiveEstablishmentProvider>
     );
 }
