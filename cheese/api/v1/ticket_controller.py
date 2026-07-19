@@ -1242,7 +1242,7 @@ def get_ticket_board(filters=None, status=None, route_id=None, establishment_id=
 		tickets = frappe.get_all(
 			"Cheese Ticket",
 			filters=filter_dict,
-			fields=["name", "status", "contact", "experience", "slot", "route", "party_size", "company", "total_price", "deposit_amount", "selected_date", "expires_at", "creation", "modified"]
+			fields=["name", "status", "contact", "experience", "slot", "route", "party_size", "company", "total_price", "deposit_amount", "selected_date", "check_in_date", "check_out_date", "nights", "rooms_requested", "expires_at", "creation", "modified"]
 		)
 
 		slot_ids = sorted({t.slot for t in tickets if t.slot})
