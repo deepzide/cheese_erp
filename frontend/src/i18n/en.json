@@ -106,7 +106,8 @@
     "selected": "Selected",
     "more": "more",
     "accessDenied": "Access denied",
-    "noPermission": "You don't have permission to view this record."
+    "noPermission": "You don't have permission to view this record.",
+    "clear": "Clear"
   },
   "status": {
     "ONLINE": "Online",
@@ -306,7 +307,9 @@
     "noEstablishment": "No establishment",
     "allEstablishments": "All Establishments",
     "wholeRoute": "Whole route",
-    "establishmentSelector": "Active establishment"
+    "establishmentSelector": "Active establishment",
+    "searchMenu": "Search menu…",
+    "noMenuMatches": "No results for \"{{q}}\""
   },
   "deposit": {
     "title": "Deposits",
@@ -422,7 +425,8 @@
     "createNewHint": "Create a new establishment",
     "bankAccountsCount": "{{count}} bank account",
     "experiencesCount": "{{count}} experiences",
-    "loadFailed": "Failed to load establishments"
+    "loadFailed": "Failed to load establishments",
+    "atLeastOneCurrency": "At least one currency must be accepted"
   },
   "experiences": {
     "experience": "Experience",

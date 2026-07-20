@@ -5,7 +5,7 @@ import { createPageUrl } from "@/utils";
 import {
     LayoutDashboard, Ticket, Route, Sparkles, CalendarDays,
     Users, UserPlus, FileText, Wallet, ShoppingCart,
-    Bell, Menu, LogOut, ChevronDown, ChevronRight, X,
+    Bell, Menu, LogOut, ChevronDown, ChevronRight, X, Search,
     Zap, Sun, Moon, Globe,
     Shield, Landmark, UserCheck, QrCode, Star, Activity, MessageSquare, Building2, ScanLine, Hotel, BedDouble, Database, Webhook, FileSearch, History, Bot, Mail, BadgePercent, Users2, CalendarRange, DoorOpen, ArrowLeftRight
 } from "lucide-react";
@@ -120,6 +120,11 @@ function SidebarContent({
     location, collapsedSections, toggleSection, setSidebarOpen, user, handleLogout,
     isAdmin, establishments, activeEstablishment, setActiveEstablishment,
 }) {
+    const [menuQuery, setMenuQuery] = useState("");
+    const q = menuQuery.trim().toLowerCase();
+    const searching = q.length > 0;
+    const matches = (item) => !searching || t(item.titleKey).toLowerCase().includes(q);
+    const anyMatch = searching && visibleNavigationItems.some(matches);
     return (
         <>
             {/* Logo + global establishment selector */}
@@ -156,13 +161,42 @@ function SidebarContent({
                 )}
             </div>
 
+            {/* Menu search */}
+            <div className="px-3 pt-3">
+                <div className="relative">
+                    <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-white/30" />
+                    <input
+                        value={menuQuery}
+                        onChange={(e) => setMenuQuery(e.target.value)}
+                        placeholder={t("layout.searchMenu", "Buscar en el menú…")}
+                        className="w-full h-8 rounded-lg bg-white/5 border border-white/10 text-white/90 text-sm pl-8 pr-7 focus:outline-none focus:border-cheese-400/60 placeholder:text-white/30"
+                    />
+                    {menuQuery && (
+                        <button
+                            type="button"
+                            onClick={() => setMenuQuery("")}
+                            className="absolute right-2 top-1/2 -translate-y-1/2 text-white/30 hover:text-white/70"
+                            title={t("common.clear", "Limpiar")}
+                        >
+                            <X className="w-3.5 h-3.5" />
+                        </button>
+                    )}
+                </div>
+            </div>
+
             {/* Navigation */}
             <ScrollArea className="flex-1 px-3 py-4">
+                {searching && !anyMatch && (
+                    <p className="px-3 py-6 text-center text-xs text-white/40">
+                        {t("layout.noMenuMatches", "Sin resultados para \"{{q}}\"", { q: menuQuery })}
+                    </p>
+                )}
                 {Object.entries(sectionDefs).map(([key, section]) => {
-                    const items = visibleNavigationItems.filter(item => item.section === key);
+                    const items = visibleNavigationItems.filter(item => item.section === key && matches(item));
                     if (items.length === 0) return null;
                     const isGroupActive = items.some(item => isNavItemActive(item, location.pathname));
-                    const isCollapsed = collapsedSections[key] && !isGroupActive;
+                    // While searching, keep every matching section expanded.
+                    const isCollapsed = !searching && collapsedSections[key] && !isGroupActive;
 
                     return (
                         <div key={key} className="mb-3">

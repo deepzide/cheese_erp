@@ -596,7 +596,40 @@ def update_establishment(company_id, **kwargs):
 			return error("Unauthorized", "UNAUTHORIZED", {}, 403)
 
 		company = frappe.get_doc("Company", company_id)
-		
+
+		# --- Currency guards: an establishment may only accept / prefer a
+		# currency it can actually collect (i.e. it has a payment method for). ---
+		ALL_CURRENCIES = ["UYU", "USD", "EUR", "BRL", "ARS"]
+
+		def _parse_currencies(value):
+			return [c.strip().upper() for c in str(value or "").split(",") if c.strip()]
+
+		if "accepted_currencies" in kwargs or (kwargs.get("default_currency")):
+			payment_currencies = {
+				(c or "").upper()
+				for c in frappe.get_all(
+					"Cheese Bank Account",
+					filters={"entity_type": "Company", "entity_id": company_id},
+					pluck="currency",
+				)
+				if c
+			}
+			display_name = company.company_name or company_id
+			msg = _("Debe crear un método de pago con esa moneda para el establecimiento {0}: {1}")
+
+			if "accepted_currencies" in kwargs:
+				# Only newly-added currencies must be payment-backed; unchecking
+				# or keeping existing ones never triggers the guard.
+				old_accepted = _parse_currencies(company.get("accepted_currencies")) or ALL_CURRENCIES
+				new_accepted = _parse_currencies(kwargs.get("accepted_currencies")) or ALL_CURRENCIES
+				missing = [c for c in new_accepted if c not in old_accepted and c not in payment_currencies]
+				if missing:
+					return validation_error(msg.format(display_name, ", ".join(missing)))
+
+			new_default = (kwargs.get("default_currency") or "").upper()
+			if new_default and new_default != (company.default_currency or "").upper() and new_default not in payment_currencies:
+				return validation_error(msg.format(display_name, new_default))
+
 		# Allowed fields for update (restrict operational fields)
 		allowed_fields = [
 			"company_name", "email", "phone_no", "website", 

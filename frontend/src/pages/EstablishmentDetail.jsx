@@ -38,6 +38,8 @@ import {
     DialogTitle,
 } from "@/components/ui/dialog";
 
+const ALL_CURRENCIES = ["UYU", "USD", "EUR", "BRL", "ARS"];
+
 export default function EstablishmentDetail() {
     const { id } = useParams();
     const companyId = id ? decodeURIComponent(id) : "";
@@ -84,7 +86,12 @@ export default function EstablishmentDetail() {
                 company_name: payload.company_name || "",
                 email: payload.email || "",
                 default_currency: payload.default_currency || "UYU",
-                accepted_currencies: String(payload.accepted_currencies || "").split(",").map((c) => c.trim().toUpperCase()).filter(Boolean),
+                // Empty stored value means "all accepted": reflect that by
+                // pre-checking every currency so the UI matches the "Todas" label.
+                accepted_currencies: (() => {
+                    const parsed = String(payload.accepted_currencies || "").split(",").map((c) => c.trim().toUpperCase()).filter(Boolean);
+                    return parsed.length ? parsed : [...ALL_CURRENCIES];
+                })(),
                 derive_hotel_capacity: Boolean(payload.derive_hotel_capacity),
                 fx_tolerance_percent: payload.fx_tolerance_percent ?? 3,
                 phone_no: payload.phone || "",
@@ -102,7 +109,10 @@ export default function EstablishmentDetail() {
                 company_name: form.company_name,
                 email: form.email,
                 default_currency: form.default_currency,
-                accepted_currencies: (form.accepted_currencies || []).join(","),
+                // All selected → store empty (= "all"), otherwise the explicit set.
+                accepted_currencies: (form.accepted_currencies || []).length === ALL_CURRENCIES.length
+                    ? ""
+                    : (form.accepted_currencies || []).join(","),
                 derive_hotel_capacity: form.derive_hotel_capacity ? 1 : 0,
                 fx_tolerance_percent: form.fx_tolerance_percent,
                 phone_no: form.phone_no,
@@ -230,7 +240,17 @@ export default function EstablishmentDetail() {
                             <Button variant="outline" size="sm" onClick={() => setEditMode(false)}>
                                 {t("common.cancel", "Cancel")}
                             </Button>
-                            <Button size="sm" onClick={() => updateMutation.mutate()} disabled={updateMutation.isPending}>
+                            <Button
+                                size="sm"
+                                onClick={() => {
+                                    if (!(form.accepted_currencies || []).length) {
+                                        toast.error(t("establishments.atLeastOneCurrency", "Debe aceptar al menos una moneda"));
+                                        return;
+                                    }
+                                    updateMutation.mutate();
+                                }}
+                                disabled={updateMutation.isPending}
+                            >
                                 {t("common.save", "Save")}
                             </Button>
                         </>
@@ -303,7 +323,7 @@ export default function EstablishmentDetail() {
                                 <Label>{t("establishments.acceptedCurrencies", "Monedas aceptadas")}</Label>
                                 {editMode ? (
                                     <div className="flex gap-4 flex-wrap">
-                                        {["UYU", "USD", "EUR", "BRL", "ARS"].map((c) => (
+                                        {ALL_CURRENCIES.map((c) => (
                                             <label key={c} className="flex items-center gap-1.5 text-sm cursor-pointer">
                                                 <input
                                                     type="checkbox"

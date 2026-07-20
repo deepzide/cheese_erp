@@ -160,7 +160,8 @@
     "selected": "Seleccionado",
     "more": "más",
     "accessDenied": "Acceso denegado",
-    "noPermission": "No tienes permiso para ver este registro."
+    "noPermission": "No tienes permiso para ver este registro.",
+    "clear": "Limpiar"
   },
   "status": {
     "ONLINE": "En Línea",
@@ -504,7 +505,9 @@
     "noEstablishment": "Sin establecimiento",
     "allEstablishments": "Todos los establecimientos",
     "wholeRoute": "Toda la ruta",
-    "establishmentSelector": "Establecimiento activo"
+    "establishmentSelector": "Establecimiento activo",
+    "searchMenu": "Buscar en el menú…",
+    "noMenuMatches": "Sin resultados para \"{{q}}\""
   },
   "deposit": {
     "title": "Depósitos",
@@ -783,7 +786,8 @@
     "createNewHint": "Crear un nuevo establecimiento",
     "bankAccountsCount": "{{count}} cuenta bancaria",
     "experiencesCount": "{{count}} experiencias",
-    "loadFailed": "No se pudieron cargar los establecimientos"
+    "loadFailed": "No se pudieron cargar los establecimientos",
+    "atLeastOneCurrency": "Debe aceptar al menos una moneda"
   },
   "experiences": {
     "experience": "Experiencia",
