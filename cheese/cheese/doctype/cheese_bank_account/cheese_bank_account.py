@@ -29,7 +29,8 @@ class CheeseBankAccount(Document):
 
 	def validate(self):
 		"""Validate bank account data"""
-		self.title = f"{self.bank} - {self.account}"
+		self.set_title()
+		self.validate_required_by_category()
 		self.sync_legacy_route_field()
 		self.validate_entity()
 
@@ -56,6 +57,40 @@ class CheeseBankAccount(Document):
 						self.entity_type, self.entity_id
 					)
 				)
+
+	def validate_required_by_category(self):
+		"""Bank name/number are required only for actual bank accounts. Other
+		payment methods (PayPal, Mercado Pago, dLocal) must not demand them.
+
+		Enforced here in Python because ``mandatory_depends_on`` eval strings are
+		not reliably evaluated server-side, so this is the authoritative check.
+		"""
+		if not self.category or self.category == "BANK_ACCOUNT":
+			missing = [
+				label
+				for field, label in (("bank", _("Bank Name")), ("account", _("Account Number")))
+				if not (self.get(field) or "").strip()
+			]
+			if missing:
+				frappe.throw(
+					_("Missing required fields for a bank account: {0}").format(", ".join(missing))
+				)
+
+	def set_title(self):
+		"""Human-readable title, aware of the payment method category so that
+		non-bank methods (PayPal, Mercado Pago, dLocal) don't render as ' - '."""
+		labels = {
+			"BANK_ACCOUNT": "Banco",
+			"PAYPAL": "PayPal",
+			"MERCADO_PAGO": "Mercado Pago",
+			"DLOCAL": "dLocal",
+		}
+		if not self.category or self.category == "BANK_ACCOUNT":
+			self.title = f"{self.bank or ''} - {self.account or ''}".strip(" -") or "Banco"
+			return
+		identifier = self.account_email or self.paypal_me_link or self.mp_alias_cvu or self.holder or ""
+		label = labels.get(self.category, self.category)
+		self.title = f"{label} - {identifier}" if identifier else label
 
 	def sync_legacy_route_field(self):
 		# Backward compatibility for legacy docs and callers still using route.

@@ -1,233 +1,233 @@
 {
-    "actions": [],
-    "allow_import": 1,
-    "allow_rename": 1,
-    "autoname": "hash",
-    "creation": "2024-01-01 00:00:00",
-    "doctype": "DocType",
-    "name": "Cheese Bank Account",
-    "document_type": "Document",
-    "engine": "InnoDB",
-    "field_order": [
-        "bank_account_info",
-        "entity_type",
-        "entity_id",
-        "route",
-        "status",
-        "category",
-        "account_details_section",
-        "holder",
-        "account_email",
-        "paypal_me_link",
-        "mp_alias_cvu",
-        "account_country",
-        "dlocal_provider_network",
-        "dlocal_agreement_id",
-        "bank",
-        "account",
-        "description",
-        "iban",
-        "currency",
-        "title"
-    ],
-    "fields": [
-        {
-            "fieldname": "bank_account_info",
-            "fieldtype": "Section Break",
-            "label": "Bank Account Information"
-        },
-        {
-            "fieldname": "entity_type",
-            "fieldtype": "Select",
-            "in_list_view": 1,
-            "in_standard_filter": 1,
-            "label": "Entity Type",
-            "options": "Cheese Route\nCompany",
-            "reqd": 1
-        },
-        {
-            "fieldname": "entity_id",
-            "fieldtype": "Dynamic Link",
-            "in_list_view": 1,
-            "in_standard_filter": 1,
-            "label": "Entity",
-            "options": "entity_type",
-            "reqd": 1
-        },
-        {
-            "depends_on": "eval:doc.entity_type=='Cheese Route'",
-            "fieldname": "route",
-            "fieldtype": "Link",
-            "in_list_view": 1,
-            "in_standard_filter": 1,
-            "label": "Route",
-            "mandatory_depends_on": "eval:doc.entity_type=='Cheese Route'",
-            "options": "Cheese Route"
-        },
-        {
-            "fieldname": "status",
-            "fieldtype": "Select",
-            "in_list_view": 1,
-            "in_standard_filter": 1,
-            "label": "Status",
-            "options": "ACTIVE\nINACTIVE",
-            "reqd": 1
-        },
-        {
-            "fieldname": "category",
-            "fieldtype": "Select",
-            "label": "Category",
-            "options": "BANK_ACCOUNT\nPAYPAL\nMERCADO_PAGO\nDLOCAL",
-            "default": "BANK_ACCOUNT",
-            "reqd": 1,
-            "in_list_view": 1,
-            "in_standard_filter": 1,
-            "description": "Payment method type. Bank fields, PayPal fields, etc. show according to this."
-        },
-        {
-            "fieldname": "account_details_section",
-            "fieldtype": "Section Break",
-            "label": "Account Details"
-        },
-        {
-            "fieldname": "holder",
-            "fieldtype": "Data",
-            "in_list_view": 1,
-            "label": "Account Holder",
-            "reqd": 1
-        },
-        {
-            "fieldtype": "Data",
-            "label": "Account Email",
-            "depends_on": "eval:[\"PAYPAL\",\"MERCADO_PAGO\"].includes(doc.category)",
-            "description": "PayPal ID (business email) or Mercado Pago account email",
-            "fieldname": "account_email"
-        },
-        {
-            "fieldtype": "Data",
-            "label": "PayPal.Me Link",
-            "depends_on": "eval:doc.category==\"PAYPAL\"",
-            "description": "Optional quick-payment link, e.g. paypal.me/YourBusiness",
-            "fieldname": "paypal_me_link"
-        },
-        {
-            "fieldtype": "Data",
-            "label": "Alias / CVU",
-            "depends_on": "eval:doc.category==\"MERCADO_PAGO\"",
-            "description": "Mercado Pago alias or CVU for direct in-app transfers",
-            "fieldname": "mp_alias_cvu"
-        },
-        {
-            "fieldtype": "Data",
-            "label": "Account Country",
-            "depends_on": "eval:[\"MERCADO_PAGO\",\"DLOCAL\"].includes(doc.category)",
-            "description": "Mercado Pago operates per-country accounts; dLocal collection country",
-            "fieldname": "account_country"
-        },
-        {
-            "fieldtype": "Data",
-            "label": "Local Provider / Network",
-            "depends_on": "eval:doc.category==\"DLOCAL\"",
-            "description": "Network or correspondent assigned by dLocal (e.g. OXXO, PagoFacil)",
-            "fieldname": "dlocal_provider_network"
-        },
-        {
-            "fieldtype": "Data",
-            "label": "Agreement / Merchant ID",
-            "depends_on": "eval:doc.category==\"DLOCAL\"",
-            "description": "Corporate agreement number customers quote when depositing",
-            "fieldname": "dlocal_agreement_id"
-        },
-        {
-            "fieldname": "bank",
-            "fieldtype": "Data",
-            "in_list_view": 1,
-            "label": "Bank Name",
-            "reqd": 1,
-            "depends_on": "eval:doc.category==\"BANK_ACCOUNT\" || !doc.category"
-        },
-        {
-            "fieldname": "account",
-            "fieldtype": "Data",
-            "in_list_view": 1,
-            "label": "Account Number",
-            "reqd": 1,
-            "depends_on": "eval:doc.category==\"BANK_ACCOUNT\" || !doc.category"
-        },
-        {
-            "fieldname": "iban",
-            "fieldtype": "Data",
-            "label": "IBAN",
-            "depends_on": "eval:doc.category==\"BANK_ACCOUNT\" || !doc.category"
-        },
-        {
-            "fieldname": "description",
-            "fieldtype": "Small Text",
-            "label": "Payment Instructions",
-            "description": "Free text shown to the customer (e.g. \"select Goods and Services\", OXXO steps, etc.)"
-        },
-        {
-            "fieldname": "currency",
-            "fieldtype": "Link",
-            "label": "Currency",
-            "options": "Currency",
-            "reqd": 1
-        },
-        {
-            "fieldname": "title",
-            "fieldtype": "Data",
-            "label": "Account Title",
-            "read_only": 1,
-            "hidden": 1
-        }
-    ],
-    "index_web_pages_for_search": 1,
-    "links": [],
-    "modified": "2024-01-01 00:00:00",
-    "modified_by": "Administrator",
-    "module": "Cheese",
-    "naming_rule": "By \"Naming Series\" field",
-    "owner": "Administrator",
-    "permissions": [
-        {
-            "create": 1,
-            "delete": 1,
-            "email": 1,
-            "export": 1,
-            "print": 1,
-            "read": 1,
-            "report": 1,
-            "role": "System Manager",
-            "share": 1,
-            "write": 1
-        },
-        {
-            "create": 1,
-            "delete": 1,
-            "email": 1,
-            "export": 1,
-            "print": 1,
-            "read": 1,
-            "report": 1,
-            "role": "Cheese Booking Manager",
-            "share": 1,
-            "write": 1
-        },
-        {
-            "create": 1,
-            "email": 1,
-            "export": 1,
-            "print": 1,
-            "read": 1,
-            "report": 1,
-            "role": "Cheese Booking Agent",
-            "share": 1,
-            "write": 1
-        }
-    ],
-    "sort_field": "modified",
-    "sort_order": "DESC",
-    "states": [],
-    "title_field": "title",
-    "track_changes": 1
+ "actions": [],
+ "allow_import": 1,
+ "allow_rename": 1,
+ "autoname": "hash",
+ "creation": "2024-01-01 00:00:00",
+ "doctype": "DocType",
+ "name": "Cheese Bank Account",
+ "document_type": "Document",
+ "engine": "InnoDB",
+ "field_order": [
+  "bank_account_info",
+  "entity_type",
+  "entity_id",
+  "route",
+  "status",
+  "category",
+  "account_details_section",
+  "holder",
+  "account_email",
+  "paypal_me_link",
+  "mp_alias_cvu",
+  "account_country",
+  "dlocal_provider_network",
+  "dlocal_agreement_id",
+  "bank",
+  "account",
+  "description",
+  "iban",
+  "currency",
+  "title"
+ ],
+ "fields": [
+  {
+   "fieldname": "bank_account_info",
+   "fieldtype": "Section Break",
+   "label": "Bank Account Information"
+  },
+  {
+   "fieldname": "entity_type",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Entity Type",
+   "options": "Cheese Route\nCompany",
+   "reqd": 1
+  },
+  {
+   "fieldname": "entity_id",
+   "fieldtype": "Dynamic Link",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Entity",
+   "options": "entity_type",
+   "reqd": 1
+  },
+  {
+   "depends_on": "eval:doc.entity_type=='Cheese Route'",
+   "fieldname": "route",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Route",
+   "mandatory_depends_on": "eval:doc.entity_type=='Cheese Route'",
+   "options": "Cheese Route"
+  },
+  {
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Status",
+   "options": "ACTIVE\nINACTIVE",
+   "reqd": 1
+  },
+  {
+   "fieldname": "category",
+   "fieldtype": "Select",
+   "label": "Category",
+   "options": "BANK_ACCOUNT\nPAYPAL\nMERCADO_PAGO\nDLOCAL",
+   "default": "BANK_ACCOUNT",
+   "reqd": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "description": "Payment method type. Bank fields, PayPal fields, etc. show according to this."
+  },
+  {
+   "fieldname": "account_details_section",
+   "fieldtype": "Section Break",
+   "label": "Account Details"
+  },
+  {
+   "fieldname": "holder",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Account Holder",
+   "reqd": 1
+  },
+  {
+   "fieldtype": "Data",
+   "label": "Account Email",
+   "depends_on": "eval:[\"PAYPAL\",\"MERCADO_PAGO\"].includes(doc.category)",
+   "description": "PayPal ID (business email) or Mercado Pago account email",
+   "fieldname": "account_email"
+  },
+  {
+   "fieldtype": "Data",
+   "label": "PayPal.Me Link",
+   "depends_on": "eval:doc.category==\"PAYPAL\"",
+   "description": "Optional quick-payment link, e.g. paypal.me/YourBusiness",
+   "fieldname": "paypal_me_link"
+  },
+  {
+   "fieldtype": "Data",
+   "label": "Alias / CVU",
+   "depends_on": "eval:doc.category==\"MERCADO_PAGO\"",
+   "description": "Mercado Pago alias or CVU for direct in-app transfers",
+   "fieldname": "mp_alias_cvu"
+  },
+  {
+   "fieldtype": "Data",
+   "label": "Account Country",
+   "depends_on": "eval:[\"MERCADO_PAGO\",\"DLOCAL\"].includes(doc.category)",
+   "description": "Mercado Pago operates per-country accounts; dLocal collection country",
+   "fieldname": "account_country"
+  },
+  {
+   "fieldtype": "Data",
+   "label": "Local Provider / Network",
+   "depends_on": "eval:doc.category==\"DLOCAL\"",
+   "description": "Network or correspondent assigned by dLocal (e.g. OXXO, PagoFacil)",
+   "fieldname": "dlocal_provider_network"
+  },
+  {
+   "fieldtype": "Data",
+   "label": "Agreement / Merchant ID",
+   "depends_on": "eval:doc.category==\"DLOCAL\"",
+   "description": "Corporate agreement number customers quote when depositing",
+   "fieldname": "dlocal_agreement_id"
+  },
+  {
+   "fieldname": "bank",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Bank Name",
+   "depends_on": "eval:doc.category==\"BANK_ACCOUNT\" || !doc.category",
+   "mandatory_depends_on": "eval:doc.category==\"BANK_ACCOUNT\" || !doc.category"
+  },
+  {
+   "fieldname": "account",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Account Number",
+   "depends_on": "eval:doc.category==\"BANK_ACCOUNT\" || !doc.category",
+   "mandatory_depends_on": "eval:doc.category==\"BANK_ACCOUNT\" || !doc.category"
+  },
+  {
+   "fieldname": "iban",
+   "fieldtype": "Data",
+   "label": "IBAN",
+   "depends_on": "eval:doc.category==\"BANK_ACCOUNT\" || !doc.category"
+  },
+  {
+   "fieldname": "description",
+   "fieldtype": "Small Text",
+   "label": "Payment Instructions",
+   "description": "Free text shown to the customer (e.g. \"select Goods and Services\", OXXO steps, etc.)"
+  },
+  {
+   "fieldname": "currency",
+   "fieldtype": "Link",
+   "label": "Currency",
+   "options": "Currency",
+   "reqd": 1
+  },
+  {
+   "fieldname": "title",
+   "fieldtype": "Data",
+   "label": "Account Title",
+   "read_only": 1,
+   "hidden": 1
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2024-01-01 00:00:00",
+ "modified_by": "Administrator",
+ "module": "Cheese",
+ "naming_rule": "By \"Naming Series\" field",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Cheese Booking Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Cheese Booking Agent",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "title_field": "title",
+ "track_changes": 1
 }
