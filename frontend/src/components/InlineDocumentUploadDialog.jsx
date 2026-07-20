@@ -5,6 +5,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Loader2, Upload, FileText } from "lucide-react";
 import { apiRequest } from "@/api/client";
@@ -41,6 +42,7 @@ export default function InlineDocumentUploadDialog({
         file_url: "",
         language: "Spanish",
         version: "1.0",
+        description: "",
     });
     const [uploading, setUploading] = useState(false);
 
@@ -52,6 +54,7 @@ export default function InlineDocumentUploadDialog({
                 file_url: "",
                 language: "Spanish",
                 version: "1.0",
+                description: "",
             });
         }
     }, [open]);
@@ -115,6 +118,7 @@ export default function InlineDocumentUploadDialog({
                 file_url: form.file_url,
                 language: form.language,
                 version: form.version,
+                description: form.description?.trim() || undefined,
                 status: "PUBLISHED",
             },
             {
@@ -128,6 +132,7 @@ export default function InlineDocumentUploadDialog({
                             ...f,
                             title: "",
                             file_url: "",
+                            description: "",
                         }));
                     } else {
                         onClose?.();
@@ -224,6 +229,24 @@ export default function InlineDocumentUploadDialog({
                                 }
                             />
                         </div>
+                    </div>
+
+                    <div className="space-y-2">
+                        <Label>{t("documents.description", "Descripción")}</Label>
+                        <Textarea
+                            rows={2}
+                            value={form.description}
+                            onChange={(e) =>
+                                setForm((f) => ({ ...f, description: e.target.value }))
+                            }
+                            placeholder={t(
+                                "documents.descriptionPlaceholder",
+                                "Describe el contenido del documento — recomendado para imágenes y videos: qué muestra, ofertas, precios, etc."
+                            )}
+                        />
+                        <p className="text-xs text-muted-foreground">
+                            {t("documents.descriptionHint", "Se incluye en la búsqueda semántica del bot.")}
+                        </p>
                     </div>
 
                     <div className="space-y-2 p-3 rounded-md border border-dashed border-border bg-muted/30">
