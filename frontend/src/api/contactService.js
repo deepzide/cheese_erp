@@ -20,4 +20,11 @@ export const contactService = {
     updateContact: async (contactId, data) => {
         return apiRequest(`${BASE}.update_contact`, { method: 'POST', body: JSON.stringify({ contact_id: contactId, ...data }) });
     },
+
+    appendCompany: async (contactId, companyId, notes) => {
+        return apiRequest(`${BASE}.append_company_to_contact`, {
+            method: 'POST',
+            body: JSON.stringify({ contact_id: contactId, company_id: companyId, notes: notes || undefined }),
+        });
+    },
 };

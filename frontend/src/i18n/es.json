@@ -393,7 +393,11 @@
       "ticket": "Ticket",
       "lead": "Prospecto",
       "conversation": "Conversación"
-    }
+    },
+    "linkToEstablishment": "Vincular a establecimiento",
+    "linkDesc": "El contacto quedará visible para los usuarios del establecimiento seleccionado.",
+    "link": "Vincular",
+    "linkedToEstablishment": "Contacto vinculado al establecimiento"
   },
   "lead": {
     "title": "Prospectos"

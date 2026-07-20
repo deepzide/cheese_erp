@@ -9,12 +9,14 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Users, Search, Plus, Phone, Mail, MoreHorizontal, Eye, Trash2, Ticket, AlertCircle, RefreshCw, Loader2, MessageSquare, Building2, UserPlus } from "lucide-react";
+import { Users, Search, Plus, Phone, Mail, MoreHorizontal, Eye, Trash2, Ticket, AlertCircle, RefreshCw, Loader2, MessageSquare, Building2, UserPlus, Link2 } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
 import { useFrappeCreate, useFrappeDelete } from "@/lib/useApiData";
 import { useActiveEstablishment } from "@/lib/ActiveEstablishmentContext";
 import { apiRequest } from "@/api/client";
+import { contactService } from "@/api/contactService";
+import CompanySelect from "@/components/CompanySelect";
 import { useTranslation } from "react-i18next";
 
 // Where a contact's relationship with the selected establishment comes from.
@@ -34,7 +36,9 @@ export default function Contacts() {
     const [createOpen, setCreateOpen] = useState(false);
     const [form, setForm] = useState({ full_name: "", phone: "", email: "" });
 
-    const { activeEstablishment, activeProfile } = useActiveEstablishment();
+    const { activeEstablishment, activeProfile, isAdmin } = useActiveEstablishment();
+    const [linkTarget, setLinkTarget] = useState(null);
+    const [linkCompany, setLinkCompany] = useState("");
     const { data: contactsPayload, isLoading, error, refetch } = useQuery({
         queryKey: ["contacts", activeEstablishment],
         queryFn: async () => {
@@ -72,6 +76,26 @@ export default function Contacts() {
             onError: (err) => toast.error(err?.message || t("common.failed", "Failed")),
         });
     };
+
+    // Superadmin: link a contact to an establishment so that establishment's
+    // users can see it (creates the explicit Cheese Contact Company link).
+    const linkMutation = useMutation({
+        mutationFn: ({ contactId, companyId }) => contactService.appendCompany(contactId, companyId),
+        onSuccess: (res) => {
+            const payload = res?.data?.message || res?.data || {};
+            if (payload?.success === false) {
+                toast.error(payload?.error?.message || t("common.failed", "Failed"));
+                return;
+            }
+            toast.success(t("contacts.linkedToEstablishment", "Contacto vinculado al establecimiento"));
+            setLinkTarget(null);
+            setLinkCompany("");
+            refetch();
+        },
+        onError: (err) => toast.error(err?.message || t("common.failed", "Failed")),
+    });
+
+    const openLink = (contact) => { setLinkTarget(contact); setLinkCompany(""); };
 
     if (error) {
         return (
@@ -123,6 +147,11 @@ export default function Contacts() {
                                             <DropdownMenuItem onClick={() => navigate(`/cheese/contacts/${contact.name}`)}><Eye className="w-3 h-3 mr-2" /> {t("common.viewDetails", "Ver Detalles")}</DropdownMenuItem>
                                             <DropdownMenuItem onClick={() => navigate(`/cheese/tickets/new?contact=${contact.name}`)}><Ticket className="w-3 h-3 mr-2" /> {t("contacts.createTicket", "Crear Ticket")}</DropdownMenuItem>
                                             <DropdownMenuItem onClick={() => navigate(`/cheese/leads/new?contact=${contact.name}`)}>{t("contacts.createLeadForContact", "Crear Prospecto")}</DropdownMenuItem>
+                                            {isAdmin && (
+                                                <DropdownMenuItem onClick={() => openLink(contact)}>
+                                                    <Link2 className="w-3 h-3 mr-2" /> {t("contacts.linkToEstablishment", "Vincular a establecimiento")}
+                                                </DropdownMenuItem>
+                                            )}
                                             <DropdownMenuSeparator />
                                             <DropdownMenuItem onClick={() => navigate(`/cheese/tickets?contact=${contact.name}`)}><Ticket className="w-3 h-3 mr-2" /> {t("experiences.viewTickets", "Ver Tickets")}</DropdownMenuItem>
                                             <DropdownMenuItem onClick={() => navigate(`/cheese/conversations?contact=${contact.name}`)}><MessageSquare className="w-3 h-3 mr-2" /> {t("nav.conversations", "Conversaciones")}</DropdownMenuItem>
@@ -162,6 +191,38 @@ export default function Contacts() {
             {!isLoading && filtered.length === 0 && (
                 <div className="text-center py-16"><Users className="w-16 h-16 text-muted-foreground/20 mx-auto mb-4" /><p className="text-muted-foreground">{t("contacts.noContacts", "No contacts found")}</p></div>
             )}
+
+            <Dialog open={!!linkTarget} onOpenChange={(o) => { if (!o) { setLinkTarget(null); setLinkCompany(""); } }}>
+                <DialogContent className="max-w-sm">
+                    <DialogHeader>
+                        <DialogTitle className="flex items-center gap-2"><Link2 className="w-5 h-5 text-cheese-600" /> {t("contacts.linkToEstablishment", "Vincular a establecimiento")}</DialogTitle>
+                        <DialogDescription>
+                            {t("contacts.linkDesc", "El contacto quedará visible para los usuarios del establecimiento seleccionado.")}
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-3">
+                        <div className="text-sm">
+                            <span className="text-muted-foreground">{t("common.contact", "Contacto")}: </span>
+                            <span className="font-medium">{linkTarget?.full_name || linkTarget?.name}</span>
+                        </div>
+                        <div className="space-y-1">
+                            <Label>{t("common.company", "Establecimiento")} <span className="text-red-500">*</span></Label>
+                            <CompanySelect value={linkCompany} onChange={setLinkCompany} autoFill={false} />
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => { setLinkTarget(null); setLinkCompany(""); }}>{t("common.cancel", "Cancelar")}</Button>
+                        <Button
+                            className="cheese-gradient text-black font-semibold border-0"
+                            disabled={!linkCompany || linkMutation.isPending}
+                            onClick={() => linkMutation.mutate({ contactId: linkTarget.name, companyId: linkCompany })}
+                        >
+                            {linkMutation.isPending ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Link2 className="w-4 h-4 mr-1" />}
+                            {t("contacts.link", "Vincular")}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
 
             <Dialog open={createOpen} onOpenChange={setCreateOpen}>
                 <DialogContent className="max-w-sm">

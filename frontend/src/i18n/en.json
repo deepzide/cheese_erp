@@ -232,7 +232,11 @@
       "ticket": "Ticket",
       "lead": "Lead",
       "conversation": "Conversation"
-    }
+    },
+    "linkToEstablishment": "Link to establishment",
+    "linkDesc": "The contact will become visible to the selected establishment's users.",
+    "link": "Link",
+    "linkedToEstablishment": "Contact linked to establishment"
   },
   "lead": {
     "title": "Leads"
