@@ -1,1964 +1,2129 @@
 {
-  "info": {
-    "_postman_id": "797b947f-4bd5-47e3-81f9-75ca8d41846f",
-    "name": "Cheese Bot API",
-    "description": "Complete Bot API endpoints for Cheese booking system. Includes all mandatory endpoints from the comprehensive ERP Bot API specification: Contact, Conversation, Leads, Catalog, Availability, Pricing, Reservations, Route Bookings, Mixed Bookings, Modifications, Cancellations, Payments, QR/Check-in, Itinerary, Surveys, and Complaints.",
-    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
-  },
-  "item": [
+ "info": {
+  "_postman_id": "797b947f-4bd5-47e3-81f9-75ca8d41846f",
+  "name": "Cheese Bot API",
+  "description": "Complete Bot API endpoints for Cheese booking system. Includes all mandatory endpoints from the comprehensive ERP Bot API specification: Contact, Conversation, Leads, Catalog, Availability, Pricing, Reservations, Route Bookings, Mixed Bookings, Modifications, Cancellations, Payments, QR/Check-in, Itinerary, Surveys, and Complaints.",
+  "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+ },
+ "item": [
+  {
+   "name": "1. Contact",
+   "item": [
     {
-      "name": "1. Contact",
-      "item": [
-        {
-          "name": "Resolve or Create Contact",
-          "id": "24146cc0-a5e2-41e0-8477-5e5e6da231da",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "token {{token}}"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"phone\": \"+1234567890\",\n  \"email\": \"customer@example.com\",\n  \"name\": \"John Doe\"\n}"
-            },
-            "url": {
-              "raw": "{{base_url}}/api/method/cheese.api.v1.contact_controller.resolve_or_create_contact",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "api",
-                "method",
-                "cheese.api.v1.contact_controller.resolve_or_create_contact"
-              ]
-            },
-            "description": "ERP: Creates or resolves a unique contact (deduplication by phone/email), defines contact_id. company_id is deprecated and ignored."
-          },
-          "response": []
-        },
-        {
-          "name": "Append Company To Contact",
-          "id": "5a8c93d0-2c2e-4b86-b40a-d0a1f7b0e911",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "token {{token}}"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"contact_id\": \"+1234567890\",\n  \"company_id\": \"Moad\",\n  \"notes\": \"Linked from ERP-BOT\"\n}"
-            },
-            "url": {
-              "raw": "{{base_url}}/api/method/cheese.api.v1.contact_controller.append_company_to_contact",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "api",
-                "method",
-                "cheese.api.v1.contact_controller.append_company_to_contact"
-              ]
-            },
-            "description": "ERP-BOT: Link an establishment/company to a contact. Idempotent if the company is already linked."
-          },
-          "response": []
-        },
-        {
-          "name": "Update Contact",
-          "id": "9f8a51de-28b5-4fb6-a604-47f24feaf611",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "token {{token}}"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"contact_id\": \"0ssh4il5r2\",\n  \"name\": \"John Doe Updated\",\n  \"email\": \"newemaie@example.com\",\n  \"phone\": \"+12345678\",\n  \"idempotency_key\": \"optional-key-123\"\n}"
-            },
-            "url": {
-              "raw": "{{base_url}}/api/method/cheese.api.v1.contact_controller.update_contact",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "api",
-                "method",
-                "cheese.api.v1.contact_controller.update_contact"
-              ]
-            },
-            "description": "ERP: Validates allowed fields, updates Contact, audits changes. Returns changed_fields and audit_event_id."
-          },
-          "response": []
-        },
-        {
-          "name": "Find or Create Contact",
-          "id": "64b2103a-449f-4c96-b6f7-de624efa73bd",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "token {{token}}"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"phone\": \"+1234567890\",\n  \"email\": \"customer@example.com\",\n  \"name\": \"John Doe\"\n}"
-            },
-            "url": {
-              "raw": "{{base_url}}/api/method/cheese.api.v1.contact_controller.find_or_create_contact",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "api",
-                "method",
-                "cheese.api.v1.contact_controller.find_or_create_contact"
-              ]
-            },
-            "description": "Legacy endpoint - use resolve_or_create_contact instead."
-          },
-          "response": []
-        }
+     "name": "Resolve or Create Contact",
+     "id": "24146cc0-a5e2-41e0-8477-5e5e6da231da",
+     "request": {
+      "method": "POST",
+      "header": [
+       {
+        "key": "Authorization",
+        "value": "token {{token}}"
+       },
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       }
       ],
-      "id": "52707f71-59bc-40d9-9501-fd857ca01431"
+      "body": {
+       "mode": "raw",
+       "raw": "{\n  \"phone\": \"+1234567890\",\n  \"email\": \"customer@example.com\",\n  \"name\": \"John Doe\"\n}"
+      },
+      "url": {
+       "raw": "{{base_url}}/api/method/cheese.api.v1.contact_controller.resolve_or_create_contact",
+       "host": [
+        "{{base_url}}"
+       ],
+       "path": [
+        "api",
+        "method",
+        "cheese.api.v1.contact_controller.resolve_or_create_contact"
+       ]
+      },
+      "description": "ERP: Creates or resolves a unique contact (deduplication by phone/email), defines contact_id. company_id is deprecated and ignored."
+     },
+     "response": []
     },
     {
-      "name": "2. Conversation",
-      "item": [
-        {
-          "name": "Open or Resume Conversation",
-          "id": "e52eca76-c498-4264-8228-0e581508d786",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "token {{token}}"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"contact_id\": \"292pb89ilo\",\n  \"channel\": \"WhatsApp\",\n  \"status\": \"ACTIVE\"\n}"
-            },
-            "url": {
-              "raw": "{{base_url}}/api/method/cheese.api.v1.conversation_controller.open_or_resume_conversation",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "api",
-                "method",
-                "cheese.api.v1.conversation_controller.open_or_resume_conversation"
-              ]
-            },
-            "description": "ERP: Creates or resumes a persistent conversation, returns conversation_id."
-          },
-          "response": []
-        },
-        {
-          "name": "Append Conversation Event",
-          "id": "152398fb-970c-47e5-b266-76b433ab526f",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "token {{token}}"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"conversation_id\": \"45auknqli4\",\n  \"event_type\": \"intent\",\n  \"event_data\": {\"intent\": \"book_experience\", \"confidence\": 0.95},\n  \"metadata\": {\"source\": \"bot\"}\n}"
-            },
-            "url": {
-              "raw": "{{base_url}}/api/method/cheese.api.v1.conversation_controller.append_conversation_event",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "api",
-                "method",
-                "cheese.api.v1.conversation_controller.append_conversation_event"
-              ]
-            },
-            "description": "ERP: Persists events. Bot: Sends relevant events (intent, tool-calls, errors)."
-          },
-          "response": []
-        }
+     "name": "Append Company To Contact",
+     "id": "5a8c93d0-2c2e-4b86-b40a-d0a1f7b0e911",
+     "request": {
+      "method": "POST",
+      "header": [
+       {
+        "key": "Authorization",
+        "value": "token {{token}}"
+       },
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       }
       ],
-      "id": "36d813e0-9aa1-459c-b85e-b7ae1aa87e79"
+      "body": {
+       "mode": "raw",
+       "raw": "{\n  \"contact_id\": \"+1234567890\",\n  \"company_id\": \"Moad\",\n  \"notes\": \"Linked from ERP-BOT\"\n}"
+      },
+      "url": {
+       "raw": "{{base_url}}/api/method/cheese.api.v1.contact_controller.append_company_to_contact",
+       "host": [
+        "{{base_url}}"
+       ],
+       "path": [
+        "api",
+        "method",
+        "cheese.api.v1.contact_controller.append_company_to_contact"
+       ]
+      },
+      "description": "ERP-BOT: Link an establishment/company to a contact. Idempotent if the company is already linked."
+     },
+     "response": []
     },
     {
-      "name": "3. Leads",
-      "item": [
-        {
-          "name": "Upsert Lead",
-          "id": "45aa4e47-8795-4ff5-9132-aab929180773",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "token {{token}}"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"contact_id\": \"292pb89ilo\",\n  \"conversation_id\": \"45auknqli4\",\n  \"interest_type\": \"Experience\",\n  \"status\": \"OPEN\"\n}"
-            },
-            "url": {
-              "raw": "{{base_url}}/api/method/cheese.api.v1.lead_controller.upsert_lead",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "api",
-                "method",
-                "cheese.api.v1.lead_controller.upsert_lead"
-              ]
-            },
-            "description": "ERP: Creates/consolidates lead per contact; status \"not converted/converted\". Bot: Detects intent and records it."
-          },
-          "response": []
-        }
+     "name": "Update Contact",
+     "id": "9f8a51de-28b5-4fb6-a604-47f24feaf611",
+     "request": {
+      "method": "POST",
+      "header": [
+       {
+        "key": "Authorization",
+        "value": "token {{token}}"
+       }
       ],
-      "id": "10ebc331-89f4-438d-93fc-a947e986f02d"
+      "body": {
+       "mode": "raw",
+       "raw": "{\n  \"contact_id\": \"0ssh4il5r2\",\n  \"name\": \"John Doe Updated\",\n  \"email\": \"newemaie@example.com\",\n  \"phone\": \"+12345678\",\n  \"idempotency_key\": \"optional-key-123\"\n}"
+      },
+      "url": {
+       "raw": "{{base_url}}/api/method/cheese.api.v1.contact_controller.update_contact",
+       "host": [
+        "{{base_url}}"
+       ],
+       "path": [
+        "api",
+        "method",
+        "cheese.api.v1.contact_controller.update_contact"
+       ]
+      },
+      "description": "ERP: Validates allowed fields, updates Contact, audits changes. Returns changed_fields and audit_event_id."
+     },
+     "response": []
     },
     {
-      "name": "4. Catalog - Experiences",
-      "item": [
-        {
-          "name": "List Experiences",
-          "id": "a67ad57e-3206-41fc-85a8-47f6404aab98",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "token {{token}}"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"page\": 1,\n  \"page_size\": 20,\n  \"status\": \"ONLINE\",\n  \"company\": \"COMPANY-001\",\n  \"package_mode\": \"Both\",\n  \"search\": \"adventure\"\n}"
-            },
-            "url": {
-              "raw": "{{base_url}}/api/method/cheese.api.v1.experience_controller.list_experiences",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "api",
-                "method",
-                "cheese.api.v1.experience_controller.list_experiences"
-              ]
-            },
-            "description": "ERP: Canonical, filterable catalog. Bot: Presents options."
-          },
-          "response": []
-        },
-        {
-          "name": "Get Experience Detail",
-          "id": "e4809cbc-4da8-41f3-8edd-7c7cc9383e4e",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "token {{token}}"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"experience_id\": \"EXP-001\"\n}"
-            },
-            "url": {
-              "raw": "{{base_url}}/api/method/cheese.api.v1.experience_controller.get_experience_detail",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "api",
-                "method",
-                "cheese.api.v1.experience_controller.get_experience_detail"
-              ]
-            },
-            "description": "ERP: Full details + policies. Bot: Summarizes/explains."
-          },
-          "response": []
-        }
+     "name": "Find or Create Contact",
+     "id": "64b2103a-449f-4c96-b6f7-de624efa73bd",
+     "request": {
+      "method": "POST",
+      "header": [
+       {
+        "key": "Authorization",
+        "value": "token {{token}}"
+       }
       ],
-      "id": "40106c2b-ecfd-4722-99bb-8a421653fa8d"
-    },
-    {
-      "name": "5. Catalog - Routes",
-      "item": [
-        {
-          "name": "List Routes",
-          "id": "8870b426-5a14-4911-b0f8-01913b80d9e1",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "token {{token}}"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"page\": 1,\n  \"page_size\": 20,\n  \"status\": \"ONLINE\",\n  \"search\": \"adventure\"\n}"
-            },
-            "url": {
-              "raw": "{{base_url}}/api/method/cheese.api.v1.route_controller.list_routes",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "api",
-                "method",
-                "cheese.api.v1.route_controller.list_routes"
-              ]
-            },
-            "description": "ERP: Available routes + composition. Bot: Guides selection."
-          },
-          "response": []
-        },
-        {
-          "name": "Get Route Detail",
-          "id": "64286f3b-11bf-40ec-8309-3b6c2a2f9cb9",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "token {{token}}"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"route_id\": \"ROUTE-001\"\n}"
-            },
-            "url": {
-              "raw": "{{base_url}}/api/method/cheese.api.v1.route_controller.get_route_detail",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "api",
-                "method",
-                "cheese.api.v1.route_controller.get_route_detail"
-              ]
-            },
-            "description": "ERP: Composition, rules, conditions. Bot: Explains structure/value."
-          },
-          "response": []
-        }
-      ],
-      "id": "bb55ba35-9e9e-46cb-a068-4b18baebca99"
-    },
-    {
-      "name": "6. Availability",
-      "item": [
-        {
-          "name": "Get Availability by Experience",
-          "id": "203856d4-272c-4e30-8b18-61ea5d34565c",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "token {{token}}"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"experience_id\": \"EXP-001\",\n  \"date\": \"2024-12-31\"\n}"
-            },
-            "url": {
-              "raw": "{{base_url}}/api/method/cheese.api.v1.availability_controller.get_availability",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "api",
-                "method",
-                "cheese.api.v1.availability_controller.get_availability"
-              ]
-            },
-            "description": "ERP: Calculates real slots. Bot: Queries and offers options."
-          },
-          "response": []
-        },
-        {
-          "name": "Get Available Slots",
-          "id": "2969e794-5056-4084-90cf-b46df19714b9",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "token {{token}}"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"experience_id\": \"EXP-001\",\n  \"date\": \"2024-12-31\"\n}"
-            },
-            "url": {
-              "raw": "{{base_url}}/api/method/cheese.api.v1.availability_controller.get_available_slots",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "api",
-                "method",
-                "cheese.api.v1.availability_controller.get_available_slots"
-              ]
-            },
-            "description": "Legacy endpoint - use get_availability instead."
-          },
-          "response": []
-        },
-        {
-          "name": "Get Route Availability",
-          "id": "dbdc60a6-9c18-4eae-9a53-b7aca4547789",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "token {{token}}"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"route_id\": \"ROUTE-001\",\n  \"date\": \"2024-12-31\",\n  \"party_size\": 2\n}"
-            },
-            "url": {
-              "raw": "{{base_url}}/api/method/cheese.api.v1.availability_controller.get_route_availability",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "api",
-                "method",
-                "cheese.api.v1.availability_controller.get_route_availability"
-              ]
-            },
-            "description": "ERP: Returns aggregated availability or rules to build it. Bot: Guides configuration."
-          },
-          "response": []
-        }
-      ],
-      "id": "a2faf704-2823-4eec-bccc-b74e59cf8985"
-    },
-    {
-      "name": "7. Pricing and Policies",
-      "item": [
-        {
-          "name": "Get Pricing Preview",
-          "id": "ebb436ad-0bd7-475b-a4cf-9209119f5e7b",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "token {{token}}"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"items\": [\n    {\"type\": \"experience\", \"experience_id\": \"EXP-001\", \"slot_id\": \"SLOT-001\"},\n    {\"type\": \"route\", \"route_id\": \"ROUTE-001\"}\n  ],\n  \"party_size\": 2\n}"
-            },
-            "url": {
-              "raw": "{{base_url}}/api/method/cheese.api.v1.pricing_controller.get_pricing_preview",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "api",
-                "method",
-                "cheese.api.v1.pricing_controller.get_pricing_preview"
-              ]
-            },
-            "description": "ERP: Calculates final price + deposit + breakdown. Bot: Communicates."
-          },
-          "response": []
-        },
-        {
-          "name": "Get Modification Policy",
-          "id": "8e20bd97-1a08-458f-97db-37ee50ce3799",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "token {{token}}"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"reservation_id\": \"TICKET-001\"\n}"
-            },
-            "url": {
-              "raw": "{{base_url}}/api/method/cheese.api.v1.pricing_controller.get_modification_policy",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "api",
-                "method",
-                "cheese.api.v1.pricing_controller.get_modification_policy"
-              ]
-            },
-            "description": "ERP: Defines what can be modified and cost. Bot: Checks and informs before executing."
-          },
-          "response": []
-        },
-        {
-          "name": "Get Cancellation Impact",
-          "id": "b7c02cac-f830-4b9d-a124-a0b46511f2e3",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "token {{token}}"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"reservation_id\": \"TICKET-001\"\n}"
-            },
-            "url": {
-              "raw": "{{base_url}}/api/method/cheese.api.v1.pricing_controller.get_cancellation_impact",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "api",
-                "method",
-                "cheese.api.v1.pricing_controller.get_cancellation_impact"
-              ]
-            },
-            "description": "ERP: Calculates penalties and consequences. Bot: Shows before canceling."
-          },
-          "response": []
-        }
-      ],
-      "id": "6cc10546-d998-42f1-b78b-ff4c8236f9fc"
-    },
-    {
-      "name": "8. Individual Reservations",
-      "item": [
-        {
-          "name": "Create Pending Reservation",
-          "id": "28cedbb4-35eb-4355-afe9-1c683ea770b1",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "token {{token}}"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"contact_id\": \"CONTACT-001\",\n  \"experience_id\": \"EXP-001\",\n  \"slot_id\": \"SLOT-001\",\n  \"party_size\": 2\n}"
-            },
-            "url": {
-              "raw": "{{base_url}}/api/method/cheese.api.v1.ticket_controller.create_pending_reservation",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "api",
-                "method",
-                "cheese.api.v1.ticket_controller.create_pending_reservation"
-              ]
-            },
-            "description": "ERP: Validates, locks slot, creates Reservation = PENDING, sets expiration. Bot: Guides data and executes."
-          },
-          "response": []
-        },
-        {
-          "name": "Get Reservation Status",
-          "id": "67c2efd1-97b9-4ad3-b624-a4ae03cab0d8",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "token {{token}}"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"reservation_id\": \"TICKET-001\"\n}"
-            },
-            "url": {
-              "raw": "{{base_url}}/api/method/cheese.api.v1.ticket_controller.get_reservation_status",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "api",
-                "method",
-                "cheese.api.v1.ticket_controller.get_reservation_status"
-              ]
-            },
-            "description": "ERP: Returns canonical status and next steps. Bot: Communicates current state."
-          },
-          "response": []
-        },
-        {
-          "name": "Modify Reservation Preview",
-          "id": "1363ab35-7fde-44d1-8e7c-afc031bd49a1",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "token {{token}}"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"reservation_id\": \"TICKET-001\",\n  \"new_slot\": \"SLOT-002\",\n  \"party_size\": 3\n}"
-            },
-            "url": {
-              "raw": "{{base_url}}/api/method/cheese.api.v1.ticket_controller.modify_reservation_preview",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "api",
-                "method",
-                "cheese.api.v1.ticket_controller.modify_reservation_preview"
-              ]
-            },
-            "description": "Preview changes before applying modification."
-          },
-          "response": []
-        },
-        {
-          "name": "Confirm Modification",
-          "id": "a4c709c4-134f-4590-92bf-c3234b594c9f",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "token {{token}}"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"reservation_id\": \"TICKET-001\",\n  \"new_slot\": \"SLOT-002\",\n  \"party_size\": 3\n}"
-            },
-            "url": {
-              "raw": "{{base_url}}/api/method/cheese.api.v1.ticket_controller.confirm_modification",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "api",
-                "method",
-                "cheese.api.v1.ticket_controller.confirm_modification"
-              ]
-            },
-            "description": "ERP: Validates, calculates impact, applies changes. Bot: Shows impact and confirms."
-          },
-          "response": []
-        },
-        {
-          "name": "Cancel Reservation",
-          "id": "176a6f8f-e916-44b3-a88c-6c5f93376c48",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "token {{token}}"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"reservation_id\": \"TICKET-001\"\n}"
-            },
-            "url": {
-              "raw": "{{base_url}}/api/method/cheese.api.v1.ticket_controller.cancel_reservation",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "api",
-                "method",
-                "cheese.api.v1.ticket_controller.cancel_reservation"
-              ]
-            },
-            "description": "Cancel an individual reservation."
-          },
-          "response": []
-        },
-        {
-          "name": "Create Pending Ticket",
-          "id": "49ba64d6-5c2b-4b88-8388-9b52dc56b9bc",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "token {{token}}"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"contact_id\": \"CONTACT-001\",\n  \"experience_id\": \"EXP-001\",\n  \"slot_id\": \"SLOT-001\",\n  \"party_size\": 2\n}"
-            },
-            "url": {
-              "raw": "{{base_url}}/api/method/cheese.api.v1.ticket_controller.create_pending_ticket",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "api",
-                "method",
-                "cheese.api.v1.ticket_controller.create_pending_ticket"
-              ]
-            },
-            "description": "Legacy endpoint - use create_pending_reservation instead."
-          },
-          "response": []
-        },
-        {
-          "name": "Get Ticket Summary",
-          "id": "ef90b2e0-31a0-4329-a18e-1e11a69a6c36",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "token {{token}}"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"ticket_id\": \"TICKET-001\"\n}"
-            },
-            "url": {
-              "raw": "{{base_url}}/api/method/cheese.api.v1.ticket_controller.get_ticket_summary",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "api",
-                "method",
-                "cheese.api.v1.ticket_controller.get_ticket_summary"
-              ]
-            },
-            "description": "Legacy endpoint - use get_reservation_status instead."
-          },
-          "response": []
-        }
-      ],
-      "id": "77cc78e8-c968-4fbe-99cb-492bc984eb8f"
-    },
-    {
-      "name": "9. Route Reservations",
-      "item": [
-        {
-          "name": "Get Route Combinations",
-          "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "token {{token}}"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"route_id\": \"ROUTE-001\",\n  \"date\": \"2026-05-10\",\n  \"party_size\": 2\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            },
-            "url": {
-              "raw": "{{base_url}}/api/method/cheese.api.v1.route_booking_controller.get_route_combinations",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "api",
-                "method",
-                "cheese.api.v1.route_booking_controller.get_route_combinations"
-              ]
-            },
-            "description": "Returns valid pre-elaborated slot combinations for a route on a given date/range. Each combination includes a `combination_id` opaque token to use in Create Route Reservation.\n\n**Parámetros:**\n- `route_id` (required): ID de la ruta\n- `date`: Fecha única (YYYY-MM-DD). Equivale a date_from = date_to = date\n- `date_from` / `date_to`: Rango de fechas alternativo\n- `party_size` (default 1): Capacidad mínima requerida por slot\n\n**Restricciones validadas por combinación:**\n- Todos los slots comparten la misma fecha\n- Ningún par de slots se solapa en tiempo\n- Cada slot tiene capacidad >= party_size\n- Todas las experiencias de la ruta están ONLINE"
-          },
-          "response": []
-        },
-        {
-          "name": "Create Route Reservation (via combination_id)",
-          "id": "06511260-b347-402f-b28f-3cc65a87d276",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "token {{token}}"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"contact_id\": \"CONTACT-001\",\n  \"route_id\": \"ROUTE-001\",\n  \"party_size\": 2,\n  \"combination_id\": \"<combination_id from get_route_combinations>\",\n  \"conversation_id\": \"CONV-001\"\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            },
-            "url": {
-              "raw": "{{base_url}}/api/method/cheese.api.v1.route_booking_controller.create_route_reservation",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "api",
-                "method",
-                "cheese.api.v1.route_booking_controller.create_route_reservation"
-              ]
-            },
-            "description": "Crea una reserva de ruta a partir de un `combination_id` obtenido de `get_route_combinations`. Este es el flujo recomendado.\n\n**Flujos disponibles:**\n\n**1. Via combination_id (recomendado):**\nUsa el token opaco devuelto por `get_route_combinations`. No se necesitan `date_from`, `date_to`, `time_from` ni `time_to`.\n```json\n{\n  \"contact_id\": \"CNT-001\",\n  \"route_id\": \"ROUTE-001\",\n  \"party_size\": 2,\n  \"combination_id\": \"eyJ...\"\n}\n```\n\n**2. Via auto-selección por fecha:**\nEl backend busca la primera combinación válida en el rango. Opcionalmente filtra por hora de inicio/fin.\n```json\n{\n  \"contact_id\": \"CNT-001\",\n  \"route_id\": \"ROUTE-001\",\n  \"party_size\": 2,\n  \"date_from\": \"2026-05-10\",\n  \"date_to\": \"2026-05-10\",\n  \"time_from\": \"10:00:00\"\n}\n```\n\n**3. Via slots explícitos (validado):**\nEl backend valida que los slots enviados cumplan todas las restricciones (misma fecha, no solapados, experiencias ONLINE, sin duplicados).\n```json\n{\n  \"contact_id\": \"CNT-001\",\n  \"route_id\": \"ROUTE-001\",\n  \"party_size\": 2,\n  \"experiences_with_slots\": [\n    {\"experience_id\": \"EXP-001\", \"slot_id\": \"SLOT-001\", \"selected_date\": \"2026-05-10\"},\n    {\"experience_id\": \"EXP-002\", \"slot_id\": \"SLOT-002\", \"selected_date\": \"2026-05-10\"}\n  ]\n}\n```\n\n**Validaciones aplicadas en todos los flujos:**\n- Fecha de los slots no puede estar en el pasado\n- Todos los slots deben ser de la misma fecha\n- Ningún par de slots puede solaparse en tiempo\n- Todas las experiencias deben estar ONLINE\n- Cada experiencia solo puede aportar un slot"
-          },
-          "response": []
-        },
-        {
-          "name": "Get Route Status",
-          "id": "6a9e2f82-474c-4fa7-99d5-afc6360ac7c5",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "token {{token}}"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"route_booking_id\": \"RB-TICKET-001\"\n}"
-            },
-            "url": {
-              "raw": "{{base_url}}/api/method/cheese.api.v1.route_booking_controller.get_route_status",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "api",
-                "method",
-                "cheese.api.v1.route_booking_controller.get_route_status"
-              ]
-            },
-            "description": "ERP: Returns PENDING / PARTIALLY_CONFIRMED / CONFIRMED. Bot: Communicates what's confirmed vs pending."
-          },
-          "response": []
-        },
-        {
-          "name": "Get Route Summary",
-          "id": "d3a0724c-480e-423d-b526-6c2035fba240",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "token {{token}}"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"route_booking_id\": \"RB-TICKET-001\"\n}"
-            },
-            "url": {
-              "raw": "{{base_url}}/api/method/cheese.api.v1.route_booking_controller.get_route_summary",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "api",
-                "method",
-                "cheese.api.v1.route_booking_controller.get_route_summary"
-              ]
-            },
-            "description": "ERP: Returns user-friendly summary. Bot: Delivers to customer."
-          },
-          "response": []
-        },
-        {
-          "name": "Modify Route Booking Preview",
-          "id": "48ee8d23-a072-4e03-aca9-9cf2584cef33",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "token {{token}}"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"route_booking_id\": \"RB-TICKET-001\",\n  \"changes\": [\n    {\"ticket_id\": \"TICKET-001\", \"new_slot\": \"SLOT-002\", \"party_size\": 3}\n  ]\n}"
-            },
-            "url": {
-              "raw": "{{base_url}}/api/method/cheese.api.v1.route_booking_controller.modify_route_booking_preview",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "api",
-                "method",
-                "cheese.api.v1.route_booking_controller.modify_route_booking_preview"
-              ]
-            },
-            "description": "Preview changes to route booking before applying."
-          },
-          "response": []
-        },
-        {
-          "name": "Confirm Route Modification",
-          "id": "5672ef78-7174-40dd-b890-c2992dfcaecd",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "token {{token}}"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"route_booking_id\": \"RB-TICKET-001\",\n  \"changes\": [\n    {\"ticket_id\": \"TICKET-001\", \"new_slot\": \"SLOT-002\", \"party_size\": 3}\n  ]\n}"
-            },
-            "url": {
-              "raw": "{{base_url}}/api/method/cheese.api.v1.route_booking_controller.confirm_route_modification",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "api",
-                "method",
-                "cheese.api.v1.route_booking_controller.confirm_route_modification"
-              ]
-            },
-            "description": "ERP: Validates, calculates impact, applies changes. Bot: Shows impact and confirms."
-          },
-          "response": []
-        },
-        {
-          "name": "Add Activities to Route Preview",
-          "id": "9fa54ab2-7df7-44c4-8e14-50a249c7a8bb",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "token {{token}}"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"route_booking_id\": \"RB-TICKET-001\",\n  \"activities\": [\n    {\"experience_id\": \"EXP-003\", \"slot_id\": \"SLOT-003\"}\n  ]\n}"
-            },
-            "url": {
-              "raw": "{{base_url}}/api/method/cheese.api.v1.route_booking_controller.add_activities_to_route_preview",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "api",
-                "method",
-                "cheese.api.v1.route_booking_controller.add_activities_to_route_preview"
-              ]
-            },
-            "description": "Preview add-ons to route booking."
-          },
-          "response": []
-        },
-        {
-          "name": "Confirm Add Activities to Route",
-          "id": "e7ad6f74-7e94-48d8-b288-85bbbf87fe18",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "token {{token}}"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"route_booking_id\": \"RB-TICKET-001\",\n  \"activities\": [\n    {\"experience_id\": \"EXP-003\", \"slot_id\": \"SLOT-003\"}\n  ]\n}"
-            },
-            "url": {
-              "raw": "{{base_url}}/api/method/cheese.api.v1.route_booking_controller.confirm_add_activities_to_route",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "api",
-                "method",
-                "cheese.api.v1.route_booking_controller.confirm_add_activities_to_route"
-              ]
-            },
-            "description": "Apply add-ons to route booking."
-          },
-          "response": []
-        },
-        {
-          "name": "Cancel Route Booking",
-          "id": "8906c09c-4324-4343-9812-1dfca2687964",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "token {{token}}"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"route_booking_id\": \"RB-TICKET-001\",\n  \"reason\": \"Customer request\"\n}"
-            },
-            "url": {
-              "raw": "{{base_url}}/api/method/cheese.api.v1.route_booking_controller.cancel_route_booking",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "api",
-                "method",
-                "cheese.api.v1.route_booking_controller.cancel_route_booking"
-              ]
-            },
-            "description": "Cancel a route booking."
-          },
-          "response": []
-        }
-      ],
-      "id": "69780e34-9fa8-4be6-ac23-f0ca7a4ea40a"
-    },
-    {
-      "name": "10. Mixed Booking",
-      "item": [
-        {
-          "name": "Create Pending Booking",
-          "id": "49f22848-f48d-4344-b977-a16067602db4",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "token {{token}}"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"contact_id\": \"CONTACT-001\",\n  \"items\": [\n    {\"type\": \"route\", \"route_id\": \"ROUTE-001\", \"party_size\": 2},\n    {\"type\": \"experience\", \"experience_id\": \"EXP-001\", \"slot_id\": \"SLOT-001\", \"party_size\": 2}\n  ],\n  \"preferred_dates\": null,\n  \"conversation_id\": \"CONV-001\"\n}"
-            },
-            "url": {
-              "raw": "{{base_url}}/api/method/cheese.api.v1.booking_controller.create_pending_booking",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "api",
-                "method",
-                "cheese.api.v1.booking_controller.create_pending_booking"
-              ]
-            },
-            "description": "ERP: Creates aggregator entity with optional route_booking + individual_reservations[], consolidated pricing, global status. Bot: Guides and executes."
-          },
-          "response": []
-        },
-        {
-          "name": "Get Booking Status",
-          "id": "e6cbc061-1c63-47f5-93af-6081f76a6f9d",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "token {{token}}"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"booking_id\": \"BK-CONTACT-001-20241231120000\"\n}"
-            },
-            "url": {
-              "raw": "{{base_url}}/api/method/cheese.api.v1.booking_controller.get_booking_status",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "api",
-                "method",
-                "cheese.api.v1.booking_controller.get_booking_status"
-              ]
-            },
-            "description": "ERP: Returns overall state and components. Bot: Communicates consolidated status."
-          },
-          "response": []
-        },
-        {
-          "name": "Modify Booking Preview",
-          "id": "4c9c40cc-d78f-4a1e-8aec-c28c233f7273",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "token {{token}}"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"booking_id\": \"BK-CONTACT-001-20241231120000\",\n  \"changes\": [\n    {\"type\": \"route\", \"route_booking_id\": \"RB-TICKET-001\", \"changes\": [{\"ticket_id\": \"TICKET-001\", \"new_slot\": \"SLOT-002\"}]},\n    {\"type\": \"ticket\", \"ticket_id\": \"TICKET-002\", \"party_size\": 3}\n  ]\n}"
-            },
-            "url": {
-              "raw": "{{base_url}}/api/method/cheese.api.v1.booking_controller.modify_booking_preview",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "api",
-                "method",
-                "cheese.api.v1.booking_controller.modify_booking_preview"
-              ]
-            },
-            "description": "Preview changes to mixed booking."
-          },
-          "response": []
-        },
-        {
-          "name": "Confirm Booking Modification",
-          "id": "9e9e1196-9b1b-415a-85df-874b6dd5ba57",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "token {{token}}"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"booking_id\": \"BK-CONTACT-001-20241231120000\",\n  \"changes\": [\n    {\"type\": \"route\", \"route_booking_id\": \"RB-TICKET-001\", \"changes\": [{\"ticket_id\": \"TICKET-001\", \"new_slot\": \"SLOT-002\"}]},\n    {\"type\": \"ticket\", \"ticket_id\": \"TICKET-002\", \"party_size\": 3}\n  ]\n}"
-            },
-            "url": {
-              "raw": "{{base_url}}/api/method/cheese.api.v1.booking_controller.confirm_booking_modification",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "api",
-                "method",
-                "cheese.api.v1.booking_controller.confirm_booking_modification"
-              ]
-            },
-            "description": "Apply changes to mixed booking."
-          },
-          "response": []
-        },
-        {
-          "name": "Cancel Booking",
-          "id": "ff3cec23-916a-492a-8c82-bb77fc46488a",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "token {{token}}"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"booking_id\": \"BK-CONTACT-001-20241231120000\",\n  \"reason\": \"Customer request\"\n}"
-            },
-            "url": {
-              "raw": "{{base_url}}/api/method/cheese.api.v1.booking_controller.cancel_booking",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "api",
-                "method",
-                "cheese.api.v1.booking_controller.cancel_booking"
-              ]
-            },
-            "description": "Cancel entire mixed booking."
-          },
-          "response": []
-        }
-      ],
-      "id": "3b632696-61dc-4bc3-84a5-d57f6df034b2"
-    },
-    {
-      "name": "11. Payment",
-      "item": [
-        {
-          "name": "Get Payment Link or Instructions",
-          "id": "3c2c2cc1-9e83-4583-a6ee-100335b661d0",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "token {{token}}"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"ticket_id\": \"TICKET-001\"\n}"
-            },
-            "url": {
-              "raw": "{{base_url}}/api/method/cheese.api.v1.deposit_controller.get_payment_link_or_instructions",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "api",
-                "method",
-                "cheese.api.v1.deposit_controller.get_payment_link_or_instructions"
-              ]
-            },
-            "description": "Get payment link if available, otherwise returns instructions."
-          },
-          "response": []
-        },
-        {
-          "name": "Get Deposit Instructions",
-          "id": "d13a9b80-0520-438d-93d1-52dbf60afef4",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "token {{token}}"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"ticket_id\": \"TICKET-001\"\n}"
-            },
-            "url": {
-              "raw": "{{base_url}}/api/method/cheese.api.v1.deposit_controller.get_deposit_instructions",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "api",
-                "method",
-                "cheese.api.v1.deposit_controller.get_deposit_instructions"
-              ]
-            },
-            "description": "Legacy endpoint - use get_payment_link_or_instructions instead."
-          },
-          "response": []
-        },
-        {
-          "name": "Register Deposit Payment",
-          "id": "3fcc819c-2cfc-4b62-91e0-535d32d6d918",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "token {{token}}"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"ticket_id\": \"TICKET-001\",\n  \"amount\": 50.00,\n  \"verification_method\": \"Manual\",\n  \"ocr_payload\": null\n}"
-            },
-            "url": {
-              "raw": "{{base_url}}/api/method/cheese.api.v1.deposit_controller.record_deposit_payment",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "api",
-                "method",
-                "cheese.api.v1.deposit_controller.record_deposit_payment"
-              ]
-            },
-            "description": "Record a deposit payment. Supports Manual and OCR verification methods."
-          },
-          "response": []
-        },
-        {
-          "name": "Get Payment Status for Booking",
-          "id": "586bb085-b520-412d-b3c9-9c4c00752eee",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "token {{token}}"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"booking_id\": \"BK-CONTACT-001-20241231120000\"\n}"
-            },
-            "url": {
-              "raw": "{{base_url}}/api/method/cheese.api.v1.booking_controller.get_payment_status_for_booking",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "api",
-                "method",
-                "cheese.api.v1.booking_controller.get_payment_status_for_booking"
-              ]
-            },
-            "description": "Get consolidated payment status for a mixed booking."
-          },
-          "response": []
-        },
-        {
-          "name": "Register Payment for Booking",
-          "id": "72639598-6dbb-463c-ba4f-8dbc192e00ea",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "token {{token}}"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"booking_id\": \"BK-CONTACT-001-20241231120000\",\n  \"amount\": 100.00,\n  \"verification_method\": \"Manual\",\n  \"ocr_payload\": null\n}"
-            },
-            "url": {
-              "raw": "{{base_url}}/api/method/cheese.api.v1.booking_controller.register_payment_for_booking",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "api",
-                "method",
-                "cheese.api.v1.booking_controller.register_payment_for_booking"
-              ]
-            },
-            "description": "Register payment for entire mixed booking."
-          },
-          "response": []
-        }
-      ],
-      "id": "3dc07e53-f122-4dbe-9cc9-3c283bd3d3d1"
-    },
-    {
-      "name": "12. QR and Check-in",
-      "item": [
-        {
-          "name": "Get QR for Reservation",
-          "id": "5172efe2-5f48-4fb2-8fda-21bb6ef73c64",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "token {{token}}"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"reservation_id\": \"TICKET-001\"\n}"
-            },
-            "url": {
-              "raw": "{{base_url}}/api/method/cheese.api.v1.qr_controller.get_qr_for_reservation",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "api",
-                "method",
-                "cheese.api.v1.qr_controller.get_qr_for_reservation"
-              ]
-            },
-            "description": "Get QR token for a reservation."
-          },
-          "response": []
-        },
-        {
-          "name": "Get Check-in Status",
-          "id": "45daf5b5-67a7-4d22-858c-ef2b340adf5b",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "token {{token}}"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"reservation_id\": \"TICKET-001\"\n}"
-            },
-            "url": {
-              "raw": "{{base_url}}/api/method/cheese.api.v1.qr_controller.get_checkin_status",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "api",
-                "method",
-                "cheese.api.v1.qr_controller.get_checkin_status"
-              ]
-            },
-            "description": "Get check-in status for a reservation."
-          },
-          "response": []
-        },
-        {
-          "name": "Get QR Token",
-          "id": "ee6c2b3c-db39-4bed-80cb-8bdcc152e1ab",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "token {{token}}"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"ticket_id\": \"TICKET-001\"\n}"
-            },
-            "url": {
-              "raw": "{{base_url}}/api/method/cheese.api.v1.qr_controller.get_qr",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "api",
-                "method",
-                "cheese.api.v1.qr_controller.get_qr"
-              ]
-            },
-            "description": "Legacy endpoint - use get_qr_for_reservation instead."
-          },
-          "response": []
-        },
-        {
-          "name": "Validate QR Token",
-          "id": "7620619b-49a3-49ac-a798-2fb6a0f36a3a",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "token {{token}}"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"token\": \"abc123xyz789token\"\n}"
-            },
-            "url": {
-              "raw": "{{base_url}}/api/method/cheese.api.v1.qr_controller.validate_qr",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "api",
-                "method",
-                "cheese.api.v1.qr_controller.validate_qr"
-              ]
-            },
-            "description": "Validate QR token and check in ticket. Creates attendance record."
-          },
-          "response": []
-        }
-      ],
-      "id": "6319381d-716b-4729-85f7-5c592bf4909d"
-    },
-    {
-      "name": "13. Itinerary",
-      "item": [
-        {
-          "name": "Get Customer Itinerary",
-          "id": "d737a8cf-957c-4932-bc23-9d8b2e350a81",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "token {{token}}"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"contact_id\": \"CONTACT-001\"\n}"
-            },
-            "url": {
-              "raw": "{{base_url}}/api/method/cheese.api.v1.itinerary_controller.get_customer_itinerary",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "api",
-                "method",
-                "cheese.api.v1.itinerary_controller.get_customer_itinerary"
-              ]
-            },
-            "description": "Get all reservations/bookings for a contact with details."
-          },
-          "response": []
-        }
-      ],
-      "id": "55765949-ab84-414d-aed6-e177df6c66a6"
-    },
-    {
-      "name": "14. Survey and Complaints",
-      "item": [
-        {
-          "name": "Create Survey Request",
-          "id": "4d833bda-4f20-4073-9b4f-cbe7fefc4a5d",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "token {{token}}"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"ticket_id\": \"TICKET-001\"\n}"
-            },
-            "url": {
-              "raw": "{{base_url}}/api/method/cheese.api.v1.survey_controller.create_survey_request",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "api",
-                "method",
-                "cheese.api.v1.survey_controller.create_survey_request"
-              ]
-            },
-            "description": "Create survey request for a completed ticket."
-          },
-          "response": []
-        },
-        {
-          "name": "Submit Survey Response",
-          "id": "a0756a17-72f3-4803-8811-3ebdab3990f1",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "token {{token}}"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"ticket_id\": \"TICKET-001\",\n  \"rating\": 5,\n  \"comment\": \"Great experience!\"\n}"
-            },
-            "url": {
-              "raw": "{{base_url}}/api/method/cheese.api.v1.survey_controller.submit_survey_response",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "api",
-                "method",
-                "cheese.api.v1.survey_controller.submit_survey_response"
-              ]
-            },
-            "description": "Submit survey response with rating (1-5) and optional comment."
-          },
-          "response": []
-        },
-        {
-          "name": "Create Complaint",
-          "id": "cf7ccc04-ab91-48c3-9fb1-2a011d09048d",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "token {{token}}"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"contact_id\": \"CONTACT-001\",\n  \"description\": \"Issue with booking experience\",\n  \"ticket_id\": \"TICKET-001\",\n  \"complaint_type\": \"Service\"\n}"
-            },
-            "url": {
-              "raw": "{{base_url}}/api/method/cheese.api.v1.complaint_controller.create_complaint",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "api",
-                "method",
-                "cheese.api.v1.complaint_controller.create_complaint"
-              ]
-            },
-            "description": "Create a complaint/support case."
-          },
-          "response": []
-        },
-        {
-          "name": "Send Survey",
-          "id": "c3de4249-1126-42b1-8ce4-638d1fab5bed",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "token {{token}}"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"ticket_id\": \"TICKET-001\"\n}"
-            },
-            "url": {
-              "raw": "{{base_url}}/api/method/cheese.api.v1.survey_controller.send_survey",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "api",
-                "method",
-                "cheese.api.v1.survey_controller.send_survey"
-              ]
-            },
-            "description": "Legacy endpoint - use create_survey_request instead."
-          },
-          "response": []
-        }
-      ],
-      "id": "4fc12604-06f0-4d29-a403-1c23f6ce09cc"
-    },
-    {
-      "name": "Establishment",
-      "item": [
-        {
-          "name": "List Establishments",
-          "id": "b44fbd4e-8491-4056-8e0f-eb4f1fea39a5",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "token {{token}}"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\"page\": 1, \"page_size\": 20}"
-            },
-            "url": {
-              "raw": "{{base_url}}/api/method/cheese.api.v1.establishment_controller.list_establishments",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "api",
-                "method",
-                "cheese.api.v1.establishment_controller.list_establishments"
-              ]
-            },
-            "description": "List establishments with pagination and filters"
-          },
-          "response": []
-        },
-        {
-          "name": "Get Establishment Details",
-          "id": "ab37a183-c25e-4954-9ec7-8fe2526de975",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "token {{token}}"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\"company_id\": \"COMPANY-001\"}"
-            },
-            "url": {
-              "raw": "{{base_url}}/api/method/cheese.api.v1.establishment_controller.get_establishment_details",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "api",
-                "method",
-                "cheese.api.v1.establishment_controller.get_establishment_details"
-              ]
-            },
-            "description": "Get full establishment profile"
-          },
-          "response": []
-        }
-      ],
-      "id": "5332733a-c02b-4b0d-9c26-7c08c4cae3ab"
-    },
-    {
-      "name": "Route Management",
-      "item": [
-        {
-          "name": "Create Route",
-          "id": "05342944-da13-4a1c-ab39-819b07d4035b",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "token {{token}}"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\"name\": \"Route Name\", \"status\": \"OFFLINE\", \"experiences\": []}"
-            },
-            "url": {
-              "raw": "{{base_url}}/api/method/cheese.api.v1.route_controller.create_route",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "api",
-                "method",
-                "cheese.api.v1.route_controller.create_route"
-              ]
-            },
-            "description": "Create a new route"
-          },
-          "response": []
-        }
-      ],
-      "id": "bee3bdac-4f6b-4fbc-9f69-bb2b5bb2eda5"
+      "body": {
+       "mode": "raw",
+       "raw": "{\n  \"phone\": \"+1234567890\",\n  \"email\": \"customer@example.com\",\n  \"name\": \"John Doe\"\n}"
+      },
+      "url": {
+       "raw": "{{base_url}}/api/method/cheese.api.v1.contact_controller.find_or_create_contact",
+       "host": [
+        "{{base_url}}"
+       ],
+       "path": [
+        "api",
+        "method",
+        "cheese.api.v1.contact_controller.find_or_create_contact"
+       ]
+      },
+      "description": "Legacy endpoint - use resolve_or_create_contact instead."
+     },
+     "response": []
     }
-  ],
-  "auth": {
-    "type": "bearer",
-    "bearer": [
-      {
-        "key": "token",
-        "value": "",
-        "type": "string"
-      }
-    ]
+   ],
+   "id": "52707f71-59bc-40d9-9501-fd857ca01431"
   },
-  "variable": [
+  {
+   "name": "2. Conversation",
+   "item": [
     {
-      "id": "762e11b0-1124-4b06-8759-26b454b024b1",
-      "key": "base_url",
-      "value": "https://erp-cheese.deepzide.com"
+     "name": "Open or Resume Conversation",
+     "id": "e52eca76-c498-4264-8228-0e581508d786",
+     "request": {
+      "method": "POST",
+      "header": [
+       {
+        "key": "Authorization",
+        "value": "token {{token}}"
+       },
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       }
+      ],
+      "body": {
+       "mode": "raw",
+       "raw": "{\n  \"contact_id\": \"292pb89ilo\",\n  \"channel\": \"WhatsApp\",\n  \"status\": \"ACTIVE\"\n}"
+      },
+      "url": {
+       "raw": "{{base_url}}/api/method/cheese.api.v1.conversation_controller.open_or_resume_conversation",
+       "host": [
+        "{{base_url}}"
+       ],
+       "path": [
+        "api",
+        "method",
+        "cheese.api.v1.conversation_controller.open_or_resume_conversation"
+       ]
+      },
+      "description": "ERP: Creates or resumes a persistent conversation, returns conversation_id."
+     },
+     "response": []
     },
     {
-      "id": "a1050980-1a5e-49d2-97f1-3c4fea6d9cde",
-      "key": "token",
-      "value": "00f61785b147fd2:9385843e4ea3858"
+     "name": "Append Conversation Event",
+     "id": "152398fb-970c-47e5-b266-76b433ab526f",
+     "request": {
+      "method": "POST",
+      "header": [
+       {
+        "key": "Authorization",
+        "value": "token {{token}}"
+       }
+      ],
+      "body": {
+       "mode": "raw",
+       "raw": "{\n  \"conversation_id\": \"45auknqli4\",\n  \"event_type\": \"intent\",\n  \"event_data\": {\"intent\": \"book_experience\", \"confidence\": 0.95},\n  \"metadata\": {\"source\": \"bot\"}\n}"
+      },
+      "url": {
+       "raw": "{{base_url}}/api/method/cheese.api.v1.conversation_controller.append_conversation_event",
+       "host": [
+        "{{base_url}}"
+       ],
+       "path": [
+        "api",
+        "method",
+        "cheese.api.v1.conversation_controller.append_conversation_event"
+       ]
+      },
+      "description": "ERP: Persists events. Bot: Sends relevant events (intent, tool-calls, errors)."
+     },
+     "response": []
     }
+   ],
+   "id": "36d813e0-9aa1-459c-b85e-b7ae1aa87e79"
+  },
+  {
+   "name": "3. Leads",
+   "item": [
+    {
+     "name": "Upsert Lead",
+     "id": "45aa4e47-8795-4ff5-9132-aab929180773",
+     "request": {
+      "method": "POST",
+      "header": [
+       {
+        "key": "Authorization",
+        "value": "token {{token}}"
+       },
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       }
+      ],
+      "body": {
+       "mode": "raw",
+       "raw": "{\n  \"contact_id\": \"292pb89ilo\",\n  \"conversation_id\": \"45auknqli4\",\n  \"interest_type\": \"Experience\",\n  \"status\": \"OPEN\"\n}"
+      },
+      "url": {
+       "raw": "{{base_url}}/api/method/cheese.api.v1.lead_controller.upsert_lead",
+       "host": [
+        "{{base_url}}"
+       ],
+       "path": [
+        "api",
+        "method",
+        "cheese.api.v1.lead_controller.upsert_lead"
+       ]
+      },
+      "description": "ERP: Creates/consolidates lead per contact; status \"not converted/converted\". Bot: Detects intent and records it."
+     },
+     "response": []
+    }
+   ],
+   "id": "10ebc331-89f4-438d-93fc-a947e986f02d"
+  },
+  {
+   "name": "4. Catalog - Experiences",
+   "item": [
+    {
+     "name": "List Experiences",
+     "id": "a67ad57e-3206-41fc-85a8-47f6404aab98",
+     "request": {
+      "method": "POST",
+      "header": [
+       {
+        "key": "Authorization",
+        "value": "token {{token}}"
+       },
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       }
+      ],
+      "body": {
+       "mode": "raw",
+       "raw": "{\n  \"page\": 1,\n  \"page_size\": 20,\n  \"status\": \"ONLINE\",\n  \"company\": \"COMPANY-001\",\n  \"package_mode\": \"Both\",\n  \"search\": \"adventure\"\n}"
+      },
+      "url": {
+       "raw": "{{base_url}}/api/method/cheese.api.v1.experience_controller.list_experiences",
+       "host": [
+        "{{base_url}}"
+       ],
+       "path": [
+        "api",
+        "method",
+        "cheese.api.v1.experience_controller.list_experiences"
+       ]
+      },
+      "description": "ERP: Canonical, filterable catalog. Bot: Presents options."
+     },
+     "response": []
+    },
+    {
+     "name": "Get Experience Detail",
+     "id": "e4809cbc-4da8-41f3-8edd-7c7cc9383e4e",
+     "request": {
+      "method": "POST",
+      "header": [
+       {
+        "key": "Authorization",
+        "value": "token {{token}}"
+       },
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       }
+      ],
+      "body": {
+       "mode": "raw",
+       "raw": "{\n  \"experience_id\": \"EXP-001\"\n}"
+      },
+      "url": {
+       "raw": "{{base_url}}/api/method/cheese.api.v1.experience_controller.get_experience_detail",
+       "host": [
+        "{{base_url}}"
+       ],
+       "path": [
+        "api",
+        "method",
+        "cheese.api.v1.experience_controller.get_experience_detail"
+       ]
+      },
+      "description": "ERP: Full details + policies. Bot: Summarizes/explains."
+     },
+     "response": []
+    }
+   ],
+   "id": "40106c2b-ecfd-4722-99bb-8a421653fa8d"
+  },
+  {
+   "name": "5. Catalog - Routes",
+   "item": [
+    {
+     "name": "List Routes",
+     "id": "8870b426-5a14-4911-b0f8-01913b80d9e1",
+     "request": {
+      "method": "POST",
+      "header": [
+       {
+        "key": "Authorization",
+        "value": "token {{token}}"
+       },
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       }
+      ],
+      "body": {
+       "mode": "raw",
+       "raw": "{\n  \"page\": 1,\n  \"page_size\": 20,\n  \"status\": \"ONLINE\",\n  \"search\": \"adventure\"\n}"
+      },
+      "url": {
+       "raw": "{{base_url}}/api/method/cheese.api.v1.route_controller.list_routes",
+       "host": [
+        "{{base_url}}"
+       ],
+       "path": [
+        "api",
+        "method",
+        "cheese.api.v1.route_controller.list_routes"
+       ]
+      },
+      "description": "ERP: Available routes + composition. Bot: Guides selection."
+     },
+     "response": []
+    },
+    {
+     "name": "Get Route Detail",
+     "id": "64286f3b-11bf-40ec-8309-3b6c2a2f9cb9",
+     "request": {
+      "method": "POST",
+      "header": [
+       {
+        "key": "Authorization",
+        "value": "token {{token}}"
+       },
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       }
+      ],
+      "body": {
+       "mode": "raw",
+       "raw": "{\n  \"route_id\": \"ROUTE-001\"\n}"
+      },
+      "url": {
+       "raw": "{{base_url}}/api/method/cheese.api.v1.route_controller.get_route_detail",
+       "host": [
+        "{{base_url}}"
+       ],
+       "path": [
+        "api",
+        "method",
+        "cheese.api.v1.route_controller.get_route_detail"
+       ]
+      },
+      "description": "ERP: Composition, rules, conditions. Bot: Explains structure/value."
+     },
+     "response": []
+    }
+   ],
+   "id": "bb55ba35-9e9e-46cb-a068-4b18baebca99"
+  },
+  {
+   "name": "6. Availability",
+   "item": [
+    {
+     "name": "Get Availability by Experience",
+     "id": "203856d4-272c-4e30-8b18-61ea5d34565c",
+     "request": {
+      "method": "POST",
+      "header": [
+       {
+        "key": "Authorization",
+        "value": "token {{token}}"
+       },
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       }
+      ],
+      "body": {
+       "mode": "raw",
+       "raw": "{\n  \"experience_id\": \"EXP-001\",\n  \"date\": \"2024-12-31\"\n}"
+      },
+      "url": {
+       "raw": "{{base_url}}/api/method/cheese.api.v1.availability_controller.get_availability",
+       "host": [
+        "{{base_url}}"
+       ],
+       "path": [
+        "api",
+        "method",
+        "cheese.api.v1.availability_controller.get_availability"
+       ]
+      },
+      "description": "ERP: Calculates real slots. Bot: Queries and offers options."
+     },
+     "response": []
+    },
+    {
+     "name": "Get Available Slots",
+     "id": "2969e794-5056-4084-90cf-b46df19714b9",
+     "request": {
+      "method": "POST",
+      "header": [
+       {
+        "key": "Authorization",
+        "value": "token {{token}}"
+       },
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       }
+      ],
+      "body": {
+       "mode": "raw",
+       "raw": "{\n  \"experience_id\": \"EXP-001\",\n  \"date\": \"2024-12-31\"\n}"
+      },
+      "url": {
+       "raw": "{{base_url}}/api/method/cheese.api.v1.availability_controller.get_available_slots",
+       "host": [
+        "{{base_url}}"
+       ],
+       "path": [
+        "api",
+        "method",
+        "cheese.api.v1.availability_controller.get_available_slots"
+       ]
+      },
+      "description": "Legacy endpoint - use get_availability instead."
+     },
+     "response": []
+    },
+    {
+     "name": "Get Route Availability",
+     "id": "dbdc60a6-9c18-4eae-9a53-b7aca4547789",
+     "request": {
+      "method": "POST",
+      "header": [
+       {
+        "key": "Authorization",
+        "value": "token {{token}}"
+       }
+      ],
+      "body": {
+       "mode": "raw",
+       "raw": "{\n  \"route_id\": \"ROUTE-001\",\n  \"date\": \"2024-12-31\",\n  \"party_size\": 2\n}"
+      },
+      "url": {
+       "raw": "{{base_url}}/api/method/cheese.api.v1.availability_controller.get_route_availability",
+       "host": [
+        "{{base_url}}"
+       ],
+       "path": [
+        "api",
+        "method",
+        "cheese.api.v1.availability_controller.get_route_availability"
+       ]
+      },
+      "description": "ERP: Returns aggregated availability or rules to build it. Bot: Guides configuration."
+     },
+     "response": []
+    }
+   ],
+   "id": "a2faf704-2823-4eec-bccc-b74e59cf8985"
+  },
+  {
+   "name": "7. Pricing and Policies",
+   "item": [
+    {
+     "name": "Get Pricing Preview",
+     "id": "ebb436ad-0bd7-475b-a4cf-9209119f5e7b",
+     "request": {
+      "method": "POST",
+      "header": [
+       {
+        "key": "Authorization",
+        "value": "token {{token}}"
+       },
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       }
+      ],
+      "body": {
+       "mode": "raw",
+       "raw": "{\n  \"items\": [\n    {\"type\": \"experience\", \"experience_id\": \"EXP-001\", \"slot_id\": \"SLOT-001\"},\n    {\"type\": \"route\", \"route_id\": \"ROUTE-001\"}\n  ],\n  \"party_size\": 2\n}"
+      },
+      "url": {
+       "raw": "{{base_url}}/api/method/cheese.api.v1.pricing_controller.get_pricing_preview",
+       "host": [
+        "{{base_url}}"
+       ],
+       "path": [
+        "api",
+        "method",
+        "cheese.api.v1.pricing_controller.get_pricing_preview"
+       ]
+      },
+      "description": "ERP: Calculates final price + deposit + breakdown. Bot: Communicates."
+     },
+     "response": []
+    },
+    {
+     "name": "Get Modification Policy",
+     "id": "8e20bd97-1a08-458f-97db-37ee50ce3799",
+     "request": {
+      "method": "POST",
+      "header": [
+       {
+        "key": "Authorization",
+        "value": "token {{token}}"
+       }
+      ],
+      "body": {
+       "mode": "raw",
+       "raw": "{\n  \"reservation_id\": \"TICKET-001\"\n}"
+      },
+      "url": {
+       "raw": "{{base_url}}/api/method/cheese.api.v1.pricing_controller.get_modification_policy",
+       "host": [
+        "{{base_url}}"
+       ],
+       "path": [
+        "api",
+        "method",
+        "cheese.api.v1.pricing_controller.get_modification_policy"
+       ]
+      },
+      "description": "ERP: Defines what can be modified and cost. Bot: Checks and informs before executing."
+     },
+     "response": []
+    },
+    {
+     "name": "Get Cancellation Impact",
+     "id": "b7c02cac-f830-4b9d-a124-a0b46511f2e3",
+     "request": {
+      "method": "POST",
+      "header": [
+       {
+        "key": "Authorization",
+        "value": "token {{token}}"
+       }
+      ],
+      "body": {
+       "mode": "raw",
+       "raw": "{\n  \"reservation_id\": \"TICKET-001\"\n}"
+      },
+      "url": {
+       "raw": "{{base_url}}/api/method/cheese.api.v1.pricing_controller.get_cancellation_impact",
+       "host": [
+        "{{base_url}}"
+       ],
+       "path": [
+        "api",
+        "method",
+        "cheese.api.v1.pricing_controller.get_cancellation_impact"
+       ]
+      },
+      "description": "ERP: Calculates penalties and consequences. Bot: Shows before canceling."
+     },
+     "response": []
+    },
+    {
+     "name": "Simulate Booking - Activity (Dry Run)",
+     "request": {
+      "method": "POST",
+      "header": [
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       },
+       {
+        "key": "Authorization",
+        "value": "token {{token}}"
+       }
+      ],
+      "body": {
+       "mode": "raw",
+       "raw": "{\n  \"booking_type\": \"ACTIVITY\",\n  \"experience_id\": \"EXP-001\",\n  \"selected_date\": \"2026-08-15\",\n  \"party_size\": 3,\n  \"guest_ages\": [\n    8,\n    30,\n    40\n  ]\n}"
+      },
+      "url": {
+       "raw": "{{base_url}}/api/method/cheese.api.v1.pricing_controller.simulate_booking",
+       "host": [
+        "{{base_url}}"
+       ],
+       "path": [
+        "api",
+        "method",
+        "cheese.api.v1.pricing_controller.simulate_booking"
+       ]
+      },
+      "description": "Dry run: returns price (weekday/weekend x age matrix, season, best promotion), suggested deposit and slot availability for an ACTIVITY. Never creates a ticket. The bot must call this before create_pending_reservation to confirm the price."
+     },
+     "response": []
+    },
+    {
+     "name": "Simulate Booking - Hotel (Dry Run)",
+     "request": {
+      "method": "POST",
+      "header": [
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       },
+       {
+        "key": "Authorization",
+        "value": "token {{token}}"
+       }
+      ],
+      "body": {
+       "mode": "raw",
+       "raw": "{\n  \"booking_type\": \"HOTEL\",\n  \"experience_id\": \"ROOM-001\",\n  \"check_in_date\": \"2026-08-15\",\n  \"check_out_date\": \"2026-08-17\",\n  \"rooms_requested\": 1,\n  \"party_size\": 2,\n  \"guest_ages\": [\n    30,\n    32\n  ]\n}"
+      },
+      "url": {
+       "raw": "{{base_url}}/api/method/cheese.api.v1.pricing_controller.simulate_booking",
+       "host": [
+        "{{base_url}}"
+       ],
+       "path": [
+        "api",
+        "method",
+        "cheese.api.v1.pricing_controller.simulate_booking"
+       ]
+      },
+      "description": "Dry run for a HOTEL room: price per night x nights x rooms with active season, deposit and room availability (bottleneck across the nights). No ticket is created."
+     },
+     "response": []
+    },
+    {
+     "name": "Simulate Booking - Route/Package (Dry Run)",
+     "request": {
+      "method": "POST",
+      "header": [
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       },
+       {
+        "key": "Authorization",
+        "value": "token {{token}}"
+       }
+      ],
+      "body": {
+       "mode": "raw",
+       "raw": "{\n  \"booking_type\": \"ROUTE\",\n  \"route_id\": \"ROUTE-001\",\n  \"selected_date\": \"2026-08-15\",\n  \"party_size\": 2,\n  \"guest_ages\": [\n    30,\n    40\n  ]\n}"
+      },
+      "url": {
+       "raw": "{{base_url}}/api/method/cheese.api.v1.pricing_controller.simulate_booking",
+       "host": [
+        "{{base_url}}"
+       ],
+       "path": [
+        "api",
+        "method",
+        "cheese.api.v1.pricing_controller.simulate_booking"
+       ]
+      },
+      "description": "Dry run for a package/route: per-stop price (matrix/season/best promotion) and availability; multi-establishment packages report totals by currency. No ticket created."
+     },
+     "response": []
+    },
+    {
+     "name": "List Active Offers (seasons + promotions)",
+     "request": {
+      "method": "GET",
+      "header": [
+       {
+        "key": "Authorization",
+        "value": "token {{token}}"
+       }
+      ],
+      "url": {
+       "raw": "{{base_url}}/api/method/cheese.api.v1.offers_controller.list_active_offers?date=2026-08-15",
+       "host": [
+        "{{base_url}}"
+       ],
+       "path": [
+        "api",
+        "method",
+        "cheese.api.v1.offers_controller.list_active_offers"
+       ],
+       "query": [
+        {
+         "key": "date",
+         "value": "2026-08-15"
+        }
+       ]
+      },
+      "description": "All active seasons and promotions covering the date, with the establishment and experiences each affects. Establishment users see only their own; admins see all."
+     },
+     "response": []
+    },
+    {
+     "name": "Get Offers For (experience or establishment)",
+     "request": {
+      "method": "GET",
+      "header": [
+       {
+        "key": "Authorization",
+        "value": "token {{token}}"
+       }
+      ],
+      "url": {
+       "raw": "{{base_url}}/api/method/cheese.api.v1.offers_controller.get_offers_for?experience_id=EXP-001&date=2026-08-15",
+       "host": [
+        "{{base_url}}"
+       ],
+       "path": [
+        "api",
+        "method",
+        "cheese.api.v1.offers_controller.get_offers_for"
+       ],
+       "query": [
+        {
+         "key": "experience_id",
+         "value": "EXP-001"
+        },
+        {
+         "key": "date",
+         "value": "2026-08-15"
+        }
+       ]
+      },
+      "description": "Whether there are active seasons/promotions for a given experience_id OR company on the date, and which ones (has_active_season / has_active_promotion + details)."
+     },
+     "response": []
+    }
+   ],
+   "id": "6cc10546-d998-42f1-b78b-ff4c8236f9fc"
+  },
+  {
+   "name": "8. Individual Reservations",
+   "item": [
+    {
+     "name": "Create Pending Reservation",
+     "id": "28cedbb4-35eb-4355-afe9-1c683ea770b1",
+     "request": {
+      "method": "POST",
+      "header": [
+       {
+        "key": "Authorization",
+        "value": "token {{token}}"
+       },
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       }
+      ],
+      "body": {
+       "mode": "raw",
+       "raw": "{\n  \"contact_id\": \"CONTACT-001\",\n  \"experience_id\": \"EXP-001\",\n  \"slot_id\": \"SLOT-001\",\n  \"party_size\": 2,\n  \"guest_ages\": [\n    8,\n    30,\n    40\n  ]\n}"
+      },
+      "url": {
+       "raw": "{{base_url}}/api/method/cheese.api.v1.ticket_controller.create_pending_reservation",
+       "host": [
+        "{{base_url}}"
+       ],
+       "path": [
+        "api",
+        "method",
+        "cheese.api.v1.ticket_controller.create_pending_reservation"
+       ]
+      },
+      "description": "ERP: Validates, locks slot, creates Reservation = PENDING, sets expiration. Bot: Guides data and executes. guest_ages (one age per person) is used to price each person by age group, weekday/weekend and to apply the best promotion. Call Simulate Booking (Dry Run) first to confirm the price."
+     },
+     "response": []
+    },
+    {
+     "name": "Get Reservation Status",
+     "id": "67c2efd1-97b9-4ad3-b624-a4ae03cab0d8",
+     "request": {
+      "method": "POST",
+      "header": [
+       {
+        "key": "Authorization",
+        "value": "token {{token}}"
+       }
+      ],
+      "body": {
+       "mode": "raw",
+       "raw": "{\n  \"reservation_id\": \"TICKET-001\"\n}"
+      },
+      "url": {
+       "raw": "{{base_url}}/api/method/cheese.api.v1.ticket_controller.get_reservation_status",
+       "host": [
+        "{{base_url}}"
+       ],
+       "path": [
+        "api",
+        "method",
+        "cheese.api.v1.ticket_controller.get_reservation_status"
+       ]
+      },
+      "description": "ERP: Returns canonical status and next steps. Bot: Communicates current state."
+     },
+     "response": []
+    },
+    {
+     "name": "Modify Reservation Preview",
+     "id": "1363ab35-7fde-44d1-8e7c-afc031bd49a1",
+     "request": {
+      "method": "POST",
+      "header": [
+       {
+        "key": "Authorization",
+        "value": "token {{token}}"
+       },
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       }
+      ],
+      "body": {
+       "mode": "raw",
+       "raw": "{\n  \"reservation_id\": \"TICKET-001\",\n  \"new_slot\": \"SLOT-002\",\n  \"party_size\": 3\n}"
+      },
+      "url": {
+       "raw": "{{base_url}}/api/method/cheese.api.v1.ticket_controller.modify_reservation_preview",
+       "host": [
+        "{{base_url}}"
+       ],
+       "path": [
+        "api",
+        "method",
+        "cheese.api.v1.ticket_controller.modify_reservation_preview"
+       ]
+      },
+      "description": "Preview changes before applying modification."
+     },
+     "response": []
+    },
+    {
+     "name": "Confirm Modification",
+     "id": "a4c709c4-134f-4590-92bf-c3234b594c9f",
+     "request": {
+      "method": "POST",
+      "header": [
+       {
+        "key": "Authorization",
+        "value": "token {{token}}"
+       },
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       }
+      ],
+      "body": {
+       "mode": "raw",
+       "raw": "{\n  \"reservation_id\": \"TICKET-001\",\n  \"new_slot\": \"SLOT-002\",\n  \"party_size\": 3\n}"
+      },
+      "url": {
+       "raw": "{{base_url}}/api/method/cheese.api.v1.ticket_controller.confirm_modification",
+       "host": [
+        "{{base_url}}"
+       ],
+       "path": [
+        "api",
+        "method",
+        "cheese.api.v1.ticket_controller.confirm_modification"
+       ]
+      },
+      "description": "ERP: Validates, calculates impact, applies changes. Bot: Shows impact and confirms."
+     },
+     "response": []
+    },
+    {
+     "name": "Cancel Reservation",
+     "id": "176a6f8f-e916-44b3-a88c-6c5f93376c48",
+     "request": {
+      "method": "POST",
+      "header": [
+       {
+        "key": "Authorization",
+        "value": "token {{token}}"
+       },
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       }
+      ],
+      "body": {
+       "mode": "raw",
+       "raw": "{\n  \"reservation_id\": \"TICKET-001\"\n}"
+      },
+      "url": {
+       "raw": "{{base_url}}/api/method/cheese.api.v1.ticket_controller.cancel_reservation",
+       "host": [
+        "{{base_url}}"
+       ],
+       "path": [
+        "api",
+        "method",
+        "cheese.api.v1.ticket_controller.cancel_reservation"
+       ]
+      },
+      "description": "Cancel an individual reservation."
+     },
+     "response": []
+    },
+    {
+     "name": "Create Pending Ticket",
+     "id": "49ba64d6-5c2b-4b88-8388-9b52dc56b9bc",
+     "request": {
+      "method": "POST",
+      "header": [
+       {
+        "key": "Authorization",
+        "value": "token {{token}}"
+       },
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       }
+      ],
+      "body": {
+       "mode": "raw",
+       "raw": "{\n  \"contact_id\": \"CONTACT-001\",\n  \"experience_id\": \"EXP-001\",\n  \"slot_id\": \"SLOT-001\",\n  \"party_size\": 2\n}"
+      },
+      "url": {
+       "raw": "{{base_url}}/api/method/cheese.api.v1.ticket_controller.create_pending_ticket",
+       "host": [
+        "{{base_url}}"
+       ],
+       "path": [
+        "api",
+        "method",
+        "cheese.api.v1.ticket_controller.create_pending_ticket"
+       ]
+      },
+      "description": "Legacy endpoint - use create_pending_reservation instead."
+     },
+     "response": []
+    },
+    {
+     "name": "Get Ticket Summary",
+     "id": "ef90b2e0-31a0-4329-a18e-1e11a69a6c36",
+     "request": {
+      "method": "POST",
+      "header": [
+       {
+        "key": "Authorization",
+        "value": "token {{token}}"
+       },
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       }
+      ],
+      "body": {
+       "mode": "raw",
+       "raw": "{\n  \"ticket_id\": \"TICKET-001\"\n}"
+      },
+      "url": {
+       "raw": "{{base_url}}/api/method/cheese.api.v1.ticket_controller.get_ticket_summary",
+       "host": [
+        "{{base_url}}"
+       ],
+       "path": [
+        "api",
+        "method",
+        "cheese.api.v1.ticket_controller.get_ticket_summary"
+       ]
+      },
+      "description": "Legacy endpoint - use get_reservation_status instead."
+     },
+     "response": []
+    }
+   ],
+   "id": "77cc78e8-c968-4fbe-99cb-492bc984eb8f"
+  },
+  {
+   "name": "9. Route Reservations",
+   "item": [
+    {
+     "name": "Get Route Combinations",
+     "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+     "request": {
+      "method": "POST",
+      "header": [
+       {
+        "key": "Authorization",
+        "value": "token {{token}}"
+       },
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       }
+      ],
+      "body": {
+       "mode": "raw",
+       "raw": "{\n  \"route_id\": \"ROUTE-001\",\n  \"date\": \"2026-05-10\",\n  \"party_size\": 2\n}",
+       "options": {
+        "raw": {
+         "language": "json"
+        }
+       }
+      },
+      "url": {
+       "raw": "{{base_url}}/api/method/cheese.api.v1.route_booking_controller.get_route_combinations",
+       "host": [
+        "{{base_url}}"
+       ],
+       "path": [
+        "api",
+        "method",
+        "cheese.api.v1.route_booking_controller.get_route_combinations"
+       ]
+      },
+      "description": "Returns valid pre-elaborated slot combinations for a route on a given date/range. Each combination includes a `combination_id` opaque token to use in Create Route Reservation.\n\n**Parámetros:**\n- `route_id` (required): ID de la ruta\n- `date`: Fecha única (YYYY-MM-DD). Equivale a date_from = date_to = date\n- `date_from` / `date_to`: Rango de fechas alternativo\n- `party_size` (default 1): Capacidad mínima requerida por slot\n\n**Restricciones validadas por combinación:**\n- Todos los slots comparten la misma fecha\n- Ningún par de slots se solapa en tiempo\n- Cada slot tiene capacidad >= party_size\n- Todas las experiencias de la ruta están ONLINE"
+     },
+     "response": []
+    },
+    {
+     "name": "Create Route Reservation (via combination_id)",
+     "id": "06511260-b347-402f-b28f-3cc65a87d276",
+     "request": {
+      "method": "POST",
+      "header": [
+       {
+        "key": "Authorization",
+        "value": "token {{token}}"
+       },
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       }
+      ],
+      "body": {
+       "mode": "raw",
+       "raw": "{\n  \"contact_id\": \"CONTACT-001\",\n  \"route_id\": \"ROUTE-001\",\n  \"party_size\": 2,\n  \"combination_id\": \"<combination_id from get_route_combinations>\",\n  \"conversation_id\": \"CONV-001\"\n}",
+       "options": {
+        "raw": {
+         "language": "json"
+        }
+       }
+      },
+      "url": {
+       "raw": "{{base_url}}/api/method/cheese.api.v1.route_booking_controller.create_route_reservation",
+       "host": [
+        "{{base_url}}"
+       ],
+       "path": [
+        "api",
+        "method",
+        "cheese.api.v1.route_booking_controller.create_route_reservation"
+       ]
+      },
+      "description": "Crea una reserva de ruta a partir de un `combination_id` obtenido de `get_route_combinations`. Este es el flujo recomendado.\n\n**Flujos disponibles:**\n\n**1. Via combination_id (recomendado):**\nUsa el token opaco devuelto por `get_route_combinations`. No se necesitan `date_from`, `date_to`, `time_from` ni `time_to`.\n```json\n{\n  \"contact_id\": \"CNT-001\",\n  \"route_id\": \"ROUTE-001\",\n  \"party_size\": 2,\n  \"combination_id\": \"eyJ...\"\n}\n```\n\n**2. Via auto-selección por fecha:**\nEl backend busca la primera combinación válida en el rango. Opcionalmente filtra por hora de inicio/fin.\n```json\n{\n  \"contact_id\": \"CNT-001\",\n  \"route_id\": \"ROUTE-001\",\n  \"party_size\": 2,\n  \"date_from\": \"2026-05-10\",\n  \"date_to\": \"2026-05-10\",\n  \"time_from\": \"10:00:00\"\n}\n```\n\n**3. Via slots explícitos (validado):**\nEl backend valida que los slots enviados cumplan todas las restricciones (misma fecha, no solapados, experiencias ONLINE, sin duplicados).\n```json\n{\n  \"contact_id\": \"CNT-001\",\n  \"route_id\": \"ROUTE-001\",\n  \"party_size\": 2,\n  \"experiences_with_slots\": [\n    {\"experience_id\": \"EXP-001\", \"slot_id\": \"SLOT-001\", \"selected_date\": \"2026-05-10\"},\n    {\"experience_id\": \"EXP-002\", \"slot_id\": \"SLOT-002\", \"selected_date\": \"2026-05-10\"}\n  ]\n}\n```\n\n**Validaciones aplicadas en todos los flujos:**\n- Fecha de los slots no puede estar en el pasado\n- Todos los slots deben ser de la misma fecha\n- Ningún par de slots puede solaparse en tiempo\n- Todas las experiencias deben estar ONLINE\n- Cada experiencia solo puede aportar un slot"
+     },
+     "response": []
+    },
+    {
+     "name": "Get Route Status",
+     "id": "6a9e2f82-474c-4fa7-99d5-afc6360ac7c5",
+     "request": {
+      "method": "POST",
+      "header": [
+       {
+        "key": "Authorization",
+        "value": "token {{token}}"
+       },
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       }
+      ],
+      "body": {
+       "mode": "raw",
+       "raw": "{\n  \"route_booking_id\": \"RB-TICKET-001\"\n}"
+      },
+      "url": {
+       "raw": "{{base_url}}/api/method/cheese.api.v1.route_booking_controller.get_route_status",
+       "host": [
+        "{{base_url}}"
+       ],
+       "path": [
+        "api",
+        "method",
+        "cheese.api.v1.route_booking_controller.get_route_status"
+       ]
+      },
+      "description": "ERP: Returns PENDING / PARTIALLY_CONFIRMED / CONFIRMED. Bot: Communicates what's confirmed vs pending."
+     },
+     "response": []
+    },
+    {
+     "name": "Get Route Summary",
+     "id": "d3a0724c-480e-423d-b526-6c2035fba240",
+     "request": {
+      "method": "POST",
+      "header": [
+       {
+        "key": "Authorization",
+        "value": "token {{token}}"
+       }
+      ],
+      "body": {
+       "mode": "raw",
+       "raw": "{\n  \"route_booking_id\": \"RB-TICKET-001\"\n}"
+      },
+      "url": {
+       "raw": "{{base_url}}/api/method/cheese.api.v1.route_booking_controller.get_route_summary",
+       "host": [
+        "{{base_url}}"
+       ],
+       "path": [
+        "api",
+        "method",
+        "cheese.api.v1.route_booking_controller.get_route_summary"
+       ]
+      },
+      "description": "ERP: Returns user-friendly summary. Bot: Delivers to customer."
+     },
+     "response": []
+    },
+    {
+     "name": "Modify Route Booking Preview",
+     "id": "48ee8d23-a072-4e03-aca9-9cf2584cef33",
+     "request": {
+      "method": "POST",
+      "header": [
+       {
+        "key": "Authorization",
+        "value": "token {{token}}"
+       }
+      ],
+      "body": {
+       "mode": "raw",
+       "raw": "{\n  \"route_booking_id\": \"RB-TICKET-001\",\n  \"changes\": [\n    {\"ticket_id\": \"TICKET-001\", \"new_slot\": \"SLOT-002\", \"party_size\": 3}\n  ]\n}"
+      },
+      "url": {
+       "raw": "{{base_url}}/api/method/cheese.api.v1.route_booking_controller.modify_route_booking_preview",
+       "host": [
+        "{{base_url}}"
+       ],
+       "path": [
+        "api",
+        "method",
+        "cheese.api.v1.route_booking_controller.modify_route_booking_preview"
+       ]
+      },
+      "description": "Preview changes to route booking before applying."
+     },
+     "response": []
+    },
+    {
+     "name": "Confirm Route Modification",
+     "id": "5672ef78-7174-40dd-b890-c2992dfcaecd",
+     "request": {
+      "method": "POST",
+      "header": [
+       {
+        "key": "Authorization",
+        "value": "token {{token}}"
+       },
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       }
+      ],
+      "body": {
+       "mode": "raw",
+       "raw": "{\n  \"route_booking_id\": \"RB-TICKET-001\",\n  \"changes\": [\n    {\"ticket_id\": \"TICKET-001\", \"new_slot\": \"SLOT-002\", \"party_size\": 3}\n  ]\n}"
+      },
+      "url": {
+       "raw": "{{base_url}}/api/method/cheese.api.v1.route_booking_controller.confirm_route_modification",
+       "host": [
+        "{{base_url}}"
+       ],
+       "path": [
+        "api",
+        "method",
+        "cheese.api.v1.route_booking_controller.confirm_route_modification"
+       ]
+      },
+      "description": "ERP: Validates, calculates impact, applies changes. Bot: Shows impact and confirms."
+     },
+     "response": []
+    },
+    {
+     "name": "Add Activities to Route Preview",
+     "id": "9fa54ab2-7df7-44c4-8e14-50a249c7a8bb",
+     "request": {
+      "method": "POST",
+      "header": [
+       {
+        "key": "Authorization",
+        "value": "token {{token}}"
+       },
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       }
+      ],
+      "body": {
+       "mode": "raw",
+       "raw": "{\n  \"route_booking_id\": \"RB-TICKET-001\",\n  \"activities\": [\n    {\"experience_id\": \"EXP-003\", \"slot_id\": \"SLOT-003\"}\n  ]\n}"
+      },
+      "url": {
+       "raw": "{{base_url}}/api/method/cheese.api.v1.route_booking_controller.add_activities_to_route_preview",
+       "host": [
+        "{{base_url}}"
+       ],
+       "path": [
+        "api",
+        "method",
+        "cheese.api.v1.route_booking_controller.add_activities_to_route_preview"
+       ]
+      },
+      "description": "Preview add-ons to route booking."
+     },
+     "response": []
+    },
+    {
+     "name": "Confirm Add Activities to Route",
+     "id": "e7ad6f74-7e94-48d8-b288-85bbbf87fe18",
+     "request": {
+      "method": "POST",
+      "header": [
+       {
+        "key": "Authorization",
+        "value": "token {{token}}"
+       },
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       }
+      ],
+      "body": {
+       "mode": "raw",
+       "raw": "{\n  \"route_booking_id\": \"RB-TICKET-001\",\n  \"activities\": [\n    {\"experience_id\": \"EXP-003\", \"slot_id\": \"SLOT-003\"}\n  ]\n}"
+      },
+      "url": {
+       "raw": "{{base_url}}/api/method/cheese.api.v1.route_booking_controller.confirm_add_activities_to_route",
+       "host": [
+        "{{base_url}}"
+       ],
+       "path": [
+        "api",
+        "method",
+        "cheese.api.v1.route_booking_controller.confirm_add_activities_to_route"
+       ]
+      },
+      "description": "Apply add-ons to route booking."
+     },
+     "response": []
+    },
+    {
+     "name": "Cancel Route Booking",
+     "id": "8906c09c-4324-4343-9812-1dfca2687964",
+     "request": {
+      "method": "POST",
+      "header": [
+       {
+        "key": "Authorization",
+        "value": "token {{token}}"
+       },
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       }
+      ],
+      "body": {
+       "mode": "raw",
+       "raw": "{\n  \"route_booking_id\": \"RB-TICKET-001\",\n  \"reason\": \"Customer request\"\n}"
+      },
+      "url": {
+       "raw": "{{base_url}}/api/method/cheese.api.v1.route_booking_controller.cancel_route_booking",
+       "host": [
+        "{{base_url}}"
+       ],
+       "path": [
+        "api",
+        "method",
+        "cheese.api.v1.route_booking_controller.cancel_route_booking"
+       ]
+      },
+      "description": "Cancel a route booking."
+     },
+     "response": []
+    }
+   ],
+   "id": "69780e34-9fa8-4be6-ac23-f0ca7a4ea40a"
+  },
+  {
+   "name": "10. Mixed Booking",
+   "item": [
+    {
+     "name": "Create Pending Booking",
+     "id": "49f22848-f48d-4344-b977-a16067602db4",
+     "request": {
+      "method": "POST",
+      "header": [
+       {
+        "key": "Authorization",
+        "value": "token {{token}}"
+       },
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       }
+      ],
+      "body": {
+       "mode": "raw",
+       "raw": "{\n  \"contact_id\": \"CONTACT-001\",\n  \"items\": [\n    {\"type\": \"route\", \"route_id\": \"ROUTE-001\", \"party_size\": 2},\n    {\"type\": \"experience\", \"experience_id\": \"EXP-001\", \"slot_id\": \"SLOT-001\", \"party_size\": 2}\n  ],\n  \"preferred_dates\": null,\n  \"conversation_id\": \"CONV-001\"\n}"
+      },
+      "url": {
+       "raw": "{{base_url}}/api/method/cheese.api.v1.booking_controller.create_pending_booking",
+       "host": [
+        "{{base_url}}"
+       ],
+       "path": [
+        "api",
+        "method",
+        "cheese.api.v1.booking_controller.create_pending_booking"
+       ]
+      },
+      "description": "ERP: Creates aggregator entity with optional route_booking + individual_reservations[], consolidated pricing, global status. Bot: Guides and executes."
+     },
+     "response": []
+    },
+    {
+     "name": "Get Booking Status",
+     "id": "e6cbc061-1c63-47f5-93af-6081f76a6f9d",
+     "request": {
+      "method": "POST",
+      "header": [
+       {
+        "key": "Authorization",
+        "value": "token {{token}}"
+       },
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       }
+      ],
+      "body": {
+       "mode": "raw",
+       "raw": "{\n  \"booking_id\": \"BK-CONTACT-001-20241231120000\"\n}"
+      },
+      "url": {
+       "raw": "{{base_url}}/api/method/cheese.api.v1.booking_controller.get_booking_status",
+       "host": [
+        "{{base_url}}"
+       ],
+       "path": [
+        "api",
+        "method",
+        "cheese.api.v1.booking_controller.get_booking_status"
+       ]
+      },
+      "description": "ERP: Returns overall state and components. Bot: Communicates consolidated status."
+     },
+     "response": []
+    },
+    {
+     "name": "Modify Booking Preview",
+     "id": "4c9c40cc-d78f-4a1e-8aec-c28c233f7273",
+     "request": {
+      "method": "POST",
+      "header": [
+       {
+        "key": "Authorization",
+        "value": "token {{token}}"
+       },
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       }
+      ],
+      "body": {
+       "mode": "raw",
+       "raw": "{\n  \"booking_id\": \"BK-CONTACT-001-20241231120000\",\n  \"changes\": [\n    {\"type\": \"route\", \"route_booking_id\": \"RB-TICKET-001\", \"changes\": [{\"ticket_id\": \"TICKET-001\", \"new_slot\": \"SLOT-002\"}]},\n    {\"type\": \"ticket\", \"ticket_id\": \"TICKET-002\", \"party_size\": 3}\n  ]\n}"
+      },
+      "url": {
+       "raw": "{{base_url}}/api/method/cheese.api.v1.booking_controller.modify_booking_preview",
+       "host": [
+        "{{base_url}}"
+       ],
+       "path": [
+        "api",
+        "method",
+        "cheese.api.v1.booking_controller.modify_booking_preview"
+       ]
+      },
+      "description": "Preview changes to mixed booking."
+     },
+     "response": []
+    },
+    {
+     "name": "Confirm Booking Modification",
+     "id": "9e9e1196-9b1b-415a-85df-874b6dd5ba57",
+     "request": {
+      "method": "POST",
+      "header": [
+       {
+        "key": "Authorization",
+        "value": "token {{token}}"
+       },
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       }
+      ],
+      "body": {
+       "mode": "raw",
+       "raw": "{\n  \"booking_id\": \"BK-CONTACT-001-20241231120000\",\n  \"changes\": [\n    {\"type\": \"route\", \"route_booking_id\": \"RB-TICKET-001\", \"changes\": [{\"ticket_id\": \"TICKET-001\", \"new_slot\": \"SLOT-002\"}]},\n    {\"type\": \"ticket\", \"ticket_id\": \"TICKET-002\", \"party_size\": 3}\n  ]\n}"
+      },
+      "url": {
+       "raw": "{{base_url}}/api/method/cheese.api.v1.booking_controller.confirm_booking_modification",
+       "host": [
+        "{{base_url}}"
+       ],
+       "path": [
+        "api",
+        "method",
+        "cheese.api.v1.booking_controller.confirm_booking_modification"
+       ]
+      },
+      "description": "Apply changes to mixed booking."
+     },
+     "response": []
+    },
+    {
+     "name": "Cancel Booking",
+     "id": "ff3cec23-916a-492a-8c82-bb77fc46488a",
+     "request": {
+      "method": "POST",
+      "header": [
+       {
+        "key": "Authorization",
+        "value": "token {{token}}"
+       },
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       }
+      ],
+      "body": {
+       "mode": "raw",
+       "raw": "{\n  \"booking_id\": \"BK-CONTACT-001-20241231120000\",\n  \"reason\": \"Customer request\"\n}"
+      },
+      "url": {
+       "raw": "{{base_url}}/api/method/cheese.api.v1.booking_controller.cancel_booking",
+       "host": [
+        "{{base_url}}"
+       ],
+       "path": [
+        "api",
+        "method",
+        "cheese.api.v1.booking_controller.cancel_booking"
+       ]
+      },
+      "description": "Cancel entire mixed booking."
+     },
+     "response": []
+    }
+   ],
+   "id": "3b632696-61dc-4bc3-84a5-d57f6df034b2"
+  },
+  {
+   "name": "11. Payment",
+   "item": [
+    {
+     "name": "Get Payment Link or Instructions",
+     "id": "3c2c2cc1-9e83-4583-a6ee-100335b661d0",
+     "request": {
+      "method": "POST",
+      "header": [
+       {
+        "key": "Authorization",
+        "value": "token {{token}}"
+       },
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       }
+      ],
+      "body": {
+       "mode": "raw",
+       "raw": "{\n  \"ticket_id\": \"TICKET-001\"\n}"
+      },
+      "url": {
+       "raw": "{{base_url}}/api/method/cheese.api.v1.deposit_controller.get_payment_link_or_instructions",
+       "host": [
+        "{{base_url}}"
+       ],
+       "path": [
+        "api",
+        "method",
+        "cheese.api.v1.deposit_controller.get_payment_link_or_instructions"
+       ]
+      },
+      "description": "Get payment link if available, otherwise returns instructions."
+     },
+     "response": []
+    },
+    {
+     "name": "Get Deposit Instructions",
+     "id": "d13a9b80-0520-438d-93d1-52dbf60afef4",
+     "request": {
+      "method": "POST",
+      "header": [
+       {
+        "key": "Authorization",
+        "value": "token {{token}}"
+       },
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       }
+      ],
+      "body": {
+       "mode": "raw",
+       "raw": "{\n  \"ticket_id\": \"TICKET-001\"\n}"
+      },
+      "url": {
+       "raw": "{{base_url}}/api/method/cheese.api.v1.deposit_controller.get_deposit_instructions",
+       "host": [
+        "{{base_url}}"
+       ],
+       "path": [
+        "api",
+        "method",
+        "cheese.api.v1.deposit_controller.get_deposit_instructions"
+       ]
+      },
+      "description": "Legacy endpoint - use get_payment_link_or_instructions instead."
+     },
+     "response": []
+    },
+    {
+     "name": "Register Deposit Payment",
+     "id": "3fcc819c-2cfc-4b62-91e0-535d32d6d918",
+     "request": {
+      "method": "POST",
+      "header": [
+       {
+        "key": "Authorization",
+        "value": "token {{token}}"
+       },
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       }
+      ],
+      "body": {
+       "mode": "raw",
+       "raw": "{\n  \"ticket_id\": \"TICKET-001\",\n  \"amount\": 50.00,\n  \"verification_method\": \"Manual\",\n  \"ocr_payload\": null\n}"
+      },
+      "url": {
+       "raw": "{{base_url}}/api/method/cheese.api.v1.deposit_controller.record_deposit_payment",
+       "host": [
+        "{{base_url}}"
+       ],
+       "path": [
+        "api",
+        "method",
+        "cheese.api.v1.deposit_controller.record_deposit_payment"
+       ]
+      },
+      "description": "Record a deposit payment. Supports Manual and OCR verification methods."
+     },
+     "response": []
+    },
+    {
+     "name": "Get Payment Status for Booking",
+     "id": "586bb085-b520-412d-b3c9-9c4c00752eee",
+     "request": {
+      "method": "POST",
+      "header": [
+       {
+        "key": "Authorization",
+        "value": "token {{token}}"
+       },
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       }
+      ],
+      "body": {
+       "mode": "raw",
+       "raw": "{\n  \"booking_id\": \"BK-CONTACT-001-20241231120000\"\n}"
+      },
+      "url": {
+       "raw": "{{base_url}}/api/method/cheese.api.v1.booking_controller.get_payment_status_for_booking",
+       "host": [
+        "{{base_url}}"
+       ],
+       "path": [
+        "api",
+        "method",
+        "cheese.api.v1.booking_controller.get_payment_status_for_booking"
+       ]
+      },
+      "description": "Get consolidated payment status for a mixed booking."
+     },
+     "response": []
+    },
+    {
+     "name": "Register Payment for Booking",
+     "id": "72639598-6dbb-463c-ba4f-8dbc192e00ea",
+     "request": {
+      "method": "POST",
+      "header": [
+       {
+        "key": "Authorization",
+        "value": "token {{token}}"
+       },
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       }
+      ],
+      "body": {
+       "mode": "raw",
+       "raw": "{\n  \"booking_id\": \"BK-CONTACT-001-20241231120000\",\n  \"amount\": 100.00,\n  \"verification_method\": \"Manual\",\n  \"ocr_payload\": null\n}"
+      },
+      "url": {
+       "raw": "{{base_url}}/api/method/cheese.api.v1.booking_controller.register_payment_for_booking",
+       "host": [
+        "{{base_url}}"
+       ],
+       "path": [
+        "api",
+        "method",
+        "cheese.api.v1.booking_controller.register_payment_for_booking"
+       ]
+      },
+      "description": "Register payment for entire mixed booking."
+     },
+     "response": []
+    }
+   ],
+   "id": "3dc07e53-f122-4dbe-9cc9-3c283bd3d3d1"
+  },
+  {
+   "name": "12. QR and Check-in",
+   "item": [
+    {
+     "name": "Get QR for Reservation",
+     "id": "5172efe2-5f48-4fb2-8fda-21bb6ef73c64",
+     "request": {
+      "method": "POST",
+      "header": [
+       {
+        "key": "Authorization",
+        "value": "token {{token}}"
+       },
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       }
+      ],
+      "body": {
+       "mode": "raw",
+       "raw": "{\n  \"reservation_id\": \"TICKET-001\"\n}"
+      },
+      "url": {
+       "raw": "{{base_url}}/api/method/cheese.api.v1.qr_controller.get_qr_for_reservation",
+       "host": [
+        "{{base_url}}"
+       ],
+       "path": [
+        "api",
+        "method",
+        "cheese.api.v1.qr_controller.get_qr_for_reservation"
+       ]
+      },
+      "description": "Get QR token for a reservation."
+     },
+     "response": []
+    },
+    {
+     "name": "Get Check-in Status",
+     "id": "45daf5b5-67a7-4d22-858c-ef2b340adf5b",
+     "request": {
+      "method": "POST",
+      "header": [
+       {
+        "key": "Authorization",
+        "value": "token {{token}}"
+       },
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       }
+      ],
+      "body": {
+       "mode": "raw",
+       "raw": "{\n  \"reservation_id\": \"TICKET-001\"\n}"
+      },
+      "url": {
+       "raw": "{{base_url}}/api/method/cheese.api.v1.qr_controller.get_checkin_status",
+       "host": [
+        "{{base_url}}"
+       ],
+       "path": [
+        "api",
+        "method",
+        "cheese.api.v1.qr_controller.get_checkin_status"
+       ]
+      },
+      "description": "Get check-in status for a reservation."
+     },
+     "response": []
+    },
+    {
+     "name": "Get QR Token",
+     "id": "ee6c2b3c-db39-4bed-80cb-8bdcc152e1ab",
+     "request": {
+      "method": "POST",
+      "header": [
+       {
+        "key": "Authorization",
+        "value": "token {{token}}"
+       },
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       }
+      ],
+      "body": {
+       "mode": "raw",
+       "raw": "{\n  \"ticket_id\": \"TICKET-001\"\n}"
+      },
+      "url": {
+       "raw": "{{base_url}}/api/method/cheese.api.v1.qr_controller.get_qr",
+       "host": [
+        "{{base_url}}"
+       ],
+       "path": [
+        "api",
+        "method",
+        "cheese.api.v1.qr_controller.get_qr"
+       ]
+      },
+      "description": "Legacy endpoint - use get_qr_for_reservation instead."
+     },
+     "response": []
+    },
+    {
+     "name": "Validate QR Token",
+     "id": "7620619b-49a3-49ac-a798-2fb6a0f36a3a",
+     "request": {
+      "method": "POST",
+      "header": [
+       {
+        "key": "Authorization",
+        "value": "token {{token}}"
+       },
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       }
+      ],
+      "body": {
+       "mode": "raw",
+       "raw": "{\n  \"token\": \"abc123xyz789token\"\n}"
+      },
+      "url": {
+       "raw": "{{base_url}}/api/method/cheese.api.v1.qr_controller.validate_qr",
+       "host": [
+        "{{base_url}}"
+       ],
+       "path": [
+        "api",
+        "method",
+        "cheese.api.v1.qr_controller.validate_qr"
+       ]
+      },
+      "description": "Validate QR token and check in ticket. Creates attendance record."
+     },
+     "response": []
+    }
+   ],
+   "id": "6319381d-716b-4729-85f7-5c592bf4909d"
+  },
+  {
+   "name": "13. Itinerary",
+   "item": [
+    {
+     "name": "Get Customer Itinerary",
+     "id": "d737a8cf-957c-4932-bc23-9d8b2e350a81",
+     "request": {
+      "method": "POST",
+      "header": [
+       {
+        "key": "Authorization",
+        "value": "token {{token}}"
+       }
+      ],
+      "body": {
+       "mode": "raw",
+       "raw": "{\n  \"contact_id\": \"CONTACT-001\"\n}"
+      },
+      "url": {
+       "raw": "{{base_url}}/api/method/cheese.api.v1.itinerary_controller.get_customer_itinerary",
+       "host": [
+        "{{base_url}}"
+       ],
+       "path": [
+        "api",
+        "method",
+        "cheese.api.v1.itinerary_controller.get_customer_itinerary"
+       ]
+      },
+      "description": "Get all reservations/bookings for a contact with details."
+     },
+     "response": []
+    }
+   ],
+   "id": "55765949-ab84-414d-aed6-e177df6c66a6"
+  },
+  {
+   "name": "14. Survey and Complaints",
+   "item": [
+    {
+     "name": "Create Survey Request",
+     "id": "4d833bda-4f20-4073-9b4f-cbe7fefc4a5d",
+     "request": {
+      "method": "POST",
+      "header": [
+       {
+        "key": "Authorization",
+        "value": "token {{token}}"
+       }
+      ],
+      "body": {
+       "mode": "raw",
+       "raw": "{\n  \"ticket_id\": \"TICKET-001\"\n}"
+      },
+      "url": {
+       "raw": "{{base_url}}/api/method/cheese.api.v1.survey_controller.create_survey_request",
+       "host": [
+        "{{base_url}}"
+       ],
+       "path": [
+        "api",
+        "method",
+        "cheese.api.v1.survey_controller.create_survey_request"
+       ]
+      },
+      "description": "Create survey request for a completed ticket."
+     },
+     "response": []
+    },
+    {
+     "name": "Submit Survey Response",
+     "id": "a0756a17-72f3-4803-8811-3ebdab3990f1",
+     "request": {
+      "method": "POST",
+      "header": [
+       {
+        "key": "Authorization",
+        "value": "token {{token}}"
+       },
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       }
+      ],
+      "body": {
+       "mode": "raw",
+       "raw": "{\n  \"ticket_id\": \"TICKET-001\",\n  \"rating\": 5,\n  \"comment\": \"Great experience!\"\n}"
+      },
+      "url": {
+       "raw": "{{base_url}}/api/method/cheese.api.v1.survey_controller.submit_survey_response",
+       "host": [
+        "{{base_url}}"
+       ],
+       "path": [
+        "api",
+        "method",
+        "cheese.api.v1.survey_controller.submit_survey_response"
+       ]
+      },
+      "description": "Submit survey response with rating (1-5) and optional comment."
+     },
+     "response": []
+    },
+    {
+     "name": "Create Complaint",
+     "id": "cf7ccc04-ab91-48c3-9fb1-2a011d09048d",
+     "request": {
+      "method": "POST",
+      "header": [
+       {
+        "key": "Authorization",
+        "value": "token {{token}}"
+       },
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       }
+      ],
+      "body": {
+       "mode": "raw",
+       "raw": "{\n  \"contact_id\": \"CONTACT-001\",\n  \"description\": \"Issue with booking experience\",\n  \"ticket_id\": \"TICKET-001\",\n  \"complaint_type\": \"Service\"\n}"
+      },
+      "url": {
+       "raw": "{{base_url}}/api/method/cheese.api.v1.complaint_controller.create_complaint",
+       "host": [
+        "{{base_url}}"
+       ],
+       "path": [
+        "api",
+        "method",
+        "cheese.api.v1.complaint_controller.create_complaint"
+       ]
+      },
+      "description": "Create a complaint/support case."
+     },
+     "response": []
+    },
+    {
+     "name": "Send Survey",
+     "id": "c3de4249-1126-42b1-8ce4-638d1fab5bed",
+     "request": {
+      "method": "POST",
+      "header": [
+       {
+        "key": "Authorization",
+        "value": "token {{token}}"
+       },
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       }
+      ],
+      "body": {
+       "mode": "raw",
+       "raw": "{\n  \"ticket_id\": \"TICKET-001\"\n}"
+      },
+      "url": {
+       "raw": "{{base_url}}/api/method/cheese.api.v1.survey_controller.send_survey",
+       "host": [
+        "{{base_url}}"
+       ],
+       "path": [
+        "api",
+        "method",
+        "cheese.api.v1.survey_controller.send_survey"
+       ]
+      },
+      "description": "Legacy endpoint - use create_survey_request instead."
+     },
+     "response": []
+    }
+   ],
+   "id": "4fc12604-06f0-4d29-a403-1c23f6ce09cc"
+  },
+  {
+   "name": "Establishment",
+   "item": [
+    {
+     "name": "List Establishments",
+     "id": "b44fbd4e-8491-4056-8e0f-eb4f1fea39a5",
+     "request": {
+      "method": "POST",
+      "header": [
+       {
+        "key": "Authorization",
+        "value": "token {{token}}"
+       },
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       }
+      ],
+      "body": {
+       "mode": "raw",
+       "raw": "{\"page\": 1, \"page_size\": 20}"
+      },
+      "url": {
+       "raw": "{{base_url}}/api/method/cheese.api.v1.establishment_controller.list_establishments",
+       "host": [
+        "{{base_url}}"
+       ],
+       "path": [
+        "api",
+        "method",
+        "cheese.api.v1.establishment_controller.list_establishments"
+       ]
+      },
+      "description": "List establishments with pagination and filters"
+     },
+     "response": []
+    },
+    {
+     "name": "Get Establishment Details",
+     "id": "ab37a183-c25e-4954-9ec7-8fe2526de975",
+     "request": {
+      "method": "POST",
+      "header": [
+       {
+        "key": "Authorization",
+        "value": "token {{token}}"
+       },
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       }
+      ],
+      "body": {
+       "mode": "raw",
+       "raw": "{\"company_id\": \"COMPANY-001\"}"
+      },
+      "url": {
+       "raw": "{{base_url}}/api/method/cheese.api.v1.establishment_controller.get_establishment_details",
+       "host": [
+        "{{base_url}}"
+       ],
+       "path": [
+        "api",
+        "method",
+        "cheese.api.v1.establishment_controller.get_establishment_details"
+       ]
+      },
+      "description": "Get full establishment profile"
+     },
+     "response": []
+    }
+   ],
+   "id": "5332733a-c02b-4b0d-9c26-7c08c4cae3ab"
+  },
+  {
+   "name": "Route Management",
+   "item": [
+    {
+     "name": "Create Route",
+     "id": "05342944-da13-4a1c-ab39-819b07d4035b",
+     "request": {
+      "method": "POST",
+      "header": [
+       {
+        "key": "Authorization",
+        "value": "token {{token}}"
+       },
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       }
+      ],
+      "body": {
+       "mode": "raw",
+       "raw": "{\"name\": \"Route Name\", \"status\": \"OFFLINE\", \"experiences\": []}"
+      },
+      "url": {
+       "raw": "{{base_url}}/api/method/cheese.api.v1.route_controller.create_route",
+       "host": [
+        "{{base_url}}"
+       ],
+       "path": [
+        "api",
+        "method",
+        "cheese.api.v1.route_controller.create_route"
+       ]
+      },
+      "description": "Create a new route"
+     },
+     "response": []
+    }
+   ],
+   "id": "bee3bdac-4f6b-4fbc-9f69-bb2b5bb2eda5"
+  }
+ ],
+ "auth": {
+  "type": "bearer",
+  "bearer": [
+   {
+    "key": "token",
+    "value": "",
+    "type": "string"
+   }
   ]
+ },
+ "variable": [
+  {
+   "id": "762e11b0-1124-4b06-8759-26b454b024b1",
+   "key": "base_url",
+   "value": "https://erp-cheese.deepzide.com"
+  },
+  {
+   "id": "a1050980-1a5e-49d2-97f1-3c4fea6d9cde",
+   "key": "token",
+   "value": "00f61785b147fd2:9385843e4ea3858"
+  }
+ ]
 }

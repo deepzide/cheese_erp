@@ -186,12 +186,16 @@ def compute_party_prices(experience_doc, party_size, selected_date=None, guest_a
 	}
 
 
-def find_matching_promotion(company, experience_id, date_value, guest_ages, party_size):
-	"""First active promotion whose requirement lines are ALL satisfied.
+def find_matching_promotion(company, experience_id, date_value, guest_ages, party_size, unit_prices=None):
+	"""Best active promotion whose requirement lines are ALL satisfied.
 
 	A requirement line without age group counts every person; a line with an
 	age group counts only people whose age falls in it (people without a
 	known age never satisfy age-specific lines).
+
+	When ``unit_prices`` is given and more than one promotion matches, the one
+	that reduces the total the most is returned (so the customer always gets the
+	best deal). Without ``unit_prices`` the most recently modified match wins.
 	"""
 	if not company or not date_value:
 		return None
@@ -210,6 +214,7 @@ def find_matching_promotion(company, experience_id, date_value, guest_ages, part
 		fields=["name"],
 		order_by="modified desc",
 	)
+	matches = []
 	for row in promos:
 		promo = frappe.get_doc("Cheese Promotion", row.name)
 		if not promo.all_experiences:
@@ -236,8 +241,14 @@ def find_matching_promotion(company, experience_id, date_value, guest_ages, part
 				matched = False
 				break
 		if matched:
-			return promo
-	return None
+			matches.append(promo)
+
+	if not matches:
+		return None
+	if unit_prices:
+		# Pick the promotion with the largest discount over these unit prices.
+		return max(matches, key=lambda p: apply_promotion(p, unit_prices))
+	return matches[0]
 
 
 def apply_promotion(promo, unit_prices):

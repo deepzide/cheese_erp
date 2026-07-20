@@ -133,7 +133,8 @@ def calculate_ticket_price(experience_id, party_size, route_id=None, ticket=None
 	}
 
 	promo = find_matching_promotion(
-		experience.company, experience_id, selected_date, guest_ages, party_size
+		experience.company, experience_id, selected_date, guest_ages, party_size,
+		unit_prices=party["unit_prices"],
 	)
 	if promo:
 		discount = apply_promotion(promo, party["unit_prices"])
