@@ -571,6 +571,63 @@ def unarchive_establishment(company_id):
 		return error("Failed to unarchive establishment", "SERVER_ERROR", {"error": str(e)}, 500)
 
 
+def _reconvert_experience_prices(company_id, to_currency):
+	"""Convert every experience's catalog prices of a company to ``to_currency``
+	and stamp that currency on them. Used when the establishment's preferred
+	currency changes (per product decision: only forward-looking catalog prices
+	are converted; tickets and deposits keep their original currency as
+	historical records). Each experience's own currency is the conversion
+	source. Raises if a rate is unavailable so the caller can roll back.
+	"""
+	from frappe.utils import flt
+	from cheese.cheese.utils.currency_rates import convert_amount, log_conversion
+
+	to_currency = (to_currency or "").upper()
+	experiences = frappe.get_all(
+		"Cheese Experience", filters={"company": company_id}, pluck="name"
+	)
+	count = 0
+	for name in experiences:
+		doc = frappe.get_doc("Cheese Experience", name)
+		src = (doc.currency or "").upper()
+		if not src or src == to_currency:
+			if doc.currency != to_currency:
+				doc.currency = to_currency
+				doc.save(ignore_permissions=True)
+			continue
+		snap = convert_amount(1, src, to_currency)  # one rate lookup per experience
+		rate = snap["exchange_rate"]
+
+		def cv(amount):
+			return flt(flt(amount) * rate, 2) if amount else amount
+
+		for field in ("individual_price", "route_price", "price_per_night"):
+			if doc.get(field):
+				doc.set(field, cv(doc.get(field)))
+		if doc.get("deposit_type") == "Amount" and doc.get("deposit_value"):
+			doc.deposit_value = cv(doc.deposit_value)
+		for row in (doc.get("price_lines") or []):
+			if row.price:
+				row.price = cv(row.price)
+			if row.route_price:
+				row.route_price = cv(row.route_price)
+		doc.currency = to_currency
+		doc.save(ignore_permissions=True)
+
+		try:
+			log_conversion(
+				snap,
+				trigger="EXPERIENCE_PRICE_RECONVERT",
+				reference_doctype="Cheese Experience",
+				reference_name=name,
+				company=company_id,
+			)
+		except Exception:
+			pass
+		count += 1
+	return count
+
+
 @frappe.whitelist()
 def update_establishment(company_id, **kwargs):
 	"""
@@ -659,9 +716,40 @@ def update_establishment(company_id, **kwargs):
 		if not changes:
 			return success("No changes to update", {"company_id": company_id})
 		
-		company.save()
+		try:
+			company.save()
+		except frappe.ValidationError as save_err:
+			# ERPNext ties Company.default_currency to the accounting ledger and
+			# refuses to change it once the company has a chart of accounts.
+			# Surface a clear reason instead of the raw accounting message.
+			if "default_currency" in changes and "currency" in str(save_err).lower():
+				frappe.db.rollback()
+				return validation_error(
+					_("No se puede cambiar la moneda preferida de {0}: el establecimiento ya tiene contabilidad configurada. La moneda preferida se fija al crear el establecimiento.").format(
+						company.company_name or company_id
+					)
+				)
+			raise
+
+		# When the preferred currency changes, convert the catalog (experience)
+		# prices to it. Tickets/deposits are intentionally left in their original
+		# currency (historical records). Atomic with the company update. Note:
+		# for a company with a chart of accounts ERPNext blocks the currency
+		# change above, so this only runs for account-less establishments.
+		reconverted_experiences = 0
+		if "default_currency" in changes:
+			try:
+				reconverted_experiences = _reconvert_experience_prices(company_id, company.default_currency)
+			except Exception as conv_err:
+				frappe.db.rollback()
+				return validation_error(
+					_("No se pudieron convertir los precios de las experiencias a {0}: {1}").format(
+						company.default_currency, str(conv_err)
+					)
+				)
+
 		frappe.db.commit()
-		
+
 		# Create audit event
 		try:
 			frappe.get_doc({
@@ -669,18 +757,19 @@ def update_establishment(company_id, **kwargs):
 				"event_type": "ESTABLISHMENT_UPDATED",
 				"entity_type": "Company",
 				"entity_id": company_id,
-				"details": json.dumps({"changed_fields": changes, "updated_by": frappe.session.user})
+				"details": json.dumps({"changed_fields": changes, "updated_by": frappe.session.user, "reconverted_experiences": reconverted_experiences})
 			}).insert(ignore_permissions=True)
 		except Exception:
 			pass  # Ignore if System Event doctype doesn't exist
-		
+
 		return success(
 			"Establishment updated successfully",
 			{
 				"company_id": company.name,
 				"company_name": company.company_name,
 				"status": "ACTIVE", # "INACTIVE" if company.	 else "ACTIVE",
-				"changes": changes
+				"changes": changes,
+				"reconverted_experiences": reconverted_experiences,
 			}
 		)
 	except frappe.ValidationError as e:

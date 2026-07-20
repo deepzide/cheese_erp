@@ -34,7 +34,7 @@
    "fieldname": "trigger",
    "fieldtype": "Select",
    "label": "Trigger",
-   "options": "TICKET_PRICING\nROUTE_BOOKING_PRICING\nDEPOSIT_PAYMENT",
+   "options": "TICKET_PRICING\nROUTE_BOOKING_PRICING\nDEPOSIT_PAYMENT\nEXPERIENCE_PRICE_RECONVERT",
    "reqd": 1,
    "in_list_view": 1,
    "in_standard_filter": 1,
