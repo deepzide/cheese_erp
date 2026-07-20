@@ -1503,5 +1503,17 @@
     "restoreNoticeTitle": "Procedimiento de Restauración",
     "resetTitle": "Restablecer Entorno (Env Reset)",
     "selectMasterData": "Selecciona los DocTypes a preservar:"
+  },
+  "ageGroups": {
+    "coverageTitle": "Cobertura incompleta de edades",
+    "coverageBanner": "Estos rangos de 0 a 200 años no tienen grupo asignado: {{ranges}}. Las personas con esas edades usarán el precio base.",
+    "coverageWarning": "Quedan rangos de edad sin cubrir (0–200): {{ranges}}"
+  },
+  "ticketWizard": {
+    "agePerPerson": "Grupo etario de cada persona",
+    "person": "Persona",
+    "selectAgeGroup": "Elegir grupo…",
+    "agePerPersonHint": "Esta experiencia cobra por grupo etario. El precio se calcula según el grupo elegido para cada persona.",
+    "ageGroupPerPerson": "Selecciona el grupo etario de cada persona"
   }
 }

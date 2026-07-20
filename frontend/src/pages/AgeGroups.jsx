@@ -1,8 +1,8 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
-import { Users2, Plus, Trash2, RefreshCw, Pencil } from "lucide-react";
+import { Users2, Plus, Trash2, RefreshCw, Pencil, AlertTriangle } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,6 +16,27 @@ import { useHotelAccess } from "@/lib/useHotelAccess";
 import { apiRequest } from "@/api/client";
 
 const EMPTY = { group_name: "", min_age: "", max_age: "" };
+const COVERAGE_MIN = 0;
+const COVERAGE_MAX = 200;
+
+/** Integer sub-ranges of [0, 200] not covered by any age group. */
+function coverageGaps(groups) {
+    const ranges = groups
+        .map((g) => [Number(g.min_age), Number(g.max_age)])
+        .filter(([a, b]) => Number.isFinite(a) && Number.isFinite(b))
+        .sort((x, y) => x[0] - y[0]);
+    const gaps = [];
+    let cursor = COVERAGE_MIN;
+    for (const [a, b] of ranges) {
+        if (a > cursor) gaps.push([cursor, a - 1]);
+        cursor = Math.max(cursor, b + 1);
+        if (cursor > COVERAGE_MAX) break;
+    }
+    if (cursor <= COVERAGE_MAX) gaps.push([cursor, COVERAGE_MAX]);
+    return gaps;
+}
+
+const fmtGap = ([a, b]) => (a === b ? `${a}` : `${a}–${b}`);
 
 export default function AgeGroups() {
     const { t } = useTranslation();
@@ -44,6 +65,22 @@ export default function AgeGroups() {
         [groups]
     );
 
+    // Coverage of [0, 200]: warn (banner + toast on mutation) when a range is
+    // left unassigned after creating, editing or deleting a group.
+    const gaps = useMemo(() => coverageGaps(sorted), [sorted]);
+    const mutatedRef = useRef(false);
+    useEffect(() => {
+        if (!mutatedRef.current || isLoading || !effectiveCompany) return;
+        mutatedRef.current = false;
+        if (gaps.length) {
+            toast.warning(
+                t("ageGroups.coverageWarning", "Quedan rangos de edad sin cubrir (0–200): {{ranges}}", {
+                    ranges: gaps.map(fmtGap).join(", "),
+                })
+            );
+        }
+    }, [gaps, isLoading, effectiveCompany, t]);
+
     const openCreate = () => { setEditing(null); setForm(EMPTY); setDialogOpen(true); };
     const openEdit = (g) => {
         setEditing(g);
@@ -61,7 +98,7 @@ export default function AgeGroups() {
             toast.error(t("ageGroups.required", "Nombre y rango de edades son requeridos"));
             return;
         }
-        const done = () => { toast.success(t("common.saved", "Guardado")); setDialogOpen(false); refetch(); };
+        const done = () => { toast.success(t("common.saved", "Guardado")); setDialogOpen(false); mutatedRef.current = true; refetch(); };
         const fail = (err) => toast.error(err?.message || t("common.failed", "Error"));
         if (editing) {
             updateMutation.mutate({ name: editing.name, data: payload }, { onSuccess: done, onError: fail });
@@ -77,6 +114,7 @@ export default function AgeGroups() {
         try {
             await apiRequest(`/api/resource/${encodeURIComponent("Cheese Age Group")}/${encodeURIComponent(g.name)}`, { method: "DELETE" });
             toast.success(t("common.deleted", "Eliminado"));
+            mutatedRef.current = true;
             refetch();
         } catch (err) {
             toast.error(err?.message || t("common.failed", "Error"));
@@ -102,6 +140,18 @@ export default function AgeGroups() {
                     </Button>
                 </div>
             </div>
+
+            {effectiveCompany && !isLoading && gaps.length > 0 && (
+                <div className="flex items-start gap-2 rounded-lg border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm text-amber-700 dark:text-amber-400">
+                    <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" />
+                    <div>
+                        <p className="font-semibold">{t("ageGroups.coverageTitle", "Cobertura incompleta de edades")}</p>
+                        <p className="text-xs mt-0.5">
+                            {t("ageGroups.coverageBanner", "Estos rangos de 0 a 200 años no tienen grupo asignado: {{ranges}}. Las personas con esas edades usarán el precio base.", { ranges: gaps.map(fmtGap).join(", ") })}
+                        </p>
+                    </div>
+                </div>
+            )}
 
             <div className="space-y-2">
                 {isLoading ? (

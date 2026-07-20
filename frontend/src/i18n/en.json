@@ -913,5 +913,17 @@
     "restoreNoticeTitle": "Restore Procedure",
     "resetTitle": "Reset Environment (Env Reset)",
     "selectMasterData": "Select DocTypes to preserve:"
+  },
+  "ageGroups": {
+    "coverageTitle": "Incomplete age coverage",
+    "coverageBanner": "These ranges from 0 to 200 have no assigned group: {{ranges}}. People in those ages will use the base price.",
+    "coverageWarning": "Uncovered age ranges (0–200): {{ranges}}"
+  },
+  "ticketWizard": {
+    "agePerPerson": "Age group per person",
+    "person": "Person",
+    "selectAgeGroup": "Choose group…",
+    "agePerPersonHint": "This experience charges by age group. The price is computed from the group chosen for each person.",
+    "ageGroupPerPerson": "Select the age group for each person"
   }
 }

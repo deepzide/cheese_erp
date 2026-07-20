@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -35,6 +35,7 @@ const EMPTY = {
     date_to: "",
     party_size: "2",
     rooms_requested: "1",
+    ageSelections: [],
     contact: "",
     newClientName: "",
     newClientPhone: "",
@@ -76,6 +77,43 @@ export default function NewTicketWizard({ open, onOpenChange }) {
     const availableCapacity = form.slot
         ? daySlots?.find((s) => s.slot_id === form.slot)?.available_capacity
         : undefined;
+
+    // If the chosen activity prices by age group, ask the operator to pick a
+    // group per person; the price is computed from the selected groups.
+    const { data: expDoc } = useQuery({
+        queryKey: ["wizard-exp-doc", form.experience],
+        enabled: !!form.experience && form.type === "ACTIVITY",
+        queryFn: async () => {
+            const res = await apiRequest(`/api/resource/Cheese Experience/${encodeURIComponent(form.experience)}`);
+            return res?.data?.data || {};
+        },
+    });
+    const expHasAgeGroups = form.type === "ACTIVITY" && !!Number(expDoc?.differentiate_by_age_group);
+    const expCompany = expDoc?.company || company;
+    const { data: ageGroups = [] } = useQuery({
+        queryKey: ["wizard-age-groups", expCompany, expHasAgeGroups],
+        enabled: !!expCompany && expHasAgeGroups,
+        queryFn: async () => {
+            const params = new URLSearchParams({
+                filters: JSON.stringify([["company", "=", expCompany]]),
+                fields: JSON.stringify(["name", "group_name", "min_age", "max_age"]),
+                limit_page_length: "200",
+            });
+            const res = await apiRequest(`/api/resource/Cheese Age Group?${params}`);
+            return res?.data?.data || [];
+        },
+    });
+
+    // Keep one age-group selection per person, synced to party size.
+    useEffect(() => {
+        const n = Math.max(1, parseInt(form.party_size) || 1);
+        setForm((f) => {
+            const sel = [...(f.ageSelections || [])];
+            while (sel.length < n) sel.push("");
+            sel.length = n;
+            return { ...f, ageSelections: sel };
+        });
+    }, [form.party_size]);
 
     const experienceTypeFilter =
         form.type === "HOTEL" ? { experience_type: "HOTEL" } : { experience_type: ["!=", "HOTEL"] };
@@ -148,6 +186,18 @@ export default function NewTicketWizard({ open, onOpenChange }) {
                 } else {
                     payload.party_size = parseInt(form.party_size) || 1;
                     payload.selected_date = form.selected_date || undefined;
+                    if (expHasAgeGroups) {
+                        const sel = (form.ageSelections || []).slice(0, payload.party_size);
+                        if (sel.length < payload.party_size || sel.some((s) => !s)) {
+                            throw new Error(t("ticketWizard.ageGroupPerPerson", "Selecciona el grupo etario de cada persona"));
+                        }
+                        // Representative (mid-range) age per selected group so the
+                        // ERP resolves each person to that group and its price.
+                        payload.guest_ages = JSON.stringify(sel.map((name) => {
+                            const g = ageGroups.find((x) => x.name === name);
+                            return Math.floor((Number(g.min_age) + Number(g.max_age)) / 2);
+                        }));
+                    }
                 }
                 await new Promise((resolve, reject) => {
                     createTicket.mutate(payload, { onSuccess: resolve, onError: reject });
@@ -281,6 +331,33 @@ export default function NewTicketWizard({ open, onOpenChange }) {
                                         <Label>{t("ticketWizard.people", "Personas")}</Label>
                                         <Input type="number" min="1" value={form.party_size} onChange={(e) => set({ party_size: e.target.value })} />
                                     </div>
+                                </div>
+                            )}
+                            {expHasAgeGroups && (
+                                <div className="space-y-1">
+                                    <Label>{t("ticketWizard.agePerPerson", "Grupo etario de cada persona")} <span className="text-red-500">*</span></Label>
+                                    <div className="space-y-2">
+                                        {(form.ageSelections || []).map((selected, i) => (
+                                            <div key={i} className="flex items-center gap-2">
+                                                <span className="text-xs text-muted-foreground w-16 shrink-0">{t("ticketWizard.person", "Persona")} {i + 1}</span>
+                                                <select
+                                                    value={selected}
+                                                    onChange={(e) => setForm((f) => {
+                                                        const sel = [...(f.ageSelections || [])];
+                                                        sel[i] = e.target.value;
+                                                        return { ...f, ageSelections: sel };
+                                                    })}
+                                                    className="flex h-9 flex-1 rounded-md border border-input bg-background px-2 text-sm"
+                                                >
+                                                    <option value="">{t("ticketWizard.selectAgeGroup", "Elegir grupo…")}</option>
+                                                    {ageGroups.map((g) => (
+                                                        <option key={g.name} value={g.name}>{g.group_name} ({g.min_age}–{g.max_age})</option>
+                                                    ))}
+                                                </select>
+                                            </div>
+                                        ))}
+                                    </div>
+                                    <p className="text-xs text-muted-foreground">{t("ticketWizard.agePerPersonHint", "Esta experiencia cobra por grupo etario. El precio se calcula según el grupo elegido para cada persona.")}</p>
                                 </div>
                             )}
                             <div className="space-y-1">

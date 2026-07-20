@@ -66,24 +66,25 @@ def resolve_age_group(company, age):
 	return row[0].name if row else None
 
 
-def _match_price_line(lines, day_type, age_group, in_route, ignore_age=False, ignore_day=False):
+def _match_price_line(lines, day_type, age_group, in_route):
 	"""Most specific matching layer-2 price line; None when nothing matches.
 
 	Specificity: exact day+age (3) > exact day (2) > exact age (1) > ALL/empty (0).
-	``ignore_age`` / ``ignore_day`` relax the respective dimension so callers can
-	fall back WITHIN the matrix (never to the layer-1 base price).
+	A line with no age group matches any person's age (day-general price); an
+	age-specific line matches only that age group. When nothing matches (e.g. an
+	age-only matrix and an age outside every group) the caller falls back to the
+	layer-1 base price.
 	"""
 	best = None
 	best_score = -1
 	for line in lines or []:
 		line_day = (line.get("day_type") or "ALL").upper()
 		line_age = line.get("age_group") or None
-		if not ignore_day:
-			if line_day != "ALL" and day_type and line_day != day_type:
-				continue
-			if line_day != "ALL" and not day_type:
-				continue
-		if not ignore_age and line_age and line_age != age_group:
+		if line_day != "ALL" and day_type and line_day != day_type:
+			continue
+		if line_day != "ALL" and not day_type:
+			continue
+		if line_age and line_age != age_group:
 			continue
 		value = flt(line.get("route_price") if in_route else line.get("price"))
 		if not value:
@@ -164,15 +165,12 @@ def compute_party_prices(experience_doc, party_size, selected_date=None, guest_a
 		age_group = resolve_age_group(company, age) if age is not None else None
 		unit = None
 		if use_matrix:
-			# Layer 2 fully overrides layer 1: resolve the price WITHIN the
-			# matrix, relaxing age (day-general) then day (matrix-general)
-			# before ever considering the layer-1 base price. The base is only
-			# reached when the matrix has no usable price for this mode at all.
+			# Layer 2 overrides layer 1 for every person whose (day, age) matches
+			# a price line — including a day-general line with no age group.
+			# EXCEPTION: when the matrix carries only age-group prices and a
+			# person's age falls outside all groups (no matching line), the
+			# layer-1 base price is used for that person.
 			unit = _match_price_line(lines, day_type, age_group, in_route)
-			if unit is None:
-				unit = _match_price_line(lines, day_type, age_group, in_route, ignore_age=True)
-			if unit is None:
-				unit = _match_price_line(lines, day_type, age_group, in_route, ignore_age=True, ignore_day=True)
 		if unit is None:
 			unit = base_price
 		unit_prices.append(flt(unit))
