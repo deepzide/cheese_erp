@@ -27,6 +27,7 @@ export default function UsersPage() {
         email: "",
         full_name: "",
         company: "",
+        companies: [],
         password: "",
         enabled: true
     });
@@ -81,8 +82,26 @@ export default function UsersPage() {
         onError: (err) => toast.error(err.message || t("users.updateFailed", "Failed to update user"))
     });
 
+    // Multi-establishment assignment (super admin). Kept separate from
+    // updateUser so editing a user's data never silently rewrites which
+    // establishments they belong to.
+    const setCompaniesMutation = useMutation({
+        mutationFn: ({ id, companies }) => userService.setUserCompanies(id, companies),
+        onSuccess: () => queryClient.invalidateQueries({ queryKey: ["users"] }),
+        onError: (err) => toast.error(err.message || t("users.assignFailed", "Failed to assign establishments")),
+    });
+
+    const toggleCompany = (name) => {
+        setFormData((f) => ({
+            ...f,
+            companies: f.companies.includes(name)
+                ? f.companies.filter((c) => c !== name)
+                : [...f.companies, name],
+        }));
+    };
+
     const resetForm = () => {
-        setFormData({ email: "", full_name: "", company: "", password: "", enabled: true });
+        setFormData({ email: "", full_name: "", company: "", companies: [], password: "", enabled: true });
         setSelectedUser(null);
     };
 
@@ -92,6 +111,7 @@ export default function UsersPage() {
             email: user.email || user.name,
             full_name: user.full_name || "",
             company: (user.companies && user.companies.length > 0) ? user.companies[0] : "",
+            companies: Array.isArray(user.companies) ? user.companies : [],
             password: "",
             enabled: user.enabled === 1
         });
@@ -111,14 +131,17 @@ export default function UsersPage() {
                 password: formData.password || undefined
             });
         } else if (isEditOpen && selectedUser) {
+            // Update profile fields WITHOUT `company` (that would collapse the
+            // assignment to one), then apply the full establishment set.
             updateMutation.mutate({
                 id: selectedUser.name,
                 data: {
                     full_name: formData.full_name,
-                    company: formData.company,
                     enabled: formData.enabled ? 1 : 0,
                     password: formData.password || undefined
                 }
+            }, {
+                onSuccess: () => setCompaniesMutation.mutate({ id: selectedUser.name, companies: formData.companies }),
             });
         }
     };
@@ -192,9 +215,17 @@ export default function UsersPage() {
                                         <div className="flex items-center gap-2">
                                             <Mail className="w-3.5 h-3.5" /> {user.email || user.name}
                                         </div>
-                                        {user.companies && user.companies.length > 0 && (
-                                            <div className="flex items-center gap-2 text-cheese-600 font-medium bg-cheese-50 border border-cheese-200 px-2 py-1 rounded w-fit">
-                                                <Building2 className="w-3.5 h-3.5" /> {user.companies[0]}
+                                        {user.companies && user.companies.length > 0 ? (
+                                            <div className="flex flex-wrap gap-1.5">
+                                                {user.companies.map((c) => (
+                                                    <span key={c} className="flex items-center gap-1 text-cheese-600 font-medium bg-cheese-50 dark:bg-cheese-900/20 border border-cheese-200 dark:border-cheese-800 px-2 py-1 rounded text-[11px]">
+                                                        <Building2 className="w-3 h-3" /> {c}
+                                                    </span>
+                                                ))}
+                                            </div>
+                                        ) : (
+                                            <div className="flex items-center gap-2 text-amber-600">
+                                                <Building2 className="w-3.5 h-3.5" /> {t("users.noEstablishments", "Sin establecimientos asignados")}
                                             </div>
                                         )}
                                         {user.last_active && (
@@ -251,19 +282,46 @@ export default function UsersPage() {
                                 onChange={(e) => setFormData({...formData, full_name: e.target.value})}
                             />
                         </div>
-                        <div className="grid gap-2">
-                            <Label>{t("users.assignedCompany", "Assigned Company")} *</Label>
-                            <Select value={formData.company} onValueChange={(val) => setFormData({...formData, company: val})}>
-                                <SelectTrigger>
-                                    <SelectValue placeholder={t("users.selectCompany", "Select a company")} />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {companies.map(c => (
-                                        <SelectItem key={c.name} value={c.name}>{c.company_name || c.name}</SelectItem>
+                        {isAddOpen ? (
+                            <div className="grid gap-2">
+                                <Label>{t("users.assignedCompany", "Establecimiento asignado")} *</Label>
+                                <Select value={formData.company} onValueChange={(val) => setFormData({...formData, company: val})}>
+                                    <SelectTrigger>
+                                        <SelectValue placeholder={t("users.selectCompany", "Elegir establecimiento")} />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {companies.map(c => (
+                                            <SelectItem key={c.name} value={c.name}>{c.company_name || c.name}</SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                                <p className="text-xs text-muted-foreground">{t("users.addMoreAfter", "Podés asignar más establecimientos después de crear el usuario.")}</p>
+                            </div>
+                        ) : (
+                            <div className="grid gap-2">
+                                <Label>{t("users.assignedEstablishments", "Establecimientos asignados")}</Label>
+                                <div className="max-h-44 overflow-y-auto rounded-md border border-input divide-y divide-border">
+                                    {companies.length === 0 ? (
+                                        <p className="p-3 text-sm text-muted-foreground">{t("common.loading", "Cargando…")}</p>
+                                    ) : companies.map((c) => (
+                                        <label key={c.name} className="flex items-center gap-2 px-3 py-2 text-sm cursor-pointer hover:bg-accent/40">
+                                            <input
+                                                type="checkbox"
+                                                className="w-4 h-4 rounded border-input"
+                                                checked={formData.companies.includes(c.name)}
+                                                onChange={() => toggleCompany(c.name)}
+                                            />
+                                            <span>{c.company_name || c.name}</span>
+                                        </label>
                                     ))}
-                                </SelectContent>
-                            </Select>
-                        </div>
+                                </div>
+                                <p className="text-xs text-muted-foreground">
+                                    {formData.companies.length === 0
+                                        ? t("users.noneSelected", "Sin establecimientos: el usuario no verá datos.")
+                                        : t("users.selectedCount", "{{n}} establecimiento(s) seleccionado(s)", { n: formData.companies.length })}
+                                </p>
+                            </div>
+                        )}
                         <div className="grid gap-2">
                             <Label>{t("auth.password", "Password")} {isEditOpen && `(${t("users.passwordKeepBlank", "Leave blank to keep unchanged")})`}</Label>
                             <Input 

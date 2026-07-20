@@ -222,7 +222,16 @@
     "createContact": "Create Contact",
     "contactCreated": "Contact created",
     "createError": "Failed to create contact",
-    "nameRequired": "Name or phone is required"
+    "nameRequired": "Name or phone is required",
+    "scopedTo": "of",
+    "allEstablishments": "all establishments",
+    "relationSourceHint": "Where the relationship with the establishment comes from",
+    "relSource": {
+      "link": "Link",
+      "ticket": "Ticket",
+      "lead": "Lead",
+      "conversation": "Conversation"
+    }
   },
   "lead": {
     "title": "Leads"
@@ -773,7 +782,13 @@
     "activeUsersCount": "{{count}} active users",
     "noUsersFound": "No users found",
     "emailPlaceholder": "user@company.com",
-    "fullNamePlaceholder": "John Doe"
+    "fullNamePlaceholder": "John Doe",
+    "assignedEstablishments": "Assigned establishments",
+    "noEstablishments": "No establishments assigned",
+    "addMoreAfter": "You can assign more establishments after creating the user.",
+    "noneSelected": "No establishments: the user will see no data.",
+    "selectedCount": "{{n}} establishment(s) selected",
+    "assignFailed": "Failed to assign establishments"
   },
   "attendance": {
     "loadFailed": "Failed to load attendance",

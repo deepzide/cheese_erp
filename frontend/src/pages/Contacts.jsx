@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { motion } from "framer-motion";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -9,11 +9,21 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Users, Search, Plus, Phone, Mail, MoreHorizontal, Eye, Trash2, Ticket, AlertCircle, RefreshCw, Loader2, MessageSquare } from "lucide-react";
+import { Users, Search, Plus, Phone, Mail, MoreHorizontal, Eye, Trash2, Ticket, AlertCircle, RefreshCw, Loader2, MessageSquare, Building2, UserPlus } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
-import { useFrappeList, useFrappeCreate, useFrappeDelete } from "@/lib/useApiData";
+import { useFrappeCreate, useFrappeDelete } from "@/lib/useApiData";
+import { useActiveEstablishment } from "@/lib/ActiveEstablishmentContext";
+import { apiRequest } from "@/api/client";
 import { useTranslation } from "react-i18next";
+
+// Where a contact's relationship with the selected establishment comes from.
+const SOURCE_META = {
+    link: { label: "Vínculo", cls: "bg-cheese-500/15 text-cheese-700", icon: Building2 },
+    ticket: { label: "Ticket", cls: "bg-blue-500/15 text-blue-700 dark:text-blue-400", icon: Ticket },
+    lead: { label: "Prospecto", cls: "bg-purple-500/15 text-purple-700 dark:text-purple-400", icon: UserPlus },
+    conversation: { label: "Conversación", cls: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400", icon: MessageSquare },
+};
 
 export default function Contacts() {
     const { t } = useTranslation();
@@ -24,10 +34,17 @@ export default function Contacts() {
     const [createOpen, setCreateOpen] = useState(false);
     const [form, setForm] = useState({ full_name: "", phone: "", email: "" });
 
-    const { data: contacts = [], isLoading, error, refetch } = useFrappeList("Cheese Contact", {
-        fields: ["name", "full_name", "phone", "email", "creation", "modified"],
-        pageSize: 100,
+    const { activeEstablishment, activeProfile } = useActiveEstablishment();
+    const { data: contactsPayload, isLoading, error, refetch } = useQuery({
+        queryKey: ["contacts", activeEstablishment],
+        queryFn: async () => {
+            const params = new URLSearchParams({ page_size: "500" });
+            if (activeEstablishment) params.append("company", activeEstablishment);
+            const res = await apiRequest(`/api/method/cheese.api.v1.contact_controller.list_contacts?${params}`);
+            return res?.data?.message || res?.data || {};
+        },
     });
+    const contacts = Array.isArray(contactsPayload?.data) ? contactsPayload.data : [];
 
     const createMutation = useFrappeCreate("Cheese Contact");
     const deleteMutation = useFrappeDelete("Cheese Contact");
@@ -44,14 +61,14 @@ export default function Contacts() {
     const handleCreate = () => {
         if (!form.full_name || !form.phone) { toast.error(t("contacts.namePhoneRequired", "Name and phone are required")); return; }
         createMutation.mutate(form, {
-            onSuccess: () => { setForm({ full_name: "", phone: "", email: "" }); setCreateOpen(false); toast.success(t("contacts.contactCreated", "Contact created")); },
+            onSuccess: () => { setForm({ full_name: "", phone: "", email: "" }); setCreateOpen(false); toast.success(t("contacts.contactCreated", "Contact created")); refetch(); },
             onError: (err) => toast.error(err?.message || t("common.failed", "Failed")),
         });
     };
 
     const handleDelete = (name) => {
         deleteMutation.mutate(name, {
-            onSuccess: () => toast.success(t("common.deleted", "Contact deleted")),
+            onSuccess: () => { toast.success(t("common.deleted", "Contact deleted")); refetch(); },
             onError: (err) => toast.error(err?.message || t("common.failed", "Failed")),
         });
     };
@@ -72,7 +89,10 @@ export default function Contacts() {
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
                     <h1 className="text-2xl font-bold text-foreground flex items-center gap-2"><Users className="w-6 h-6 text-cheese-600" /> {t("contacts.title", "Contacts")}</h1>
-                    <p className="text-sm text-muted-foreground mt-1">{isLoading ? '...' : `${filtered.length} ${t("contacts.contacts", "contacts")}`}</p>
+                    <p className="text-sm text-muted-foreground mt-1">
+                        {isLoading ? '...' : `${filtered.length} ${t("contacts.contacts", "contactos")}`}
+                        {activeEstablishment ? ` · ${t("contacts.scopedTo", "de")} ${activeProfile?.company_name || activeEstablishment}` : ` · ${t("contacts.allEstablishments", "todos los establecimientos")}`}
+                    </p>
                 </div>
                 <div className="flex gap-2">
                     <div className="relative"><Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" /><Input placeholder={t("contacts.search", "Search contacts...")} value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-9 w-56 h-9" /></div>
@@ -116,6 +136,20 @@ export default function Contacts() {
                                     {contact.phone && <p className="flex items-center gap-2 text-muted-foreground"><Phone className="w-3.5 h-3.5" /> {contact.phone}</p>}
                                     {contact.email && <p className="flex items-center gap-2 text-muted-foreground"><Mail className="w-3.5 h-3.5" /> {contact.email}</p>}
                                 </div>
+                                {activeEstablishment && contact.relationship_sources?.length > 0 && (
+                                    <div className="mt-2 flex flex-wrap gap-1">
+                                        {contact.relationship_sources.map((s) => {
+                                            const meta = SOURCE_META[s];
+                                            if (!meta) return null;
+                                            const Icon = meta.icon;
+                                            return (
+                                                <Badge key={s} className={`${meta.cls} gap-1 text-[10px]`} title={t("contacts.relationSourceHint", "Origen de la relación con el establecimiento")}>
+                                                    <Icon className="w-2.5 h-2.5" /> {t(`contacts.relSource.${s}`, meta.label)}
+                                                </Badge>
+                                            );
+                                        })}
+                                    </div>
+                                )}
                                 <div className="mt-3 pt-3 border-t border-border">
                                     <span className="text-[10px] text-muted-foreground">{t("common.lastModified", "Modified")}: {contact.modified || contact.creation || '—'}</span>
                                 </div>

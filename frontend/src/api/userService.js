@@ -37,4 +37,11 @@ export const userService = {
     listCompanies: async () => {
         return apiRequest(`${BASE}.list_companies_for_assignment`);
     },
+
+    setUserCompanies: async (userId, companies) => {
+        return apiRequest(`${BASE}.set_user_companies`, {
+            method: 'POST',
+            body: JSON.stringify({ user_id: userId, companies }),
+        });
+    },
 };

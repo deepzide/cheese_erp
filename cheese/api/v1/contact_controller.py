@@ -603,3 +603,135 @@ def get_contact_reservations(contact_id, page=1, page_size=20):
 	except Exception as e:
 		frappe.log_error(f"Error in get_contact_reservations: {str(e)}")
 		return error("Failed to get contact reservations", "SERVER_ERROR", {"error": str(e)}, 500)
+
+
+def _contact_company_sources(company):
+	"""For a single company, map each relationship source to the set of contact
+	ids related to it. Mirrors permissions._contact_visibility_subqueries so the
+	scoped list matches exactly what an owner of that company would see, and lets
+	the UI show WHERE each contact's relationship comes from.
+
+	Keys: 'link' (explicit Cheese Contact Company row), 'ticket', 'lead',
+	'conversation'.
+	"""
+	sources = {}
+	sources["link"] = set(frappe.get_all(
+		"Cheese Contact Company",
+		filters={"company": company, "parenttype": "Cheese Contact"},
+		pluck="parent",
+	))
+	sources["ticket"] = set(frappe.get_all(
+		"Cheese Ticket",
+		filters={"company": company, "contact": ["!=", ""]},
+		pluck="contact",
+	))
+	lead_ids = set(frappe.get_all(
+		"Cheese Lead",
+		filters={"company": company, "contact": ["!=", ""]},
+		pluck="contact",
+	))
+	if frappe.db.has_table("tabCheese Lead Company"):
+		rows = frappe.db.sql(
+			"""
+			SELECT DISTINCT l.contact
+			FROM `tabCheese Lead` l
+			INNER JOIN `tabCheese Lead Company` lc ON lc.parent = l.name
+			WHERE COALESCE(l.contact, '') <> '' AND lc.company = %(c)s
+			""",
+			{"c": company},
+			as_dict=True,
+		)
+		lead_ids |= {r.contact for r in rows}
+	sources["lead"] = lead_ids
+	conversation_ids = set()
+	if frappe.db.has_column("Cheese Message", "company"):
+		rows = frappe.db.sql(
+			"""
+			SELECT DISTINCT c.contact
+			FROM `tabConversation` c
+			INNER JOIN `tabCheese Message` m ON m.conversation = c.name
+			WHERE COALESCE(c.contact, '') <> '' AND m.company = %(c)s
+			""",
+			{"c": company},
+			as_dict=True,
+		)
+		conversation_ids = {r.contact for r in rows}
+	sources["conversation"] = conversation_ids
+	return sources
+
+
+@frappe.whitelist()
+def list_contacts(company=None, page=1, page_size=200, search=None):
+	"""List contacts, optionally scoped to a single establishment.
+
+	- No company (super admin, "all establishments"): every contact.
+	- With company: only contacts linked to that establishment or that had
+	  activity with it, each annotated with ``relationship_sources`` so the UI
+	  can show where the relationship comes from.
+
+	Establishment users are always forced to their own company regardless of the
+	``company`` argument.
+	"""
+	try:
+		from frappe.utils import cint
+		from cheese.api.common.responses import paginated_response
+		from cheese.api.v1.user_controller import _get_current_user_company
+
+		page = cint(page) or 1
+		page_size = cint(page_size) or 200
+		fields = ["name", "full_name", "phone", "email", "creation", "modified"]
+
+		user_company = _get_current_user_company()
+		if user_company:
+			company = user_company  # owners: always their own portion
+
+		or_filters = None
+		if search:
+			or_filters = [
+				["full_name", "like", f"%{search}%"],
+				["phone", "like", f"%{search}%"],
+				["name", "like", f"%{search}%"],
+			]
+
+		if company:
+			sources = _contact_company_sources(company)
+			visible_ids = set().union(*sources.values()) if sources else set()
+			if search and visible_ids:
+				matched = frappe.get_all(
+					"Cheese Contact",
+					filters={"name": ["in", list(visible_ids)]},
+					or_filters=or_filters,
+					pluck="name",
+				)
+				visible_ids = set(matched)
+			if not visible_ids:
+				return paginated_response([], "Contacts retrieved", page=page, page_size=page_size, total=0)
+			total = len(visible_ids)
+			contacts = frappe.get_all(
+				"Cheese Contact",
+				filters={"name": ["in", list(visible_ids)]},
+				fields=fields,
+				order_by="modified desc",
+				limit_start=(page - 1) * page_size,
+				limit_page_length=page_size,
+			)
+			for c in contacts:
+				c["relationship_sources"] = sorted([s for s, ids in sources.items() if c["name"] in ids])
+			return paginated_response(contacts, "Contacts retrieved", page=page, page_size=page_size, total=total)
+
+		# Super admin, all establishments
+		total = frappe.db.count("Cheese Contact")
+		contacts = frappe.get_all(
+			"Cheese Contact",
+			or_filters=or_filters,
+			fields=fields,
+			order_by="modified desc",
+			limit_start=(page - 1) * page_size,
+			limit_page_length=page_size,
+		)
+		for c in contacts:
+			c["relationship_sources"] = []
+		return paginated_response(contacts, "Contacts retrieved", page=page, page_size=page_size, total=total)
+	except Exception as e:
+		frappe.log_error(f"Error in list_contacts: {str(e)}")
+		return error("Failed to list contacts", "SERVER_ERROR", {"error": str(e)}, 500)

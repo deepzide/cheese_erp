@@ -2,6 +2,7 @@
 # License: MIT
 
 import frappe
+import json
 from frappe import _
 from frappe.utils import now_datetime, cint
 from cheese.api.common.responses import success, created, error, not_found, validation_error, paginated_response
@@ -390,3 +391,55 @@ def list_companies_for_assignment():
         return success("Companies retrieved", {"companies": companies})
     except Exception as e:
         return error("Failed to list companies", "SERVER_ERROR", {"error": str(e)}, 500)
+
+
+@frappe.whitelist()
+def set_user_companies(user_id, companies=None):
+	"""Replace the set of establishments a user is assigned to (super admin only).
+
+	Assignments are stored as Frappe ``User Permission`` rows (allow=Company),
+	which is what ``_get_user_companies`` reads and what scopes every list. An
+	empty list clears all assignments.
+	"""
+	try:
+		from cheese.cheese.utils.permissions import _is_super_admin
+
+		if not _is_super_admin(frappe.session.user):
+			return error("Only administrators can assign establishments", "PERMISSION_DENIED", {}, 403)
+
+		if not user_id or not frappe.db.exists("User", user_id):
+			return not_found("User", user_id)
+
+		if isinstance(companies, str):
+			try:
+				companies = json.loads(companies)
+			except Exception:
+				companies = [c.strip() for c in companies.split(",") if c.strip()]
+		companies = companies or []
+		# De-dup while preserving order, validate existence.
+		seen = []
+		for c in companies:
+			if c in seen:
+				continue
+			if not frappe.db.exists("Company", c):
+				return not_found("Company", c)
+			seen.append(c)
+
+		frappe.db.delete("User Permission", {"user": user_id, "allow": "Company"})
+		for c in seen:
+			frappe.get_doc({
+				"doctype": "User Permission",
+				"user": user_id,
+				"allow": "Company",
+				"for_value": c,
+				"apply_to_all_doctypes": 1,
+			}).insert(ignore_permissions=True)
+		frappe.db.commit()
+
+		return success(
+			"Establishments assigned successfully",
+			{"user_id": user_id, "companies": _get_user_companies(user_id)},
+		)
+	except Exception as e:
+		frappe.log_error(f"Error in set_user_companies: {str(e)}")
+		return error("Failed to assign establishments", "SERVER_ERROR", {"error": str(e)}, 500)

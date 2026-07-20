@@ -383,7 +383,16 @@
     "contacts": "contactos",
     "search": "Buscar...",
     "noContacts": "No se encontraron contactos",
-    "loadFailed": "No se pudieron cargar los contactos"
+    "loadFailed": "No se pudieron cargar los contactos",
+    "scopedTo": "de",
+    "allEstablishments": "todos los establecimientos",
+    "relationSourceHint": "Origen de la relación con el establecimiento",
+    "relSource": {
+      "link": "Vínculo",
+      "ticket": "Ticket",
+      "lead": "Prospecto",
+      "conversation": "Conversación"
+    }
   },
   "lead": {
     "title": "Prospectos"
@@ -1369,7 +1378,13 @@
     "loadFailed": "No se pudieron cargar los usuarios",
     "activeUsersCount": "{{count}} usuarios activos",
     "emailPlaceholder": "usuario@empresa.com",
-    "fullNamePlaceholder": "Juan Pérez"
+    "fullNamePlaceholder": "Juan Pérez",
+    "assignedEstablishments": "Establecimientos asignados",
+    "noEstablishments": "Sin establecimientos asignados",
+    "addMoreAfter": "Podés asignar más establecimientos después de crear el usuario.",
+    "noneSelected": "Sin establecimientos: el usuario no verá datos.",
+    "selectedCount": "{{n}} establecimiento(s) seleccionado(s)",
+    "assignFailed": "No se pudieron asignar los establecimientos"
   },
   "language": {
     "english": "Inglés",
