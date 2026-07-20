@@ -104,7 +104,7 @@ export default function AgeGroups() {
             updateMutation.mutate({ name: editing.name, data: payload }, { onSuccess: done, onError: fail });
         } else {
             const target = effectiveCompany;
-            if (!target) { toast.error(t("ageGroups.companyRequired", "Selecciona un establecimiento")); return; }
+            if (!target) { toast.error(t("ageGroups.companyRequired", "Selecciona una empresa")); return; }
             createMutation.mutate({ ...payload, company: target }, { onSuccess: done, onError: fail });
         }
     };
@@ -185,14 +185,14 @@ export default function AgeGroups() {
                     <div className="space-y-4">
                         {isAdmin && !editing && (
                             <div className="space-y-1">
-                                <Label>{t("common.company", "Establecimiento")} <span className="text-red-500">*</span></Label>
+                                <Label>{t("common.company", "Empresa")} <span className="text-red-500">*</span></Label>
                                 <CompanySelect value={company} onChange={setCompany} />
-                                <p className="text-xs text-muted-foreground">{t("ageGroups.companyPickHint", "Elige el establecimiento al que pertenece este grupo etario.")}</p>
+                                <p className="text-xs text-muted-foreground">{t("ageGroups.companyPickHint", "Elige la empresa al que pertenece este grupo etario.")}</p>
                             </div>
                         )}
                         {isAdmin && editing && (
                             <div className="space-y-1">
-                                <Label>{t("common.company", "Establecimiento")}</Label>
+                                <Label>{t("common.company", "Empresa")}</Label>
                                 <p className="text-sm font-medium">{editing.company}</p>
                             </div>
                         )}

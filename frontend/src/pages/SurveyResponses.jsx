@@ -140,7 +140,7 @@ export default function SurveyResponses() {
                             <p><span className="text-muted-foreground">{t("common.customer", "Cliente")}:</span> {selected.contact || "—"}</p>
                             <p><span className="text-muted-foreground">{t("ticket.newTicket", "Ticket")}:</span> {selected.ticket || "—"}</p>
                             <p><span className="text-muted-foreground">{t("routes.route", "Ruta")}:</span> {selected.route || "—"}</p>
-                            <p><span className="text-muted-foreground">{t("nav.establishments", "Establecimiento")}:</span> {selected.company || "—"}</p>
+                            <p><span className="text-muted-foreground">{t("nav.establishments", "Empresa")}:</span> {selected.company || "—"}</p>
                             <p><span className="text-muted-foreground">{t("surveyResponses.ratingLabel", "Calificacion")}:</span> {selected.rating || "—"}</p>
                             <p><span className="text-muted-foreground">{t("surveyResponses.commentLabel", "Comentario")}:</span> {selected.comment || t("survey.noComment", "Sin comentario")}</p>
                             <div className="pt-2 flex gap-2">

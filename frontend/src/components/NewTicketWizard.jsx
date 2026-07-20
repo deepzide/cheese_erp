@@ -142,7 +142,7 @@ export default function NewTicketWizard({ open, onOpenChange }) {
         setSubmitting(true);
         try {
             if (form.type !== "ROUTE" && !company) {
-                throw new Error(t("ticketWizard.companyRequired", "Selecciona el establecimiento"));
+                throw new Error(t("ticketWizard.companyRequired", "Selecciona la empresa"));
             }
             const contactId = await resolveContact();
 
@@ -248,10 +248,10 @@ export default function NewTicketWizard({ open, onOpenChange }) {
                         </div>
                     </div>
 
-                    {/* Establecimiento (solo cuando el admin está en "Toda la ruta"; los paquetes cruzan establecimientos) */}
+                    {/* Empresa (solo cuando el admin está en "Toda la ruta"; los paquetes cruzan empresas) */}
                     {form.type !== "ROUTE" && isAdmin && isAllEstablishments && (
                         <div className="space-y-1">
-                            <Label>{t("common.company", "Establecimiento")} <span className="text-red-500">*</span></Label>
+                            <Label>{t("common.company", "Empresa")} <span className="text-red-500">*</span></Label>
                             <CompanySelect
                                 value={form.company}
                                 onChange={(v) => set({ company: v, experience: "", slot: "" })}
@@ -303,7 +303,7 @@ export default function NewTicketWizard({ open, onOpenChange }) {
                                     value={form.experience}
                                     onChange={(v) => set({ experience: v, slot: "" })}
                                     filters={company ? { company, ...experienceTypeFilter } : experienceTypeFilter}
-                                    placeholder={t("ticketWizard.fromCatalog", "Del catálogo del establecimiento…")}
+                                    placeholder={t("ticketWizard.fromCatalog", "Del catálogo de la empresa…")}
                                 />
                             </div>
                             {form.type === "HOTEL" ? (

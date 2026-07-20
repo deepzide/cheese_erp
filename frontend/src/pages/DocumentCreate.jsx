@@ -148,7 +148,7 @@ export default function DocumentCreate() {
                             <SelectContent>
                                 <SelectItem value="Cheese Route">{t("routes.route", "Route")}</SelectItem>
                                 <SelectItem value="Cheese Experience">{t("experiences.experience", "Experience")}</SelectItem>
-                                <SelectItem value="Company">{t("experiences.establishment", "Establishment")}</SelectItem>
+                                <SelectItem value="Company">{t("experiences.establishment", "Company")}</SelectItem>
                             </SelectContent>
                         </Select>
                     </div>

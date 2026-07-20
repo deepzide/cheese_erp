@@ -180,7 +180,7 @@ export default function QuotationCreate() {
 
         const details = await ensureExperienceDetails(experienceId);
         if (form.establishment && details?.company && details.company !== form.establishment) {
-            toast.error(t("experiences.experienceNotBelongCompany", "Experience does not belong to selected establishment."));
+            toast.error(t("experiences.experienceNotBelongCompany", "Experience does not belong to selected company."));
             setExperiences(prev =>
                 prev.map((exp, i) => (i === index ? { ...exp, experience: "", slot: "" } : exp))
             );
@@ -315,7 +315,7 @@ export default function QuotationCreate() {
                         />
                     </div>
                     <div className="space-y-2">
-                        <Label>{t("experiences.establishment", "Establishment")}</Label>
+                        <Label>{t("experiences.establishment", "Company")}</Label>
                         <CompanySelect
                             value={form.establishment}
                             onChange={(v) => setForm(f => ({ ...f, establishment: v }))}

@@ -71,7 +71,7 @@ export function useHotelAccess() {
                 activeCompany
             );
         }
-        if (isAdminFallback) return "All Establishments";
+        if (isAdminFallback) return "All Companies";
         return "";
     }, [activeCompany, establishmentQuery?.data?.company_name, establishmentQuery?.data?.name, isAdminFallback]);
 

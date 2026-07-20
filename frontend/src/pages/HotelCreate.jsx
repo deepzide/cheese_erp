@@ -38,7 +38,7 @@ export default function HotelCreate() {
     return (
         <CreatePageLayout
             title={t("hotelCreate.newHotel", "New Hotel")}
-            description={t("hotelCreate.newHotelDescription", "Create a new hotel establishment")}
+            description={t("hotelCreate.newHotelDescription", "Create a new hotel company")}
             icon={Hotel}
             backPath="/cheese/hotels"
             onSubmit={handleSubmit}

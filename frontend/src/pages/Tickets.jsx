@@ -80,7 +80,7 @@ function downloadBlob(content, filename, mime) {
 
 const EXPORT_COLUMNS = [
     ["name", "Código"], ["type_label", "Tipo"], ["contact_name", "Cliente"], ["experience", "Experiencia"],
-    ["route", "Paquete"], ["company", "Establecimiento"], ["ticket_date", "Fecha"], ["slot_time", "Hora"],
+    ["route", "Paquete"], ["company", "Empresa"], ["ticket_date", "Fecha"], ["slot_time", "Hora"],
     ["party_size", "Personas"], ["nights", "Noches"], ["status_label", "Estado"], ["total_price", "Total"],
     ["deposit_amount", "Seña"], ["currency", "Moneda"],
 ];

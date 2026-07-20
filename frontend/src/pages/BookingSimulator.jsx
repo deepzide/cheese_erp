@@ -269,7 +269,7 @@ export default function BookingSimulator() {
                                 ))}
                                 {result.mixed_currencies ? (
                                     <div className="space-y-1">
-                                        <p className="text-sm font-semibold">{t("simulator.totalsMixed", "Totales por moneda (paquete multi-establecimiento)")}</p>
+                                        <p className="text-sm font-semibold">{t("simulator.totalsMixed", "Totales por moneda (paquete multi-empresa)")}</p>
                                         {Object.entries(result.totals_by_currency || {}).map(([cur, val]) => (
                                             <p key={cur} className="font-mono text-lg">{money(val, cur)}</p>
                                         ))}

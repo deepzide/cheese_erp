@@ -116,7 +116,7 @@ export default function QuotationDetail() {
                                 <CardContent className="p-6">
                                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-6 gap-x-8">
                                         <EditableField label={t("nav.leads", "Lead")} value={form.lead} onChange={(v) => handleFieldChange("lead", v)} editMode={editMode} doctype="Cheese Lead" searchLabel="contact" />
-                                        <EditableField label={t("experiences.establishmentCompany", "Establishment (Company)")} value={form.establishment} onChange={(v) => handleFieldChange("establishment", v)} editMode={editMode} doctype="Company" searchLabel="name" />
+                                        <EditableField label={t("experiences.establishmentCompany", "Company")} value={form.establishment} onChange={(v) => handleFieldChange("establishment", v)} editMode={editMode} doctype="Company" searchLabel="name" />
                                         <EditableField label={t("routes.route", "Route")} value={form.route} onChange={(v) => handleFieldChange("route", v)} editMode={editMode} doctype="Cheese Route" searchLabel="route_info" />
                                         <EditableField label={t("common.conversation", "Conversation")} value={form.conversation} onChange={(v) => handleFieldChange("conversation", v)} editMode={editMode} doctype="Conversation" searchLabel="name" />
 

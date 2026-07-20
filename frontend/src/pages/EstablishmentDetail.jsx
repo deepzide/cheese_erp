@@ -414,7 +414,7 @@ export default function EstablishmentDetail() {
                                             onChange={(e) => setForm((f) => ({ ...f, cheese_is_hotel: e.target.checked }))}
                                             className="rounded border-input"
                                         />
-                                        {t("establishment.enableHotelOptions", "Enable hotel options for this establishment")}
+                                        {t("establishment.enableHotelOptions", "Enable hotel options for this company")}
                                     </label>
                                 ) : (
                                     <p className="text-sm">
@@ -539,7 +539,7 @@ export default function EstablishmentDetail() {
                         <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
                             <DialogContent>
                                 <DialogHeader>
-                                    <DialogTitle>{t("experiences.deleteEstablishmentTitle", "Delete establishment?")}</DialogTitle>
+                                    <DialogTitle>{t("experiences.deleteEstablishmentTitle", "Delete company?")}</DialogTitle>
                                     <DialogDescription>
                                         {t("experiences.deleteEstablishmentDesc", "Only allowed when there are no linked experiences, tickets, or bank accounts. Otherwise use Archive.")}
                                     </DialogDescription>

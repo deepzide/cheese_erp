@@ -161,10 +161,10 @@ export default function Bookings() {
                     <Select value={filterEstablishment} onValueChange={setFilterEstablishment} disabled={companyLocked}>
                         <SelectTrigger className="w-48 h-9">
                             <Building2 className="w-3 h-3 mr-1 text-muted-foreground" />
-                            <SelectValue placeholder={t("bookings.allEstablishments", "All Establishments")} />
+                            <SelectValue placeholder={t("bookings.allEstablishments", "All Companies")} />
                         </SelectTrigger>
                         <SelectContent>
-                            <SelectItem value="all">{t("bookings.allEstablishments", "All Establishments")}</SelectItem>
+                            <SelectItem value="all">{t("bookings.allEstablishments", "All Companies")}</SelectItem>
                             {Array.isArray(companyOptions) && companyOptions.map(c => (
                                 <SelectItem key={c.name} value={c.name}>{c.company_name || c.name}</SelectItem>
                             ))}

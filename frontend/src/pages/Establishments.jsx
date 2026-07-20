@@ -59,7 +59,7 @@ export default function Establishments() {
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
                     <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
-                        <Building2 className="w-6 h-6 text-cheese-600" /> {t("nav.establishments", "Establishments")}
+                        <Building2 className="w-6 h-6 text-cheese-600" /> {t("nav.establishments", "Companies")}
                     </h1>
                     <p className="text-sm text-muted-foreground mt-1">
                         {isLoading ? "…" : t("establishments.count", { count: filtered.length, defaultValue: `${filtered.length} establishments` })}
@@ -118,7 +118,7 @@ export default function Establishments() {
                                         </div>
                                         <span className="font-semibold text-foreground">{t("establishments.addCompany", "Add company")}</span>
                                         <span className="text-xs text-muted-foreground">
-                                            {t("establishments.createNewHint", "Create a new establishment")}
+                                            {t("establishments.createNewHint", "Create a new company")}
                                         </span>
                                     </CardContent>
                                 </Card>

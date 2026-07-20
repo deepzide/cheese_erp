@@ -474,7 +474,7 @@ export default function ExperienceDetail() {
                                                         onChange={(e) => handleFieldChange("package_mode", e.target.value)}
                                                         className="flex h-9 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm ring-offset-background disabled:cursor-not-allowed disabled:opacity-50"
                                                     >
-                                                        <option value="Establishment">{t("experiences.pkgEstablishment", "A La Carte (Establishment)")}</option>
+                                                        <option value="Establishment">{t("experiences.pkgEstablishment", "A La Carte (Company)")}</option>
                                                         <option value="Route">{t("experiences.pkgRoute", "Packaged (Route)")}</option>
                                                         <option value="Both">{t("experiences.pkgBoth", "Available in Both")}</option>
                                                     </select>

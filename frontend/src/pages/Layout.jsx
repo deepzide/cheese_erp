@@ -52,7 +52,7 @@ const navigationItems = [
     { titleKey: "nav.bookingSimulator", url: createPageUrl("booking-simulator"), icon: Calculator, section: "operacion" },
     { titleKey: "nav.calendar", url: createPageUrl("calendar"), icon: CalendarDays, section: "operacion" },
     { titleKey: "nav.conversations", url: createPageUrl("conversations"), icon: MessageSquare, section: "operacion" },
-    // HOTEL (solo si el establecimiento tiene hotel)
+    // HOTEL (solo si la empresa tiene hotel)
     { titleKey: "nav.hotels", url: createPageUrl("hotels"), icon: Hotel, section: "hotel" },
     { titleKey: "nav.hotelReservations", url: createPageUrl("hotel-reservations"), icon: BedDouble, section: "hotel" },
     { titleKey: "nav.hotelAvailability", url: createPageUrl("hotel-availability"), icon: CalendarDays, section: "hotel" },
@@ -140,7 +140,7 @@ function SidebarContent({
                             <p className="text-[11px] text-white/60 mt-0.5 truncate">
                                 {establishmentLoading
                                     ? t("common.loading", "Loading...")
-                                    : establishmentName || t("layout.noEstablishment", "No establishment")}
+                                    : establishmentName || t("layout.noEstablishment", "No company")}
                             </p>
                         )}
                     </div>
@@ -150,7 +150,7 @@ function SidebarContent({
                         value={activeEstablishment}
                         onChange={(e) => setActiveEstablishment(e.target.value)}
                         className="mt-3 w-full h-9 rounded-lg bg-white/5 border border-white/10 text-white/90 text-sm px-2 focus:outline-none focus:border-cheese-400/60 [&>option]:bg-[#1a1a1a]"
-                        title={t("layout.establishmentSelector", "Establecimiento activo")}
+                        title={t("layout.establishmentSelector", "Empresa activa")}
                     >
                         <option value="">🌐 {t("layout.wholeRoute", "Toda la ruta")}</option>
                         {establishments.map((e) => (
@@ -328,7 +328,7 @@ function LayoutInner({ children }) {
 
     const activeScopeLabel = isAdmin
         ? (activeProfile?.company_name || t("layout.wholeRoute", "Toda la ruta"))
-        : (establishmentName || t("layout.noEstablishment", "No establishment"));
+        : (establishmentName || t("layout.noEstablishment", "No company"));
 
     const sidebarProps = {
         t, establishmentLoading, establishmentName, visibleNavigationItems,

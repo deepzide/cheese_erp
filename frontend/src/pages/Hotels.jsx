@@ -126,7 +126,7 @@ export default function Hotels() {
                     <Hotel className="w-12 h-12 text-muted-foreground/30 mx-auto mb-4" />
                     <h3 className="text-lg font-semibold text-muted-foreground">{t("hotels.noneFound", "No hotels found")}</h3>
                     <p className="text-sm text-muted-foreground mt-1">
-                        {t("hotels.markAsHotelHint", "Mark an establishment as \"Is Hotel\" to see it here.")}
+                        {t("hotels.markAsHotelHint", "Mark a company as \"Is Hotel\" to see it here.")}
                     </p>
                 </div>
             )}

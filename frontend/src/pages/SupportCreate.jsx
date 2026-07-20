@@ -99,11 +99,11 @@ export default function SupportCreate() {
                         />
                     </div>
                     <div className="space-y-2">
-                        <Label>{t("support.establishmentOptional", "Establishment (optional)")}</Label>
+                        <Label>{t("support.establishmentOptional", "Company (optional)")}</Label>
                         <CompanySelect
                             value={form.company_id}
                             onChange={(v) => setForm(f => ({ ...f, company_id: v }))}
-                            placeholder={t("support.filterByEstablishment", "Filter context by establishment...")}
+                            placeholder={t("support.filterByEstablishment", "Filter context by company...")}
                         />
                     </div>
                 </div>

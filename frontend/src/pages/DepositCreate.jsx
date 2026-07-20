@@ -249,7 +249,7 @@ export default function DepositCreate() {
                         >
                             {acceptedCurrencies.map((c) => <option key={c} value={c}>{c}</option>)}
                         </select>
-                        <p className="text-[11px] text-muted-foreground">{t("deposits.paymentCurrencyHint", "Si difiere de la moneda del establecimiento, el monto se convierte con la tasa del día.")}</p>
+                        <p className="text-[11px] text-muted-foreground">{t("deposits.paymentCurrencyHint", "Si difiere de la moneda de la empresa, el monto se convierte con la tasa del día.")}</p>
                     </div>
                     <div className="space-y-2">
                         <p className="text-xs text-muted-foreground">{t("deposits.dueAt", "Due At")}</p>

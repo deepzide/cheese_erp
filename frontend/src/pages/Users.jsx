@@ -225,7 +225,7 @@ export default function UsersPage() {
                                             </div>
                                         ) : (
                                             <div className="flex items-center gap-2 text-amber-600">
-                                                <Building2 className="w-3.5 h-3.5" /> {t("users.noEstablishments", "Sin establecimientos asignados")}
+                                                <Building2 className="w-3.5 h-3.5" /> {t("users.noEstablishments", "Sin empresas asignadas")}
                                             </div>
                                         )}
                                         {user.last_active && (
@@ -261,7 +261,7 @@ export default function UsersPage() {
                     <DialogHeader>
                         <DialogTitle>{isAddOpen ? t("users.addNewUser", "Add New User") : t("users.editUser", "Edit User")}</DialogTitle>
                         <DialogDescription>
-                            {isAddOpen ? t("users.createUserDesc", "Create a new establishment user.") : t("users.updateUserDesc", "Update user details and access.")}
+                            {isAddOpen ? t("users.createUserDesc", "Create a new company user.") : t("users.updateUserDesc", "Update user details and access.")}
                         </DialogDescription>
                     </DialogHeader>
                     <div className="grid gap-4 py-4">
@@ -284,10 +284,10 @@ export default function UsersPage() {
                         </div>
                         {isAddOpen ? (
                             <div className="grid gap-2">
-                                <Label>{t("users.assignedCompany", "Establecimiento asignado")} *</Label>
+                                <Label>{t("users.assignedCompany", "Empresa asignada")} *</Label>
                                 <Select value={formData.company} onValueChange={(val) => setFormData({...formData, company: val})}>
                                     <SelectTrigger>
-                                        <SelectValue placeholder={t("users.selectCompany", "Elegir establecimiento")} />
+                                        <SelectValue placeholder={t("users.selectCompany", "Elegir empresa")} />
                                     </SelectTrigger>
                                     <SelectContent>
                                         {companies.map(c => (
@@ -295,11 +295,11 @@ export default function UsersPage() {
                                         ))}
                                     </SelectContent>
                                 </Select>
-                                <p className="text-xs text-muted-foreground">{t("users.addMoreAfter", "Podés asignar más establecimientos después de crear el usuario.")}</p>
+                                <p className="text-xs text-muted-foreground">{t("users.addMoreAfter", "Podés asignar más empresas después de crear el usuario.")}</p>
                             </div>
                         ) : (
                             <div className="grid gap-2">
-                                <Label>{t("users.assignedEstablishments", "Establecimientos asignados")}</Label>
+                                <Label>{t("users.assignedEstablishments", "Empresas asignadas")}</Label>
                                 <div className="max-h-44 overflow-y-auto rounded-md border border-input divide-y divide-border">
                                     {companies.length === 0 ? (
                                         <p className="p-3 text-sm text-muted-foreground">{t("common.loading", "Cargando…")}</p>
@@ -317,8 +317,8 @@ export default function UsersPage() {
                                 </div>
                                 <p className="text-xs text-muted-foreground">
                                     {formData.companies.length === 0
-                                        ? t("users.noneSelected", "Sin establecimientos: el usuario no verá datos.")
-                                        : t("users.selectedCount", "{{n}} establecimiento(s) seleccionado(s)", { n: formData.companies.length })}
+                                        ? t("users.noneSelected", "Sin empresas: el usuario no verá datos.")
+                                        : t("users.selectedCount", "{{n}} empresa(s) seleccionada(s)", { n: formData.companies.length })}
                                 </p>
                             </div>
                         )}

@@ -153,7 +153,7 @@ export default function BankAccounts() {
 
             <Dialog open={createOpen} onOpenChange={setCreateOpen}>
                 <DialogContent className="max-w-md">
-                    <DialogHeader><DialogTitle className="flex items-center gap-2"><Plus className="w-5 h-5 text-cheese-600" /> {t("bankAccounts.addBankAccount", "Add Bank Account")}</DialogTitle><DialogDescription>{t("bankAccounts.linkDescription", "Link a bank account to a route or establishment")}</DialogDescription></DialogHeader>
+                    <DialogHeader><DialogTitle className="flex items-center gap-2"><Plus className="w-5 h-5 text-cheese-600" /> {t("bankAccounts.addBankAccount", "Add Bank Account")}</DialogTitle><DialogDescription>{t("bankAccounts.linkDescription", "Link a bank account to a route or company")}</DialogDescription></DialogHeader>
                     <div className="space-y-4">
                         <div className="space-y-2">
                             <Label>{t("bankAccounts.linkTo", "Link To")} *</Label>
@@ -161,11 +161,11 @@ export default function BankAccounts() {
                                 <SelectTrigger><SelectValue /></SelectTrigger>
                                 <SelectContent>
                                     <SelectItem value="Cheese Route">{t("bankAccounts.route", "Route")}</SelectItem>
-                                    <SelectItem value="Company">{t("bankAccounts.establishment", "Establishment")}</SelectItem>
+                                    <SelectItem value="Company">{t("bankAccounts.establishment", "Company")}</SelectItem>
                                 </SelectContent>
                             </Select>
                         </div>
-                        <div className="space-y-2"><Label>{form.entity_type === "Company" ? t("bankAccounts.establishment", "Establishment") : t("bankAccounts.route", "Route")} *</Label><Input placeholder={form.entity_type === "Company" ? t("bankAccounts.companyId", "Company ID") : t("bankAccounts.routeId", "Route ID")} value={form.entity_id} onChange={(e) => setForm(f => ({ ...f, entity_id: e.target.value }))} /></div>
+                        <div className="space-y-2"><Label>{form.entity_type === "Company" ? t("bankAccounts.establishment", "Company") : t("bankAccounts.route", "Route")} *</Label><Input placeholder={form.entity_type === "Company" ? t("bankAccounts.companyId", "Company ID") : t("bankAccounts.routeId", "Route ID")} value={form.entity_id} onChange={(e) => setForm(f => ({ ...f, entity_id: e.target.value }))} /></div>
                         <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-2"><Label>{t("bankAccounts.holder", "Holder")}</Label><Input value={form.holder} onChange={(e) => setForm(f => ({ ...f, holder: e.target.value }))} /></div>
                             <div className="space-y-2"><Label>{t("bankAccounts.bank", "Bank")}</Label><Input value={form.bank} onChange={(e) => setForm(f => ({ ...f, bank: e.target.value }))} /></div>

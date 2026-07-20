@@ -78,7 +78,7 @@ export default function BotUsers() {
 
     const handleProvision = async ({ company, resetPassword } = {}) => {
         if (resetPassword) {
-            const target = company || t("botUsers.allEstablishments", "todos los establecimientos");
+            const target = company || t("botUsers.allEstablishments", "todas las empresas");
             const confirmed = window.confirm(
                 t(
                     "botUsers.resetConfirm",
@@ -128,7 +128,7 @@ export default function BotUsers() {
                         {t("botUsers.title", "Usuarios de Bot")}
                     </h1>
                     <p className="text-sm text-muted-foreground mt-1">
-                        {t("botUsers.description", "Crea un usuario dedicado por establecimiento para el uso exclusivo del bot, con acceso limitado a los datos de su propio establecimiento.")}
+                        {t("botUsers.description", "Crea un usuario dedicado por empresa para el uso exclusivo del bot, con acceso limitado a los datos de su propio empresa.")}
                     </p>
                 </div>
                 <div className="flex gap-2">
@@ -195,7 +195,7 @@ export default function BotUsers() {
 
             <Card className="glass-surface">
                 <CardHeader>
-                    <CardTitle>{t("botUsers.tableTitle", "Credenciales por establecimiento")}</CardTitle>
+                    <CardTitle>{t("botUsers.tableTitle", "Credenciales por empresa")}</CardTitle>
                     <CardDescription>
                         {t("botUsers.tableDescription", "El bot usa ERP_USER + ERP_PASSWORD o el par api_key:api_secret en su .env. Visible únicamente para superadministradores.")}
                     </CardDescription>
@@ -209,14 +209,14 @@ export default function BotUsers() {
                         </div>
                     ) : rows.length === 0 ? (
                         <p className="text-sm text-muted-foreground py-4">
-                            {t("botUsers.empty", "No hay establecimientos registrados.")}
+                            {t("botUsers.empty", "No hay empresas registrados.")}
                         </p>
                     ) : (
                         <div className="overflow-x-auto">
                             <table className="w-full text-sm">
                                 <thead>
                                     <tr className="text-left text-xs uppercase tracking-wider text-muted-foreground border-b border-border">
-                                        <th className="py-2 pr-4">{t("botUsers.colEstablishment", "Establecimiento")}</th>
+                                        <th className="py-2 pr-4">{t("botUsers.colEstablishment", "Empresa")}</th>
                                         <th className="py-2 pr-4">{t("botUsers.colStatus", "Estado")}</th>
                                         <th className="py-2 pr-4">ERP_USER</th>
                                         <th className="py-2 pr-4">api_key</th>

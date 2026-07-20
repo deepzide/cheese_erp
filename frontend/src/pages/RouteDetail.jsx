@@ -538,7 +538,7 @@ export default function RouteDetail() {
                                             </span>
                                             {routeMixedCurrency && (
                                                 <span className="block mt-1 text-amber-600">
-                                                    {t("routes.priceMixedCurrency", "The experiences use different establishment currencies; the total mixes currencies and each ticket is charged in its own establishment's currency.")}
+                                                    {t("routes.priceMixedCurrency", "The experiences use different company currencies; the total mixes currencies and each ticket is charged in its own company's currency.")}
                                                 </span>
                                             )}
                                         </div>

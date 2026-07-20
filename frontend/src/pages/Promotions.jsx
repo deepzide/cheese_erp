@@ -117,7 +117,7 @@ export default function Promotions() {
         if (editing) {
             updateMutation.mutate({ name: editing.name, data: payload }, { onSuccess: done, onError: fail });
         } else {
-            if (!effectiveCompany) { toast.error(t("promotions.companyRequired", "Selecciona un establecimiento")); return; }
+            if (!effectiveCompany) { toast.error(t("promotions.companyRequired", "Selecciona una empresa")); return; }
             createMutation.mutate({ ...payload, company: effectiveCompany }, { onSuccess: done, onError: fail });
         }
     };
@@ -193,14 +193,14 @@ export default function Promotions() {
                     <div className="space-y-4">
                         {isAdmin && !editing && (
                             <div className="space-y-1">
-                                <Label>{t("common.company", "Establecimiento")} <span className="text-red-500">*</span></Label>
+                                <Label>{t("common.company", "Empresa")} <span className="text-red-500">*</span></Label>
                                 <CompanySelect value={company} onChange={setCompany} />
-                                <p className="text-xs text-muted-foreground">{t("promotions.companyPickHint", "Elige el establecimiento para poder seleccionar sus experiencias y grupos etarios.")}</p>
+                                <p className="text-xs text-muted-foreground">{t("promotions.companyPickHint", "Elige la empresa para poder seleccionar sus experiencias y grupos etarios.")}</p>
                             </div>
                         )}
                         {isAdmin && editing && (
                             <div className="space-y-1">
-                                <Label>{t("common.company", "Establecimiento")}</Label>
+                                <Label>{t("common.company", "Empresa")}</Label>
                                 <p className="text-sm font-medium">{editing.company}</p>
                             </div>
                         )}
@@ -272,7 +272,7 @@ export default function Promotions() {
                         <div className="space-y-2 border border-border rounded-lg p-3">
                             <label className="flex items-center gap-2 text-sm cursor-pointer font-medium">
                                 <input type="checkbox" checked={form.all_experiences} onChange={(e) => setForm(f => ({ ...f, all_experiences: e.target.checked }))} />
-                                {t("promotions.allExpCheck", "Aplicar a todas las experiencias del establecimiento")}
+                                {t("promotions.allExpCheck", "Aplicar a todas las experiencias de la empresa")}
                             </label>
                             {!form.all_experiences && (
                                 <div className="max-h-40 overflow-y-auto space-y-1">
@@ -288,7 +288,7 @@ export default function Promotions() {
                                             {exp.name}
                                         </label>
                                     ))}
-                                    {experiences.length === 0 && <p className="text-xs text-muted-foreground">{t("promotions.noExperiences", "Selecciona un establecimiento para listar sus experiencias")}</p>}
+                                    {experiences.length === 0 && <p className="text-xs text-muted-foreground">{t("promotions.noExperiences", "Selecciona una empresa para listar sus experiencias")}</p>}
                                 </div>
                             )}
                         </div>

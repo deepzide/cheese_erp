@@ -46,7 +46,7 @@ export default function EstablishmentCreate() {
             return msg.data;
         },
         onSuccess: (data) => {
-            toast.success(t("experiences.createSuccess", "Establishment created"));
+            toast.success(t("experiences.createSuccess", "Company created"));
             const id = data?.company_id;
             if (id) navigate(`/cheese/establishments/${encodeURIComponent(id)}`);
             else navigate("/cheese/establishments");
@@ -64,13 +64,13 @@ export default function EstablishmentCreate() {
 
     return (
         <CreatePageLayout
-            title={t("experiences.newEstablishment", "New Establishment")}
+            title={t("experiences.newEstablishment", "New Company")}
             description={t("experiences.newEstablishmentDesc", "Creates an ERPNext company (chart of accounts copied from the default company)")}
             icon={Building2}
             backPath="/cheese/establishments"
             onSubmit={handleSubmit}
             isSubmitting={createMutation.isPending}
-            submitLabel={t("experiences.createEstablishment", "Create establishment")}
+            submitLabel={t("experiences.createEstablishment", "Create company")}
         >
             <div className="space-y-5 max-w-lg">
                 <div className="space-y-2">
@@ -133,7 +133,7 @@ export default function EstablishmentCreate() {
                         onChange={(e) => setForm(f => ({ ...f, cheese_is_hotel: e.target.checked }))}
                     />
                     <Label htmlFor="is_hotel" className="font-medium cursor-pointer">
-                        {t("experiences.isHotel", "This establishment is a Hotel")}
+                        {t("experiences.isHotel", "This company is a Hotel")}
                     </Label>
                 </div>
                 <div className="space-y-2">

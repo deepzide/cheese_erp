@@ -91,7 +91,7 @@ export default function Seasons() {
         if (editing) {
             updateMutation.mutate({ name: editing.name, data: payload }, { onSuccess: done, onError: fail });
         } else {
-            if (!effectiveCompany) { toast.error(t("seasons.companyRequired", "Selecciona un establecimiento")); return; }
+            if (!effectiveCompany) { toast.error(t("seasons.companyRequired", "Selecciona una empresa")); return; }
             createMutation.mutate({ ...payload, company: effectiveCompany }, { onSuccess: done, onError: fail });
         }
     };
@@ -165,14 +165,14 @@ export default function Seasons() {
                     <div className="space-y-4">
                         {isAdmin && !editing && (
                             <div className="space-y-1">
-                                <Label>{t("common.company", "Establecimiento")} <span className="text-red-500">*</span></Label>
+                                <Label>{t("common.company", "Empresa")} <span className="text-red-500">*</span></Label>
                                 <CompanySelect value={company} onChange={setCompany} />
-                                <p className="text-xs text-muted-foreground">{t("seasons.companyPickHint", "Elige el establecimiento para poder seleccionar sus experiencias.")}</p>
+                                <p className="text-xs text-muted-foreground">{t("seasons.companyPickHint", "Elige la empresa para poder seleccionar sus experiencias.")}</p>
                             </div>
                         )}
                         {isAdmin && editing && (
                             <div className="space-y-1">
-                                <Label>{t("common.company", "Establecimiento")}</Label>
+                                <Label>{t("common.company", "Empresa")}</Label>
                                 <p className="text-sm font-medium">{editing.company}</p>
                             </div>
                         )}
@@ -200,7 +200,7 @@ export default function Seasons() {
                         </label>
                         <div className="space-y-2">
                             <Label>{t("seasons.experiences", "Experiencias a las que aplica")}</Label>
-                            <p className="text-xs text-muted-foreground">{t("seasons.experiencesHint", "Sin selección = aplica a todas las experiencias del establecimiento.")}</p>
+                            <p className="text-xs text-muted-foreground">{t("seasons.experiencesHint", "Sin selección = aplica a todas las experiencias de la empresa.")}</p>
                             <div className="max-h-40 overflow-y-auto border border-border rounded-lg p-2 space-y-1">
                                 {experiences.map((exp) => (
                                     <label key={exp.name} className="flex items-center gap-2 text-sm cursor-pointer">
@@ -208,7 +208,7 @@ export default function Seasons() {
                                         {exp.name}
                                     </label>
                                 ))}
-                                {experiences.length === 0 && <p className="text-xs text-muted-foreground p-2">{t("seasons.noExperiences", "Selecciona un establecimiento para listar sus experiencias")}</p>}
+                                {experiences.length === 0 && <p className="text-xs text-muted-foreground p-2">{t("seasons.noExperiences", "Selecciona una empresa para listar sus experiencias")}</p>}
                             </div>
                         </div>
                     </div>

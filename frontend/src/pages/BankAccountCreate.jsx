@@ -64,7 +64,7 @@ function EstablishmentSearchSelect({ value, onChange, placeholder, presetOptions
                 className={`w-full flex items-center justify-between h-10 px-3 rounded-md border border-input bg-background text-sm ring-offset-background transition-colors overflow-hidden hover:border-cheese-400 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 cursor-pointer ${open ? 'border-cheese-400 ring-2 ring-ring ring-offset-2' : ''}`}
             >
                 <span className={`${value ? "text-foreground" : "text-muted-foreground"} flex-1 min-w-0 truncate text-left pr-2`}>
-                    {value ? displayLabel : (placeholder || t("bankAccounts.selectEstablishment", "Seleccionar establecimiento..."))}
+                    {value ? displayLabel : (placeholder || t("bankAccounts.selectEstablishment", "Seleccionar empresa..."))}
                 </span>
                 <div className="flex items-center gap-1 flex-shrink-0">
                     {value && (
@@ -85,7 +85,7 @@ function EstablishmentSearchSelect({ value, onChange, placeholder, presetOptions
                         <div className="relative">
                             <Search className="w-4 h-4 absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
                             <Input
-                                placeholder={t("bankAccounts.searchEstablishment", "Buscar establecimiento...")}
+                                placeholder={t("bankAccounts.searchEstablishment", "Buscar empresa...")}
                                 value={searchTerm}
                                 onChange={(e) => setSearchTerm(e.target.value)}
                                 className="pl-8 h-8 text-sm"
@@ -160,7 +160,7 @@ export default function BankAccountCreate() {
 
     const isScopedEstablishmentUser = establishments.length === 1 && !initialRoute;
 
-    // Establishment-level users should land on Establecimiento, not Ruta.
+    // Establishment-level users should land on Empresa, not Ruta.
     useEffect(() => {
         if (initialRoute || initialCompany) return;
         if (establishments.length !== 1) return;
@@ -190,7 +190,7 @@ export default function BankAccountCreate() {
         if (!form.entity_id) {
             toast.error(
                 isCompany
-                    ? t("bankAccounts.establishmentRequired", "El establecimiento es obligatorio")
+                    ? t("bankAccounts.establishmentRequired", "La empresa es obligatoria")
                     : t("bankAccounts.routeRequired", "La ruta es obligatoria")
             );
             return;
@@ -225,7 +225,7 @@ export default function BankAccountCreate() {
     return (
         <CreatePageLayout
             title={t("bankAccounts.newBankAccount", "Nuevo Método de Pago")}
-            description={t("bankAccounts.linkDescription", "Vincular una cuenta bancaria a una ruta o establecimiento")}
+            description={t("bankAccounts.linkDescription", "Vincular una cuenta bancaria a una ruta o empresa")}
             icon={Landmark}
             backPath="/cheese/bank-accounts"
             onSubmit={handleSubmit}
@@ -241,17 +241,17 @@ export default function BankAccountCreate() {
                             {!isScopedEstablishmentUser && (
                                 <SelectItem value="Cheese Route">{t("bankAccounts.route", "Ruta")}</SelectItem>
                             )}
-                            <SelectItem value="Company">{t("bankAccounts.establishment", "Establecimiento")}</SelectItem>
+                            <SelectItem value="Company">{t("bankAccounts.establishment", "Empresa")}</SelectItem>
                         </SelectContent>
                     </Select>
                 </div>
                 <div className="space-y-2">
-                    <Label>{isCompany ? t("bankAccounts.establishmentLabel", "Establecimiento") : t("bankAccounts.routeLabel", "Ruta")} <span className="text-red-500">*</span></Label>
+                    <Label>{isCompany ? t("bankAccounts.establishmentLabel", "Empresa") : t("bankAccounts.routeLabel", "Ruta")} <span className="text-red-500">*</span></Label>
                     {isCompany ? (
                         <EstablishmentSearchSelect
                             value={form.entity_id}
                             onChange={(v) => setForm(f => ({ ...f, entity_id: v }))}
-                            placeholder={t("bankAccounts.selectEstablishment", "Seleccionar establecimiento...")}
+                            placeholder={t("bankAccounts.selectEstablishment", "Seleccionar empresa...")}
                             presetOptions={establishments}
                         />
                     ) : (

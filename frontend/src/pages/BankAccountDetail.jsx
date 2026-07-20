@@ -205,9 +205,9 @@ export default function BankAccountDetail() {
                         </CardHeader>
                         <CardContent className="p-6">
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-6 gap-x-8">
-                                <EditableField label="Type" value={account?.entity_type === "Company" ? "Establishment" : "Route"} editMode={false} />
+                                <EditableField label="Type" value={account?.entity_type === "Company" ? "Company" : "Route"} editMode={false} />
                                 <div className="space-y-1">
-                                    <Label className="text-xs text-muted-foreground">{account?.entity_type === "Company" ? "Establishment" : "Route"}</Label>
+                                    <Label className="text-xs text-muted-foreground">{account?.entity_type === "Company" ? "Company" : "Route"}</Label>
                                     <p
                                         className="text-sm font-medium text-primary cursor-pointer hover:underline"
                                         onClick={() => {

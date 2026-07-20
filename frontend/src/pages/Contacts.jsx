@@ -87,7 +87,7 @@ export default function Contacts() {
                 toast.error(payload?.error?.message || t("common.failed", "Failed"));
                 return;
             }
-            toast.success(t("contacts.linkedToEstablishment", "Contacto vinculado al establecimiento"));
+            toast.success(t("contacts.linkedToEstablishment", "Contacto vinculado a la empresa"));
             setLinkTarget(null);
             setLinkCompany("");
             refetch();
@@ -115,7 +115,7 @@ export default function Contacts() {
                     <h1 className="text-2xl font-bold text-foreground flex items-center gap-2"><Users className="w-6 h-6 text-cheese-600" /> {t("contacts.title", "Contacts")}</h1>
                     <p className="text-sm text-muted-foreground mt-1">
                         {isLoading ? '...' : `${filtered.length} ${t("contacts.contacts", "contactos")}`}
-                        {activeEstablishment ? ` · ${t("contacts.scopedTo", "de")} ${activeProfile?.company_name || activeEstablishment}` : ` · ${t("contacts.allEstablishments", "todos los establecimientos")}`}
+                        {activeEstablishment ? ` · ${t("contacts.scopedTo", "de")} ${activeProfile?.company_name || activeEstablishment}` : ` · ${t("contacts.allEstablishments", "todas las empresas")}`}
                     </p>
                 </div>
                 <div className="flex gap-2">
@@ -149,7 +149,7 @@ export default function Contacts() {
                                             <DropdownMenuItem onClick={() => navigate(`/cheese/leads/new?contact=${contact.name}`)}>{t("contacts.createLeadForContact", "Crear Prospecto")}</DropdownMenuItem>
                                             {isAdmin && (
                                                 <DropdownMenuItem onClick={() => openLink(contact)}>
-                                                    <Link2 className="w-3 h-3 mr-2" /> {t("contacts.linkToEstablishment", "Vincular a establecimiento")}
+                                                    <Link2 className="w-3 h-3 mr-2" /> {t("contacts.linkToEstablishment", "Vincular a empresa")}
                                                 </DropdownMenuItem>
                                             )}
                                             <DropdownMenuSeparator />
@@ -172,7 +172,7 @@ export default function Contacts() {
                                             if (!meta) return null;
                                             const Icon = meta.icon;
                                             return (
-                                                <Badge key={s} className={`${meta.cls} gap-1 text-[10px]`} title={t("contacts.relationSourceHint", "Origen de la relación con el establecimiento")}>
+                                                <Badge key={s} className={`${meta.cls} gap-1 text-[10px]`} title={t("contacts.relationSourceHint", "Origen de la relación con la empresa")}>
                                                     <Icon className="w-2.5 h-2.5" /> {t(`contacts.relSource.${s}`, meta.label)}
                                                 </Badge>
                                             );
@@ -195,9 +195,9 @@ export default function Contacts() {
             <Dialog open={!!linkTarget} onOpenChange={(o) => { if (!o) { setLinkTarget(null); setLinkCompany(""); } }}>
                 <DialogContent className="max-w-sm">
                     <DialogHeader>
-                        <DialogTitle className="flex items-center gap-2"><Link2 className="w-5 h-5 text-cheese-600" /> {t("contacts.linkToEstablishment", "Vincular a establecimiento")}</DialogTitle>
+                        <DialogTitle className="flex items-center gap-2"><Link2 className="w-5 h-5 text-cheese-600" /> {t("contacts.linkToEstablishment", "Vincular a empresa")}</DialogTitle>
                         <DialogDescription>
-                            {t("contacts.linkDesc", "El contacto quedará visible para los usuarios del establecimiento seleccionado.")}
+                            {t("contacts.linkDesc", "El contacto quedará visible para los usuarios de la empresa seleccionada.")}
                         </DialogDescription>
                     </DialogHeader>
                     <div className="space-y-3">
@@ -206,7 +206,7 @@ export default function Contacts() {
                             <span className="font-medium">{linkTarget?.full_name || linkTarget?.name}</span>
                         </div>
                         <div className="space-y-1">
-                            <Label>{t("common.company", "Establecimiento")} <span className="text-red-500">*</span></Label>
+                            <Label>{t("common.company", "Empresa")} <span className="text-red-500">*</span></Label>
                             <CompanySelect value={linkCompany} onChange={setLinkCompany} autoFill={false} />
                         </div>
                     </div>
