@@ -417,3 +417,238 @@ def get_active_season_for_experience(experience_id, date=None):
 	except Exception as e:
 		frappe.log_error(f"Error in get_active_season_for_experience: {str(e)}")
 		return error("Failed to resolve active season", "SERVER_ERROR", {"error": str(e)}, 500)
+
+
+def _sim_activity_availability(experience_id, date_value, needed):
+	"""Best slot availability for an activity on a date (no tenant guard: the
+	simulator is a read-only price/availability preview, and routes legitimately
+	span establishments)."""
+	from frappe.utils import getdate
+	from cheese.cheese.utils.capacity import get_available_capacity
+
+	if not date_value:
+		return {"checked": False, "slots": [], "best_available": None, "enough": None}
+	day = getdate(date_value)
+	slots = frappe.get_all(
+		"Cheese Experience Slot",
+		filters={
+			"experience": experience_id,
+			"date_from": ["<=", day],
+			"date_to": [">=", day],
+			"slot_status": ["in", ["OPEN", "CLOSED"]],
+		},
+		fields=["name", "time_from", "max_capacity"],
+		order_by="time_from asc",
+	)
+	details = []
+	best = 0
+	for s in slots:
+		avail = get_available_capacity(s.name, selected_date=day)
+		details.append({"slot_id": s.name, "time": str(s.time_from) if s.time_from else None, "available": avail})
+		best = max(best, avail)
+	return {
+		"checked": True,
+		"slots": details,
+		"best_available": best if slots else 0,
+		"enough": (best >= needed) if slots else False,
+		"has_slots": bool(slots),
+	}
+
+
+def _sim_hotel_availability(experience_id, check_in, check_out, rooms_needed):
+	"""Bottleneck room availability across the nights of a stay."""
+	from frappe.utils import getdate, add_days
+	from cheese.cheese.utils.capacity import get_available_capacity
+
+	ci, co = getdate(check_in), getdate(check_out)
+	slots = frappe.get_all(
+		"Cheese Experience Slot",
+		filters={
+			"experience": experience_id,
+			"date_from": ["<", co],
+			"date_to": [">=", ci],
+			"slot_status": ["in", ["OPEN", "CLOSED"]],
+		},
+		fields=["name", "date_from", "date_to"],
+	)
+	nights = []
+	bottleneck = None
+	cur = ci
+	while cur < co:
+		slot = next((s for s in slots if getdate(s.date_from) <= cur <= getdate(s.date_to)), None)
+		avail = get_available_capacity(slot.name, selected_date=cur) if slot else 0
+		nights.append({"date": str(cur), "available_rooms": avail, "has_slot": bool(slot)})
+		bottleneck = avail if bottleneck is None else min(bottleneck, avail)
+		cur = add_days(cur, 1)
+	bottleneck = bottleneck or 0
+	return {"checked": True, "nights": nights, "available_rooms": bottleneck, "enough": bottleneck >= rooms_needed}
+
+
+@frappe.whitelist()
+def simulate_booking(
+	booking_type,
+	experience_id=None,
+	route_id=None,
+	selected_date=None,
+	check_in_date=None,
+	check_out_date=None,
+	party_size=1,
+	rooms_requested=1,
+	guest_ages=None,
+):
+	"""Reservation price simulator — returns the price a ticket WOULD have,
+	applying the same engine as a real booking (weekday/weekend x age-group
+	matrix, active season, automatic promotions and per-establishment currency)
+	plus a slot-availability check. It never creates tickets.
+
+	Args:
+		booking_type: ACTIVITY | HOTEL | ROUTE
+		experience_id: activity or hotel-room experience (ACTIVITY/HOTEL)
+		route_id: package (ROUTE)
+		selected_date: visit date (ACTIVITY/ROUTE)
+		check_in_date / check_out_date: stay dates (HOTEL)
+		party_size: people (ACTIVITY/ROUTE) — for HOTEL it's the guest count
+		rooms_requested: rooms (HOTEL)
+		guest_ages: JSON list / comma string of ages (drives the age-group matrix)
+	"""
+	try:
+		from frappe.utils import getdate
+		from cheese.cheese.utils.seasonal_pricing import parse_guest_ages
+
+		booking_type = (booking_type or "").upper()
+		if booking_type not in ("ACTIVITY", "HOTEL", "ROUTE"):
+			return validation_error("booking_type must be ACTIVITY, HOTEL or ROUTE")
+
+		ages = parse_guest_ages(guest_ages)
+		party_size = cint(party_size) or (len(ages) or 1)
+
+		if booking_type == "HOTEL":
+			if not experience_id:
+				return validation_error("experience_id is required for HOTEL")
+			if not check_in_date or not check_out_date:
+				return validation_error("check_in_date and check_out_date are required for HOTEL")
+			ci, co = getdate(check_in_date), getdate(check_out_date)
+			if co <= ci:
+				return validation_error("check_out_date must be after check_in_date")
+			if not frappe.db.exists("Cheese Experience", experience_id):
+				return not_found("Experience", experience_id)
+			nights = (co - ci).days
+			rooms = cint(rooms_requested) or 1
+			price = calculate_ticket_price(
+				experience_id,
+				rooms,
+				ticket=frappe._dict({"nights": nights, "check_in_date": str(ci), "guest_ages": ages}),
+				selected_date=str(ci),
+				guest_ages=ages,
+			)
+			deposit = calculate_deposit_amount(experience_id, price.get("total_price", 0))
+			availability = _sim_hotel_availability(experience_id, ci, co, rooms)
+			return success(
+				"Simulation complete",
+				{
+					"booking_type": "HOTEL",
+					"experience_id": experience_id,
+					"check_in_date": str(ci),
+					"check_out_date": str(co),
+					"nights": nights,
+					"rooms": rooms,
+					"guests": party_size,
+					"pricing": price,
+					"deposit": deposit,
+					"currency": price.get("currency"),
+					"total_price": price.get("total_price", 0),
+					"availability": availability,
+					"applied_factors": ["season"],
+				},
+			)
+
+		if booking_type == "ACTIVITY":
+			if not experience_id:
+				return validation_error("experience_id is required for ACTIVITY")
+			if not frappe.db.exists("Cheese Experience", experience_id):
+				return not_found("Experience", experience_id)
+			price = calculate_ticket_price(
+				experience_id, party_size, selected_date=selected_date, guest_ages=ages
+			)
+			deposit = calculate_deposit_amount(experience_id, price.get("total_price", 0))
+			availability = _sim_activity_availability(experience_id, selected_date, party_size)
+			return success(
+				"Simulation complete",
+				{
+					"booking_type": "ACTIVITY",
+					"experience_id": experience_id,
+					"selected_date": selected_date,
+					"party_size": party_size,
+					"guest_ages": ages,
+					"pricing": price,
+					"deposit": deposit,
+					"currency": price.get("currency"),
+					"total_price": price.get("total_price", 0),
+					"availability": availability,
+					"applied_factors": ["weekday_weekend", "age_groups", "season", "promotions"],
+				},
+			)
+
+		# ROUTE: sum each stop's ticket price (in_route) applying the full engine
+		if not route_id:
+			return validation_error("route_id is required for ROUTE")
+		if not frappe.db.exists("Cheese Route", route_id):
+			return not_found("Route", route_id)
+		route = frappe.get_doc("Cheese Route", route_id)
+		stops = []
+		totals_by_currency = {}
+		all_available = True
+		for row in route.experiences:
+			exp_id = row.experience
+			price = calculate_ticket_price(
+				exp_id, party_size, route_id=route_id, selected_date=selected_date, guest_ages=ages
+			)
+			exp = frappe.get_doc("Cheese Experience", exp_id)
+			if exp.experience_type == "HOTEL":
+				avail = {"checked": False, "note": "hotel-in-route: check dates on the room"}
+			else:
+				avail = _sim_activity_availability(exp_id, selected_date, party_size)
+				if avail.get("checked") and not avail.get("enough"):
+					all_available = False
+			cur = price.get("currency") or "UYU"
+			totals_by_currency[cur] = flt(totals_by_currency.get(cur, 0) + price.get("total_price", 0), 2)
+			stops.append(
+				{
+					"experience_id": exp_id,
+					"experience_type": exp.experience_type,
+					"pricing": price,
+					"currency": cur,
+					"total_price": price.get("total_price", 0),
+					"availability": avail,
+				}
+			)
+		mixed = len(totals_by_currency) > 1
+		total = None if mixed else (list(totals_by_currency.values())[0] if totals_by_currency else 0)
+		deposit = 0
+		if route.experiences:
+			deposit = calculate_deposit_amount(
+				route.experiences[0].experience, total or 0, route_id=route_id
+			)
+		return success(
+			"Simulation complete",
+			{
+				"booking_type": "ROUTE",
+				"route_id": route_id,
+				"selected_date": selected_date,
+				"party_size": party_size,
+				"guest_ages": ages,
+				"stops": stops,
+				"totals_by_currency": totals_by_currency,
+				"total_price": total,
+				"mixed_currencies": mixed,
+				"currency": None if mixed else (list(totals_by_currency)[0] if totals_by_currency else None),
+				"deposit": deposit,
+				"availability": {"all_available": all_available},
+				"applied_factors": ["weekday_weekend", "age_groups", "season", "promotions"],
+			},
+		)
+	except frappe.ValidationError as e:
+		return validation_error(str(e))
+	except Exception as e:
+		frappe.log_error(f"Error in simulate_booking: {str(e)}")
+		return error("Failed to simulate booking", "SERVER_ERROR", {"error": str(e)}, 500)

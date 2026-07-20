@@ -38,6 +38,7 @@ import SupportCreate from './SupportCreate';
 import BookingPolicyCreate from './BookingPolicyCreate';
 import BankAccountCreate from './BankAccountCreate';
 import CurrencyConverter from './CurrencyConverter';
+import BookingSimulator from './BookingSimulator';
 import ConversionHistory from './ConversionHistory';
 import DocumentCreate from './DocumentCreate';
 import DocumentDetail from './DocumentDetail';
@@ -131,6 +132,7 @@ export default function Pages() {
                     <Route path="bank-accounts/new" element={<BankAccountCreate />} />
                     <Route path="bank-accounts/:id" element={<BankAccountDetail />} />
                     <Route path="currency-converter" element={<CurrencyConverter />} />
+                    <Route path="booking-simulator" element={<BookingSimulator />} />
                     <Route path="conversion-history" element={<ConversionHistory />} />
                     <Route path="promotions" element={<Promotions />} />
                     <Route path="age-groups" element={<AgeGroups />} />

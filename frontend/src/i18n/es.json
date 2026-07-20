@@ -40,7 +40,8 @@
     "seasons": "Temporadas",
     "hotelRooms": "Habitaciones",
     "currencyConverter": "Convertidor de Monedas",
-    "conversionHistory": "Historial de Conversiones"
+    "conversionHistory": "Historial de Conversiones",
+    "bookingSimulator": "Simulador de Reservas"
   },
   "sections": {
     "commandCenter": "Centro de Control",

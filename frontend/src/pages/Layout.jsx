@@ -7,7 +7,7 @@ import {
     Users, UserPlus, FileText, Wallet, ShoppingCart,
     Bell, Menu, LogOut, ChevronDown, ChevronRight, X, Search,
     Zap, Sun, Moon, Globe,
-    Shield, Landmark, UserCheck, QrCode, Star, Activity, MessageSquare, Building2, ScanLine, Hotel, BedDouble, Database, Webhook, FileSearch, History, Bot, Mail, BadgePercent, Users2, CalendarRange, DoorOpen, ArrowLeftRight
+    Shield, Landmark, UserCheck, QrCode, Star, Activity, MessageSquare, Building2, ScanLine, Hotel, BedDouble, Database, Webhook, FileSearch, History, Bot, Mail, BadgePercent, Users2, CalendarRange, DoorOpen, ArrowLeftRight, Calculator
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -49,6 +49,7 @@ const navigationItems = [
     // OPERACIÓN
     { titleKey: "nav.tickets", url: createPageUrl("tickets"), icon: Ticket, section: "operacion", consolidated: true },
     { titleKey: "nav.bookings", url: createPageUrl("bookings"), icon: ShoppingCart, section: "operacion" },
+    { titleKey: "nav.bookingSimulator", url: createPageUrl("booking-simulator"), icon: Calculator, section: "operacion" },
     { titleKey: "nav.calendar", url: createPageUrl("calendar"), icon: CalendarDays, section: "operacion" },
     { titleKey: "nav.conversations", url: createPageUrl("conversations"), icon: MessageSquare, section: "operacion" },
     // HOTEL (solo si el establecimiento tiene hotel)

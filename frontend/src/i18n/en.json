@@ -36,7 +36,8 @@
     "seasons": "Seasons",
     "hotelRooms": "Rooms",
     "currencyConverter": "Currency Converter",
-    "conversionHistory": "Conversion History"
+    "conversionHistory": "Conversion History",
+    "bookingSimulator": "Booking Simulator"
   },
   "sections": {
     "commandCenter": "Command Center",
