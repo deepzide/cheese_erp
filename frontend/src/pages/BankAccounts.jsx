@@ -13,6 +13,7 @@ import { Landmark, Search, Plus, AlertCircle, RefreshCw, Loader2, MoreHorizontal
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
 import { useFrappeList, useFrappeCreate } from "@/lib/useApiData";
+import { useActiveEstablishment } from "@/lib/ActiveEstablishmentContext";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useTranslation } from "react-i18next";
 import { bankAccountService } from "@/api/bankAccountService";
@@ -33,10 +34,13 @@ export default function BankAccounts() {
     const [deleteTarget, setDeleteTarget] = useState(null);
     const [form, setForm] = useState({ entity_type: "Cheese Route", entity_id: searchParams.get('route') || "", holder: "", bank: "", account: "", iban: "", currency: "EUR" });
     const routeFilter = searchParams.get('route');
+    const { activeEstablishment } = useActiveEstablishment();
 
     const { data: accounts = [], isLoading, error, refetch } = useFrappeList("Cheese Bank Account", {
         fields: ["name", "entity_type", "entity_id", "route", "status", "holder", "bank", "account", "iban", "currency", "creation", "category"],
-        filters: routeFilter ? { entity_id: routeFilter } : undefined,
+        filters: routeFilter
+            ? { entity_id: routeFilter }
+            : (activeEstablishment ? { entity_type: "Company", entity_id: activeEstablishment } : undefined),
         pageSize: 100,
     });
 

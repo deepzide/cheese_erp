@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { useAutoFillCompany, useHotelAccess } from "@/lib/useHotelAccess";
+import { useActiveEstablishment } from "@/lib/ActiveEstablishmentContext";
 import { motion } from "framer-motion";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
@@ -35,10 +36,11 @@ export default function Experiences() {
 
     useAutoFillCompany(companyFilter === "all" ? "" : companyFilter, (v) => setCompanyFilter(v));
 
+    const { activeEstablishment } = useActiveEstablishment();
     const { data: expRaw, isLoading, error, refetch } = useQuery({
-        queryKey: ['experiences'],
+        queryKey: ['experiences', activeEstablishment],
         queryFn: async () => {
-            const result = await experienceService.listExperiences({ page_size: 100 });
+            const result = await experienceService.listExperiences({ page_size: 100, establishment_id: activeEstablishment || undefined });
             const payload = result?.data?.message || result?.data || result;
             return payload?.data || [];
         },

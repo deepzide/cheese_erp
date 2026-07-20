@@ -13,6 +13,7 @@ import { FileText, Search, Plus, DollarSign, Eye, MoreHorizontal, Trash2, Send, 
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
 import { useFrappeList, useFrappeCreate, useFrappeUpdate, useFrappeDelete } from "@/lib/useApiData";
+import { useActiveEstablishment } from "@/lib/ActiveEstablishmentContext";
 
 const QT_STATUS = {
     DRAFT: "bg-slate-500/15 text-slate-700 border-slate-300 dark:text-slate-300 dark:border-slate-700",
@@ -28,7 +29,9 @@ export default function Quotations() {
     const [createOpen, setCreateOpen] = useState(false);
     const [form, setForm] = useState({ lead: "", route: "", total_price: "" });
 
+    const { activeEstablishment } = useActiveEstablishment();
     const { data: quotations = [], isLoading, error, refetch } = useFrappeList("Cheese Quotation", {
+        filters: activeEstablishment ? { company: activeEstablishment } : {},
         fields: ["name", "lead", "route", "total_price", "deposit_amount", "status", "valid_until"],
         pageSize: 100,
     });

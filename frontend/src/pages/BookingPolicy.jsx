@@ -12,6 +12,7 @@ import { Shield, Search, AlertCircle, RefreshCw, Loader2, Plus, Clock, MoreHoriz
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
 import { useFrappeList, useFrappeCreate } from "@/lib/useApiData";
+import { useActiveEstablishment } from "@/lib/ActiveEstablishmentContext";
 import { apiRequest } from "@/api/client";
 import FrappeSearchSelect from "@/components/FrappeSearchSelect";
 import { experienceService } from "@/api/experienceService";
@@ -40,7 +41,9 @@ export default function BookingPolicy() {
     const [experiencePicker, setExperiencePicker] = useState("");
     const [savingLinks, setSavingLinks] = useState(false);
 
+    const { activeEstablishment } = useActiveEstablishment();
     const { data: policies = [], isLoading, error, refetch } = useFrappeList("Cheese Booking Policy", {
+        filters: activeEstablishment ? { company: activeEstablishment } : {},
         fields: ["name", "experience", "cancel_until_hours_before", "modify_until_hours_before", "min_hours_before_booking", "creation", "modified"],
         pageSize: 100,
     });

@@ -11,6 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { QrCode, Search, Filter, Clock, AlertCircle, RefreshCw, Ticket, MoreHorizontal } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { useFrappeList } from "@/lib/useApiData";
+import { useActiveEstablishment } from "@/lib/ActiveEstablishmentContext";
 import { getBaseUrl } from "@/api/client";
 import { useTranslation } from "react-i18next";
 
@@ -28,7 +29,11 @@ export default function QRTokens() {
     const [searchTerm, setSearchTerm] = useState(searchParams.get('ticket') || "");
     const [filterStatus, setFilterStatus] = useState("all");
 
-    const statusFilter = filterStatus !== "all" ? { status: filterStatus } : {};
+    const { activeEstablishment } = useActiveEstablishment();
+    const statusFilter = {
+        ...(filterStatus !== "all" ? { status: filterStatus } : {}),
+        ...(activeEstablishment ? { company: activeEstablishment } : {}),
+    };
     const [selectedToken, setSelectedToken] = useState(null);
 
     const { data: tokens = [], isLoading, error, refetch } = useFrappeList("Cheese QR Token", {

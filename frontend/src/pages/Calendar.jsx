@@ -9,6 +9,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { CalendarDays, ChevronLeft, ChevronRight, Filter, RefreshCw, Plus, AlertCircle } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useFrappeList } from "@/lib/useApiData";
+import { useActiveEstablishment } from "@/lib/ActiveEstablishmentContext";
 import {
     format, navigate as nav, startOfWeek, endOfWeek, startOfMonth, endOfMonth,
 } from "@/components/calendar/calendarUtils";
@@ -69,7 +70,9 @@ export default function CalendarPage() {
     });
 
     // Fetch slots for current range
+    const { activeEstablishment } = useActiveEstablishment();
     const slotFilters = {};
+    if (activeEstablishment) slotFilters.company = activeEstablishment;
     if (selectedExperience && selectedExperience !== "all") slotFilters.experience = selectedExperience;
 
     const { data: slotsRaw = [], isLoading, error, refetch } = useFrappeList("Cheese Experience Slot", {

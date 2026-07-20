@@ -11,6 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { MessageSquare, Search, Filter, Clock, AlertCircle, RefreshCw, User, Ticket, ExternalLink, MoreHorizontal, ShoppingCart } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { useFrappeList } from "@/lib/useApiData";
+import { useActiveEstablishment } from "@/lib/ActiveEstablishmentContext";
 import { useTranslation } from "react-i18next";
 
 const STATUS_CONFIG = {
@@ -33,7 +34,9 @@ export default function Conversations() {
     const [filterChannel, setFilterChannel] = useState("all");
     const [selectedConvo, setSelectedConvo] = useState(null);
 
+    const { activeEstablishment } = useActiveEstablishment();
     const serverFilters = {};
+    if (activeEstablishment) serverFilters.company = activeEstablishment;
     if (filterChannel !== "all") serverFilters.channel = filterChannel;
     if (contactParam) serverFilters.contact = contactParam;
     if (leadParam) serverFilters.lead = leadParam;

@@ -14,6 +14,7 @@ import { UserPlus, Search, Plus, ArrowRight, Trash2, AlertCircle, RefreshCw, Loa
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
 import { useFrappeList, useFrappeCreate, useFrappeUpdate, useFrappeDelete } from "@/lib/useApiData";
+import { useActiveEstablishment } from "@/lib/ActiveEstablishmentContext";
 
 const LEAD_STATUSES = {
     OPEN: "bg-blue-500/15 text-blue-700 dark:text-blue-400",
@@ -32,7 +33,9 @@ export default function Leads() {
     const [createOpen, setCreateOpen] = useState(false);
     const [form, setForm] = useState({ contact: "", interest_type: "", status: "OPEN" });
 
+    const { activeEstablishment } = useActiveEstablishment();
     const { data: leads = [], isLoading, error, refetch } = useFrappeList("Cheese Lead", {
+        filters: activeEstablishment ? { company: activeEstablishment } : {},
         fields: ["name", "contact", "conversation", "status", "interest_type", "lost_reason", "last_interaction_at"],
         pageSize: 100,
     });

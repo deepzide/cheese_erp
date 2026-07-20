@@ -11,6 +11,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { BedDouble, Search, AlertCircle, RefreshCw, Calendar, User, Phone, Mail, DollarSign, Moon } from "lucide-react";
 import { hotelService } from "@/api/hotelService";
+import { useActiveEstablishment } from "@/lib/ActiveEstablishmentContext";
 
 const STATUS_COLORS = {
     PENDING: "bg-yellow-500/15 text-yellow-700",
@@ -25,7 +26,8 @@ const STATUS_COLORS = {
 
 export default function HotelReservations() {
     const [searchParams] = useSearchParams();
-    const hotelId = searchParams.get("hotel");
+    const { activeEstablishment } = useActiveEstablishment();
+    const hotelId = searchParams.get("hotel") || activeEstablishment || null;
     const { t } = useTranslation();
     const [statusFilter, setStatusFilter] = useState("all");
     const [dateFrom, setDateFrom] = useState("");

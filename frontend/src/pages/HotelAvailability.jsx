@@ -13,6 +13,7 @@ import { CalendarDays, AlertCircle, RefreshCw, BedDouble, Plus, Check, X, Loader
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { hotelService } from "@/api/hotelService";
+import { useActiveEstablishment } from "@/lib/ActiveEstablishmentContext";
 import { ticketService } from "@/api/ticketService";
 import FrappeSearchSelect from "@/components/FrappeSearchSelect";
 import { useTranslation } from "react-i18next";
@@ -54,7 +55,9 @@ export default function HotelAvailability() {
         },
     });
 
-    const hotels = Array.isArray(hotelsPayload?.data) ? hotelsPayload.data : [];
+    const { activeEstablishment } = useActiveEstablishment();
+    const allHotels = Array.isArray(hotelsPayload?.data) ? hotelsPayload.data : [];
+    const hotels = activeEstablishment ? allHotels.filter((h) => h.name === activeEstablishment) : allHotels;
 
     // Fetch experiences for the selected hotel
     const { data: expPayload } = useQuery({

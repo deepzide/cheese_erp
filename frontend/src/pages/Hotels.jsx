@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Hotel, Search, Plus, AlertCircle, RefreshCw, BedDouble, Calendar } from "lucide-react";
 import { hotelService } from "@/api/hotelService";
+import { useActiveEstablishment } from "@/lib/ActiveEstablishmentContext";
 import { useTranslation } from "react-i18next";
 
 export default function Hotels() {
@@ -24,8 +25,10 @@ export default function Hotels() {
         },
     });
 
+    const { activeEstablishment } = useActiveEstablishment();
     const rows = Array.isArray(payload?.data) ? payload.data : [];
     const filtered = rows.filter((h) => {
+        if (activeEstablishment && h.name !== activeEstablishment) return false;
         if (!searchTerm) return true;
         const t = searchTerm.toLowerCase();
         return (h.company_name || "").toLowerCase().includes(t) || (h.name || "").toLowerCase().includes(t);

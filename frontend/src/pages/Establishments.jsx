@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Building2, Search, Plus, AlertCircle, RefreshCw, Landmark } from "lucide-react";
 import { establishmentService } from "@/api/establishmentService";
+import { useActiveEstablishment } from "@/lib/ActiveEstablishmentContext";
 import { useTranslation } from "react-i18next";
 
 export default function Establishments() {
@@ -29,8 +30,10 @@ export default function Establishments() {
         },
     });
 
+    const { activeEstablishment } = useActiveEstablishment();
     const rows = Array.isArray(payload?.data) ? payload.data : [];
     const filtered = rows.filter((e) => {
+        if (activeEstablishment && e.company_id !== activeEstablishment) return false;
         if (!searchTerm) return true;
         const t = searchTerm.toLowerCase();
         return (

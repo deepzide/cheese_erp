@@ -11,6 +11,7 @@ import { FileText, Search, Plus, AlertCircle, RefreshCw, MoreHorizontal, Externa
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { useFrappeList } from "@/lib/useApiData";
+import { useActiveEstablishment } from "@/lib/ActiveEstablishmentContext";
 import { useHotelAccess } from "@/lib/useHotelAccess";
 import { useTranslation } from "react-i18next";
 import { documentService } from "@/api/documentService";
@@ -41,11 +42,12 @@ export default function Documents() {
     const [searchTerm, setSearchTerm] = useState("");
     const entityTypeFilter = searchParams.get("entity_type") || "";
     const entityIdFilter = searchParams.get("entity_id") || "";
+    const { activeEstablishment } = useActiveEstablishment();
 
     const { data: docs = [], isLoading, error, refetch } = useFrappeList("Cheese Document", {
         filters: {
-            entity_type: entityTypeFilter || undefined,
-            entity_id: entityIdFilter || undefined,
+            entity_type: entityTypeFilter || (activeEstablishment ? "Company" : undefined),
+            entity_id: entityIdFilter || (activeEstablishment || undefined),
         },
         fields: DOC_FIELDS,
         pageSize: 100,

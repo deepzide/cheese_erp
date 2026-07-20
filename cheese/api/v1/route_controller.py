@@ -458,7 +458,7 @@ def get_route_details(route_id):
 
 
 @frappe.whitelist()
-def list_routes(page=1, page_size=20, status=None, search=None, experiences=None):
+def list_routes(page=1, page_size=20, status=None, search=None, experiences=None, establishment_id=None):
 	"""
 	List routes with filters
 
@@ -497,6 +497,28 @@ def list_routes(page=1, page_size=20, status=None, search=None, experiences=None
 				return paginated_response([], "No routes", page=page, page_size=page_size, total=0)
 
 			filters["name"] = ["in", [r.parent for r in user_route_rows]]
+
+		# Admin scoping to a single establishment: keep only packages that
+		# include at least one experience of that company (mirrors the owner
+		# scope above so the global selector reduces the package list).
+		if establishment_id:
+			est_exps = frappe.get_all(
+				"Cheese Experience", filters={"company": establishment_id}, pluck="name"
+			)
+			est_routes = []
+			if est_exps:
+				est_route_rows = frappe.db.sql(
+					"SELECT DISTINCT parent FROM `tabCheese Route Experience` WHERE experience IN %(exps)s",
+					{"exps": tuple(est_exps)},
+					as_dict=True,
+				)
+				est_routes = [r.parent for r in est_route_rows]
+			if filters.get("name"):
+				allowed = set(filters["name"][1])
+				est_routes = [r for r in est_routes if r in allowed]
+			if not est_routes:
+				return paginated_response([], "No routes", page=page, page_size=page_size, total=0)
+			filters["name"] = ["in", est_routes]
 
 		if experiences:
 			try:

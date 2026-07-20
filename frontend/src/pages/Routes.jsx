@@ -15,6 +15,7 @@ import { Route, Search, Plus, ChevronRight, ChevronUp, ChevronDown, Sparkles, Gl
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
 import { routeService } from "@/api/routeService";
+import { useActiveEstablishment } from "@/lib/ActiveEstablishmentContext";
 import { experienceService } from "@/api/experienceService";
 import { extractData } from "@/lib/useApiData";
 
@@ -81,10 +82,11 @@ export default function RoutesPage() {
     const [startTimes, setStartTimes] = useState({});
     const [experienceToAdd, setExperienceToAdd] = useState("");
 
+    const { activeEstablishment } = useActiveEstablishment();
     const { data: routesRaw, isLoading, error, refetch } = useQuery({
-        queryKey: ['routes'],
+        queryKey: ['routes', activeEstablishment],
         queryFn: async () => {
-            const result = await routeService.listRoutes({ page_size: 100 });
+            const result = await routeService.listRoutes({ page_size: 100, establishment_id: activeEstablishment || undefined });
             const payload = result?.data?.message || result?.data || result;
             return payload?.data || [];
         },

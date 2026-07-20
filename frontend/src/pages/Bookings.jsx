@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from "react";
 import { useAutoFillCompany } from "@/lib/useHotelAccess";
+import { useActiveEstablishment } from "@/lib/ActiveEstablishmentContext";
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
@@ -30,7 +31,9 @@ export default function Bookings() {
     const { isAdmin, userCompanies, companyLocked } = useHotelAccess();
     const [searchTerm, setSearchTerm] = useState("");
     const [filterStatus, setFilterStatus] = useState("all");
+    const { activeEstablishment } = useActiveEstablishment();
     const [filterEstablishment, setFilterEstablishment] = useState("all");
+    React.useEffect(() => { setFilterEstablishment(activeEstablishment || "all"); }, [activeEstablishment]);
 
     useAutoFillCompany(
         filterEstablishment === "all" ? "" : filterEstablishment,
