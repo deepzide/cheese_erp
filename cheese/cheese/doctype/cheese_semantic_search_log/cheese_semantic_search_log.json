@@ -12,6 +12,7 @@
   "column_break_1",
   "entity_type",
   "entity_id",
+  "company",
   "top_k",
   "min_similarity",
   "results_section",
@@ -84,6 +85,13 @@
    "label": "Results JSON",
    "read_only": 1,
    "description": "Ranked documents returned to the caller: document_id, title, similarity, file_url, document_type"
+  },
+  {
+   "fieldname": "company",
+   "fieldtype": "Data",
+   "label": "Company",
+   "in_standard_filter": 1,
+   "read_only": 1
   }
  ],
  "in_create": 1,

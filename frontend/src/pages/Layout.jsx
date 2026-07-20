@@ -70,6 +70,8 @@ const navigationItems = [
     { titleKey: "nav.promotions", url: createPageUrl("promotions"), icon: BadgePercent, section: "catalogo" },
     { titleKey: "nav.ageGroups", url: createPageUrl("age-groups"), icon: Users2, section: "catalogo" },
     { titleKey: "nav.seasons", url: createPageUrl("seasons"), icon: CalendarRange, section: "catalogo" },
+    { titleKey: "nav.semanticSearch", url: createPageUrl("semantic-search"), icon: FileSearch, section: "catalogo" },
+    { titleKey: "nav.searchHistory", url: createPageUrl("search-history"), icon: History, section: "catalogo" },
     // FINANZAS
     { titleKey: "nav.deposits", url: createPageUrl("deposits"), icon: Wallet, section: "finanzas" },
     { titleKey: "nav.bankAccounts", url: createPageUrl("bank-accounts"), icon: Landmark, section: "finanzas" },
@@ -88,8 +90,6 @@ const navigationItems = [
     { titleKey: "nav.backups", url: createPageUrl("backups"), icon: Database, section: "sistema" },
     { titleKey: "nav.webhookSettings", url: createPageUrl("webhook-settings"), icon: Webhook, section: "sistema" },
     { titleKey: "nav.emailServer", url: createPageUrl("email-server"), icon: Mail, section: "sistema" },
-    { titleKey: "nav.semanticSearch", url: createPageUrl("semantic-search"), icon: FileSearch, section: "sistema" },
-    { titleKey: "nav.searchHistory", url: createPageUrl("search-history"), icon: History, section: "sistema" },
 ];
 
 const sectionDefs = {
@@ -104,7 +104,7 @@ const sectionDefs = {
     sistema: { labelKey: "sections.system", icon: Activity },
 };
 
-const ADMIN_ONLY_PAGES = ["backups", "events", "users", "bot-users", "email-server", "webhook-settings", "semantic-search", "search-history"];
+const ADMIN_ONLY_PAGES = ["backups", "events", "users", "bot-users", "email-server", "webhook-settings"];
 
 /**
  * Sidebar content, hoisted to module scope (NOT defined inside Layout's

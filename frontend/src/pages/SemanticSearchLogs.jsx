@@ -13,12 +13,14 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { documentSearchService } from "@/api/documentSearchService";
 import { documentLink, SimilarityBadge } from "./SemanticSearchTest";
+import { useActiveEstablishment } from "@/lib/ActiveEstablishmentContext";
 
 const TYPE_ICONS = { PDF: FileText, Image: ImageIcon, Link: Link2 };
 const PAGE_SIZE = 20;
 
 export default function SemanticSearchLogs() {
     const { t } = useTranslation();
+    const { activeEstablishment } = useActiveEstablishment();
     const [logs, setLogs] = useState([]);
     const [loading, setLoading] = useState(false);
     const [page, setPage] = useState(1);
@@ -35,6 +37,7 @@ export default function SemanticSearchLogs() {
                 page_size: PAGE_SIZE,
                 search: search.trim() || undefined,
                 source: source === "all" ? undefined : source,
+                company: activeEstablishment || undefined,
             });
             const payload = res?.data?.message || res?.data || {};
             setLogs(Array.isArray(payload?.data) ? payload.data : []);
@@ -50,7 +53,7 @@ export default function SemanticSearchLogs() {
     useEffect(() => {
         fetchLogs(1);
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [source]);
+    }, [source, activeEstablishment]);
 
     const toggleExpand = (id) => setExpanded(prev => ({ ...prev, [id]: !prev[id] }));
 

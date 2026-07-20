@@ -13,6 +13,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { documentSearchService } from "@/api/documentSearchService";
 import { getBaseUrl, unwrapFrappeMethodData } from "@/api/client";
+import { useActiveEstablishment } from "@/lib/ActiveEstablishmentContext";
 
 const TYPE_ICONS = { PDF: FileText, Image: ImageIcon, Link: Link2 };
 
@@ -34,6 +35,7 @@ export function SimilarityBadge({ value }) {
 
 export default function SemanticSearchTest() {
     const { t } = useTranslation();
+    const { activeEstablishment } = useActiveEstablishment();
     const [query, setQuery] = useState("");
     const [topK, setTopK] = useState("5");
     const [searching, setSearching] = useState(false);
@@ -50,6 +52,7 @@ export default function SemanticSearchTest() {
             const res = await documentSearchService.searchSemantic({
                 query: query.trim(),
                 top_k: parseInt(topK) || 5,
+                company: activeEstablishment || undefined,
             });
             const data = unwrapFrappeMethodData(res, {});
             setResults(data?.results || []);

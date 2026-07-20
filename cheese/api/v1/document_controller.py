@@ -504,6 +504,10 @@ def _document_search_base_filters(entity_type=None, entity_id=None, status="PUBL
 def _log_semantic_search(query, entity_type, entity_id, top_k, min_similarity, results, source):
 	"""Persist the search and its ranked results for auditing. Never breaks the search."""
 	try:
+		# Tag the log with the searching user's establishment so the history can
+		# be scoped: establishment users only see their own searches. Super
+		# admins have no company (None) and their searches stay unscoped.
+		searcher_company = _get_current_user_company()
 		log = frappe.get_doc(
 			{
 				"doctype": "Cheese Semantic Search Log",
@@ -511,6 +515,7 @@ def _log_semantic_search(query, entity_type, entity_id, top_k, min_similarity, r
 				"source": "TEST" if (source or "").upper() == "TEST" else "API",
 				"entity_type": entity_type,
 				"entity_id": entity_id,
+				"company": searcher_company or None,
 				"top_k": top_k,
 				"min_similarity": min_similarity,
 				"results_count": len(results),
@@ -547,6 +552,7 @@ def search_documents_semantic(
 	content_max_chars=6000,
 	status="PUBLISHED",
 	search_source="API",
+	company=None,
 ):
 	"""
 	Rank documents by semantic similarity against a natural-language query.
@@ -613,10 +619,17 @@ def search_documents_semantic(
 			],
 		)
 
+		# Establishment users are hard-scoped by _is_entity_accessible; a super
+		# admin may optionally narrow the search to one establishment (the
+		# global selector) via the company argument.
+		admin_scope = None if _get_current_user_company() else (company or None)
+
 		results = []
 		for row in candidates:
 			# Tenant isolation: establishment users only see their own documents
 			if not _is_entity_accessible(row.entity_type, row.entity_id):
+				continue
+			if admin_scope and _entity_company(row.entity_type, row.entity_id) != admin_scope:
 				continue
 			# Vectors from a different model are not comparable
 			if row.embedding_model and row.embedding_model != settings["model"]:
@@ -724,7 +737,7 @@ def reindex_documents():
 
 
 @frappe.whitelist()
-def list_semantic_search_logs(page=1, page_size=20, search=None, source=None):
+def list_semantic_search_logs(page=1, page_size=20, search=None, source=None, company=None):
 	"""
 	Paginated history of semantic searches with their ranked results (audit).
 
@@ -735,13 +748,18 @@ def list_semantic_search_logs(page=1, page_size=20, search=None, source=None):
 		source: Optional filter: API (bot/agent) or TEST (ERP test page)
 	"""
 	try:
-		if frappe.session.user != "Administrator" and "System Manager" not in frappe.get_roles():
-			return error("Unauthorized", "UNAUTHORIZED", {}, 403)
-
 		page = cint(page) or 1
 		page_size = min(cint(page_size) or 20, 100)
 
 		filters = {}
+		# Establishment users only see their own establishment's searches;
+		# super admins (no company) see every search, or one establishment when
+		# they pass the company filter (global selector).
+		user_company = _get_current_user_company()
+		if user_company:
+			filters["company"] = user_company
+		elif company:
+			filters["company"] = company
 		if source and source.upper() in ("API", "TEST"):
 			filters["source"] = source.upper()
 		if search and str(search).strip():
@@ -752,7 +770,7 @@ def list_semantic_search_logs(page=1, page_size=20, search=None, source=None):
 			"Cheese Semantic Search Log",
 			filters=filters,
 			fields=[
-				"name", "query", "source", "entity_type", "entity_id",
+				"name", "query", "source", "entity_type", "entity_id", "company",
 				"top_k", "min_similarity", "results_count", "results_json",
 				"owner", "creation",
 			],
@@ -774,6 +792,7 @@ def list_semantic_search_logs(page=1, page_size=20, search=None, source=None):
 					"source": row.source,
 					"entity_type": row.entity_type,
 					"entity_id": row.entity_id,
+					"company": row.company,
 					"top_k": row.top_k,
 					"min_similarity": row.min_similarity,
 					"results_count": row.results_count,
