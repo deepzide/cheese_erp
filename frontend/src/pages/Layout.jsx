@@ -245,26 +245,27 @@ function LayoutInner({ children }) {
     const { establishmentName, isLoading: establishmentLoading, isAdmin } = useHotelAccess();
     const {
         establishments, activeEstablishment, setActiveEstablishment,
-        isAllEstablishments, activeProfile,
+        activeProfile,
     } = useActiveEstablishment();
 
     const visibleNavigationItems = React.useMemo(() => {
-        // While the profile hasn't loaded yet, show everything (no flash of missing menu).
+        // The superadmin ALWAYS sees the complete menu — the establishment
+        // selector changes the DATA scope, never which items exist. No item is
+        // ever hidden from an admin (ningún ítem se elimina del panel lateral).
+        // Owners get a menu adapted to their establishment's feature flags
+        // (hotel / activities / packages); when the profile hasn't loaded yet
+        // everything shows so nothing flashes out.
         const flags = activeProfile || { is_hotel: true, has_activities: true, in_routes: true };
         return navigationItems.filter((item) => {
             if (item.section === "sistema" && !isAdmin) return false;
             if (ADMIN_ONLY_PAGES.some((page) => item.url.endsWith(page)) && !isAdmin) return false;
-            // Estado A: superadmin en "Toda la ruta" ve el menú consolidado + SISTEMA.
-            if (isAdmin && isAllEstablishments) {
-                return item.consolidated || item.section === "sistema";
-            }
-            // Estado B / owner: menú completo del establecimiento, cortado por flags.
+            if (isAdmin) return true;
             if (item.section === "hotel" && !flags.is_hotel) return false;
             if (item.flag === "activities" && !flags.has_activities) return false;
             if (item.flag === "routes" && !flags.in_routes) return false;
             return true;
         });
-    }, [isAdmin, isAllEstablishments, activeProfile]);
+    }, [isAdmin, activeProfile]);
 
     const toggleLanguage = () => {
         const next = i18n.language === "es" ? "en" : "es";
