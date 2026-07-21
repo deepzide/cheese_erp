@@ -28,6 +28,7 @@
     "backups": "Copias de Seguridad",
     "webhookSettings": "Configuración del Webhook",
     "emailServer": "Servidor de Correo",
+    "dataTransfer": "Importar / Exportar",
     "semanticSearch": "Probar Búsqueda Semántica",
     "searchHistory": "Historial de Búsquedas",
     "systemEvents": "Eventos del Sistema",
