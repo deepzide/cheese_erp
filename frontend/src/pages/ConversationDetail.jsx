@@ -67,15 +67,17 @@ export default function ConversationDetail() {
 
     const { data: convo, isLoading: convoLoading } = useFrappeDoc("Conversation", id);
 
-    // Live bot control (WhatsApp only) — proxied through the ERP to the bot API.
-    const isWhatsApp = (convo?.channel || "").toLowerCase() === "whatsapp";
+    // Live bot control (messaging channels) — proxied through the ERP to the bot.
+    const channelLc = (convo?.channel || "").toLowerCase();
+    const isMessaging = ["whatsapp", "telegram", "instagram"].includes(channelLc);
+    const isWhatsApp = channelLc === "whatsapp"; // only WhatsApp has a 24h window
     const [draft, setDraft] = useState("");
     const [sending, setSending] = useState(false);
     const [controlBusy, setControlBusy] = useState(false);
 
     const { data: controlData, refetch: refetchControl } = useQuery({
         queryKey: ["convo-control", id],
-        enabled: !!id && isWhatsApp,
+        enabled: !!id && isMessaging,
         refetchInterval: 30000,
         queryFn: async () => unwrapFrappeMethodData(
             await apiRequest(`/api/method/cheese.api.v1.bot_control_controller.control_status?conversation_id=${encodeURIComponent(id)}`), {}),
@@ -89,7 +91,7 @@ export default function ConversationDetail() {
         queryFn: async () => unwrapFrappeMethodData(
             await apiRequest(`/api/method/cheese.api.v1.bot_control_controller.whatsapp_window?conversation_id=${encodeURIComponent(id)}`), {}),
     });
-    const windowActive = !!windowData?.active;
+    const windowActive = isWhatsApp ? !!windowData?.active : true; // non-WhatsApp: always open
 
     const toggleControl = async () => {
         try {
@@ -223,11 +225,13 @@ export default function ConversationDetail() {
                         )}
                     </div>
                     <div className="flex gap-2 flex-wrap items-center">
-                        {isWhatsApp && (
+                        {isMessaging && (
                             <>
-                                <Badge className={windowActive ? "bg-green-500/15 text-green-700" : "bg-red-500/15 text-red-700"}>
-                                    {windowActive ? t("conversation.window24Active", "Ventana 24h activa") : t("conversation.window24Closed", "Ventana 24h cerrada")}
-                                </Badge>
+                                {isWhatsApp && (
+                                    <Badge className={windowActive ? "bg-green-500/15 text-green-700" : "bg-red-500/15 text-red-700"}>
+                                        {windowActive ? t("conversation.window24Active", "Ventana 24h activa") : t("conversation.window24Closed", "Ventana 24h cerrada")}
+                                    </Badge>
+                                )}
                                 {controlled && (
                                     <Badge className="bg-purple-500/15 text-purple-700">{t("conversation.humanControl", "Control humano")}</Badge>
                                 )}
@@ -379,7 +383,7 @@ export default function ConversationDetail() {
                 <div ref={messagesEndRef} />
             </div>
 
-            {isWhatsApp && (
+            {isMessaging && (
                 <div className="border-t bg-background p-3">
                     {!controlled && (
                         <p className="text-[11px] text-muted-foreground mb-1">

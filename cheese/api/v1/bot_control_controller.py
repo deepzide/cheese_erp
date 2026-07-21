@@ -5,8 +5,10 @@
 
 Reads the bot base URL + API key from Cheese Bot Setting and calls the bot's
 /erp control/messaging endpoints server-side, so the SPA never handles the key
-and there is no cross-origin call. Each action resolves the Conversation to its
-contact phone and channel first, and is scoped by access to the conversation.
+and there is no cross-origin call. Works for the messaging channels the bot
+speaks — WhatsApp, Telegram and Instagram — using the conversation's contact
+phone as the per-channel key (phone for WhatsApp, chat_id for Telegram,
+``ig_<igsid>`` for Instagram). The 24-hour window only applies to WhatsApp.
 """
 
 from urllib.parse import urlsplit, urlunsplit
@@ -17,6 +19,7 @@ from cheese.api.common.responses import error, not_found, success, validation_er
 from cheese.cheese.utils.access import assert_record_access
 
 BOT_TIMEOUT = 15
+_MESSAGING = ("whatsapp", "telegram", "instagram")
 
 
 def _bot_base_and_key():
@@ -83,12 +86,19 @@ def _resolve(conversation_id):
 	return {"contact": convo.get("contact"), "channel": (convo.get("channel") or "").strip().lower(), "phone": phone}, None
 
 
-def _require_whatsapp(info):
-	if info["channel"] != "whatsapp":
-		return validation_error("Esta acción solo está disponible para conversaciones de WhatsApp.")
+def _require_messaging(info):
+	if info["channel"] not in _MESSAGING:
+		return validation_error("Esta acción solo está disponible para conversaciones de WhatsApp, Telegram o Instagram.")
 	if not info["phone"]:
-		return validation_error("El contacto de la conversación no tiene teléfono registrado.")
+		return validation_error("El contacto de la conversación no tiene identificador de canal registrado.")
 	return None
+
+
+def _control_payload(info):
+	"""Body for take/release-control, keyed as the bot expects per channel."""
+	if info["channel"] == "telegram":
+		return {"chat_id": info["phone"]}
+	return {"phone": info["phone"]}  # whatsapp + instagram both use `phone`
 
 
 @frappe.whitelist()
@@ -97,10 +107,10 @@ def take_control(conversation_id):
 	info, err = _resolve(conversation_id)
 	if err:
 		return err
-	v = _require_whatsapp(info)
+	v = _require_messaging(info)
 	if v:
 		return v
-	resp, e = _bot_post("/take-control/whatsapp", {"phone": info["phone"]})
+	resp, e = _bot_post(f"/take-control/{info['channel']}", _control_payload(info))
 	return _forward(resp, e, "Control tomado")
 
 
@@ -110,10 +120,10 @@ def release_control(conversation_id):
 	info, err = _resolve(conversation_id)
 	if err:
 		return err
-	v = _require_whatsapp(info)
+	v = _require_messaging(info)
 	if v:
 		return v
-	resp, e = _bot_post("/release-control/whatsapp", {"phone": info["phone"]})
+	resp, e = _bot_post(f"/release-control/{info['channel']}", _control_payload(info))
 	return _forward(resp, e, "Control cedido al bot")
 
 
@@ -123,12 +133,10 @@ def control_status(conversation_id):
 	info, err = _resolve(conversation_id)
 	if err:
 		return err
-	if info["channel"] != "whatsapp" or not info["phone"]:
+	if info["channel"] not in _MESSAGING or not info["phone"]:
 		return success("No aplica", {"applicable": False, "controlled": False})
-	resp, e = _bot_post("/control-status", {"channel": "whatsapp", "identifier": info["phone"]})
-	if e:
-		return error(e, "BOT_UNREACHABLE", {}, 502)
-	res = _forward(resp, None, "OK")
+	resp, e = _bot_post("/control-status", {"channel": info["channel"], "identifier": info["phone"]})
+	res = _forward(resp, e, "OK")
 	if isinstance(res, dict) and res.get("success"):
 		res["data"]["applicable"] = True
 	return res
@@ -136,12 +144,13 @@ def control_status(conversation_id):
 
 @frappe.whitelist()
 def whatsapp_window(conversation_id):
-	"""Whether the META 24-hour messaging window is active for this conversation."""
+	"""Whether the META 24-hour messaging window is active (WhatsApp only)."""
 	info, err = _resolve(conversation_id)
 	if err:
 		return err
+	# Only WhatsApp has a 24h free-form window; other channels are always open.
 	if info["channel"] != "whatsapp" or not info["phone"]:
-		return success("No aplica", {"applicable": False, "active": False})
+		return success("No aplica", {"applicable": False, "active": True})
 	resp, e = _bot_post("/whatsapp-window", {"phone": info["phone"]})
 	res = _forward(resp, e, "OK")
 	if isinstance(res, dict) and res.get("success"):
@@ -160,8 +169,12 @@ def send_message(conversation_id, message):
 		return err
 	if not (message or "").strip():
 		return validation_error("El mensaje no puede estar vacío.")
-	v = _require_whatsapp(info)
+	v = _require_messaging(info)
 	if v:
 		return v
-	resp, e = _bot_post("/send-whatsapp", {"contact_id": info["contact"], "message": message})
+	channel = info["channel"]
+	# send-whatsapp resolves the phone from the ERP contact; telegram/instagram
+	# take the channel key directly (stored as the contact phone).
+	contact_id = info["contact"] if channel == "whatsapp" else info["phone"]
+	resp, e = _bot_post(f"/send-{channel}", {"contact_id": contact_id, "message": message})
 	return _forward(resp, e, "Mensaje enviado")
