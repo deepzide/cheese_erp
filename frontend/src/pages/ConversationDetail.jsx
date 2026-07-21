@@ -1,14 +1,15 @@
-import React, { useMemo, useRef, useEffect } from "react";
+import React, { useMemo, useRef, useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { useInfiniteQuery } from "@tanstack/react-query";
+import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
+import { toast } from "sonner";
 import { useFrappeDoc } from "@/lib/useApiData";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { MessageSquare, ArrowLeft, User, Bot, Ticket, ShoppingCart, ExternalLink, CheckCheck } from "lucide-react";
+import { MessageSquare, ArrowLeft, User, Bot, Ticket, ShoppingCart, ExternalLink, CheckCheck, Send, Loader2, Hand } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { apiRequest } from "@/api/client";
+import { apiRequest, unwrapFrappeMethodData } from "@/api/client";
 
 const MESSAGE_PAGE_SIZE = 1000;
 
@@ -65,6 +66,63 @@ export default function ConversationDetail() {
     const stickToBottomRef = useRef(true);
 
     const { data: convo, isLoading: convoLoading } = useFrappeDoc("Conversation", id);
+
+    // Live bot control (WhatsApp only) — proxied through the ERP to the bot API.
+    const isWhatsApp = (convo?.channel || "").toLowerCase() === "whatsapp";
+    const [draft, setDraft] = useState("");
+    const [sending, setSending] = useState(false);
+    const [controlBusy, setControlBusy] = useState(false);
+
+    const { data: controlData, refetch: refetchControl } = useQuery({
+        queryKey: ["convo-control", id],
+        enabled: !!id && isWhatsApp,
+        refetchInterval: 30000,
+        queryFn: async () => unwrapFrappeMethodData(
+            await apiRequest(`/api/method/cheese.api.v1.bot_control_controller.control_status?conversation_id=${encodeURIComponent(id)}`), {}),
+    });
+    const controlled = !!controlData?.controlled;
+
+    const { data: windowData, refetch: refetchWindow } = useQuery({
+        queryKey: ["convo-window", id],
+        enabled: !!id && isWhatsApp,
+        refetchInterval: 60000,
+        queryFn: async () => unwrapFrappeMethodData(
+            await apiRequest(`/api/method/cheese.api.v1.bot_control_controller.whatsapp_window?conversation_id=${encodeURIComponent(id)}`), {}),
+    });
+    const windowActive = !!windowData?.active;
+
+    const toggleControl = async () => {
+        try {
+            setControlBusy(true);
+            const method = controlled ? "release_control" : "take_control";
+            await apiRequest(`/api/method/cheese.api.v1.bot_control_controller.${method}`, {
+                method: "POST", body: JSON.stringify({ conversation_id: id }),
+            });
+            toast.success(controlled ? t("conversation.released", "Control cedido al bot") : t("conversation.taken", "Control tomado"));
+            refetchControl();
+        } catch (err) {
+            toast.error(err?.message || t("common.failed", "Error"));
+        } finally {
+            setControlBusy(false);
+        }
+    };
+
+    const sendAsBot = async () => {
+        if (!draft.trim()) return;
+        try {
+            setSending(true);
+            await apiRequest(`/api/method/cheese.api.v1.bot_control_controller.send_message`, {
+                method: "POST", body: JSON.stringify({ conversation_id: id, message: draft.trim() }),
+            });
+            toast.success(t("conversation.messageSent", "Mensaje enviado"));
+            setDraft("");
+            refetchWindow();
+        } catch (err) {
+            toast.error(err?.message || t("common.failed", "Error"));
+        } finally {
+            setSending(false);
+        }
+    };
 
     const {
         data: pages,
@@ -164,7 +222,21 @@ export default function ConversationDetail() {
                             </>
                         )}
                     </div>
-                    <div className="flex gap-2">
+                    <div className="flex gap-2 flex-wrap items-center">
+                        {isWhatsApp && (
+                            <>
+                                <Badge className={windowActive ? "bg-green-500/15 text-green-700" : "bg-red-500/15 text-red-700"}>
+                                    {windowActive ? t("conversation.window24Active", "Ventana 24h activa") : t("conversation.window24Closed", "Ventana 24h cerrada")}
+                                </Badge>
+                                {controlled && (
+                                    <Badge className="bg-purple-500/15 text-purple-700">{t("conversation.humanControl", "Control humano")}</Badge>
+                                )}
+                                <Button variant={controlled ? "default" : "outline"} size="sm" onClick={toggleControl} disabled={controlBusy}>
+                                    {controlBusy ? <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> : <Hand className="w-3.5 h-3.5 mr-1" />}
+                                    {controlled ? t("conversation.giveControl", "Ceder al bot") : t("conversation.takeControl", "Tomar control")}
+                                </Button>
+                            </>
+                        )}
                         {convo?.ticket && (
                             <Button variant="outline" size="sm" onClick={() => navigate(`/cheese/tickets/${convo.ticket}`)}>
                                 <Ticket className="w-3.5 h-3.5 mr-1" /> {convo.ticket}
@@ -306,6 +378,34 @@ export default function ConversationDetail() {
                 </div>
                 <div ref={messagesEndRef} />
             </div>
+
+            {isWhatsApp && (
+                <div className="border-t bg-background p-3">
+                    {!controlled && (
+                        <p className="text-[11px] text-muted-foreground mb-1">
+                            {t("conversation.takeControlHint", "Toma el control para pausar las respuestas automáticas del bot antes de escribir.")}
+                        </p>
+                    )}
+                    {!windowActive && (
+                        <p className="text-[11px] text-amber-600 mb-1">
+                            {t("conversation.windowClosed", "La ventana de 24h de WhatsApp está cerrada: no puedes enviar mensajes libres hasta que el cliente vuelva a escribir.")}
+                        </p>
+                    )}
+                    <div className="flex items-end gap-2">
+                        <textarea
+                            value={draft}
+                            onChange={(e) => setDraft(e.target.value)}
+                            rows={1}
+                            onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendAsBot(); } }}
+                            placeholder={t("conversation.composerPh", "Escribe un mensaje como el bot…")}
+                            className="flex-1 resize-none rounded-lg border border-input bg-background px-3 py-2 text-sm min-h-[40px] max-h-32"
+                        />
+                        <Button onClick={sendAsBot} disabled={sending || !draft.trim() || !windowActive} className="bg-cheese-500 hover:bg-cheese-600 text-black font-semibold">
+                            {sending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+                        </Button>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
