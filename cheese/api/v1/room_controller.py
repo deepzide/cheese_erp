@@ -1,6 +1,8 @@
 # Copyright (c) 2024
 # License: MIT
 
+import json
+
 import frappe
 from frappe.utils import cint, nowdate
 
@@ -17,6 +19,27 @@ from cheese.cheese.utils.room_assignment import (
 def _company_allowed(company):
 	user_company = _get_current_user_company()
 	return not user_company or user_company == company
+
+
+def _parse_room_ids(room_ids):
+	"""Normalize a room_ids input (JSON string, comma string or list) to a list."""
+	if isinstance(room_ids, str):
+		try:
+			room_ids = json.loads(room_ids)
+		except Exception:
+			room_ids = [x.strip() for x in room_ids.split(",") if x.strip()]
+	return room_ids if isinstance(room_ids, list) else []
+
+
+def _room_has_booking(room_id):
+	"""True when the room has an active booking stay (RESERVED/OCCUPIED); BLOCKED
+	maintenance stays don't count — they are cleared when the room is removed."""
+	return bool(
+		frappe.db.exists(
+			"Cheese Room Stay",
+			{"room": room_id, "status": ["in", ["RESERVED", "OCCUPIED"]]},
+		)
+	)
 
 
 def _room_state_today(room_name):
@@ -232,3 +255,123 @@ def assign_room(ticket_id, room_id):
 	except Exception as e:
 		frappe.log_error(f"Error in assign_room: {e}")
 		return error("Failed to assign room", "SERVER_ERROR", {"error": str(e)}, 500)
+
+
+def _delete_room(room_id):
+	"""Delete a room and its non-booking stays. Returns ('deleted'|'in_use', None)."""
+	if _room_has_booking(room_id):
+		return "in_use"
+	frappe.db.delete("Cheese Room Stay", {"room": room_id})
+	frappe.delete_doc("Cheese Hotel Room", room_id, ignore_permissions=True, force=True)
+	return "deleted"
+
+
+@frappe.whitelist()
+def delete_room(room_id):
+	"""Delete a physical room. Refuses when it has an active booking; its
+	maintenance blocks and stay history are removed with it."""
+	try:
+		if not frappe.db.exists("Cheese Hotel Room", room_id):
+			return not_found("Room", room_id)
+		company = frappe.db.get_value("Cheese Hotel Room", room_id, "company")
+		if not _company_allowed(company):
+			return error("Unauthorized", "UNAUTHORIZED", {}, 403)
+		if _delete_room(room_id) == "in_use":
+			return error(
+				"Room has active bookings; release them before deleting",
+				"ROOM_IN_USE",
+				{"room_id": room_id},
+				409,
+			)
+		frappe.db.commit()
+		return success("Room deleted", {"room_id": room_id})
+	except Exception as e:
+		frappe.log_error(f"Error in delete_room: {e}")
+		return error("Failed to delete room", "SERVER_ERROR", {"error": str(e)}, 500)
+
+
+@frappe.whitelist()
+def bulk_set_room_status(room_ids, status):
+	"""Set the operational status of many rooms at once."""
+	try:
+		if status not in ("ACTIVE", "MAINTENANCE", "OUT_OF_SERVICE"):
+			return validation_error(f"Invalid status: {status}")
+		ids = _parse_room_ids(room_ids)
+		if not ids:
+			return validation_error("room_ids is required")
+		updated, failed = [], []
+		for rid in ids:
+			if not frappe.db.exists("Cheese Hotel Room", rid):
+				failed.append({"room_id": rid, "reason": "not_found"})
+				continue
+			if not _company_allowed(frappe.db.get_value("Cheese Hotel Room", rid, "company")):
+				failed.append({"room_id": rid, "reason": "unauthorized"})
+				continue
+			frappe.db.set_value("Cheese Hotel Room", rid, "status", status)
+			updated.append(rid)
+		frappe.db.commit()
+		return success("Rooms updated", {"updated": updated, "failed": failed, "status": status})
+	except Exception as e:
+		frappe.log_error(f"Error in bulk_set_room_status: {e}")
+		return error("Failed to update rooms", "SERVER_ERROR", {"error": str(e)}, 500)
+
+
+@frappe.whitelist()
+def bulk_block_rooms(room_ids, date_from, date_to, reason=None):
+	"""Block many rooms for the same date range (maintenance BLOCKED stays)."""
+	try:
+		if not date_from or not date_to:
+			return validation_error("date_from and date_to are required")
+		ids = _parse_room_ids(room_ids)
+		if not ids:
+			return validation_error("room_ids is required")
+		blocked, failed = [], []
+		for rid in ids:
+			if not frappe.db.exists("Cheese Hotel Room", rid):
+				failed.append({"room_id": rid, "reason": "not_found"})
+				continue
+			if not _company_allowed(frappe.db.get_value("Cheese Hotel Room", rid, "company")):
+				failed.append({"room_id": rid, "reason": "unauthorized"})
+				continue
+			try:
+				stay = create_stay(rid, None, "BLOCKED", date_from, date_to, reason=reason)
+				blocked.append({"room_id": rid, "stay_id": stay.name})
+			except Exception as ex:
+				failed.append({"room_id": rid, "reason": str(ex)})
+		frappe.db.commit()
+		return success("Rooms blocked", {"blocked": blocked, "failed": failed})
+	except Exception as e:
+		frappe.log_error(f"Error in bulk_block_rooms: {e}")
+		return error("Failed to block rooms", "SERVER_ERROR", {"error": str(e)}, 500)
+
+
+@frappe.whitelist()
+def bulk_delete_rooms(room_ids):
+	"""Delete many rooms. Rooms with an active booking are skipped, not deleted."""
+	try:
+		ids = _parse_room_ids(room_ids)
+		if not ids:
+			return validation_error("room_ids is required")
+		deleted, skipped_in_use, failed = [], [], []
+		for rid in ids:
+			if not frappe.db.exists("Cheese Hotel Room", rid):
+				failed.append({"room_id": rid, "reason": "not_found"})
+				continue
+			if not _company_allowed(frappe.db.get_value("Cheese Hotel Room", rid, "company")):
+				failed.append({"room_id": rid, "reason": "unauthorized"})
+				continue
+			try:
+				if _delete_room(rid) == "in_use":
+					skipped_in_use.append(rid)
+				else:
+					deleted.append(rid)
+			except Exception as ex:
+				failed.append({"room_id": rid, "reason": str(ex)})
+		frappe.db.commit()
+		return success(
+			"Rooms deleted",
+			{"deleted": deleted, "skipped_in_use": skipped_in_use, "failed": failed},
+		)
+	except Exception as e:
+		frappe.log_error(f"Error in bulk_delete_rooms: {e}")
+		return error("Failed to delete rooms", "SERVER_ERROR", {"error": str(e)}, 500)
