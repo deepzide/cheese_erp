@@ -14,9 +14,10 @@ import { apiRequest } from "@/api/client";
 /**
  * Month price calendar for a Cheese Experience. Each day shows the cheapest
  * resolved price ("desde") plus season/promotion/custom markers; clicking a day
- * expands every price for that day across pricing layers (1 base, 2 day/age
- * matrix, 3 season+promotions, 4 custom override). Shift+click a second day to
- * select a range and create a layer-4 custom price for it.
+ * lists every configured price of the experience (base individual/route price
+ * plus each weekday/weekend × age-group combination, only the values entered),
+ * the active season/promotions and any custom price for that date. Shift+click a
+ * second day to select a range and create a custom price for it.
  *
  * Backed by pricing_controller.get_experience_price_calendar and
  * custom_price_controller.create_custom_price.
@@ -63,6 +64,56 @@ export default function ExperiencePriceCalendar({ experienceId }) {
     const currency = data?.currency || "";
     const selectedDay = selected ? daysByDate[selected] : null;
 
+    const ageGroupMap = useMemo(() => {
+        const m = {};
+        (data?.age_groups || []).forEach((g) => { m[g.name] = g; });
+        return m;
+    }, [data]);
+
+    // Configured price cases of the experience (day-agnostic): base individual /
+    // in-route price plus every day-type × age-group line. Only values actually
+    // entered are kept, so nothing empty is ever shown.
+    const priceCases = useMemo(() => {
+        const exp = data?.experience || {};
+        const isHotel = exp.experience_type === "HOTEL";
+        const caseLabel = (l) => {
+            const day = l.day_type === "WEEKDAY" ? t("priceCalendar.weekday", "Lunes a viernes")
+                : l.day_type === "WEEKEND" ? t("priceCalendar.weekend", "Fin de semana") : null;
+            let age = null;
+            if (l.age_group) {
+                const g = ageGroupMap[l.age_group];
+                age = g ? `${g.group_name || l.age_group_name} (${g.min_age}–${g.max_age})` : (l.age_group_name || l.age_group);
+            }
+            if (day && age) return `${day} · ${age}`;
+            return day || age || t("priceCalendar.anyDayAllAges", "General");
+        };
+        const items = [];
+        const baseInd = isHotel ? Number(exp.price_per_night) : Number(exp.individual_price);
+        const baseRte = Number(exp.route_price);
+        if (baseInd > 0 || baseRte > 0) {
+            items.push({
+                key: "base",
+                label: isHotel ? t("priceCalendar.perNightCase", "Precio por noche") : t("priceCalendar.baseCase", "Precio base"),
+                individual: baseInd > 0 ? baseInd : undefined,
+                individualLabel: isHotel ? t("priceCalendar.perNight", "Por noche") : t("priceCalendar.individual", "Individual"),
+                route: baseRte > 0 ? baseRte : undefined,
+            });
+        }
+        (exp.price_lines || []).forEach((l, i) => {
+            const ind = Number(l.price) || 0;
+            const rte = Number(l.route_price) || 0;
+            if (ind <= 0 && rte <= 0) return;
+            items.push({
+                key: `line-${i}`,
+                label: caseLabel(l),
+                individual: ind > 0 ? ind : undefined,
+                individualLabel: t("priceCalendar.individual", "Individual"),
+                route: rte > 0 ? rte : undefined,
+            });
+        });
+        return items;
+    }, [data, ageGroupMap, t]);
+
     const y = monthDate.getFullYear();
     const mo = monthDate.getMonth();
     const firstDow = (new Date(y, mo, 1).getDay() + 6) % 7; // Monday = 0
@@ -93,13 +144,6 @@ export default function ExperiencePriceCalendar({ experienceId }) {
     const goPrev = () => { setSelected(null); clearRange(); setMonthDate(new Date(y, mo - 1, 1)); };
     const goNext = () => { setSelected(null); clearRange(); setMonthDate(new Date(y, mo + 1, 1)); };
 
-    const rowLabel = (r) => {
-        if (r.kind === "age_group") return `${r.age_group_name} (${r.min_age}–${r.max_age})`;
-        if (r.kind === "base_other") return t("priceCalendar.otherAges", "Otras edades (base)");
-        if (r.kind === "general") return t("priceCalendar.generalRow", "General");
-        return t("priceCalendar.baseRow", "Precio base");
-    };
-
     const discountLabel = (p) => {
         if (p.discount_type === "PERCENT") return `−${p.percent}%`;
         if (p.discount_type === "FREE_TICKETS")
@@ -107,14 +151,7 @@ export default function ExperiencePriceCalendar({ experienceId }) {
         return p.discount_type;
     };
 
-    const layerCell = (ind, rte, strong = false) => (
-        <span className="text-right leading-tight">
-            <span className={strong ? "font-semibold" : ""}>{fmtMoney(ind, currency)}</span>
-            <span className="block text-[10px] text-muted-foreground">{t("priceCalendar.routeShort", "ruta")} {fmtMoney(rte, "")}</span>
-        </span>
-    );
-
-    // ---- Custom price (layer 4) form ----
+    // ---- Custom price form ----
     const lineLabel = (l) => {
         const day = l.day_type === "WEEKDAY" ? t("priceCalendar.weekday", "Lunes a viernes")
             : l.day_type === "WEEKEND" ? t("priceCalendar.weekend", "Fin de semana")
@@ -181,7 +218,6 @@ export default function ExperiencePriceCalendar({ experienceId }) {
     };
 
     const hasCustom = !!selectedDay?.custom_price;
-    const detailGrid = hasCustom ? "grid-cols-[1.1fr_1fr_1fr_1fr_1fr]" : "grid-cols-[1.1fr_1fr_1fr_1fr]";
 
     return (
         <Card className="border-border/60 shadow-sm">
@@ -295,7 +331,7 @@ export default function ExperiencePriceCalendar({ experienceId }) {
                                 {hasCustom && (
                                     <div className="rounded-md border border-purple-400/40 bg-purple-500/5 px-3 py-2 text-xs space-y-0.5">
                                         <p className="font-semibold text-purple-700 dark:text-purple-300 flex items-center gap-1">
-                                            <Sparkles className="w-3.5 h-3.5" /> {t("priceCalendar.customActive", "Capa 4 · Precio personalizado")}
+                                            <Sparkles className="w-3.5 h-3.5" /> {t("priceCalendar.customActive", "Precio personalizado")}
                                             {selectedDay.custom_price.custom_price_name ? ` — ${selectedDay.custom_price.custom_price_name}` : ""}
                                         </p>
                                         <p className="text-muted-foreground">
@@ -317,40 +353,53 @@ export default function ExperiencePriceCalendar({ experienceId }) {
                                     </p>
                                 )}
 
-                                <div className="space-y-1 overflow-x-auto">
-                                    <p className="text-[11px] text-muted-foreground">
-                                        {hasCustom
-                                            ? t("priceCalendar.layersLegend4", "Capa 1: base · Capa 2: día/edad · Capa 4: precio personalizado · Final: con temporada. Debajo, el precio en ruta.")
-                                            : t("priceCalendar.layersLegend", "Cada precio por capa — Capa 1: base · Capa 2: por día y grupo etario · Capa 3: con temporada. Debajo de cada monto, el precio en ruta.")}
-                                    </p>
-                                    <div className="min-w-[440px]">
-                                        <div className={`grid ${detailGrid} gap-x-3 text-[11px] uppercase font-semibold text-muted-foreground pb-1`}>
-                                            <span>{t("priceCalendar.variant", "Variante")}</span>
-                                            <span className="text-right">{t("priceCalendar.layer1", "Capa 1 · base")}</span>
-                                            <span className="text-right">{t("priceCalendar.layer2", "Capa 2 · día/edad")}</span>
-                                            {hasCustom && <span className="text-right text-purple-600">{t("priceCalendar.layer4", "Capa 4 · personalizado")}</span>}
-                                            <span className="text-right">{t("priceCalendar.layerFinal", "Final")}</span>
-                                        </div>
-                                        {(selectedDay.rows || []).map((r, i) => (
-                                            <div key={i} className={`grid ${detailGrid} gap-x-3 items-start text-sm py-1.5 border-t border-border/50`}>
-                                                <span className="truncate pr-1">{rowLabel(r)}</span>
-                                                {layerCell(r.layer1_individual, r.layer1_route)}
-                                                {r.has_layer2
-                                                    ? layerCell(r.layer2_individual ?? r.layer1_individual, r.layer2_route ?? r.layer1_route)
-                                                    : <span className="text-right text-[10px] text-muted-foreground self-center">{t("priceCalendar.usesLayer1", "usa capa 1")}</span>}
-                                                {hasCustom && (r.has_layer4
-                                                    ? layerCell(r.layer4_individual, r.layer4_route)
-                                                    : <span className="text-right text-[10px] text-muted-foreground self-center">—</span>)}
-                                                {layerCell(r.individual_effective, r.route_effective, true)}
+                                {priceCases.length > 0 && (() => {
+                                    // Season adjusts the configured prices for this date; a custom price
+                                    // replaces them, so we don't apply the season factor on custom days.
+                                    const pct = hasCustom ? 0 : (selectedDay.season_applies ? Number(selectedDay.season?.percent) || 0 : 0);
+                                    const factor = 1 + pct / 100;
+                                    const amount = (label, value) => (
+                                        <span className="flex items-baseline justify-end gap-1.5 leading-tight">
+                                            <span className="text-[11px] text-muted-foreground">{label}</span>
+                                            {pct !== 0 ? (
+                                                <>
+                                                    <span className="text-xs text-muted-foreground line-through">{fmtMoney(value, "")}</span>
+                                                    <span className="font-semibold">{fmtMoney(value * factor, currency)}</span>
+                                                </>
+                                            ) : (
+                                                <span className="font-semibold">{fmtMoney(value, currency)}</span>
+                                            )}
+                                        </span>
+                                    );
+                                    return (
+                                        <div className="space-y-1">
+                                            <p className="text-[11px] uppercase font-semibold text-muted-foreground">
+                                                {t("priceCalendar.pricesTitle", "Precios de la experiencia")}
+                                                {pct !== 0 && (
+                                                    <span className="ml-1 normal-case font-normal text-muted-foreground lowercase">
+                                                        {t("priceCalendar.withSeasonNote", "(con temporada aplicada)")}
+                                                    </span>
+                                                )}
+                                            </p>
+                                            <div className="divide-y divide-border/50">
+                                                {priceCases.map((it) => (
+                                                    <div key={it.key} className="flex items-start justify-between gap-3 py-1.5">
+                                                        <span className="text-sm text-muted-foreground pt-0.5">{it.label}</span>
+                                                        <span className="flex flex-col items-end gap-0.5 text-right">
+                                                            {it.individual != null && amount(it.individualLabel, it.individual)}
+                                                            {it.route != null && amount(t("priceCalendar.inRoute", "En ruta"), it.route)}
+                                                        </span>
+                                                    </div>
+                                                ))}
                                             </div>
-                                        ))}
-                                    </div>
-                                </div>
+                                        </div>
+                                    );
+                                })()}
 
                                 {selectedDay.promotions?.length > 0 && (
                                     <div className="space-y-1 pt-1">
                                         <p className="text-[11px] uppercase font-semibold text-muted-foreground">
-                                            {t("priceCalendar.promotions", "Capa 3 · Promociones activas")}
+                                            {t("priceCalendar.promotions", "Promociones activas")}
                                             {hasCustom && !selectedDay.promotions_apply && ` — ${t("priceCalendar.promosNotApplied", "no aplican a este precio personalizado")}`}
                                         </p>
                                         {selectedDay.promotions.map((p) => (
@@ -391,7 +440,7 @@ export default function ExperiencePriceCalendar({ experienceId }) {
                 )}
             </CardContent>
 
-            {/* Create custom price (layer 4) */}
+            {/* Create custom price */}
             <Dialog open={formOpen} onOpenChange={(o) => { if (!o) setFormOpen(false); }}>
                 <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
                     <DialogHeader>
