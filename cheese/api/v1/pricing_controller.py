@@ -5,7 +5,7 @@ import frappe
 from frappe import _
 from frappe.utils import cint, flt, get_datetime, now_datetime
 from cheese.api.common.responses import success, error, not_found, validation_error
-from cheese.cheese.utils.pricing import calculate_ticket_price, calculate_deposit_amount, calculate_route_price
+from cheese.cheese.utils.pricing import calculate_ticket_price, calculate_deposit_amount, calculate_route_price, get_deposit_basis, build_price_summary
 from cheese.cheese.utils.validation import validate_booking_policy
 from cheese.cheese.utils.access import assert_record_access
 import json
@@ -621,6 +621,10 @@ def simulate_booking(
 				experience_id, party_size, selected_date=selected_date, guest_ages=ages
 			)
 			deposit = calculate_deposit_amount(experience_id, price.get("total_price", 0))
+			deposit_basis = get_deposit_basis(experience_id)
+			price_summary = build_price_summary(
+				price, party_size, deposit_amount=deposit, deposit_basis=deposit_basis
+			)
 			availability = _sim_activity_availability(experience_id, selected_date, party_size)
 			return success(
 				"Simulation complete",
@@ -631,7 +635,9 @@ def simulate_booking(
 					"party_size": party_size,
 					"guest_ages": ages,
 					"pricing": price,
+					"price_summary": price_summary,
 					"deposit": deposit,
+					"deposit_basis": deposit_basis,
 					"currency": price.get("currency"),
 					"total_price": price.get("total_price", 0),
 					"availability": availability,
