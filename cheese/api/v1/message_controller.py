@@ -32,44 +32,49 @@ def _ensure_message_company_field():
 
 
 @frappe.whitelist()
-def upload_message_transcript(phone_number, messages, company_id, conversation_id=None):
+def upload_message_transcript(phone_number, messages, company_id=None, conversation_id=None):
 	"""
 	Upload message transcript - stores individual messages from a conversation
-	
-	Each message is scoped to ``company_id``. Multiple establishments can share
-	the same ``conversation_id`` but each only sees the messages uploaded under
-	their own company.
-	
+
+	``company_id`` is optional. When given, each message is scoped to that
+	establishment (legacy per-establishment upload). When omitted, the messages
+	are stored GLOBALLY (no company): their visibility then follows the
+	establishments assigned to the contact via ``upsert_lead`` /
+	``append_company_to_lead`` (Cheese Contact Company), not a company stamped on
+	each message.
+
 	Args:
 		phone_number: Phone number of the user
 		messages: Array of message objects with role and content
 			Example: [{"role": "user", "content": "hello"}, {"role": "assistant", "content": "Nice to meet you"}]
-		company_id: Company (establishment) that owns this transcript slice
+		company_id: Optional establishment that owns this transcript slice. Omit
+			for a global (real-time) upload.
 		conversation_id: Optional conversation ID to link messages to
-		
+
 	Returns:
 		Created response with message IDs
 	"""
 	try:
 		if not phone_number:
 			return validation_error("phone_number is required")
-		if not company_id:
-			return validation_error("company_id is required")
 		if not messages:
 			return validation_error("messages array is required")
 
 		_ensure_message_company_field()
 
-		resolved_company = _resolve_company_id(company_id)
-		if not resolved_company:
-			return not_found("Company", company_id)
+		resolved_company = None
+		if company_id:
+			resolved_company = _resolve_company_id(company_id)
+			if not resolved_company:
+				return not_found("Company", company_id)
 
-		# Tenant isolation: a scoped (bot) user may only upload messages for its
-		# own establishment; super admins may target any company. Without this a
-		# bot scoped to company A could write messages tagged to company B, which
-		# also leaks the conversation/contact to B.
-		assert_company_value(resolved_company)
-		
+			# Tenant isolation: a scoped (bot) user may only upload messages for its
+			# own establishment; super admins may target any company. Without this a
+			# bot scoped to company A could write messages tagged to company B, which
+			# also leaks the conversation/contact to B. Global uploads (no company)
+			# are not tenant-scoped by design.
+			assert_company_value(resolved_company)
+
 		# Parse messages if string
 		if isinstance(messages, str):
 			try:
@@ -137,15 +142,16 @@ def upload_message_transcript(phone_number, messages, company_id, conversation_i
 				"conversation": conversation_id
 			})
 			message_doc.insert()
-			saved_company = frappe.db.get_value("Cheese Message", message_doc.name, "company")
-			if saved_company != resolved_company:
-				frappe.throw(
-					_(
-						"Message company was not persisted. Run `bench migrate` on the site "
-						"and upload the transcript again."
-					),
-					frappe.ValidationError,
-				)
+			if resolved_company:
+				saved_company = frappe.db.get_value("Cheese Message", message_doc.name, "company")
+				if saved_company != resolved_company:
+					frappe.throw(
+						_(
+							"Message company was not persisted. Run `bench migrate` on the site "
+							"and upload the transcript again."
+						),
+						frappe.ValidationError,
+					)
 			message_ids.append(message_doc.name)
 		
 		if conversation_id:
