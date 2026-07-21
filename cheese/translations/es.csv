@@ -144,6 +144,8 @@ Link documents must start with http:// or https://,Los documentos de enlace debe
 File URL is required for {0} documents,Se requiere URL de archivo para documentos {0},
 Validity date cannot be in the past,La fecha de validez no puede estar en el pasado,
 Route {0} already has an active bank account,La Ruta {0} ya tiene una cuenta bancaria activa,
+{0} {1} already has an active {2} payment method,{0} {1} ya tiene un método de pago {2} activo,
+bank account,cuenta bancaria,
 Invalid IBAN format. IBAN should be in format: CC00XXXX... (2 letters, 2 digits, 4-30 alphanumeric),Formato IBAN inválido. El IBAN debe tener el formato: CC00XXXX... (2 letras, 2 dígitos, 4-30 alfanuméricos),
 Amount Paid cannot be negative,El Monto Pagado no puede ser negativo,
 Amount Required must be greater than 0,El Monto Requerido debe ser mayor que 0,

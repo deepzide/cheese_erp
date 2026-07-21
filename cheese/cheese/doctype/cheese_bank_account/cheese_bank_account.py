@@ -40,21 +40,33 @@ class CheeseBankAccount(Document):
 
 		self.validate_immutable_fields()
 
-		# Ensure only one active bank account per entity
+		# Ensure only one active payment method per entity AND category, so an
+		# entity can hold e.g. one active bank account plus one active PayPal.
 		if self.status == "ACTIVE":
-			existing = frappe.db.exists(
+			current_category = self.category or "BANK_ACCOUNT"
+			active_siblings = frappe.get_all(
 				"Cheese Bank Account",
-				{
+				filters={
 					"entity_type": self.entity_type,
 					"entity_id": self.entity_id,
 					"status": "ACTIVE",
 					"name": ["!=", self.name],
 				},
+				fields=["category"],
 			)
-			if existing:
+			# Legacy rows created before the category field are treated as bank accounts.
+			if any((sib.category or "BANK_ACCOUNT") == current_category for sib in active_siblings):
+				labels = {
+					"BANK_ACCOUNT": _("bank account"),
+					"PAYPAL": "PayPal",
+					"MERCADO_PAGO": "Mercado Pago",
+					"DLOCAL": "dLocal",
+				}
 				frappe.throw(
-					_("{0} {1} already has an active bank account").format(
-						self.entity_type, self.entity_id
+					_("{0} {1} already has an active {2} payment method").format(
+						self.entity_type,
+						self.entity_id,
+						labels.get(current_category, current_category),
 					)
 				)
 
