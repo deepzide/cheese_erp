@@ -234,7 +234,9 @@ class CheeseTicket(Document):
 						frappe.ValidationError,
 					)
 				night_slot_name = night_slots[0].name
-				available_capacity = get_available_capacity(night_slot_name, current_date)
+				available_capacity = get_available_capacity(
+					night_slot_name, current_date, exclude_ticket=self.name
+				)
 				if self.rooms_requested > available_capacity:
 					frappe.throw(
 						_("Not enough rooms available on {0}. Requested: {1}, Available: {2}").format(
@@ -258,7 +260,7 @@ class CheeseTicket(Document):
 					frappe.ValidationError,
 				)
 
-		available_capacity = get_available_capacity(self.slot, getdate(sel))
+		available_capacity = get_available_capacity(self.slot, getdate(sel), exclude_ticket=self.name)
 
 		if self.party_size > available_capacity:
 			frappe.throw(

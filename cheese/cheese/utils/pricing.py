@@ -71,10 +71,13 @@ def calculate_ticket_price(experience_id, party_size, route_id=None, ticket=None
 	"""
 	from frappe.utils import flt
 
+	from frappe.utils import cint
+
 	from cheese.cheese.utils.seasonal_pricing import (
 		apply_promotion,
 		compute_party_prices,
 		find_matching_promotion,
+		get_active_custom_price,
 		get_active_season,
 	)
 
@@ -95,20 +98,25 @@ def calculate_ticket_price(experience_id, party_size, route_id=None, ticket=None
 	if experience.experience_type == "HOTEL":
 		nights = ticket.nights if ticket else 1
 		rooms = party_size  # For HOTEL, party_size passed is actually rooms_requested
+		# Layer 4: a custom price overrides the per-night / route price for the date.
+		custom = get_active_custom_price(experience_id, selected_date)
+		custom_doc = frappe.get_doc("Cheese Custom Price", custom.name) if custom else None
+		src = custom_doc or experience
 		if route_id:
-			per_night = experience.route_price if experience.route_price is not None else 0
+			per_night = src.route_price if src.route_price is not None else 0
 		else:
-			per_night = experience.price_per_night or 0
+			per_night = src.get("price_per_night") or 0
 		result = {
 			"total_price": per_night * nights * rooms,
 			"price_per_night": per_night,
 			"nights": nights,
 			"rooms": rooms,
-			"individual_price": experience.price_per_night,
-			"route_price": experience.route_price,
+			"individual_price": src.get("price_per_night"),
+			"route_price": src.route_price,
+			"custom_price": custom_doc.name if custom_doc else None,
 		}
 		season = get_active_season(experience.company, experience_id, selected_date)
-		if season and season.percent:
+		if season and season.percent and (custom_doc is None or cint(custom_doc.affected_by_seasons)):
 			result["price_before_season"] = result["total_price"]
 			result["season"] = dict(season)
 			result["total_price"] = flt(result["total_price"] * (1 + flt(season.percent) / 100.0), 2)
@@ -128,14 +136,18 @@ def calculate_ticket_price(experience_id, party_size, route_id=None, ticket=None
 		"route_price": experience.route_price if route_id else None,
 		"day_type": party["day_type"],
 		"season": party["season"],
+		"custom_price": party.get("custom_price"),
 		# Per-person detail in the experience currency (before conversion)
 		"price_breakdown": party["breakdown"],
 	}
 
-	promo = find_matching_promotion(
-		experience.company, experience_id, selected_date, guest_ages, party_size,
-		unit_prices=party["unit_prices"],
-	)
+	# Layer 4 can opt out of promotions (participates_in_promotions=0).
+	promo = None
+	if party.get("allow_promotions", True):
+		promo = find_matching_promotion(
+			experience.company, experience_id, selected_date, guest_ages, party_size,
+			unit_prices=party["unit_prices"],
+		)
 	if promo:
 		discount = apply_promotion(promo, party["unit_prices"])
 		if discount > 0:
@@ -180,6 +192,66 @@ def calculate_deposit_amount(experience_id, total_price, route_id=None, log_cont
 			return (total_price * experience.deposit_value) / 100
 	
 	return 0
+
+
+def get_deposit_basis(experience_id, route_id=None):
+	"""Basis of the deposit that ``calculate_deposit_amount`` applies, so callers
+	can render a truthful label instead of guessing a percentage.
+
+	Mirrors the precedence in ``calculate_deposit_amount``: an active route
+	deposit wins over the experience deposit. Returns ``{"type", "value"}`` with
+	type in {"%", "Amount", None}; type None means no deposit is configured.
+	"""
+	if route_id:
+		route = frappe.get_doc("Cheese Route", route_id)
+		if route.deposit_required:
+			return {"type": route.deposit_type, "value": route.deposit_value}
+	experience = frappe.get_doc("Cheese Experience", experience_id)
+	if experience.deposit_required:
+		return {"type": experience.deposit_type, "value": experience.deposit_value}
+	return {"type": None, "value": None}
+
+
+def build_price_summary(price_result, quantity, deposit_amount=None, deposit_basis=None):
+	"""Explicit, presentation-ready price breakdown for the chatbot/UI.
+
+	Built entirely from an already-computed ``calculate_ticket_price`` result so
+	consumers never re-derive (and never dilute) the unit price. When every
+	person pays the same the per-person value is exposed as ``unit_price``;
+	otherwise it is left ``None`` and callers should show ``price_breakdown``.
+	All amounts are in the result's (post-conversion) currency.
+	"""
+	from frappe.utils import flt
+
+	breakdown = price_result.get("price_breakdown") or []
+	unit_values = [b.get("unit_price") for b in breakdown if b.get("unit_price") is not None]
+	uniform_unit = unit_values[0] if unit_values and len(set(unit_values)) == 1 else None
+	subtotal = price_result.get("price_before_discount")
+	if subtotal is None:
+		subtotal = price_result.get("total_price")
+
+	summary = {
+		"currency": price_result.get("currency"),
+		"unit_price": flt(uniform_unit, 2) if uniform_unit is not None else price_result.get("individual_price"),
+		"uniform_unit_price": uniform_unit is not None,
+		"quantity": quantity,
+		"subtotal": flt(subtotal, 2) if subtotal is not None else None,
+		"promotion_name": price_result.get("promotion_name"),
+		"promotion_discount": flt(price_result.get("promotion_discount") or 0, 2),
+		"total": price_result.get("total_price"),
+	}
+	if deposit_amount is not None:
+		summary["deposit_amount"] = flt(deposit_amount, 2)
+		basis = deposit_basis or {}
+		summary["deposit_type"] = basis.get("type")
+		summary["deposit_value"] = basis.get("value")
+		if basis.get("type") == "%":
+			summary["deposit_label"] = f"{flt(basis.get('value'), 2):g}%"
+		elif basis.get("type") == "Amount":
+			summary["deposit_label"] = f"{flt(deposit_amount, 2):g} {price_result.get('currency') or ''}".strip()
+		else:
+			summary["deposit_label"] = None
+	return summary
 
 
 def calculate_route_price(route_id, party_size, log_context=None):

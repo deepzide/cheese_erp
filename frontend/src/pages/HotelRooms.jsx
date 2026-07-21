@@ -3,7 +3,7 @@ import { motion } from "framer-motion";
 import { useTranslation } from "react-i18next";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { DoorOpen, Plus, RefreshCw, Wrench, Ban, CheckCircle2 } from "lucide-react";
+import { DoorOpen, Plus, RefreshCw, Wrench, Ban, CheckCircle2, Trash2, CheckSquare, X } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -57,6 +57,21 @@ export default function HotelRooms() {
     const [bulkOpen, setBulkOpen] = useState(false);
     const [bulk, setBulk] = useState(EMPTY_BULK);
     const [blockForm, setBlockForm] = useState(EMPTY_BLOCK);
+
+    // Multi-selection: bulk maintenance / out-of-service / block / delete.
+    const [selectMode, setSelectMode] = useState(false);
+    const [selected, setSelected] = useState(() => new Set());
+    const [bulkBlock, setBulkBlock] = useState(null); // { date_from, date_to, reason } while open
+    React.useEffect(() => { setSelected(new Set()); setSelectMode(false); }, [effectiveCompany]);
+
+    const toggleSelect = (name) => setSelected((prev) => {
+        const next = new Set(prev);
+        if (next.has(name)) next.delete(name); else next.add(name);
+        return next;
+    });
+    const clearSelection = () => setSelected(new Set());
+    const exitSelectMode = () => { setSelectMode(false); clearSelection(); };
+    const bulkIds = () => Array.from(selected);
 
     const grouped = useMemo(() => {
         const map = {};
@@ -131,6 +146,67 @@ export default function HotelRooms() {
         }
     };
 
+    const handleDeleteRoom = async (room) => {
+        if (!window.confirm(t("rooms.deleteConfirm", "¿Eliminar la habitación {{n}}? Se borrarán sus bloqueos e historial de estadías. No se puede deshacer.", { n: room.room_number }))) return;
+        try {
+            await roomService.deleteRoom(room.name);
+            toast.success(t("rooms.deleted", "Habitación eliminada"));
+            refetch();
+        } catch (err) {
+            toast.error(err?.message || t("common.failed", "Error"));
+        }
+    };
+
+    const handleBulkStatus = async (status) => {
+        try {
+            const payload = unwrapFrappeMethodData(await roomService.bulkSetStatus(bulkIds(), status), {});
+            toast.success(t("rooms.bulkStatusDone", "{{n}} habitación(es) actualizadas", { n: payload?.updated?.length ?? 0 }));
+            clearSelection();
+            refetch();
+        } catch (err) {
+            toast.error(err?.message || t("common.failed", "Error"));
+        }
+    };
+
+    const handleBulkDelete = async () => {
+        if (!window.confirm(t("rooms.bulkDeleteConfirm", "¿Eliminar {{n}} habitación(es)? Se omitirán las que tengan reservas activas. No se puede deshacer.", { n: selected.size }))) return;
+        try {
+            const payload = unwrapFrappeMethodData(await roomService.bulkDelete(bulkIds()), {});
+            toast.success(t("rooms.bulkDeleteDone", "{{n}} habitación(es) eliminadas", { n: payload?.deleted?.length ?? 0 }));
+            if (payload?.skipped_in_use?.length) {
+                toast.warning(t("rooms.bulkDeleteSkipped", "Omitidas por tener reservas activas: {{n}}", { n: payload.skipped_in_use.length }));
+            }
+            clearSelection();
+            refetch();
+        } catch (err) {
+            toast.error(err?.message || t("common.failed", "Error"));
+        }
+    };
+
+    const handleBulkBlock = async () => {
+        if (!bulkBlock?.date_from || !bulkBlock?.date_to) {
+            toast.error(t("rooms.blockDatesRequired", "Fechas de bloqueo requeridas"));
+            return;
+        }
+        try {
+            const payload = unwrapFrappeMethodData(await roomService.bulkBlock({
+                room_ids: bulkIds(),
+                date_from: bulkBlock.date_from,
+                date_to: bulkBlock.date_to,
+                reason: bulkBlock.reason || undefined,
+            }), {});
+            toast.success(t("rooms.bulkBlockDone", "{{n}} habitación(es) bloqueadas", { n: payload?.blocked?.length ?? 0 }));
+            if (payload?.failed?.length) {
+                toast.warning(t("rooms.bulkBlockFailed", "No se pudieron bloquear: {{n}}", { n: payload.failed.length }));
+            }
+            setBulkBlock(null);
+            clearSelection();
+            refetch();
+        } catch (err) {
+            toast.error(err?.message || t("common.failed", "Error"));
+        }
+    };
+
     return (
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="p-6 space-y-6">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -146,6 +222,13 @@ export default function HotelRooms() {
                 <div className="flex gap-2">
                     <Button variant="ghost" size="icon" onClick={() => refetch()} disabled={isLoading}>
                         <RefreshCw className={`w-4 h-4 ${isLoading ? "animate-spin" : ""}`} />
+                    </Button>
+                    <Button
+                        variant={selectMode ? "secondary" : "outline"}
+                        onClick={() => (selectMode ? exitSelectMode() : setSelectMode(true))}
+                        disabled={!effectiveCompany || rooms.length === 0}
+                    >
+                        <CheckSquare className="w-4 h-4 mr-1" /> {selectMode ? t("rooms.selDone", "Listo") : t("rooms.select", "Seleccionar")}
                     </Button>
                     <Button className="bg-cheese-500 hover:bg-cheese-600 text-black font-semibold" onClick={() => setBulkOpen(true)}>
                         <Plus className="w-4 h-4 mr-1" /> {t("rooms.bulkAdd", "Alta masiva")}
@@ -164,17 +247,45 @@ export default function HotelRooms() {
             ) : (
                 Object.entries(grouped).map(([type, typeRooms]) => (
                     <div key={type} className="space-y-2">
-                        <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
-                            {type} · {typeRooms.length} {t("rooms.rooms", "habitaciones")}
-                        </h2>
+                        <div className="flex items-center gap-3">
+                            <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+                                {type} · {typeRooms.length} {t("rooms.rooms", "habitaciones")}
+                            </h2>
+                            {selectMode && (
+                                <button
+                                    type="button"
+                                    className="text-xs text-cheese-700 font-medium"
+                                    onClick={() => setSelected((prev) => {
+                                        const next = new Set(prev);
+                                        const all = typeRooms.every((r) => next.has(r.name));
+                                        typeRooms.forEach((r) => (all ? next.delete(r.name) : next.add(r.name)));
+                                        return next;
+                                    })}
+                                >
+                                    {typeRooms.every((r) => selected.has(r.name))
+                                        ? t("rooms.unselectGroup", "Quitar todas")
+                                        : t("rooms.selectGroup", "Seleccionar todas")}
+                                </button>
+                            )}
+                        </div>
                         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
                             {typeRooms.map((room) => {
                                 const badge = STATE_BADGE[room.today_state] || STATE_BADGE.FREE;
                                 return (
-                                    <Card key={room.name} className="glass-surface">
+                                    <Card key={room.name} className={`glass-surface ${selectMode && selected.has(room.name) ? "ring-2 ring-cheese-500" : ""}`}>
                                         <CardContent className="p-3 space-y-2">
                                             <div className="flex items-center justify-between">
-                                                <span className="font-bold text-lg">{room.room_number}</span>
+                                                <span className="flex items-center gap-2 min-w-0">
+                                                    {selectMode && (
+                                                        <input
+                                                            type="checkbox"
+                                                            className="h-4 w-4 accent-cheese-500 shrink-0"
+                                                            checked={selected.has(room.name)}
+                                                            onChange={() => toggleSelect(room.name)}
+                                                        />
+                                                    )}
+                                                    <span className="font-bold text-lg">{room.room_number}</span>
+                                                </span>
                                                 <DropdownMenu>
                                                     <DropdownMenuTrigger asChild>
                                                         <Button variant="ghost" size="icon" className="h-7 w-7">⋯</Button>
@@ -203,6 +314,9 @@ export default function HotelRooms() {
                                                                 {t("rooms.release", "Liberar estadía actual")}
                                                             </DropdownMenuItem>
                                                         )}
+                                                        <DropdownMenuItem className="text-red-600" onClick={() => handleDeleteRoom(room)}>
+                                                            <Trash2 className="w-3 h-3 mr-2" /> {t("rooms.delete", "Eliminar")}
+                                                        </DropdownMenuItem>
                                                     </DropdownMenuContent>
                                                 </DropdownMenu>
                                             </div>
@@ -296,6 +410,61 @@ export default function HotelRooms() {
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
+
+            {/* Bulk block range */}
+            <Dialog open={!!bulkBlock} onOpenChange={(open) => { if (!open) setBulkBlock(null); }}>
+                <DialogContent className="max-w-sm">
+                    <DialogHeader>
+                        <DialogTitle>{t("rooms.bulkBlockTitle", "Bloquear {{n}} habitaciones", { n: selected.size })}</DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-3">
+                        <div className="grid grid-cols-2 gap-3">
+                            <div className="space-y-1">
+                                <Label>{t("common.from", "Desde")}</Label>
+                                <Input type="date" value={bulkBlock?.date_from || ""} onChange={(e) => setBulkBlock((f) => ({ ...f, date_from: e.target.value }))} />
+                            </div>
+                            <div className="space-y-1">
+                                <Label>{t("common.to", "Hasta")}</Label>
+                                <Input type="date" value={bulkBlock?.date_to || ""} onChange={(e) => setBulkBlock((f) => ({ ...f, date_to: e.target.value }))} />
+                            </div>
+                        </div>
+                        <div className="space-y-1">
+                            <Label>{t("rooms.reason", "Motivo")}</Label>
+                            <Input placeholder="Pintura, reparación..." value={bulkBlock?.reason || ""} onChange={(e) => setBulkBlock((f) => ({ ...f, reason: e.target.value }))} />
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <Button variant="ghost" onClick={() => setBulkBlock(null)}>{t("common.cancel", "Cancelar")}</Button>
+                        <Button variant="destructive" onClick={handleBulkBlock}>{t("rooms.block", "Bloquear")}</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* Floating bulk-action bar */}
+            {selectMode && selected.size > 0 && (
+                <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-40 flex flex-wrap items-center gap-2 rounded-xl border border-border bg-background/95 backdrop-blur px-4 py-2 shadow-lg">
+                    <span className="text-sm font-medium">{t("rooms.nSelected", "{{n}} seleccionadas", { n: selected.size })}</span>
+                    <div className="h-4 w-px bg-border mx-1" />
+                    <Button variant="outline" size="sm" onClick={() => handleBulkStatus("ACTIVE")}>
+                        <CheckCircle2 className="w-3.5 h-3.5 mr-1" /> {t("rooms.activate", "Activar")}
+                    </Button>
+                    <Button variant="outline" size="sm" onClick={() => handleBulkStatus("MAINTENANCE")}>
+                        <Wrench className="w-3.5 h-3.5 mr-1" /> {t("rooms.maintenance", "Mantenimiento")}
+                    </Button>
+                    <Button variant="outline" size="sm" onClick={() => handleBulkStatus("OUT_OF_SERVICE")}>
+                        <Ban className="w-3.5 h-3.5 mr-1" /> {t("rooms.outOfService", "Fuera de servicio")}
+                    </Button>
+                    <Button variant="outline" size="sm" onClick={() => setBulkBlock({ date_from: "", date_to: "", reason: "" })}>
+                        <Ban className="w-3.5 h-3.5 mr-1" /> {t("rooms.blockRange", "Bloquear fechas")}
+                    </Button>
+                    <Button variant="outline" size="sm" className="text-red-600 hover:text-red-600" onClick={handleBulkDelete}>
+                        <Trash2 className="w-3.5 h-3.5 mr-1" /> {t("rooms.delete", "Eliminar")}
+                    </Button>
+                    <button type="button" onClick={clearSelection} className="p-1 rounded hover:bg-muted" aria-label={t("common.clear", "Limpiar")}>
+                        <X className="w-4 h-4" />
+                    </button>
+                </div>
+            )}
         </motion.div>
     );
 }

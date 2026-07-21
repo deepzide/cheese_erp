@@ -39,6 +39,23 @@ def _find_lead_for_contact(contact_id):
 	)
 
 
+def _ensure_contact_company(contact_id, company):
+	"""Idempotently link a contact to a company (Cheese Contact Company) so the
+	contact and its global transcripts/conversations become visible to that
+	establishment's users. No-op when company is falsy. This is what makes
+	upsert_lead / append_company_to_lead the owners of contact->company assignment."""
+	if not contact_id or not company:
+		return
+	if frappe.db.exists(
+		"Cheese Contact Company",
+		{"parent": contact_id, "parenttype": "Cheese Contact", "company": company},
+	):
+		return
+	contact = frappe.get_doc("Cheese Contact", contact_id)
+	contact.append("companies", {"company": company, "linked_at": now_datetime()})
+	contact.save(ignore_permissions=True)
+
+
 @frappe.whitelist()
 def upsert_lead(contact_id, conversation_id=None, interest_type=None, status=None, company_id=None):
 	"""
@@ -65,6 +82,10 @@ def upsert_lead(contact_id, conversation_id=None, interest_type=None, status=Non
 		assert_contact_access(contact_id)
 		company = _resolve_lead_company(company_id)
 		lead_status = status or "OPEN"
+
+		# Owning the contact->company assignment: a lead for a company means that
+		# company's users can see the contact, its leads and its transcripts.
+		_ensure_contact_company(contact_id, company)
 
 		existing_lead = _find_lead_for_contact(contact_id)
 		
@@ -191,6 +212,7 @@ def append_company_to_lead(lead_id=None, company_id=None, notes=None, status="OP
 			)
 
 		set_company_row_status(lead, company_id, status)
+		_ensure_contact_company(lead.contact, company_id)
 		if notes is not None:
 			row = next((r for r in lead.companies if r.company == company_id), None)
 			if row:

@@ -19,6 +19,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Input } from "@/components/ui/input";
 import { apiRequest } from "@/api/client";
 import { experienceService } from "@/api/experienceService";
+import ExperiencePriceCalendar from "@/components/ExperiencePriceCalendar";
 import { useHotelAccess } from "@/lib/useHotelAccess";
 
 export default function ExperienceDetail() {
@@ -626,6 +627,9 @@ export default function ExperienceDetail() {
                                     </div>
                                 </CardContent>
                             </Card>
+
+                            {/* Per-day price calendar (issue: precios por día) */}
+                            <ExperiencePriceCalendar experienceId={id} />
 
                             {/* Policies & Deposits */}
                             {form.experience_type === "HOTEL" && (

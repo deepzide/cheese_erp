@@ -1,0 +1,175 @@
+{
+ "actions": [],
+ "creation": "2024-01-01 00:00:00",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "links": [],
+ "modified": "2024-01-01 00:00:00",
+ "modified_by": "Administrator",
+ "module": "Cheese",
+ "owner": "Administrator",
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "name": "Cheese Custom Price",
+ "autoname": "format:CUSTP-{#####}",
+ "naming_rule": "Expression",
+ "field_order": [
+  "experience",
+  "company",
+  "custom_price_name",
+  "is_active",
+  "date_from",
+  "date_to",
+  "flags_section",
+  "participates_in_promotions",
+  "affected_by_seasons",
+  "prices_section",
+  "individual_price",
+  "route_price",
+  "price_per_night",
+  "lines_section",
+  "price_lines"
+ ],
+ "fields": [
+  {
+   "fieldname": "experience",
+   "fieldtype": "Link",
+   "options": "Cheese Experience",
+   "label": "Experience",
+   "reqd": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "company",
+   "fieldtype": "Link",
+   "options": "Company",
+   "label": "Company",
+   "fetch_from": "experience.company",
+   "read_only": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "custom_price_name",
+   "fieldtype": "Data",
+   "label": "Label",
+   "in_list_view": 1,
+   "description": "Optional name for this custom price (e.g. 'Feriado Semana de Turismo')."
+  },
+  {
+   "fieldname": "is_active",
+   "fieldtype": "Check",
+   "label": "Active",
+   "default": "1",
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "date_from",
+   "fieldtype": "Date",
+   "label": "From",
+   "reqd": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "date_to",
+   "fieldtype": "Date",
+   "label": "To",
+   "reqd": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "flags_section",
+   "fieldtype": "Section Break",
+   "label": "Interaction with other layers"
+  },
+  {
+   "fieldname": "participates_in_promotions",
+   "fieldtype": "Check",
+   "label": "Participates in promotions",
+   "default": "0",
+   "description": "When on, active promotions (layer 3) can still discount this custom price."
+  },
+  {
+   "fieldname": "affected_by_seasons",
+   "fieldtype": "Check",
+   "label": "Affected by season prices",
+   "default": "0",
+   "description": "When on, the active season percent (layer 3) still adjusts this custom price."
+  },
+  {
+   "fieldname": "prices_section",
+   "fieldtype": "Section Break",
+   "label": "Base prices (override)"
+  },
+  {
+   "fieldname": "individual_price",
+   "fieldtype": "Currency",
+   "label": "Individual Price"
+  },
+  {
+   "fieldname": "route_price",
+   "fieldtype": "Currency",
+   "label": "Route Price"
+  },
+  {
+   "fieldname": "price_per_night",
+   "fieldtype": "Currency",
+   "label": "Price per Night (hotel)"
+  },
+  {
+   "fieldname": "lines_section",
+   "fieldtype": "Section Break",
+   "label": "Matrix prices (override)"
+  },
+  {
+   "fieldname": "price_lines",
+   "fieldtype": "Table",
+   "options": "Cheese Experience Price",
+   "label": "Price Lines"
+  }
+ ],
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Cheese Booking Manager",
+   "write": 1
+  },
+  {
+   "create": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Cheese Booking Agent",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Cheese Booking Operator",
+   "share": 1
+  }
+ ],
+ "track_changes": 1
+}

@@ -69,6 +69,7 @@ import SemanticSearchTest from './SemanticSearchTest';
 import SemanticSearchLogs from './SemanticSearchLogs';
 import HotelCreate from './HotelCreate';
 import HotelRoomCreate from './HotelRoomCreate';
+import DataTransfer from './DataTransfer';
 import { useHotelAccess } from '@/lib/useHotelAccess';
 
 function HotelRouteGuard({ children }) {
@@ -161,6 +162,7 @@ export default function Pages() {
                     <Route path="webhook-settings" element={<WebhookSettings />} />
                     <Route path="semantic-search" element={<SemanticSearchTest />} />
                     <Route path="search-history" element={<SemanticSearchLogs />} />
+                    <Route path="data-transfer" element={<DataTransfer />} />
                     <Route index element={<Navigate to="/cheese/dashboard" replace />} />
                     <Route path="*" element={<Navigate to="/cheese/dashboard" replace />} />
                 </Route>

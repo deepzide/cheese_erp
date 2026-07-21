@@ -33,7 +33,7 @@ def open_or_resume_conversation(contact_id, channel, status="ACTIVE"):
 		if not channel:
 			return validation_error("channel is required")
 		
-		if channel not in ["WhatsApp", "Web", "Agent"]:
+		if channel not in ["WhatsApp", "Telegram", "Instagram", "Web", "Agent"]:
 			return validation_error(f"Invalid channel: {channel}")
 		
 		if not frappe.db.exists("Cheese Contact", contact_id):
@@ -137,7 +137,7 @@ def create_conversation(contact_id, channel, status="ACTIVE"):
 		if not channel:
 			return validation_error("channel is required")
 		
-		if channel not in ["WhatsApp", "Web", "Agent"]:
+		if channel not in ["WhatsApp", "Telegram", "Instagram", "Web", "Agent"]:
 			return validation_error(f"Invalid channel: {channel}")
 		
 		if not frappe.db.exists("Cheese Contact", contact_id):

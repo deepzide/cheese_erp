@@ -208,12 +208,10 @@ def cheese_support_case_query(user):
 
 
 def conversation_query(user):
-	"""Conversations visible when the tenant has uploaded messages for them."""
+	"""Conversations visible via their contact's assigned establishments (global
+	transcripts) or via company-stamped messages (legacy per-establishment upload)."""
 	if _is_super_admin(user):
 		return ""
-
-	if not frappe.db.has_column("Cheese Message", "company"):
-		return _none_visible("tabConversation")
 
 	companies = get_user_companies(user)
 	table = "tabConversation"
@@ -221,12 +219,16 @@ def conversation_query(user):
 		return _none_visible(table)
 
 	quoted = _quote_list(companies)
-	return (
-		f"`{table}`.name IN ("
-		f"SELECT DISTINCT conversation FROM `tabCheese Message` "
-		f"WHERE conversation IS NOT NULL AND conversation != '' "
-		f"AND company IN ({quoted}))"
-	)
+	assigned = _assigned_contacts_subquery(quoted)
+	clauses = [f"`{table}`.contact IN ({assigned})"]
+	if frappe.db.has_column("Cheese Message", "company"):
+		clauses.append(
+			f"`{table}`.name IN ("
+			f"SELECT DISTINCT conversation FROM `tabCheese Message` "
+			f"WHERE conversation IS NOT NULL AND conversation != '' "
+			f"AND company IN ({quoted}))"
+		)
+	return f"({' OR '.join(clauses)})"
 
 
 def cheese_attendance_query(user):
@@ -416,6 +418,29 @@ def _contact_visibility_subqueries(companies: List[str]) -> str:
 	return f"({' OR '.join(parts)})"
 
 
+def _assigned_contacts_subquery(quoted: str) -> str:
+	"""SQL selecting Cheese Contact names assigned to the given (quoted) companies
+	via the contact-company child table, tickets and leads (primary + child).
+	Used to scope global (company-less) transcripts and their conversations to the
+	establishments assigned to the contact."""
+	parts = [
+		f"SELECT parent FROM `tabCheese Contact Company` "
+		f"WHERE parenttype = 'Cheese Contact' AND company IN ({quoted})",
+		f"SELECT contact FROM `tabCheese Ticket` "
+		f"WHERE COALESCE(contact, '') <> '' AND company IN ({quoted})",
+		f"SELECT contact FROM `tabCheese Lead` "
+		f"WHERE COALESCE(contact, '') <> '' AND company IN ({quoted})",
+	]
+	if frappe.db.has_table("tabCheese Lead Company"):
+		parts.append(
+			f"SELECT l.contact FROM `tabCheese Lead` l "
+			f"INNER JOIN `tabCheese Lead Company` lc ON lc.parent = l.name "
+			f"WHERE lc.parenttype = 'Cheese Lead' AND COALESCE(l.contact, '') <> '' "
+			f"AND lc.company IN ({quoted})"
+		)
+	return " UNION ".join(parts)
+
+
 def cheese_contact_query(user):
 	"""Cheese Contact visibility via companies child table and linked activity."""
 	if _is_super_admin(user):
@@ -430,12 +455,23 @@ def cheese_contact_query(user):
 
 
 def cheese_message_query(user):
-	"""Messages are scoped by their own company field."""
+	"""Messages visible via their conversation's contact assigned establishments
+	(global uploads) or by their own company field (legacy per-establishment upload)."""
 	if _is_super_admin(user):
 		return ""
-	if not frappe.db.has_column("Cheese Message", "company"):
-		return _none_visible("tabCheese Message")
-	return _build_company_condition("Cheese Message", user)
+	companies = get_user_companies(user)
+	table = "tabCheese Message"
+	if not companies:
+		return _none_visible(table)
+	quoted = _quote_list(companies)
+	assigned = _assigned_contacts_subquery(quoted)
+	clauses = [
+		f"`{table}`.conversation IN ("
+		f"SELECT name FROM `tabConversation` WHERE contact IN ({assigned}))"
+	]
+	if frappe.db.has_column("Cheese Message", "company"):
+		clauses.append(f"`{table}`.company IN ({quoted})")
+	return f"({' OR '.join(clauses)})"
 
 
 def cheese_complaint_query(user):
@@ -551,6 +587,8 @@ def has_conversation_permission(doc, ptype="read", user=None):
 	if not companies:
 		return False
 
+	if doc.get("contact") and _contact_visible_to_companies(doc.contact, companies):
+		return True
 	return bool(
 		frappe.db.exists(
 			"Cheese Message",
@@ -866,7 +904,11 @@ def has_message_permission(doc, ptype="read", user=None):
 	companies = set(get_user_companies(user))
 	if not companies:
 		return False
-	return doc.get("company") in companies
+	if doc.get("company") in companies:
+		return True
+	convo = doc.get("conversation")
+	contact = frappe.db.get_value("Conversation", convo, "contact") if convo else None
+	return bool(contact and _contact_visible_to_companies(contact, companies))
 
 
 def has_complaint_permission(doc, ptype="read", user=None):

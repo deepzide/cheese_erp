@@ -125,6 +125,27 @@ def get_active_season(company, experience_id, date_value):
 	return None
 
 
+def get_active_custom_price(experience_id, date_value):
+	"""Layer-4 custom price (Cheese Custom Price) covering the date for the
+	experience, or None. Most recently modified wins when several overlap."""
+	if not date_value:
+		return None
+	date_str = str(getdate(date_value))
+	rows = frappe.get_all(
+		"Cheese Custom Price",
+		filters={
+			"experience": experience_id,
+			"is_active": 1,
+			"date_from": ["<=", date_str],
+			"date_to": [">=", date_str],
+		},
+		fields=["name", "participates_in_promotions", "affected_by_seasons"],
+		order_by="modified desc",
+		limit=1,
+	)
+	return rows[0] if rows else None
+
+
 def compute_party_prices(experience_doc, party_size, selected_date=None, guest_ages=None, in_route=False):
 	"""Per-person unit prices for the party, with season applied.
 
@@ -137,6 +158,13 @@ def compute_party_prices(experience_doc, party_size, selected_date=None, guest_a
 	ages = parse_guest_ages(guest_ages)
 	party_size = cint(party_size) or max(len(ages), 1)
 
+	# Layer 4: an active custom price overrides the experience's own layer-2
+	# matrix and layer-1 base for this date. Its two flags decide whether the
+	# layer-3 season and promotions still apply on top of it.
+	custom = get_active_custom_price(experience_doc.name, selected_date)
+	custom_doc = frappe.get_doc("Cheese Custom Price", custom.name) if custom else None
+	source = custom_doc or experience_doc
+
 	lines = [
 		{
 			"day_type": row.day_type,
@@ -144,19 +172,23 @@ def compute_party_prices(experience_doc, party_size, selected_date=None, guest_a
 			"price": row.price,
 			"route_price": row.route_price,
 		}
-		for row in (experience_doc.get("price_lines") or [])
+		for row in (source.get("price_lines") or [])
 	]
-	use_matrix = bool(lines) and bool(
-		cint(experience_doc.get("differentiate_by_weekday"))
-		or cint(experience_doc.get("differentiate_by_age_group"))
-	)
+	if custom_doc is not None:
+		# A custom price always overrides via its own lines/base.
+		use_matrix = bool(lines)
+	else:
+		use_matrix = bool(lines) and bool(
+			cint(experience_doc.get("differentiate_by_weekday"))
+			or cint(experience_doc.get("differentiate_by_age_group"))
+		)
 
 	if in_route:
-		base_price = flt(experience_doc.route_price)
+		base_price = flt(source.get("route_price"))
 	elif experience_doc.get("experience_type") == "HOTEL":
-		base_price = flt(experience_doc.get("price_per_night"))
+		base_price = flt(source.get("price_per_night"))
 	else:
-		base_price = flt(experience_doc.individual_price)
+		base_price = flt(source.get("individual_price"))
 
 	unit_prices = []
 	breakdown = []
@@ -165,11 +197,11 @@ def compute_party_prices(experience_doc, party_size, selected_date=None, guest_a
 		age_group = resolve_age_group(company, age) if age is not None else None
 		unit = None
 		if use_matrix:
-			# Layer 2 overrides layer 1 for every person whose (day, age) matches
-			# a price line — including a day-general line with no age group.
-			# EXCEPTION: when the matrix carries only age-group prices and a
-			# person's age falls outside all groups (no matching line), the
-			# layer-1 base price is used for that person.
+			# Layer 2 (or the custom's matrix) overrides the base for every person
+			# whose (day, age) matches a price line — including a day-general line
+			# with no age group. EXCEPTION: when the matrix carries only age-group
+			# prices and a person's age falls outside all groups (no matching line),
+			# the base price is used for that person.
 			unit = _match_price_line(lines, day_type, age_group, in_route)
 		if unit is None:
 			unit = base_price
@@ -179,19 +211,28 @@ def compute_party_prices(experience_doc, party_size, selected_date=None, guest_a
 		)
 
 	season = get_active_season(company, experience_doc.name, selected_date)
-	if season and season.percent:
+	season_applies = bool(
+		season and season.percent
+		and (custom_doc is None or cint(custom_doc.affected_by_seasons))
+	)
+	if season_applies:
 		factor = 1 + flt(season.percent) / 100.0
 		unit_prices = [flt(u * factor, 2) for u in unit_prices]
 		for i, entry in enumerate(breakdown):
 			entry["unit_price"] = unit_prices[i]
 			entry["season_percent"] = flt(season.percent)
 
+	allow_promotions = True if custom_doc is None else bool(cint(custom_doc.participates_in_promotions))
+
 	return {
 		"unit_prices": unit_prices,
 		"day_type": day_type,
 		"season": dict(season) if season else None,
+		"season_applied": season_applies,
 		"breakdown": breakdown,
 		"uses_price_matrix": use_matrix,
+		"custom_price": custom_doc.name if custom_doc else None,
+		"allow_promotions": allow_promotions,
 	}
 
 
@@ -387,4 +428,336 @@ def get_pricing_catalog(experience_doc, date_value=None):
 		],
 		"seasons": seasons,
 		"promotions": promotions,
+	}
+
+
+def _seasons_in_range(company, experience_id, date_from, date_to):
+	"""Active seasons overlapping [date_from, date_to] that cover the experience
+	(empty experience set = every experience). ISO date strings so callers can
+	compare against a day with plain string ordering. Sorted most-recently
+	modified first (first match wins per day, matching get_active_season)."""
+	rows = frappe.get_all(
+		"Cheese Season",
+		filters={
+			"company": company,
+			"is_active": 1,
+			"date_from": ["<=", str(date_to)],
+			"date_to": [">=", str(date_from)],
+		},
+		fields=["name", "season_name", "percent", "date_from", "date_to"],
+		order_by="modified desc",
+	)
+	out = []
+	for s in rows:
+		linked = frappe.get_all(
+			"Cheese Season Experience", filters={"parent": s.name}, pluck="experience"
+		)
+		if linked and experience_id not in linked:
+			continue
+		out.append(
+			{
+				"season_id": s.name,
+				"season_name": s.season_name,
+				"percent": flt(s.percent),
+				"date_from": str(s.date_from),
+				"date_to": str(s.date_to),
+			}
+		)
+	return out
+
+
+def _promotions_in_range(company, experience_id, date_from, date_to, group_map):
+	"""Active promotions overlapping [date_from, date_to] that cover the
+	experience, with requirement lines resolved against the age-group map."""
+	rows = frappe.get_all(
+		"Cheese Promotion",
+		filters={
+			"company": company,
+			"is_active": 1,
+			"date_from": ["<=", str(date_to)],
+			"date_to": [">=", str(date_from)],
+		},
+		fields=["name"],
+		order_by="date_from asc",
+	)
+	out = []
+	for r in rows:
+		promo = frappe.get_doc("Cheese Promotion", r.name)
+		if not promo.all_experiences:
+			linked = [x.experience for x in (promo.experiences or [])]
+			if experience_id not in linked:
+				continue
+		requirements = []
+		for req in promo.requirements or []:
+			g = group_map.get(req.age_group)
+			requirements.append(
+				{
+					"min_people": cint(req.min_people),
+					"age_group": req.age_group,
+					"age_group_name": g["group_name"] if g else None,
+					"min_age": g["min_age"] if g else None,
+					"max_age": g["max_age"] if g else None,
+				}
+			)
+		out.append(
+			{
+				"promotion_id": promo.name,
+				"promo_name": promo.promo_name,
+				"discount_type": promo.discount_type,
+				"percent": flt(promo.percent),
+				"free_tickets": cint(promo.free_tickets),
+				"date_from": str(promo.date_from),
+				"date_to": str(promo.date_to),
+				"requirements": requirements,
+			}
+		)
+	return out
+
+
+def _custom_prices_in_range(experience_id, date_from, date_to):
+	"""Active layer-4 custom prices overlapping [date_from, date_to] for the
+	experience, each with its overriding base and matrix lines. Most recently
+	modified first (first match wins per day)."""
+	rows = frappe.get_all(
+		"Cheese Custom Price",
+		filters={
+			"experience": experience_id,
+			"is_active": 1,
+			"date_from": ["<=", str(date_to)],
+			"date_to": [">=", str(date_from)],
+		},
+		fields=[
+			"name", "custom_price_name", "date_from", "date_to",
+			"participates_in_promotions", "affected_by_seasons",
+			"individual_price", "route_price", "price_per_night",
+		],
+		order_by="modified desc",
+	)
+	out = []
+	for r in rows:
+		cp_lines = frappe.get_all(
+			"Cheese Experience Price",
+			filters={"parent": r.name, "parenttype": "Cheese Custom Price"},
+			fields=["day_type", "age_group", "price", "route_price"],
+		)
+		out.append(
+			{
+				"name": r.name,
+				"custom_price_name": r.custom_price_name,
+				"date_from": str(r.date_from),
+				"date_to": str(r.date_to),
+				"participates_in_promotions": bool(r.participates_in_promotions),
+				"affected_by_seasons": bool(r.affected_by_seasons),
+				"individual_price": flt(r.individual_price),
+				"route_price": flt(r.route_price),
+				"price_per_night": flt(r.price_per_night),
+				"lines": [
+					{
+						"day_type": l.day_type,
+						"age_group": l.age_group,
+						"price": l.price,
+						"route_price": l.route_price,
+					}
+					for l in cp_lines
+				],
+			}
+		)
+	return out
+
+
+def get_experience_price_calendar(experience_doc, date_from, date_to):
+	"""Per-day resolved prices of an experience over [date_from, date_to].
+
+	For every day it returns the day type (WEEKDAY/WEEKEND), the active season
+	(if any), the active promotions (date-covered — their party requirements are
+	shown but not applied, since a calendar has no party), and one price row per
+	relevant variant: one per company age group (when the experience carries
+	age-specific lines) plus a base/other-ages row, or a single general/base row.
+	Each row shows the layer-1/layer-2 resolved price and its season-adjusted
+	effective value, for both individual and in-route prices, in the experience
+	currency. Purely informational — booking math stays in compute_party_prices.
+	"""
+	from frappe.utils import add_days
+	from cheese.cheese.utils.currency_rates import get_company_currency
+
+	company = experience_doc.company
+	d_from, d_to = getdate(date_from), getdate(date_to)
+
+	age_groups_raw = frappe.get_all(
+		"Cheese Age Group",
+		filters={"company": company},
+		fields=["name", "group_name", "min_age", "max_age"],
+		order_by="min_age asc",
+	)
+	age_groups = [
+		{"name": g.name, "group_name": g.group_name, "min_age": g.min_age, "max_age": g.max_age}
+		for g in age_groups_raw
+	]
+	group_map = {g["name"]: g for g in age_groups}
+
+	lines = [
+		{
+			"day_type": row.day_type,
+			"age_group": row.age_group,
+			"price": row.price,
+			"route_price": row.route_price,
+		}
+		for row in (experience_doc.get("price_lines") or [])
+	]
+	diff_wd = cint(experience_doc.get("differentiate_by_weekday"))
+	diff_age = cint(experience_doc.get("differentiate_by_age_group"))
+	use_matrix = bool(lines) and bool(diff_wd or diff_age)
+	has_age_lines = any(l.get("age_group") for l in lines)
+
+	is_hotel = experience_doc.get("experience_type") == "HOTEL"
+	base_ind = flt(experience_doc.get("price_per_night")) if is_hotel else flt(experience_doc.get("individual_price"))
+	base_route = flt(experience_doc.get("route_price"))
+
+	currency = (
+		experience_doc.get("currency") or get_company_currency(company) or "UYU"
+	)
+
+	seasons = _seasons_in_range(company, experience_doc.name, d_from, d_to)
+	promotions = _promotions_in_range(company, experience_doc.name, d_from, d_to, group_map)
+	customs = _custom_prices_in_range(experience_doc.name, d_from, d_to)
+
+	def _l4(custom, day_type, age_group):
+		"""Layer-4 (custom) resolved individual/route price for a variant, or
+		(None, None) when no custom price covers the day."""
+		if not custom:
+			return (None, None)
+		c_base_ind = custom["price_per_night"] if is_hotel else custom["individual_price"]
+		ci = _match_price_line(custom["lines"], day_type, age_group, False)
+		cr = _match_price_line(custom["lines"], day_type, age_group, True)
+		return (ci if ci is not None else c_base_ind, cr if cr is not None else custom["route_price"])
+
+	def _row(kind, group, l1_ind, l1_rte, l2_ind, l2_rte, l4_ind, l4_rte, factor):
+		# Layer 1 = base; layer 2 = matched matrix line (None -> falls back to
+		# layer 1); layer 4 = active custom-price override (None -> none). Layer 3
+		# (season) applies on top of whichever wins, giving the effective value.
+		has_l4 = l4_ind is not None or l4_rte is not None
+		resolved_ind = l1_ind if l2_ind is None else l2_ind
+		resolved_rte = l1_rte if l2_rte is None else l2_rte
+		final_ind = l4_ind if has_l4 else resolved_ind
+		final_rte = l4_rte if has_l4 else resolved_rte
+		return {
+			"kind": kind,
+			"age_group": group["name"] if group else None,
+			"age_group_name": group["group_name"] if group else None,
+			"min_age": group["min_age"] if group else None,
+			"max_age": group["max_age"] if group else None,
+			# Layer 1 (base)
+			"layer1_individual": flt(l1_ind, 2),
+			"layer1_route": flt(l1_rte, 2),
+			# Layer 2 (day/age matrix line; None when it falls back to layer 1)
+			"layer2_individual": flt(l2_ind, 2) if l2_ind is not None else None,
+			"layer2_route": flt(l2_rte, 2) if l2_rte is not None else None,
+			"has_layer2": l2_ind is not None or l2_rte is not None,
+			# Layer 4 (custom-price override; None when no custom covers the day)
+			"layer4_individual": flt(l4_ind, 2) if l4_ind is not None else None,
+			"layer4_route": flt(l4_rte, 2) if l4_rte is not None else None,
+			"has_layer4": has_l4,
+			# Final = (layer 4 if present, else layer 2/1) with layer-3 season on top
+			"individual_base": flt(final_ind, 2),
+			"individual_effective": flt(flt(final_ind) * factor, 2),
+			"route_base": flt(final_rte, 2),
+			"route_effective": flt(flt(final_rte) * factor, 2),
+		}
+
+	days = []
+	cur = d_from
+	while cur <= d_to:
+		day_str = str(cur)
+		day_type = "WEEKEND" if cur.weekday() >= 5 else "WEEKDAY"
+
+		season = next((s for s in seasons if s["date_from"] <= day_str <= s["date_to"]), None)
+		custom = next((c for c in customs if c["date_from"] <= day_str <= c["date_to"]), None)
+		season_applies = bool(season and season.get("percent")) and (
+			custom is None or custom["affected_by_seasons"]
+		)
+		factor = (1 + flt(season["percent"]) / 100.0) if season_applies else 1.0
+
+		rows = []
+		if use_matrix and diff_age and has_age_lines and age_groups:
+			for g in age_groups:
+				ci, cr = _l4(custom, day_type, g["name"])
+				rows.append(
+					_row("age_group", g, base_ind, base_route,
+						_match_price_line(lines, day_type, g["name"], False),
+						_match_price_line(lines, day_type, g["name"], True), ci, cr, factor)
+				)
+			ci, cr = _l4(custom, day_type, None)
+			rows.append(
+				_row("base_other", None, base_ind, base_route,
+					_match_price_line(lines, day_type, None, False),
+					_match_price_line(lines, day_type, None, True), ci, cr, factor)
+			)
+		elif use_matrix:
+			ci, cr = _l4(custom, day_type, None)
+			rows.append(
+				_row("general", None, base_ind, base_route,
+					_match_price_line(lines, day_type, None, False),
+					_match_price_line(lines, day_type, None, True), ci, cr, factor)
+			)
+		else:
+			ci, cr = _l4(custom, day_type, None)
+			rows.append(_row("base", None, base_ind, base_route, None, None, ci, cr, factor))
+
+		day_promos = [p for p in promotions if p["date_from"] <= day_str <= p["date_to"]]
+		prices = [r["individual_effective"] for r in rows if r["individual_effective"]]
+		days.append(
+			{
+				"date": day_str,
+				"day_type": day_type,
+				"season": season,
+				"season_applies": season_applies,
+				"custom_price": (
+					{
+						"name": custom["name"],
+						"custom_price_name": custom["custom_price_name"],
+						"participates_in_promotions": custom["participates_in_promotions"],
+						"affected_by_seasons": custom["affected_by_seasons"],
+					}
+					if custom else None
+				),
+				"promotions": day_promos,
+				"promo_count": len(day_promos),
+				"promotions_apply": custom is None or custom["participates_in_promotions"],
+				"rows": rows,
+				"min_price": min(prices) if prices else 0.0,
+				"max_price": max(prices) if prices else 0.0,
+			}
+		)
+		cur = add_days(cur, 1)
+
+	return {
+		"experience_id": experience_doc.name,
+		"company": company,
+		"currency": currency,
+		"experience_type": experience_doc.get("experience_type"),
+		"differentiate_by_weekday": bool(diff_wd),
+		"differentiate_by_age_group": bool(diff_age),
+		"has_age_lines": has_age_lines,
+		"date_from": str(d_from),
+		"date_to": str(d_to),
+		"age_groups": age_groups,
+		# Raw current prices of the experience, so the "custom price" form can
+		# pre-fill each field with the value it overrides.
+		"experience": {
+			"individual_price": flt(experience_doc.get("individual_price")),
+			"route_price": base_route,
+			"price_per_night": flt(experience_doc.get("price_per_night")),
+			"experience_type": experience_doc.get("experience_type"),
+			"price_lines": [
+				{
+					"day_type": (l["day_type"] or "ALL"),
+					"age_group": l["age_group"],
+					"age_group_name": (group_map.get(l["age_group"]) or {}).get("group_name"),
+					"price": flt(l["price"]),
+					"route_price": flt(l["route_price"]),
+				}
+				for l in lines
+			],
+		},
+		"days": days,
 	}
