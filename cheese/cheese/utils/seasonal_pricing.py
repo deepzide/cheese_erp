@@ -388,3 +388,224 @@ def get_pricing_catalog(experience_doc, date_value=None):
 		"seasons": seasons,
 		"promotions": promotions,
 	}
+
+
+def _seasons_in_range(company, experience_id, date_from, date_to):
+	"""Active seasons overlapping [date_from, date_to] that cover the experience
+	(empty experience set = every experience). ISO date strings so callers can
+	compare against a day with plain string ordering. Sorted most-recently
+	modified first (first match wins per day, matching get_active_season)."""
+	rows = frappe.get_all(
+		"Cheese Season",
+		filters={
+			"company": company,
+			"is_active": 1,
+			"date_from": ["<=", str(date_to)],
+			"date_to": [">=", str(date_from)],
+		},
+		fields=["name", "season_name", "percent", "date_from", "date_to"],
+		order_by="modified desc",
+	)
+	out = []
+	for s in rows:
+		linked = frappe.get_all(
+			"Cheese Season Experience", filters={"parent": s.name}, pluck="experience"
+		)
+		if linked and experience_id not in linked:
+			continue
+		out.append(
+			{
+				"season_id": s.name,
+				"season_name": s.season_name,
+				"percent": flt(s.percent),
+				"date_from": str(s.date_from),
+				"date_to": str(s.date_to),
+			}
+		)
+	return out
+
+
+def _promotions_in_range(company, experience_id, date_from, date_to, group_map):
+	"""Active promotions overlapping [date_from, date_to] that cover the
+	experience, with requirement lines resolved against the age-group map."""
+	rows = frappe.get_all(
+		"Cheese Promotion",
+		filters={
+			"company": company,
+			"is_active": 1,
+			"date_from": ["<=", str(date_to)],
+			"date_to": [">=", str(date_from)],
+		},
+		fields=["name"],
+		order_by="date_from asc",
+	)
+	out = []
+	for r in rows:
+		promo = frappe.get_doc("Cheese Promotion", r.name)
+		if not promo.all_experiences:
+			linked = [x.experience for x in (promo.experiences or [])]
+			if experience_id not in linked:
+				continue
+		requirements = []
+		for req in promo.requirements or []:
+			g = group_map.get(req.age_group)
+			requirements.append(
+				{
+					"min_people": cint(req.min_people),
+					"age_group": req.age_group,
+					"age_group_name": g["group_name"] if g else None,
+					"min_age": g["min_age"] if g else None,
+					"max_age": g["max_age"] if g else None,
+				}
+			)
+		out.append(
+			{
+				"promotion_id": promo.name,
+				"promo_name": promo.promo_name,
+				"discount_type": promo.discount_type,
+				"percent": flt(promo.percent),
+				"free_tickets": cint(promo.free_tickets),
+				"date_from": str(promo.date_from),
+				"date_to": str(promo.date_to),
+				"requirements": requirements,
+			}
+		)
+	return out
+
+
+def get_experience_price_calendar(experience_doc, date_from, date_to):
+	"""Per-day resolved prices of an experience over [date_from, date_to].
+
+	For every day it returns the day type (WEEKDAY/WEEKEND), the active season
+	(if any), the active promotions (date-covered — their party requirements are
+	shown but not applied, since a calendar has no party), and one price row per
+	relevant variant: one per company age group (when the experience carries
+	age-specific lines) plus a base/other-ages row, or a single general/base row.
+	Each row shows the layer-1/layer-2 resolved price and its season-adjusted
+	effective value, for both individual and in-route prices, in the experience
+	currency. Purely informational — booking math stays in compute_party_prices.
+	"""
+	from frappe.utils import add_days
+	from cheese.cheese.utils.currency_rates import get_company_currency
+
+	company = experience_doc.company
+	d_from, d_to = getdate(date_from), getdate(date_to)
+
+	age_groups_raw = frappe.get_all(
+		"Cheese Age Group",
+		filters={"company": company},
+		fields=["name", "group_name", "min_age", "max_age"],
+		order_by="min_age asc",
+	)
+	age_groups = [
+		{"name": g.name, "group_name": g.group_name, "min_age": g.min_age, "max_age": g.max_age}
+		for g in age_groups_raw
+	]
+	group_map = {g["name"]: g for g in age_groups}
+
+	lines = [
+		{
+			"day_type": row.day_type,
+			"age_group": row.age_group,
+			"price": row.price,
+			"route_price": row.route_price,
+		}
+		for row in (experience_doc.get("price_lines") or [])
+	]
+	diff_wd = cint(experience_doc.get("differentiate_by_weekday"))
+	diff_age = cint(experience_doc.get("differentiate_by_age_group"))
+	use_matrix = bool(lines) and bool(diff_wd or diff_age)
+	has_age_lines = any(l.get("age_group") for l in lines)
+
+	if experience_doc.get("experience_type") == "HOTEL":
+		base_ind = flt(experience_doc.get("price_per_night"))
+	else:
+		base_ind = flt(experience_doc.get("individual_price"))
+	base_route = flt(experience_doc.get("route_price"))
+
+	currency = (
+		experience_doc.get("currency") or get_company_currency(company) or "UYU"
+	)
+
+	seasons = _seasons_in_range(company, experience_doc.name, d_from, d_to)
+	promotions = _promotions_in_range(company, experience_doc.name, d_from, d_to, group_map)
+
+	def _row(kind, group, ind_base, route_base, factor):
+		return {
+			"kind": kind,
+			"age_group": group["name"] if group else None,
+			"age_group_name": group["group_name"] if group else None,
+			"min_age": group["min_age"] if group else None,
+			"max_age": group["max_age"] if group else None,
+			"individual_base": flt(ind_base, 2),
+			"individual_effective": flt(flt(ind_base) * factor, 2),
+			"route_base": flt(route_base, 2),
+			"route_effective": flt(flt(route_base) * factor, 2),
+		}
+
+	days = []
+	cur = d_from
+	while cur <= d_to:
+		day_str = str(cur)
+		day_type = "WEEKEND" if cur.weekday() >= 5 else "WEEKDAY"
+
+		season = next((s for s in seasons if s["date_from"] <= day_str <= s["date_to"]), None)
+		factor = 1 + flt(season["percent"]) / 100.0 if season and season.get("percent") else 1.0
+
+		rows = []
+		if use_matrix and diff_age and has_age_lines and age_groups:
+			for g in age_groups:
+				ind = _match_price_line(lines, day_type, g["name"], False)
+				rte = _match_price_line(lines, day_type, g["name"], True)
+				rows.append(
+					_row("age_group", g,
+						ind if ind is not None else base_ind,
+						rte if rte is not None else base_route, factor)
+				)
+			ind = _match_price_line(lines, day_type, None, False)
+			rte = _match_price_line(lines, day_type, None, True)
+			rows.append(
+				_row("base_other", None,
+					ind if ind is not None else base_ind,
+					rte if rte is not None else base_route, factor)
+			)
+		elif use_matrix:
+			ind = _match_price_line(lines, day_type, None, False)
+			rte = _match_price_line(lines, day_type, None, True)
+			rows.append(
+				_row("general", None,
+					ind if ind is not None else base_ind,
+					rte if rte is not None else base_route, factor)
+			)
+		else:
+			rows.append(_row("base", None, base_ind, base_route, factor))
+
+		day_promos = [p for p in promotions if p["date_from"] <= day_str <= p["date_to"]]
+		prices = [r["individual_effective"] for r in rows if r["individual_effective"]]
+		days.append(
+			{
+				"date": day_str,
+				"day_type": day_type,
+				"season": season,
+				"promotions": day_promos,
+				"promo_count": len(day_promos),
+				"rows": rows,
+				"min_price": min(prices) if prices else 0.0,
+				"max_price": max(prices) if prices else 0.0,
+			}
+		)
+		cur = add_days(cur, 1)
+
+	return {
+		"experience_id": experience_doc.name,
+		"company": company,
+		"currency": currency,
+		"experience_type": experience_doc.get("experience_type"),
+		"differentiate_by_weekday": bool(diff_wd),
+		"differentiate_by_age_group": bool(diff_age),
+		"has_age_lines": has_age_lines,
+		"date_from": str(d_from),
+		"date_to": str(d_to),
+		"age_groups": age_groups,
+		"days": days,
+	}

@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import CompanySelect from "@/components/CompanySelect";
+import ExperiencePriceCalendar from "@/components/ExperiencePriceCalendar";
 import { useActiveEstablishment } from "@/lib/ActiveEstablishmentContext";
 import { useFrappeList, useFrappeCreate, useFrappeUpdate } from "@/lib/useApiData";
 import { useHotelAccess } from "@/lib/useHotelAccess";
@@ -36,6 +37,21 @@ export default function Seasons() {
         enabled: !!effectiveCompany,
         filters: { company: effectiveCompany },
         fields: ["name"],
+        pageSize: 500,
+    });
+
+    // Price-calendar explorer. A superadmin in "all companies" mode picks a
+    // company; otherwise the company is inferred (global selector or role) and
+    // the picker is hidden.
+    const needsCompanyPicker = isAdmin && !activeEstablishment;
+    const [calCompany, setCalCompany] = useState("");
+    const explorerCompany = needsCompanyPicker ? calCompany : effectiveCompany;
+    const [calExperience, setCalExperience] = useState("");
+    React.useEffect(() => { setCalExperience(""); }, [explorerCompany]);
+    const { data: explorerExperiences = [] } = useFrappeList("Cheese Experience", {
+        enabled: !!explorerCompany,
+        filters: { company: explorerCompany },
+        fields: ["name", "experience_name"],
         pageSize: 500,
     });
 
@@ -126,6 +142,46 @@ export default function Seasons() {
                     </Button>
                 </div>
             </div>
+
+            <Card className="glass-surface">
+                <CardContent className="p-4 space-y-4">
+                    <div>
+                        <p className="font-semibold text-sm flex items-center gap-2">
+                            <CalendarRange className="w-4 h-4 text-cheese-600" />
+                            {t("seasons.explorerTitle", "Explorar precios por día")}
+                        </p>
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                            {t("seasons.explorerDesc", "Selecciona una experiencia para ver un calendario con sus precios por día, incluyendo el ajuste de temporadas y las promociones activas.")}
+                        </p>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        {needsCompanyPicker && (
+                            <div className="space-y-1">
+                                <Label>{t("common.company", "Empresa")} <span className="text-red-500">*</span></Label>
+                                <CompanySelect value={calCompany} onChange={setCalCompany} />
+                            </div>
+                        )}
+                        <div className="space-y-1">
+                            <Label>{t("seasons.experience", "Experiencia")} <span className="text-red-500">*</span></Label>
+                            <select
+                                value={calExperience}
+                                onChange={(e) => setCalExperience(e.target.value)}
+                                disabled={!explorerCompany}
+                                className="flex h-9 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm disabled:opacity-50"
+                            >
+                                <option value="">{t("seasons.selectExperience", "Selecciona una experiencia...")}</option>
+                                {explorerExperiences.map((exp) => (
+                                    <option key={exp.name} value={exp.name}>{exp.experience_name || exp.name}</option>
+                                ))}
+                            </select>
+                            {needsCompanyPicker && !explorerCompany && (
+                                <p className="text-xs text-muted-foreground">{t("seasons.pickCompanyFirst", "Elige una empresa para listar sus experiencias.")}</p>
+                            )}
+                        </div>
+                    </div>
+                    {calExperience && <ExperiencePriceCalendar experienceId={calExperience} />}
+                </CardContent>
+            </Card>
 
             <div className="space-y-2">
                 {isLoading ? (

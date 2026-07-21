@@ -419,6 +419,56 @@ def get_active_season_for_experience(experience_id, date=None):
 		return error("Failed to resolve active season", "SERVER_ERROR", {"error": str(e)}, 500)
 
 
+@frappe.whitelist()
+def get_experience_price_calendar(experience_id, month=None, date_from=None, date_to=None):
+	"""Per-day price calendar for an experience (default: the current month).
+
+	Feeds the experience-detail and seasons price-calendar views: for each day
+	it returns the resolved prices (per age group + base), the active season and
+	the promotions covering that day. Read-only.
+
+	Args:
+		experience_id: Cheese Experience
+		month: "YYYY-MM" (whole month). Overrides date_from/date_to when given.
+		date_from / date_to: explicit range (ISO). Capped at 62 days.
+	"""
+	try:
+		if not experience_id:
+			return validation_error("experience_id is required")
+		if not frappe.db.exists("Cheese Experience", experience_id):
+			return not_found("Experience", experience_id)
+		if not frappe.has_permission("Cheese Experience", "read", experience_id):
+			return error("Not permitted to access this experience", "PERMISSION_DENIED", {}, 403)
+
+		from frappe.utils import getdate, get_first_day, get_last_day, nowdate, add_days
+		from cheese.cheese.utils.seasonal_pricing import get_experience_price_calendar as _calendar
+
+		if month:
+			try:
+				anchor = getdate(f"{month}-01")
+			except Exception:
+				return validation_error("month must be in YYYY-MM format")
+			d_from = get_first_day(anchor)
+			d_to = get_last_day(anchor)
+		elif date_from and date_to:
+			d_from, d_to = getdate(date_from), getdate(date_to)
+			if d_to < d_from:
+				return validation_error("date_to must be on or after date_from")
+			if (d_to - d_from).days > 62:
+				d_to = add_days(d_from, 62)
+		else:
+			anchor = getdate(nowdate())
+			d_from = get_first_day(anchor)
+			d_to = get_last_day(anchor)
+
+		experience = frappe.get_doc("Cheese Experience", experience_id)
+		data = _calendar(experience, d_from, d_to)
+		return success("Price calendar resolved", data)
+	except Exception as e:
+		frappe.log_error(f"Error in get_experience_price_calendar: {str(e)}")
+		return error("Failed to resolve price calendar", "SERVER_ERROR", {"error": str(e)}, 500)
+
+
 def _sim_activity_availability(experience_id, date_value, needed):
 	"""Best slot availability for an activity on a date (no tenant guard: the
 	simulator is a read-only price/availability preview, and routes legitimately
