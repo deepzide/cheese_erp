@@ -530,17 +530,30 @@ def get_experience_price_calendar(experience_doc, date_from, date_to):
 	seasons = _seasons_in_range(company, experience_doc.name, d_from, d_to)
 	promotions = _promotions_in_range(company, experience_doc.name, d_from, d_to, group_map)
 
-	def _row(kind, group, ind_base, route_base, factor):
+	def _row(kind, group, l1_ind, l1_rte, l2_ind, l2_rte, factor):
+		# Layer 1 = the experience base prices; layer 2 = the matched matrix line
+		# for this day/age (None -> the variant falls back to layer 1); layer 3 =
+		# the resolved price adjusted by the active season (the effective value).
+		resolved_ind = l1_ind if l2_ind is None else l2_ind
+		resolved_rte = l1_rte if l2_rte is None else l2_rte
 		return {
 			"kind": kind,
 			"age_group": group["name"] if group else None,
 			"age_group_name": group["group_name"] if group else None,
 			"min_age": group["min_age"] if group else None,
 			"max_age": group["max_age"] if group else None,
-			"individual_base": flt(ind_base, 2),
-			"individual_effective": flt(flt(ind_base) * factor, 2),
-			"route_base": flt(route_base, 2),
-			"route_effective": flt(flt(route_base) * factor, 2),
+			# Layer 1 (base)
+			"layer1_individual": flt(l1_ind, 2),
+			"layer1_route": flt(l1_rte, 2),
+			# Layer 2 (day/age matrix line; None when it falls back to layer 1)
+			"layer2_individual": flt(l2_ind, 2) if l2_ind is not None else None,
+			"layer2_route": flt(l2_rte, 2) if l2_rte is not None else None,
+			"has_layer2": l2_ind is not None or l2_rte is not None,
+			# Resolved (layer 2 if present, else layer 1) and layer-3 effective
+			"individual_base": flt(resolved_ind, 2),
+			"individual_effective": flt(flt(resolved_ind) * factor, 2),
+			"route_base": flt(resolved_rte, 2),
+			"route_effective": flt(flt(resolved_rte) * factor, 2),
 		}
 
 	days = []
@@ -555,30 +568,24 @@ def get_experience_price_calendar(experience_doc, date_from, date_to):
 		rows = []
 		if use_matrix and diff_age and has_age_lines and age_groups:
 			for g in age_groups:
-				ind = _match_price_line(lines, day_type, g["name"], False)
-				rte = _match_price_line(lines, day_type, g["name"], True)
 				rows.append(
-					_row("age_group", g,
-						ind if ind is not None else base_ind,
-						rte if rte is not None else base_route, factor)
+					_row("age_group", g, base_ind, base_route,
+						_match_price_line(lines, day_type, g["name"], False),
+						_match_price_line(lines, day_type, g["name"], True), factor)
 				)
-			ind = _match_price_line(lines, day_type, None, False)
-			rte = _match_price_line(lines, day_type, None, True)
 			rows.append(
-				_row("base_other", None,
-					ind if ind is not None else base_ind,
-					rte if rte is not None else base_route, factor)
+				_row("base_other", None, base_ind, base_route,
+					_match_price_line(lines, day_type, None, False),
+					_match_price_line(lines, day_type, None, True), factor)
 			)
 		elif use_matrix:
-			ind = _match_price_line(lines, day_type, None, False)
-			rte = _match_price_line(lines, day_type, None, True)
 			rows.append(
-				_row("general", None,
-					ind if ind is not None else base_ind,
-					rte if rte is not None else base_route, factor)
+				_row("general", None, base_ind, base_route,
+					_match_price_line(lines, day_type, None, False),
+					_match_price_line(lines, day_type, None, True), factor)
 			)
 		else:
-			rows.append(_row("base", None, base_ind, base_route, factor))
+			rows.append(_row("base", None, base_ind, base_route, None, None, factor))
 
 		day_promos = [p for p in promotions if p["date_from"] <= day_str <= p["date_to"]]
 		prices = [r["individual_effective"] for r in rows if r["individual_effective"]]

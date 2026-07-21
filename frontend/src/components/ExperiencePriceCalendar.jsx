@@ -78,6 +78,14 @@ export default function ExperiencePriceCalendar({ experienceId }) {
         return p.discount_type;
     };
 
+    // Individual price with the in-route price beneath it (one pricing layer).
+    const layerCell = (ind, rte, strong = false) => (
+        <span className="text-right leading-tight">
+            <span className={strong ? "font-semibold" : ""}>{fmtMoney(ind, currency)}</span>
+            <span className="block text-[10px] text-muted-foreground">{t("priceCalendar.routeShort", "ruta")} {fmtMoney(rte, "")}</span>
+        </span>
+    );
+
     return (
         <Card className="border-border/60 shadow-sm">
             <CardHeader className="border-b bg-muted/20 pb-4">
@@ -167,34 +175,33 @@ export default function ExperiencePriceCalendar({ experienceId }) {
                                     </p>
                                 )}
 
-                                <div className="space-y-1">
-                                    <div className="grid grid-cols-[1fr_auto_auto] gap-x-4 text-[11px] uppercase font-semibold text-muted-foreground">
-                                        <span>{t("priceCalendar.variant", "Variante")}</span>
-                                        <span className="text-right">{t("priceCalendar.individual", "Individual")}</span>
-                                        <span className="text-right">{t("priceCalendar.inRoute", "En ruta")}</span>
-                                    </div>
-                                    {(selectedDay.rows || []).map((r, i) => {
-                                        const indDiff = Number(r.individual_base) !== Number(r.individual_effective);
-                                        const rteDiff = Number(r.route_base) !== Number(r.route_effective);
-                                        return (
-                                            <div key={i} className="grid grid-cols-[1fr_auto_auto] gap-x-4 items-center text-sm py-1 border-t border-border/50">
-                                                <span className="truncate">{rowLabel(r)}</span>
-                                                <span className="text-right">
-                                                    {indDiff && <span className="text-[11px] text-muted-foreground line-through mr-1">{fmtMoney(r.individual_base, "")}</span>}
-                                                    <span className="font-medium">{fmtMoney(r.individual_effective, currency)}</span>
-                                                </span>
-                                                <span className="text-right text-muted-foreground">
-                                                    {rteDiff && <span className="text-[11px] line-through mr-1">{fmtMoney(r.route_base, "")}</span>}
-                                                    {fmtMoney(r.route_effective, currency)}
-                                                </span>
+                                <div className="space-y-1 overflow-x-auto">
+                                    <p className="text-[11px] text-muted-foreground">
+                                        {t("priceCalendar.layersLegend", "Cada precio por capa — Capa 1: base · Capa 2: por día y grupo etario · Capa 3: con temporada. Debajo de cada monto, el precio en ruta.")}
+                                    </p>
+                                    <div className="min-w-[440px]">
+                                        <div className="grid grid-cols-[1.1fr_1fr_1fr_1fr] gap-x-3 text-[11px] uppercase font-semibold text-muted-foreground pb-1">
+                                            <span>{t("priceCalendar.variant", "Variante")}</span>
+                                            <span className="text-right">{t("priceCalendar.layer1", "Capa 1 · base")}</span>
+                                            <span className="text-right">{t("priceCalendar.layer2", "Capa 2 · día/edad")}</span>
+                                            <span className="text-right">{t("priceCalendar.layer3", "Capa 3 · final")}</span>
+                                        </div>
+                                        {(selectedDay.rows || []).map((r, i) => (
+                                            <div key={i} className="grid grid-cols-[1.1fr_1fr_1fr_1fr] gap-x-3 items-start text-sm py-1.5 border-t border-border/50">
+                                                <span className="truncate pr-1">{rowLabel(r)}</span>
+                                                {layerCell(r.layer1_individual, r.layer1_route)}
+                                                {r.has_layer2
+                                                    ? layerCell(r.layer2_individual ?? r.layer1_individual, r.layer2_route ?? r.layer1_route)
+                                                    : <span className="text-right text-[10px] text-muted-foreground self-center">{t("priceCalendar.usesLayer1", "usa capa 1")}</span>}
+                                                {layerCell(r.individual_effective, r.route_effective, true)}
                                             </div>
-                                        );
-                                    })}
+                                        ))}
+                                    </div>
                                 </div>
 
                                 {selectedDay.promotions?.length > 0 && (
                                     <div className="space-y-1 pt-1">
-                                        <p className="text-[11px] uppercase font-semibold text-muted-foreground">{t("priceCalendar.promotions", "Promociones activas")}</p>
+                                        <p className="text-[11px] uppercase font-semibold text-muted-foreground">{t("priceCalendar.promotions", "Capa 3 · Promociones activas")}</p>
                                         {selectedDay.promotions.map((p) => (
                                             <div key={p.promotion_id} className="flex items-start gap-2 text-xs">
                                                 <Badge className="bg-cheese-500/15 text-cheese-700 dark:text-cheese-400 shrink-0">
