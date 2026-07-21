@@ -47,7 +47,7 @@ def peak_reserved_capacity_for_slot_document(slot_doc):
 	return peak
 
 
-def calculate_reserved_capacity(slot_name, selected_date=None):
+def calculate_reserved_capacity(slot_name, selected_date=None, exclude_ticket=None):
 	"""
 	Calculate reserved capacity for a slot.
 
@@ -58,6 +58,9 @@ def calculate_reserved_capacity(slot_name, selected_date=None):
 	Args:
 		slot_name: Name of the slot
 		selected_date: Optional date to filter by (for multi-day slots)
+		exclude_ticket: Optional ticket name to exclude from the count. Used when
+			validating a ticket against capacity so its own already-reserved seats
+			are not double-counted (e.g. confirming a ticket that fills the slot).
 
 	Returns:
 		Reserved capacity (sum of party_size for active tickets)
@@ -94,24 +97,29 @@ def calculate_reserved_capacity(slot_name, selected_date=None):
 		if selected_date:
 			query = query.where(ticket.selected_date == selected_date)
 
+	if exclude_ticket:
+		query = query.where(ticket.name != exclude_ticket)
+
 	result = query.run()
 
 	return result[0][0] if result and result[0][0] else 0
 
 
-def get_available_capacity(slot_name, selected_date=None):
+def get_available_capacity(slot_name, selected_date=None, exclude_ticket=None):
 	"""
 	Get available capacity for a slot
 
 	Args:
 		slot_name: Name of the slot
 		selected_date: Optional date to filter by
+		exclude_ticket: Optional ticket name to exclude from the reserved count
+			(so a ticket does not consume capacity against itself).
 
 	Returns:
 		Available capacity
 	"""
 	slot = frappe.get_doc("Cheese Experience Slot", slot_name)
-	reserved = calculate_reserved_capacity(slot_name, selected_date)
+	reserved = calculate_reserved_capacity(slot_name, selected_date, exclude_ticket=exclude_ticket)
 	max_capacity = _effective_max_capacity(slot, selected_date)
 	return max_capacity - reserved
 
