@@ -1,18 +1,25 @@
 import React, { useMemo, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
-import { ChevronLeft, ChevronRight, CalendarDays, TrendingUp, TrendingDown, Tag } from "lucide-react";
+import { toast } from "sonner";
+import { ChevronLeft, ChevronRight, CalendarDays, TrendingUp, TrendingDown, Tag, Sparkles, Plus, X } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { apiRequest } from "@/api/client";
 
 /**
  * Month price calendar for a Cheese Experience. Each day shows the cheapest
- * resolved price ("desde") plus season/promotion markers; clicking a day
- * expands every price of that experience for that day (per age group + base),
- * the active season and the promotions covering it. Read-only.
+ * resolved price ("desde") plus season/promotion/custom markers; clicking a day
+ * expands every price for that day across pricing layers (1 base, 2 day/age
+ * matrix, 3 season+promotions, 4 custom override). Shift+click a second day to
+ * select a range and create a layer-4 custom price for it.
  *
- * Backed by pricing_controller.get_experience_price_calendar.
+ * Backed by pricing_controller.get_experience_price_calendar and
+ * custom_price_controller.create_custom_price.
  */
 
 const monthKey = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
@@ -22,11 +29,17 @@ const fmtMoney = (n, cur) =>
 
 export default function ExperiencePriceCalendar({ experienceId }) {
     const { t, i18n } = useTranslation();
+    const queryClient = useQueryClient();
     const [monthDate, setMonthDate] = useState(() => {
         const d = new Date();
         return new Date(d.getFullYear(), d.getMonth(), 1);
     });
-    const [selected, setSelected] = useState(null);
+    const [selected, setSelected] = useState(null);      // day whose detail is shown
+    const [rangeStart, setRangeStart] = useState(null);  // custom-price range anchor
+    const [rangeEnd, setRangeEnd] = useState(null);
+    const [formOpen, setFormOpen] = useState(false);
+    const [form, setForm] = useState(null);
+    const [saving, setSaving] = useState(false);
     const month = monthKey(monthDate);
 
     const { data, isLoading, isError } = useQuery({
@@ -61,8 +74,24 @@ export default function ExperiencePriceCalendar({ experienceId }) {
     const weekdayLabels = t("priceCalendar.weekdaysShort", "Lun,Mar,Mié,Jue,Vie,Sáb,Dom").split(",");
     const monthLabel = monthDate.toLocaleDateString(i18n.language || undefined, { month: "long", year: "numeric" });
 
-    const goPrev = () => { setSelected(null); setMonthDate(new Date(y, mo - 1, 1)); };
-    const goNext = () => { setSelected(null); setMonthDate(new Date(y, mo + 1, 1)); };
+    // Range (ISO strings compare lexicographically).
+    const rangeLo = rangeStart && rangeEnd ? (rangeStart <= rangeEnd ? rangeStart : rangeEnd) : rangeStart;
+    const rangeHi = rangeStart && rangeEnd ? (rangeStart <= rangeEnd ? rangeEnd : rangeStart) : rangeStart;
+    const inRange = (ds) => rangeStart && rangeHi && ds >= rangeLo && ds <= rangeHi;
+    const clearRange = () => { setRangeStart(null); setRangeEnd(null); };
+
+    const handleDayClick = (ds, shift) => {
+        if (shift && rangeStart) {
+            setRangeEnd(ds);
+        } else {
+            setRangeStart(ds);
+            setRangeEnd(null);
+        }
+        setSelected(ds);
+    };
+
+    const goPrev = () => { setSelected(null); clearRange(); setMonthDate(new Date(y, mo - 1, 1)); };
+    const goNext = () => { setSelected(null); clearRange(); setMonthDate(new Date(y, mo + 1, 1)); };
 
     const rowLabel = (r) => {
         if (r.kind === "age_group") return `${r.age_group_name} (${r.min_age}–${r.max_age})`;
@@ -78,13 +107,81 @@ export default function ExperiencePriceCalendar({ experienceId }) {
         return p.discount_type;
     };
 
-    // Individual price with the in-route price beneath it (one pricing layer).
     const layerCell = (ind, rte, strong = false) => (
         <span className="text-right leading-tight">
             <span className={strong ? "font-semibold" : ""}>{fmtMoney(ind, currency)}</span>
             <span className="block text-[10px] text-muted-foreground">{t("priceCalendar.routeShort", "ruta")} {fmtMoney(rte, "")}</span>
         </span>
     );
+
+    // ---- Custom price (layer 4) form ----
+    const lineLabel = (l) => {
+        const day = l.day_type === "WEEKDAY" ? t("priceCalendar.weekday", "Lunes a viernes")
+            : l.day_type === "WEEKEND" ? t("priceCalendar.weekend", "Fin de semana")
+                : t("priceCalendar.anyDay", "Cualquier día");
+        const age = l.age_group_name ? l.age_group_name : t("experiences.allAges", "Todas las edades");
+        return `${day} · ${age}`;
+    };
+
+    const openForm = () => {
+        const exp = data?.experience || {};
+        const isHotel = exp.experience_type === "HOTEL";
+        setForm({
+            is_hotel: isHotel,
+            date_from: rangeLo,
+            date_to: rangeHi,
+            custom_price_name: "",
+            individual_price: isHotel ? "" : String(exp.individual_price ?? ""),
+            price_per_night: isHotel ? String(exp.price_per_night ?? "") : "",
+            route_price: String(exp.route_price ?? ""),
+            lines: (exp.price_lines || []).map((l) => ({
+                day_type: l.day_type, age_group: l.age_group, age_group_name: l.age_group_name,
+                price: String(l.price ?? ""), route_price: String(l.route_price ?? ""),
+            })),
+            participates_in_promotions: false,
+            affected_by_seasons: false,
+        });
+        setFormOpen(true);
+    };
+
+    const setLine = (idx, field, value) =>
+        setForm((f) => ({ ...f, lines: f.lines.map((l, i) => (i === idx ? { ...l, [field]: value } : l)) }));
+
+    const handleSave = async () => {
+        if (!form?.date_from || !form?.date_to) return;
+        try {
+            setSaving(true);
+            await apiRequest("/api/method/cheese.api.v1.custom_price_controller.create_custom_price", {
+                method: "POST",
+                body: JSON.stringify({
+                    experience_id: experienceId,
+                    date_from: form.date_from,
+                    date_to: form.date_to,
+                    custom_price_name: form.custom_price_name || undefined,
+                    individual_price: Number(form.individual_price) || 0,
+                    price_per_night: Number(form.price_per_night) || 0,
+                    route_price: Number(form.route_price) || 0,
+                    price_lines: form.lines.map((l) => ({
+                        day_type: l.day_type, age_group: l.age_group || null,
+                        price: Number(l.price) || 0, route_price: Number(l.route_price) || 0,
+                    })),
+                    participates_in_promotions: form.participates_in_promotions ? 1 : 0,
+                    affected_by_seasons: form.affected_by_seasons ? 1 : 0,
+                }),
+            });
+            toast.success(t("priceCalendar.customCreated", "Precio personalizado creado"));
+            setFormOpen(false);
+            clearRange();
+            queryClient.invalidateQueries({ queryKey: ["experience-price-calendar", experienceId] });
+        } catch (err) {
+            toast.error(err?.message || t("common.failed", "Error"));
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    const hasCustom = !!selectedDay?.custom_price;
+    const detailGrid = hasCustom ? "grid-cols-[1.1fr_1fr_1fr_1fr_1fr]" : "grid-cols-[1.1fr_1fr_1fr_1fr]";
 
     return (
         <Card className="border-border/60 shadow-sm">
@@ -111,6 +208,9 @@ export default function ExperiencePriceCalendar({ experienceId }) {
                     </p>
                 ) : (
                     <>
+                        <p className="text-[11px] text-muted-foreground">
+                            {t("priceCalendar.shiftHint", "Haz clic en un día para ver sus precios. Mantén Shift y haz clic en otra fecha para seleccionar un rango y crear un precio personalizado.")}
+                        </p>
                         <div className="grid grid-cols-7 gap-1 text-[11px] font-semibold uppercase text-muted-foreground text-center">
                             {weekdayLabels.map((w, i) => <div key={i} className="py-1">{w}</div>)}
                         </div>
@@ -121,22 +221,31 @@ export default function ExperiencePriceCalendar({ experienceId }) {
                                 const dayNum = Number(ds.slice(-2));
                                 const isWeekend = day?.day_type === "WEEKEND";
                                 const seasonPct = Number(day?.season?.percent) || 0;
-                                const isSelected = selected === ds;
+                                const isDetail = selected === ds;
+                                const inRng = inRange(ds);
+                                const stateClass = isDetail
+                                    ? "border-cheese-500 ring-1 ring-cheese-500 bg-cheese-500/10"
+                                    : inRng
+                                        ? "border-cheese-400/70 bg-cheese-500/5"
+                                        : day?.custom_price
+                                            ? "border-purple-400/50 hover:bg-muted/60"
+                                            : "border-border hover:bg-muted/60";
                                 return (
                                     <button
                                         type="button"
                                         key={ds}
-                                        onClick={() => setSelected(isSelected ? null : ds)}
+                                        onClick={(e) => handleDayClick(ds, e.shiftKey)}
                                         disabled={isLoading || !day}
                                         className={[
                                             "min-h-[64px] rounded-md border p-1.5 text-left flex flex-col justify-between transition-colors",
-                                            isSelected ? "border-cheese-500 ring-1 ring-cheese-500 bg-cheese-500/10" : "border-border hover:bg-muted/60",
-                                            isWeekend ? "bg-muted/40" : "",
+                                            isWeekend && !isDetail && !inRng ? "bg-muted/40" : "",
+                                            stateClass,
                                         ].join(" ")}
                                     >
                                         <div className="flex items-center justify-between">
                                             <span className={`text-xs font-semibold ${isWeekend ? "text-muted-foreground" : ""}`}>{dayNum}</span>
                                             <span className="flex items-center gap-0.5">
+                                                {day?.custom_price && <Sparkles className="w-3 h-3 text-purple-500" />}
                                                 {seasonPct !== 0 && (seasonPct > 0
                                                     ? <TrendingUp className="w-3 h-3 text-amber-500" />
                                                     : <TrendingDown className="w-3 h-3 text-emerald-500" />)}
@@ -156,6 +265,24 @@ export default function ExperiencePriceCalendar({ experienceId }) {
                             })}
                         </div>
 
+                        {rangeStart && (
+                            <div className="flex items-center justify-between gap-2 rounded-md border border-cheese-500/40 bg-cheese-500/5 px-3 py-2 flex-wrap">
+                                <span className="text-xs">
+                                    {rangeEnd
+                                        ? t("priceCalendar.rangeSelected", "Rango seleccionado: {{from}} → {{to}}", { from: rangeLo, to: rangeHi })
+                                        : t("priceCalendar.rangeSingle", "Fecha: {{from}} — mantén Shift y haz clic en otra para un rango.", { from: rangeLo })}
+                                </span>
+                                <div className="flex gap-2">
+                                    <Button size="sm" variant="ghost" onClick={clearRange}>
+                                        <X className="w-3.5 h-3.5 mr-1" /> {t("common.clear", "Limpiar")}
+                                    </Button>
+                                    <Button size="sm" className="bg-cheese-500 hover:bg-cheese-600 text-black font-semibold" disabled={!data?.experience} onClick={openForm}>
+                                        <Plus className="w-3.5 h-3.5 mr-1" /> {t("priceCalendar.createCustom", "Crear precio personalizado")}
+                                    </Button>
+                                </div>
+                            </div>
+                        )}
+
                         {selectedDay ? (
                             <div className="rounded-lg border border-border bg-muted/20 p-4 space-y-3 animate-in fade-in slide-in-from-top-1">
                                 <div className="flex items-center justify-between flex-wrap gap-2">
@@ -165,34 +292,55 @@ export default function ExperiencePriceCalendar({ experienceId }) {
                                     </Badge>
                                 </div>
 
+                                {hasCustom && (
+                                    <div className="rounded-md border border-purple-400/40 bg-purple-500/5 px-3 py-2 text-xs space-y-0.5">
+                                        <p className="font-semibold text-purple-700 dark:text-purple-300 flex items-center gap-1">
+                                            <Sparkles className="w-3.5 h-3.5" /> {t("priceCalendar.customActive", "Capa 4 · Precio personalizado")}
+                                            {selectedDay.custom_price.custom_price_name ? ` — ${selectedDay.custom_price.custom_price_name}` : ""}
+                                        </p>
+                                        <p className="text-muted-foreground">
+                                            {t("priceCalendar.customPromos", "Promociones")}: {selectedDay.custom_price.participates_in_promotions ? t("common.yes", "Sí") : t("common.no", "No")}
+                                            {" · "}
+                                            {t("priceCalendar.customSeasons", "Temporada")}: {selectedDay.custom_price.affected_by_seasons ? t("common.yes", "Sí") : t("common.no", "No")}
+                                        </p>
+                                    </div>
+                                )}
+
                                 {selectedDay.season && Number(selectedDay.season.percent) !== 0 && (
-                                    <p className={`text-xs font-medium ${Number(selectedDay.season.percent) > 0 ? "text-amber-600" : "text-emerald-600"}`}>
+                                    <p className={`text-xs font-medium ${selectedDay.season_applies ? (Number(selectedDay.season.percent) > 0 ? "text-amber-600" : "text-emerald-600") : "text-muted-foreground line-through"}`}>
                                         {t("priceCalendar.seasonLine", "Temporada \"{{name}}\": {{sign}}{{percent}}%", {
                                             name: selectedDay.season.season_name || selectedDay.season.season_id,
                                             sign: Number(selectedDay.season.percent) > 0 ? "+" : "",
                                             percent: selectedDay.season.percent,
                                         })}
+                                        {!selectedDay.season_applies && ` (${t("priceCalendar.seasonNotApplied", "no aplica a este precio personalizado")})`}
                                     </p>
                                 )}
 
                                 <div className="space-y-1 overflow-x-auto">
                                     <p className="text-[11px] text-muted-foreground">
-                                        {t("priceCalendar.layersLegend", "Cada precio por capa — Capa 1: base · Capa 2: por día y grupo etario · Capa 3: con temporada. Debajo de cada monto, el precio en ruta.")}
+                                        {hasCustom
+                                            ? t("priceCalendar.layersLegend4", "Capa 1: base · Capa 2: día/edad · Capa 4: precio personalizado · Final: con temporada. Debajo, el precio en ruta.")
+                                            : t("priceCalendar.layersLegend", "Cada precio por capa — Capa 1: base · Capa 2: por día y grupo etario · Capa 3: con temporada. Debajo de cada monto, el precio en ruta.")}
                                     </p>
                                     <div className="min-w-[440px]">
-                                        <div className="grid grid-cols-[1.1fr_1fr_1fr_1fr] gap-x-3 text-[11px] uppercase font-semibold text-muted-foreground pb-1">
+                                        <div className={`grid ${detailGrid} gap-x-3 text-[11px] uppercase font-semibold text-muted-foreground pb-1`}>
                                             <span>{t("priceCalendar.variant", "Variante")}</span>
                                             <span className="text-right">{t("priceCalendar.layer1", "Capa 1 · base")}</span>
                                             <span className="text-right">{t("priceCalendar.layer2", "Capa 2 · día/edad")}</span>
-                                            <span className="text-right">{t("priceCalendar.layer3", "Capa 3 · final")}</span>
+                                            {hasCustom && <span className="text-right text-purple-600">{t("priceCalendar.layer4", "Capa 4 · personalizado")}</span>}
+                                            <span className="text-right">{t("priceCalendar.layerFinal", "Final")}</span>
                                         </div>
                                         {(selectedDay.rows || []).map((r, i) => (
-                                            <div key={i} className="grid grid-cols-[1.1fr_1fr_1fr_1fr] gap-x-3 items-start text-sm py-1.5 border-t border-border/50">
+                                            <div key={i} className={`grid ${detailGrid} gap-x-3 items-start text-sm py-1.5 border-t border-border/50`}>
                                                 <span className="truncate pr-1">{rowLabel(r)}</span>
                                                 {layerCell(r.layer1_individual, r.layer1_route)}
                                                 {r.has_layer2
                                                     ? layerCell(r.layer2_individual ?? r.layer1_individual, r.layer2_route ?? r.layer1_route)
                                                     : <span className="text-right text-[10px] text-muted-foreground self-center">{t("priceCalendar.usesLayer1", "usa capa 1")}</span>}
+                                                {hasCustom && (r.has_layer4
+                                                    ? layerCell(r.layer4_individual, r.layer4_route)
+                                                    : <span className="text-right text-[10px] text-muted-foreground self-center">—</span>)}
                                                 {layerCell(r.individual_effective, r.route_effective, true)}
                                             </div>
                                         ))}
@@ -201,9 +349,12 @@ export default function ExperiencePriceCalendar({ experienceId }) {
 
                                 {selectedDay.promotions?.length > 0 && (
                                     <div className="space-y-1 pt-1">
-                                        <p className="text-[11px] uppercase font-semibold text-muted-foreground">{t("priceCalendar.promotions", "Capa 3 · Promociones activas")}</p>
+                                        <p className="text-[11px] uppercase font-semibold text-muted-foreground">
+                                            {t("priceCalendar.promotions", "Capa 3 · Promociones activas")}
+                                            {hasCustom && !selectedDay.promotions_apply && ` — ${t("priceCalendar.promosNotApplied", "no aplican a este precio personalizado")}`}
+                                        </p>
                                         {selectedDay.promotions.map((p) => (
-                                            <div key={p.promotion_id} className="flex items-start gap-2 text-xs">
+                                            <div key={p.promotion_id} className={`flex items-start gap-2 text-xs ${hasCustom && !selectedDay.promotions_apply ? "opacity-50" : ""}`}>
                                                 <Badge className="bg-cheese-500/15 text-cheese-700 dark:text-cheese-400 shrink-0">
                                                     <Tag className="w-3 h-3 mr-1" /> {discountLabel(p)}
                                                 </Badge>
@@ -239,6 +390,91 @@ export default function ExperiencePriceCalendar({ experienceId }) {
                     </>
                 )}
             </CardContent>
+
+            {/* Create custom price (layer 4) */}
+            <Dialog open={formOpen} onOpenChange={(o) => { if (!o) setFormOpen(false); }}>
+                <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+                    <DialogHeader>
+                        <DialogTitle className="flex items-center gap-2">
+                            <Sparkles className="w-4 h-4 text-purple-500" /> {t("priceCalendar.createCustom", "Crear precio personalizado")}
+                        </DialogTitle>
+                    </DialogHeader>
+                    {form && (
+                        <div className="space-y-4">
+                            <p className="text-xs text-muted-foreground">
+                                {t("priceCalendar.customFormHint", "Este precio reemplaza los precios de la experiencia durante el rango indicado. Cada campo viene con el precio actual; edítalo para sobreescribirlo.")}
+                            </p>
+                            <div className="grid grid-cols-2 gap-3">
+                                <div className="space-y-1">
+                                    <Label>{t("common.from", "Desde")}</Label>
+                                    <Input type="date" value={form.date_from} onChange={(e) => setForm((f) => ({ ...f, date_from: e.target.value }))} />
+                                </div>
+                                <div className="space-y-1">
+                                    <Label>{t("common.to", "Hasta")}</Label>
+                                    <Input type="date" value={form.date_to} onChange={(e) => setForm((f) => ({ ...f, date_to: e.target.value }))} />
+                                </div>
+                            </div>
+                            <div className="space-y-1">
+                                <Label>{t("priceCalendar.customLabel", "Nombre (opcional)")}</Label>
+                                <Input placeholder={t("priceCalendar.customLabelPh", "Ej: Feriado Semana de Turismo")} value={form.custom_price_name} onChange={(e) => setForm((f) => ({ ...f, custom_price_name: e.target.value }))} />
+                            </div>
+
+                            <div className="space-y-2">
+                                <p className="text-xs font-semibold uppercase text-muted-foreground">{t("priceCalendar.basePrices", "Precios base")}</p>
+                                <div className="grid grid-cols-2 gap-3">
+                                    {form.is_hotel ? (
+                                        <div className="space-y-1">
+                                            <Label>{t("experiences.pricePerNight", "Precio por noche")} ({currency})</Label>
+                                            <Input type="number" step="0.01" value={form.price_per_night} onChange={(e) => setForm((f) => ({ ...f, price_per_night: e.target.value }))} />
+                                        </div>
+                                    ) : (
+                                        <div className="space-y-1">
+                                            <Label>{t("experiences.individualPrice", "Precio individual")} ({currency})</Label>
+                                            <Input type="number" step="0.01" value={form.individual_price} onChange={(e) => setForm((f) => ({ ...f, individual_price: e.target.value }))} />
+                                        </div>
+                                    )}
+                                    <div className="space-y-1">
+                                        <Label>{t("experiences.routePrice", "Precio en ruta")} ({currency})</Label>
+                                        <Input type="number" step="0.01" value={form.route_price} onChange={(e) => setForm((f) => ({ ...f, route_price: e.target.value }))} />
+                                    </div>
+                                </div>
+                            </div>
+
+                            {form.lines.length > 0 && (
+                                <div className="space-y-2">
+                                    <p className="text-xs font-semibold uppercase text-muted-foreground">{t("priceCalendar.matrixPrices", "Precios por día y grupo etario")}</p>
+                                    <div className="space-y-2">
+                                        {form.lines.map((l, i) => (
+                                            <div key={i} className="grid grid-cols-[1.4fr_1fr_1fr] gap-2 items-center">
+                                                <span className="text-xs truncate">{lineLabel(l)}</span>
+                                                <Input type="number" step="0.01" placeholder={t("priceCalendar.individual", "Individual")} value={l.price} onChange={(e) => setLine(i, "price", e.target.value)} />
+                                                <Input type="number" step="0.01" placeholder={t("priceCalendar.inRoute", "En ruta")} value={l.route_price} onChange={(e) => setLine(i, "route_price", e.target.value)} />
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+
+                            <div className="space-y-2 border-t border-border pt-3">
+                                <label className="flex items-center gap-2 text-sm cursor-pointer">
+                                    <input type="checkbox" className="h-4 w-4 accent-cheese-500" checked={form.participates_in_promotions} onChange={(e) => setForm((f) => ({ ...f, participates_in_promotions: e.target.checked }))} />
+                                    {t("priceCalendar.flagPromos", "Este precio puede ser afectado por promociones")}
+                                </label>
+                                <label className="flex items-center gap-2 text-sm cursor-pointer">
+                                    <input type="checkbox" className="h-4 w-4 accent-cheese-500" checked={form.affected_by_seasons} onChange={(e) => setForm((f) => ({ ...f, affected_by_seasons: e.target.checked }))} />
+                                    {t("priceCalendar.flagSeasons", "Este precio puede ser afectado por precios de temporada")}
+                                </label>
+                            </div>
+                        </div>
+                    )}
+                    <DialogFooter>
+                        <Button variant="ghost" onClick={() => setFormOpen(false)}>{t("common.cancel", "Cancelar")}</Button>
+                        <Button className="bg-cheese-500 hover:bg-cheese-600 text-black font-semibold" onClick={handleSave} disabled={saving}>
+                            {saving ? t("common.saving", "Guardando…") : t("common.create", "Crear")}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </Card>
     );
 }

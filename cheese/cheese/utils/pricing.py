@@ -71,10 +71,13 @@ def calculate_ticket_price(experience_id, party_size, route_id=None, ticket=None
 	"""
 	from frappe.utils import flt
 
+	from frappe.utils import cint
+
 	from cheese.cheese.utils.seasonal_pricing import (
 		apply_promotion,
 		compute_party_prices,
 		find_matching_promotion,
+		get_active_custom_price,
 		get_active_season,
 	)
 
@@ -95,20 +98,25 @@ def calculate_ticket_price(experience_id, party_size, route_id=None, ticket=None
 	if experience.experience_type == "HOTEL":
 		nights = ticket.nights if ticket else 1
 		rooms = party_size  # For HOTEL, party_size passed is actually rooms_requested
+		# Layer 4: a custom price overrides the per-night / route price for the date.
+		custom = get_active_custom_price(experience_id, selected_date)
+		custom_doc = frappe.get_doc("Cheese Custom Price", custom.name) if custom else None
+		src = custom_doc or experience
 		if route_id:
-			per_night = experience.route_price if experience.route_price is not None else 0
+			per_night = src.route_price if src.route_price is not None else 0
 		else:
-			per_night = experience.price_per_night or 0
+			per_night = src.get("price_per_night") or 0
 		result = {
 			"total_price": per_night * nights * rooms,
 			"price_per_night": per_night,
 			"nights": nights,
 			"rooms": rooms,
-			"individual_price": experience.price_per_night,
-			"route_price": experience.route_price,
+			"individual_price": src.get("price_per_night"),
+			"route_price": src.route_price,
+			"custom_price": custom_doc.name if custom_doc else None,
 		}
 		season = get_active_season(experience.company, experience_id, selected_date)
-		if season and season.percent:
+		if season and season.percent and (custom_doc is None or cint(custom_doc.affected_by_seasons)):
 			result["price_before_season"] = result["total_price"]
 			result["season"] = dict(season)
 			result["total_price"] = flt(result["total_price"] * (1 + flt(season.percent) / 100.0), 2)
@@ -128,14 +136,18 @@ def calculate_ticket_price(experience_id, party_size, route_id=None, ticket=None
 		"route_price": experience.route_price if route_id else None,
 		"day_type": party["day_type"],
 		"season": party["season"],
+		"custom_price": party.get("custom_price"),
 		# Per-person detail in the experience currency (before conversion)
 		"price_breakdown": party["breakdown"],
 	}
 
-	promo = find_matching_promotion(
-		experience.company, experience_id, selected_date, guest_ages, party_size,
-		unit_prices=party["unit_prices"],
-	)
+	# Layer 4 can opt out of promotions (participates_in_promotions=0).
+	promo = None
+	if party.get("allow_promotions", True):
+		promo = find_matching_promotion(
+			experience.company, experience_id, selected_date, guest_ages, party_size,
+			unit_prices=party["unit_prices"],
+		)
 	if promo:
 		discount = apply_promotion(promo, party["unit_prices"])
 		if discount > 0:
