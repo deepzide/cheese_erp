@@ -823,6 +823,14 @@
     "noTokens": "No tokens found"
   },
   "calendar": {
+    "viewOccupancy": "Occupancy",
+    "viewAvailability": "Available spots",
+    "free": "{{n}} free",
+    "slotsCount": "{{n}} slots",
+    "emptyWeek": "No experiences with slots this week",
+    "legendTitle": "Occupancy:",
+    "legendEmpty": "empty",
+    "clickCellHint": "Click a cell to open the day",
     "createTimeSlot": "Create Time Slot",
     "createTimeSlotDesc": "Add a new availability slot to the calendar",
     "doesNotRepeat": "Does not repeat",

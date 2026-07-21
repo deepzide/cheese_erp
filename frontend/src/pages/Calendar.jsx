@@ -29,6 +29,8 @@ export default function CalendarPage() {
 
     const [view, setView] = useState("week");
     const [currentDate, setCurrentDate] = useState(new Date());
+    // Capacity lens for day/week views: "ocup" = reserved/max, "disp" = free spots.
+    const [lens, setLens] = useState("ocup");
 
     // Pre-filter by experience if provided in URL (?experience=EXPERIENCE-ID)
     const initialExperience = searchParams.get("experience");
@@ -117,6 +119,13 @@ export default function CalendarPage() {
         setView("day");
     }, []);
 
+    // Week heatmap cell click → open that day filtered to the cell's experience
+    const handleCellClick = useCallback((experienceId, day) => {
+        setSelectedExperience(experienceId);
+        setCurrentDate(day);
+        setView("day");
+    }, []);
+
     // After slot created
     const handleSlotCreated = useCallback(() => {
         queryClient.invalidateQueries({ queryKey: ["frappe-list", "Cheese Experience Slot"] });
@@ -145,6 +154,20 @@ export default function CalendarPage() {
                             <TabsTrigger value="month" className="text-xs px-3 h-6">{t("calendar.month", "Month")}</TabsTrigger>
                         </TabsList>
                     </Tabs>
+
+                    {/* Capacity lens (day/week views) */}
+                    {view !== "month" && (
+                        <Tabs value={lens} onValueChange={setLens}>
+                            <TabsList className="h-8">
+                                <TabsTrigger value="ocup" className="text-xs px-3 h-6">
+                                    {t("calendar.viewOccupancy", "Ocupación")}
+                                </TabsTrigger>
+                                <TabsTrigger value="disp" className="text-xs px-3 h-6">
+                                    {t("calendar.viewAvailability", "Lugares disponibles")}
+                                </TabsTrigger>
+                            </TabsList>
+                        </Tabs>
+                    )}
 
                     {/* Experience filter */}
                     <Select value={selectedExperience || "all"} onValueChange={(v) => setSelectedExperience(v === "all" ? null : v)}>
@@ -220,8 +243,9 @@ export default function CalendarPage() {
                         <CalendarWeekView
                             date={currentDate}
                             slots={slots}
-                            onSlotClick={handleSlotClick}
-                            onEmptyClick={handleEmptyClick}
+                            experiences={Array.isArray(experiences) ? experiences : []}
+                            lens={lens}
+                            onCellClick={handleCellClick}
                             onDayClick={handleDayClick}
                         />
                     )}
@@ -229,6 +253,7 @@ export default function CalendarPage() {
                         <CalendarDayView
                             date={currentDate}
                             slots={slots}
+                            lens={lens}
                             onSlotClick={handleSlotClick}
                             onEmptyClick={handleEmptyClick}
                         />

@@ -1,182 +1,128 @@
-import React, { useRef, useEffect, useState } from "react";
+import React from "react";
 import { useTranslation } from "react-i18next";
-import {
-    isToday, isSameDay, format, getWeekDays, getHours,
-    getSlotPosition, getNowPosition, HOUR_HEIGHT, TOTAL_HOURS, formatHour, calculateSlotLayout,
-} from "./calendarUtils";
-import CalendarSlotCard from "./CalendarSlotCard";
+import { isToday, format, getWeekDays, getHeatCellColor } from "./calendarUtils";
 
 /**
- * Week view — 7-column hourly time grid (Google Calendar style).
+ * Week view — occupancy heatmap: one row per experience with slots this week,
+ * one column per day. Each cell aggregates the day's slots for that experience
+ * (reserved / capacity) and is colored by occupancy; the label follows the
+ * active lens (occupancy "res/cap" or available spots). Clicking a cell opens
+ * the day view filtered to that experience; clicking a day header opens the day.
  */
-export default function CalendarWeekView({ date, slots, onSlotClick, onEmptyClick, onDayClick }) {
+export default function CalendarWeekView({ date, slots, experiences = [], lens = "ocup", onCellClick, onDayClick }) {
     const { t } = useTranslation();
-    const containerRef = useRef(null);
-    const [nowPos, setNowPos] = useState(getNowPosition());
-    const hours = getHours();
     const weekDays = getWeekDays(date);
-    const todayInView = weekDays.some((d) => isToday(d));
+    const dayKeys = weekDays.map((d) => format(d, "yyyy-MM-dd"));
 
-    // Update now indicator
-    useEffect(() => {
-        if (!todayInView) return;
-        const interval = setInterval(() => setNowPos(getNowPosition()), 60_000);
-        return () => clearInterval(interval);
-    }, [todayInView]);
-
-    // Scroll to working hours on mount
-    useEffect(() => {
-        if (containerRef.current) {
-            const scrollTo = todayInView ? Math.max(0, nowPos - 200) : 8 * HOUR_HEIGHT;
-            containerRef.current.scrollTop = scrollTo;
-        }
-    }, [date]);
-
-    // Group slots by date, splitting timed vs untimed
-    const slotsByDay = {};
-    const untimedByDay = {};
-    weekDays.forEach((d) => {
-        const key = format(d, "yyyy-MM-dd");
-        const daySlots = slots
-            .filter((s) => s.date_from <= key && s.date_to >= key)
-            .sort((a, b) => (a.time_from || "").localeCompare(b.time_from || ""));
-        slotsByDay[key] = daySlots.filter((s) => s.time_from);
-        untimedByDay[key] = daySlots.filter((s) => !s.time_from);
+    const expLabel = {};
+    (Array.isArray(experiences) ? experiences : []).forEach((e) => {
+        expLabel[e.name] = e.experience_info || e.name;
     });
 
-    const hasAnyUntimed = weekDays.some((d) => (untimedByDay[format(d, "yyyy-MM-dd")] || []).length > 0);
+    // Aggregate per (experience, day): reserved, capacity, slot count.
+    const byExp = {};
+    slots.forEach((s) => {
+        const exp = s.experience || "—";
+        dayKeys.forEach((key) => {
+            if (!(s.date_from <= key && s.date_to >= key)) return;
+            byExp[exp] = byExp[exp] || {};
+            const cell = (byExp[exp][key] = byExp[exp][key] || { res: 0, cap: 0, count: 0 });
+            cell.res += s.reserved_capacity || 0;
+            cell.cap += s.max_capacity || 0;
+            cell.count += 1;
+        });
+    });
 
-    const handleColumnClick = (day, e) => {
-        const col = e.currentTarget;
-        const rect = col.getBoundingClientRect();
-        const y = e.clientY - rect.top + (containerRef.current?.scrollTop || 0);
-        const hour = Math.floor(y / HOUR_HEIGHT);
-        onEmptyClick?.(day, hour);
-    };
+    const rows = Object.keys(byExp).sort((a, b) =>
+        (expLabel[a] || a).localeCompare(expLabel[b] || b)
+    );
+
+    const cellLabel = (cell) =>
+        lens === "disp"
+            ? t("calendar.free", "{{n}} libres", { n: Math.max(0, cell.cap - cell.res) })
+            : `${cell.res}/${cell.cap}`;
 
     return (
         <div className="border border-border rounded-lg bg-card overflow-hidden">
-            {/* Day headers */}
-            <div className="flex border-b border-border sticky top-0 z-30 bg-card">
-                <div className="w-16 flex-shrink-0 border-r border-border" />
-                {weekDays.map((day) => {
-                    const today = isToday(day);
-                    return (
-                        <div
-                            key={day.toISOString()}
-                            className={`flex-1 text-center py-2 border-r border-border/50 last:border-r-0 cursor-pointer
-                                hover:bg-muted/50 transition-colors
-                                ${today ? "bg-cheese-50/50 dark:bg-cheese-950/20" : ""}`}
-                            onClick={() => onDayClick?.(day)}
-                        >
-                            <div className="text-[10px] text-muted-foreground uppercase tracking-wider">
-                                {t(`calendar.days.${["sun", "mon", "tue", "wed", "thu", "fri", "sat"][day.getDay()]}`, format(day, "EEE"))}
-                            </div>
-                            <div
-                                className={`text-lg font-semibold mt-0.5
-                                    ${today ? "w-8 h-8 mx-auto rounded-full bg-cheese-500 text-black flex items-center justify-center" : ""}`}
-                            >
-                                {format(day, "d")}
-                            </div>
-                        </div>
-                    );
-                })}
-            </div>
-
-            {/* All-day row */}
-            {hasAnyUntimed && (
-                <div className="flex border-b border-border bg-muted/20">
-                    <div className="w-16 flex-shrink-0 border-r border-border text-[10px] text-muted-foreground font-medium flex items-center justify-end pr-2">
-                        {t("calendar.allDay", "All Day")}
-                    </div>
+            <div className="overflow-x-auto">
+                <div
+                    className="grid min-w-[720px]"
+                    style={{ gridTemplateColumns: "minmax(150px, 1.2fr) repeat(7, minmax(72px, 1fr))" }}
+                >
+                    {/* Header row */}
+                    <div className="border-b border-r border-border bg-muted/30" />
                     {weekDays.map((day) => {
-                        const key = format(day, "yyyy-MM-dd");
-                        const untimed = untimedByDay[key] || [];
+                        const today = isToday(day);
                         return (
-                            <div key={key} className="flex-1 border-r border-border/30 last:border-r-0 px-0.5 py-1 flex flex-col gap-0.5 min-h-[28px]">
-                                {untimed.map((slot) => (
-                                    <button
-                                        key={slot.name}
-                                        type="button"
-                                        onClick={(e) => { e.stopPropagation(); onSlotClick?.({ ...slot, _viewDate: key }); }}
-                                        className="text-[9px] leading-tight px-1 py-0.5 rounded bg-cheese-100 dark:bg-cheese-900/40 text-cheese-700 dark:text-cheese-400 truncate hover:bg-cheese-200 transition-colors text-left"
-                                    >
-                                        {slot.experience || slot.name}
-                                    </button>
-                                ))}
-                            </div>
+                            <button
+                                key={day.toISOString()}
+                                type="button"
+                                onClick={() => onDayClick?.(day)}
+                                className={`text-center py-2 border-b border-r border-border/50 last:border-r-0 cursor-pointer
+                                    hover:bg-muted/50 transition-colors bg-muted/30
+                                    ${today ? "bg-cheese-50/50 dark:bg-cheese-950/20" : ""}`}
+                            >
+                                <div className="text-[10px] text-muted-foreground uppercase tracking-wider">
+                                    {t(`calendar.days.${["sun", "mon", "tue", "wed", "thu", "fri", "sat"][day.getDay()]}`, format(day, "EEE"))}
+                                </div>
+                                <div
+                                    className={`text-sm font-semibold mt-0.5
+                                        ${today ? "w-7 h-7 mx-auto rounded-full bg-cheese-500 text-black flex items-center justify-center" : ""}`}
+                                >
+                                    {format(day, "d")}
+                                </div>
+                            </button>
                         );
                     })}
-                </div>
-            )}
 
-            {/* Scrollable grid */}
-            <div ref={containerRef} className="overflow-auto max-h-[calc(100vh-310px)]">
-                <div className="flex" style={{ minHeight: TOTAL_HOURS * HOUR_HEIGHT }}>
-                    {/* Time gutter */}
-                    <div className="w-16 flex-shrink-0 border-r border-border bg-muted/30">
-                        {hours.map((hour) => (
-                            <div
-                                key={hour}
-                                className="border-b border-border/50 text-[10px] text-muted-foreground pr-2 text-right pt-0.5"
-                                style={{ height: HOUR_HEIGHT }}
-                            >
-                                {formatHour(hour)}
-                            </div>
-                        ))}
-                    </div>
-
-                    {/* Day columns */}
-                    {weekDays.map((day) => {
-                        const key = format(day, "yyyy-MM-dd");
-                        const daySlots = slotsByDay[key] || [];
-                        const today = isToday(day);
-
-                        return (
-                            <div
-                                key={key}
-                                className={`flex-1 relative border-r border-border/30 last:border-r-0
-                                    ${today ? "bg-cheese-50/20 dark:bg-cheese-950/10" : ""}`}
-                                onClick={(e) => handleColumnClick(day, e)}
-                            >
-                                {/* Hour lines */}
-                                {hours.map((hour) => (
-                                    <div
-                                        key={hour}
-                                        className="border-b border-border/20"
-                                        style={{ height: HOUR_HEIGHT }}
-                                    />
-                                ))}
-
-                                {/* Now indicator */}
-                                {today && (
-                                    <div
-                                        className="absolute left-0 right-0 z-20 pointer-events-none"
-                                        style={{ top: nowPos }}
-                                    >
-                                        <div className="flex items-center">
-                                            <div className="w-2 h-2 rounded-full bg-red-500 -ml-1" />
-                                            <div className="flex-1 h-[2px] bg-red-500" />
-                                        </div>
-                                    </div>
-                                )}
-
-                                {/* Slot events */}
-                                {calculateSlotLayout(daySlots).map((slot) => {
+                    {/* Experience rows */}
+                    {rows.length === 0 ? (
+                        <div className="col-span-full py-12 text-center text-sm text-muted-foreground">
+                            {t("calendar.emptyWeek", "Sin experiencias con horarios esta semana")}
+                        </div>
+                    ) : (
+                        rows.map((exp) => (
+                            <React.Fragment key={exp}>
+                                <div className="border-b border-r border-border/50 px-2 py-1.5 text-xs font-medium flex items-center min-h-[52px]">
+                                    <span className="truncate" title={expLabel[exp] || exp}>{expLabel[exp] || exp}</span>
+                                </div>
+                                {dayKeys.map((key, i) => {
+                                    const cell = byExp[exp][key];
+                                    if (!cell) {
+                                        return <div key={key} className="border-b border-r border-border/30 last:border-r-0 min-h-[52px]" />;
+                                    }
+                                    const colors = getHeatCellColor(cell.res, cell.cap);
                                     return (
-                                        <CalendarSlotCard
-                                            key={slot.name}
-                                            slot={slot}
-                                            style={slot._style}
-                                            onClick={(s) => onSlotClick?.({ ...s, _viewDate: key })}
-                                            compact
-                                        />
+                                        <button
+                                            key={key}
+                                            type="button"
+                                            onClick={() => onCellClick?.(exp, weekDays[i])}
+                                            className={`border-b border-r border-border/30 last:border-r-0 min-h-[52px] px-1 py-1
+                                                flex flex-col items-center justify-center gap-0.5 transition-colors
+                                                hover:ring-1 hover:ring-inset hover:ring-cheese-500 cursor-pointer ${colors.bg}`}
+                                            title={`${expLabel[exp] || exp} · ${key} · ${cell.res}/${cell.cap}`}
+                                        >
+                                            <span className={`text-xs font-semibold ${colors.text}`}>{cellLabel(cell)}</span>
+                                            <span className="text-[9px] text-muted-foreground">
+                                                {t("calendar.slotsCount", "{{n}} franjas", { n: cell.count })}
+                                            </span>
+                                        </button>
                                     );
                                 })}
-                            </div>
-                        );
-                    })}
+                            </React.Fragment>
+                        ))
+                    )}
                 </div>
+            </div>
+
+            {/* Occupancy legend */}
+            <div className="flex items-center gap-3 flex-wrap px-3 py-2 border-t border-border text-[11px] text-muted-foreground">
+                <span className="font-medium">{t("calendar.legendTitle", "Ocupación:")}</span>
+                <span className="flex items-center gap-1"><i className="inline-block w-3 h-3 rounded-sm bg-muted/60 border border-border" /> {t("calendar.legendEmpty", "vacío")}</span>
+                <span className="flex items-center gap-1"><i className="inline-block w-3 h-3 rounded-sm bg-emerald-100 dark:bg-emerald-950/50" /> 1–59%</span>
+                <span className="flex items-center gap-1"><i className="inline-block w-3 h-3 rounded-sm bg-amber-100 dark:bg-amber-950/50" /> 60–89%</span>
+                <span className="flex items-center gap-1"><i className="inline-block w-3 h-3 rounded-sm bg-red-100 dark:bg-red-950/50" /> 90–100%</span>
+                <span className="ml-auto">{t("calendar.clickCellHint", "Clic en una celda para ver el día")}</span>
             </div>
         </div>
     );

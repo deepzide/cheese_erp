@@ -200,6 +200,25 @@ export function getOccupancyColor(reserved, max, status) {
 }
 
 /**
+ * Color classes for an aggregated heatmap cell (week view). Reuses the same
+ * occupancy palette as the slot cards, plus a muted "empty" state when the
+ * cell has no reservations.
+ */
+export function getHeatCellColor(reserved, max) {
+    if (!max || max <= 0 || (reserved || 0) === 0) {
+        return { bg: "bg-muted/40", text: "text-muted-foreground", dot: "bg-muted-foreground/40" };
+    }
+    const occ = getOccupancy(reserved, max);
+    if (occ >= 90) {
+        return { bg: "bg-red-50 dark:bg-red-950/30", text: "text-red-700 dark:text-red-400", dot: "bg-red-500" };
+    }
+    if (occ >= 60) {
+        return { bg: "bg-amber-50 dark:bg-amber-950/30", text: "text-amber-700 dark:text-amber-400", dot: "bg-amber-500" };
+    }
+    return { bg: "bg-emerald-50 dark:bg-emerald-950/30", text: "text-emerald-700 dark:text-emerald-400", dot: "bg-emerald-500" };
+}
+
+/**
  * Get 7 days for the week containing the given date (Sunday start)
  */
 export function getWeekDays(date) {

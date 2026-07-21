@@ -1,15 +1,22 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 import { Users } from "lucide-react";
 import { getOccupancy, getOccupancyColor, formatTimeRange } from "./calendarUtils";
 
 /**
  * Slot event card rendered on day/week time grids.
  * Positioned absolutely by the parent grid based on time.
+ * `lens` controls the capacity label: "ocup" → reserved/max, "disp" → free spots.
  */
-export default function CalendarSlotCard({ slot, style, onClick, compact = false }) {
+export default function CalendarSlotCard({ slot, style, onClick, compact = false, lens = "ocup" }) {
+    const { t } = useTranslation();
     const occ = getOccupancy(slot.reserved_capacity, slot.max_capacity);
     const colors = getOccupancyColor(slot.reserved_capacity, slot.max_capacity, slot.slot_status);
     const isSmall = style && style.height && style.height < 40;
+    const capLabel =
+        lens === "disp" && slot.max_capacity
+            ? t("calendar.free", "{{n}} libres", { n: Math.max(0, (slot.max_capacity || 0) - (slot.reserved_capacity || 0)) })
+            : `${slot.reserved_capacity || 0}/${slot.max_capacity || "—"}`;
 
     return (
         <button
@@ -35,7 +42,7 @@ export default function CalendarSlotCard({ slot, style, onClick, compact = false
                         {slot.experience || "Slot"}
                     </span>
                     <span className="text-[9px] text-muted-foreground ml-auto flex-shrink-0">
-                        {slot.reserved_capacity || 0}/{slot.max_capacity || "—"}
+                        {capLabel}
                     </span>
                 </div>
             ) : (
@@ -63,7 +70,7 @@ export default function CalendarSlotCard({ slot, style, onClick, compact = false
                             </div>
                             <span className="text-[9px] text-muted-foreground flex items-center gap-0.5">
                                 <Users className="w-2.5 h-2.5" />
-                                {slot.reserved_capacity || 0}/{slot.max_capacity || "—"}
+                                {capLabel}
                             </span>
                         </div>
                     )}

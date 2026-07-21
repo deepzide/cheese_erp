@@ -6,7 +6,7 @@ import CalendarSlotCard from "./CalendarSlotCard";
 /**
  * Day view — single column hourly time grid.
  */
-export default function CalendarDayView({ date, slots, onSlotClick, onEmptyClick }) {
+export default function CalendarDayView({ date, slots, onSlotClick, onEmptyClick, lens = "ocup" }) {
     const { t } = useTranslation();
     const containerRef = useRef(null);
     const [nowPos, setNowPos] = useState(getNowPosition());
@@ -54,7 +54,9 @@ export default function CalendarDayView({ date, slots, onSlotClick, onEmptyClick
                             onClick={(e) => { e.stopPropagation(); onSlotClick?.({ ...slot, _viewDate: dayKey }); }}
                             className="text-[10px] px-2 py-0.5 rounded bg-cheese-100 dark:bg-cheese-900/40 text-cheese-700 dark:text-cheese-400 truncate max-w-[180px] hover:bg-cheese-200 transition-colors"
                         >
-                            {slot.experience || slot.name} ({slot.reserved_capacity ?? 0}/{slot.max_capacity ?? 0})
+                            {slot.experience || slot.name} ({lens === "disp"
+                                ? t("calendar.free", "{{n}} libres", { n: Math.max(0, (slot.max_capacity || 0) - (slot.reserved_capacity || 0)) })
+                                : `${slot.reserved_capacity ?? 0}/${slot.max_capacity ?? 0}`})
                         </button>
                     ))}
                 </div>
@@ -105,6 +107,7 @@ export default function CalendarDayView({ date, slots, onSlotClick, onEmptyClick
                                     key={slot.name}
                                     slot={slot}
                                     style={slot._style}
+                                    lens={lens}
                                     onClick={(s) => onSlotClick?.({ ...s, _viewDate: dayKey })}
                                 />
                             );
