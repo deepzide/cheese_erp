@@ -181,6 +181,29 @@ def resend_ticket_qr(ticket_id):
 
 
 @frappe.whitelist()
+def request_ticket_survey(ticket_id):
+	"""Send the satisfaction survey for a completed ticket through the bot.
+
+	The bot delivers the survey on the customer's channel (WhatsApp enforces the
+	24-hour window; Telegram always) and arms its response flow so the customer's
+	next reply is recorded as rating + comment.
+	"""
+	if not ticket_id or not frappe.db.exists("Cheese Ticket", ticket_id):
+		return not_found("Ticket", ticket_id)
+	try:
+		assert_record_access("Cheese Ticket", ticket_id)
+	except frappe.PermissionError:
+		return error("No autorizado para este ticket", "UNAUTHORIZED", {}, 403)
+	ticket_status = frappe.db.get_value("Cheese Ticket", ticket_id, "status")
+	if ticket_status != "COMPLETED":
+		return validation_error(
+			"La encuesta de satisfacción solo puede solicitarse para tickets completados."
+		)
+	resp, e = _bot_post("/request-survey", {"ticket_id": ticket_id})
+	return _forward(resp, e, "Encuesta enviada")
+
+
+@frappe.whitelist()
 def send_message(conversation_id, message):
 	"""Send a message to the conversation's channel on behalf of the bot.
 

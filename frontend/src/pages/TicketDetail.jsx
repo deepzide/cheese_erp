@@ -220,6 +220,23 @@ export default function TicketDetail() {
         }
     };
 
+    // ─── Request satisfaction survey (bot sends it and arms the reply flow) ───
+    const [surveySending, setSurveySending] = useState(false);
+    const handleRequestSurvey = async () => {
+        try {
+            setSurveySending(true);
+            await apiRequest("/api/method/cheese.api.v1.bot_control_controller.request_ticket_survey", {
+                method: "POST",
+                body: JSON.stringify({ ticket_id: id }),
+            });
+            toast.success(t("tickets.surveySent", "Survey sent"));
+        } catch (err) {
+            toast.error(err?.message || t("common.failed", "Error"));
+        } finally {
+            setSurveySending(false);
+        }
+    };
+
     // ─── Status flow actions ───
     const [actionBusy, setActionBusy] = useState(false);
     const callTicketAction = async (endpoint, body, successMsg) => {
@@ -342,7 +359,7 @@ export default function TicketDetail() {
                 };
             case "COMPLETED":
                 return {
-                    primary: [{ key: "review", icon: Star, label: t("tickets.requestReview", "Request review"), disabled: true, title: soon }],
+                    primary: [{ key: "review", icon: Star, label: surveySending ? t("common.sending", "Sending…") : t("tickets.requestReview", "Request review"), onClick: handleRequestSurvey, disabled: surveySending }],
                     secondary: [
                         { key: "receipt", icon: Receipt, label: t("tickets.resendReceipt", "Resend receipt"), disabled: true, title: soon },
                         { key: "support", icon: LifeBuoy, label: t("tickets.createSupportCase", "Create support case"), disabled: true, title: soon },
@@ -732,8 +749,8 @@ export default function TicketDetail() {
                                             <p className="text-sm text-muted-foreground">
                                                 {t("tickets.surveyNotAnswered", "The customer has not answered this visit's survey yet.")}
                                             </p>
-                                            <Button size="sm" className="bg-cheese-500 hover:bg-cheese-600 text-black" disabled title={soon}>
-                                                <Star className="w-4 h-4 mr-2" /> {t("tickets.requestReview", "Request review")}
+                                            <Button size="sm" className="bg-cheese-500 hover:bg-cheese-600 text-black" onClick={handleRequestSurvey} disabled={surveySending}>
+                                                <Star className="w-4 h-4 mr-2" /> {surveySending ? t("common.sending", "Sending…") : t("tickets.requestReview", "Request review")}
                                             </Button>
                                         </div>
                                     ) : (

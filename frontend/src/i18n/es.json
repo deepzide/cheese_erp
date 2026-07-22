@@ -275,6 +275,7 @@
     "checkInNotDone": "— sin registrar —",
     "resendQr": "Reenviar QR",
     "qrResent": "QR reenviado",
+    "surveySent": "Encuesta enviada",
     "qrResendOnlyConfirmed": "Disponible para tickets confirmados o con check-in",
     "revokeQr": "Revocar",
     "thisTicketReview": "Reseña de este ticket",
