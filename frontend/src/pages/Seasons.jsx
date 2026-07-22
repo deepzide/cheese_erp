@@ -2,6 +2,9 @@ import React, { useState } from "react";
 import { motion } from "framer-motion";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
+import { DayPicker } from "react-day-picker";
+import "react-day-picker/dist/style.css";
+import { es } from "date-fns/locale";
 import { CalendarRange, Plus, Trash2, RefreshCw, Pencil, TrendingUp, TrendingDown } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -17,6 +20,13 @@ import { useHotelAccess } from "@/lib/useHotelAccess";
 import { apiRequest } from "@/api/client";
 
 const EMPTY = { season_name: "", percent: "", date_from: "", date_to: "", is_active: true, experiences: [] };
+
+const toDate = (s) => (s ? new Date(`${s}T00:00:00`) : undefined);
+const toStr = (d) => {
+    if (!d) return "";
+    const pad = (n) => String(n).padStart(2, "0");
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+};
 
 export default function Seasons() {
     const { t } = useTranslation();
@@ -214,7 +224,7 @@ export default function Seasons() {
             </div>
 
             <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-                <DialogContent className="max-w-lg">
+                <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
                     <DialogHeader>
                         <DialogTitle>{editing ? t("seasons.edit", "Editar temporada") : t("seasons.new", "Nueva temporada")}</DialogTitle>
                     </DialogHeader>
@@ -250,6 +260,32 @@ export default function Seasons() {
                                 <Input type="date" value={form.date_to} onChange={(e) => setForm(f => ({ ...f, date_to: e.target.value }))} />
                             </div>
                         </div>
+                        {/* Range calendar synced with the Desde/Hasta fields */}
+                        <div
+                            className="rounded-lg border border-border p-1 flex justify-center"
+                            style={{
+                                "--rdp-accent-color": "#eab308",
+                                "--rdp-background-color": "rgba(234, 179, 8, 0.18)",
+                                "--rdp-cell-size": "34px",
+                            }}
+                        >
+                            <DayPicker
+                                mode="range"
+                                locale={es}
+                                weekStartsOn={1}
+                                numberOfMonths={1}
+                                defaultMonth={toDate(form.date_from) || new Date()}
+                                selected={{ from: toDate(form.date_from), to: toDate(form.date_to) }}
+                                onSelect={(range) => setForm(f => ({
+                                    ...f,
+                                    date_from: toStr(range?.from),
+                                    date_to: toStr(range?.to),
+                                }))}
+                            />
+                        </div>
+                        <p className="text-xs text-muted-foreground -mt-2">
+                            {t("seasons.calendarHint", "Haz clic en el día de inicio y luego en el de fin; también puedes escribir las fechas arriba.")}
+                        </p>
                         <label className="flex items-center gap-2 text-sm cursor-pointer">
                             <input type="checkbox" checked={form.is_active} onChange={(e) => setForm(f => ({ ...f, is_active: e.target.checked }))} />
                             {t("seasons.active", "Temporada activa")}
