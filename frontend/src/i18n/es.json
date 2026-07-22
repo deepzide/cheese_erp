@@ -274,6 +274,8 @@
     "checkInDone": "Realizado",
     "checkInNotDone": "— sin registrar —",
     "resendQr": "Reenviar QR",
+    "qrResent": "QR reenviado",
+    "qrResendOnlyConfirmed": "Disponible para tickets confirmados o con check-in",
     "revokeQr": "Revocar",
     "thisTicketReview": "Reseña de este ticket",
     "thisVisitRating": "Calificación de esta visita",

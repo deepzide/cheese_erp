@@ -159,6 +159,28 @@ def whatsapp_window(conversation_id):
 
 
 @frappe.whitelist()
+def resend_ticket_qr(ticket_id):
+	"""Re-send the ticket's check-in QR to the customer through the bot.
+
+	The bot resolves the customer's channel (WhatsApp/Telegram/Instagram) from
+	the conversation history and enforces the WhatsApp 24-hour window.
+	"""
+	if not ticket_id or not frappe.db.exists("Cheese Ticket", ticket_id):
+		return not_found("Ticket", ticket_id)
+	try:
+		assert_record_access("Cheese Ticket", ticket_id)
+	except frappe.PermissionError:
+		return error("No autorizado para este ticket", "UNAUTHORIZED", {}, 403)
+	ticket_status = frappe.db.get_value("Cheese Ticket", ticket_id, "status")
+	if ticket_status not in ("CONFIRMED", "CHECKED_IN"):
+		return validation_error(
+			"El QR de check-in solo está disponible para tickets confirmados o con check-in."
+		)
+	resp, e = _bot_post("/resend-qr", {"ticket_id": ticket_id})
+	return _forward(resp, e, "QR reenviado")
+
+
+@frappe.whitelist()
 def send_message(conversation_id, message):
 	"""Send a message to the conversation's channel on behalf of the bot.
 

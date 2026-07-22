@@ -202,6 +202,24 @@ export default function TicketDetail() {
         }
     };
 
+    // ─── Resend check-in QR (bot proxy; ERP issues QR for CONFIRMED/CHECKED_IN) ───
+    const qrResendAvailable = ["CONFIRMED", "CHECKED_IN"].includes(ticket?.status);
+    const [qrResending, setQrResending] = useState(false);
+    const handleResendQr = async () => {
+        try {
+            setQrResending(true);
+            await apiRequest("/api/method/cheese.api.v1.bot_control_controller.resend_ticket_qr", {
+                method: "POST",
+                body: JSON.stringify({ ticket_id: id }),
+            });
+            toast.success(t("tickets.qrResent", "QR re-sent"));
+        } catch (err) {
+            toast.error(err?.message || t("common.failed", "Error"));
+        } finally {
+            setQrResending(false);
+        }
+    };
+
     // ─── Status flow actions ───
     const [actionBusy, setActionBusy] = useState(false);
     const callTicketAction = async (endpoint, body, successMsg) => {
@@ -306,7 +324,7 @@ export default function TicketDetail() {
                 return {
                     primary: [{ key: "advance", icon: CheckCircle, label: t("tickets.markCheckIn", "Mark check-in"), onClick: handleAdvance }],
                     secondary: [
-                        { key: "resendqr", icon: QrCode, label: t("tickets.resendQr", "Resend QR"), disabled: true, title: soon },
+                        { key: "resendqr", icon: QrCode, label: qrResending ? t("common.sending", "Sending…") : t("tickets.resendQr", "Resend QR"), onClick: handleResendQr, disabled: qrResending },
                         ...(hasAdvancePaid && hasNoPendingDeposit && remainingPending > 0 ? [{ key: "remaining", icon: Wallet, label: t("tickets.payRemainingBalance", "Register remaining balance"), onClick: handleCreateRemainingDeposit }] : []),
                         { key: "modify", icon: FileEdit, label: t("tickets.modifySeePolicy", "Modify (see policy)"), disabled: true, title: soon },
                         goContact,
@@ -663,10 +681,16 @@ export default function TicketDetail() {
                                             </p>
                                         </div>
                                     </div>
-                                    {/* Visible per the mockup but intentionally inactive for now */}
+                                    {/* Revocar / Marcar check-in remain inactive for now */}
                                     <div className="flex items-center gap-2 flex-wrap pt-2">
-                                        <Button variant="outline" size="sm" disabled title={soon}>
-                                            <QrCode className="w-4 h-4 mr-2" /> {t("tickets.resendQr", "Resend QR")}
+                                        <Button
+                                            variant="outline"
+                                            size="sm"
+                                            disabled={!qrResendAvailable || qrResending}
+                                            title={qrResendAvailable ? undefined : t("tickets.qrResendOnlyConfirmed", "Available for confirmed or checked-in tickets")}
+                                            onClick={handleResendQr}
+                                        >
+                                            <QrCode className="w-4 h-4 mr-2" /> {qrResending ? t("common.sending", "Sending…") : t("tickets.resendQr", "Resend QR")}
                                         </Button>
                                         <Button variant="outline" size="sm" disabled title={soon}>
                                             <XCircle className="w-4 h-4 mr-2" /> {t("tickets.revokeQr", "Revoke")}
