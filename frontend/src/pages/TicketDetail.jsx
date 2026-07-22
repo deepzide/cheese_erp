@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
+import { useQuery } from "@tanstack/react-query";
 import { useFrappeDoc, useFrappeUpdate, useFrappeList } from "@/lib/useApiData";
 import { toast } from "sonner";
 import DetailPageLayout from "@/components/DetailPageLayout";
@@ -12,11 +13,14 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import {
     Ticket, DollarSign, Calendar, Users, MapPin, Clock, MessageSquare,
-    Briefcase, CreditCard, Wallet, CheckCircle, XCircle
+    Briefcase, CreditCard, Wallet, CheckCircle, XCircle, QrCode, Star,
+    Bell, Send, Package, FileEdit, RotateCcw, LifeBuoy, Receipt, Undo2,
+    History, UserX, Trash2
 } from "lucide-react";
-import { apiRequest } from "@/api/client";
+import { apiRequest, unwrapFrappeMethodData } from "@/api/client";
 
 const fmt = (v) => `$${Number(v || 0).toLocaleString(undefined, { minimumFractionDigits: 0 })}`;
 
@@ -55,6 +59,33 @@ export default function TicketDetail() {
         filters: { entity_type: "Cheese Ticket", entity_id: id },
         fields: ["name", "status", "amount_required", "amount_paid", "creation"],
         enabled: !!id,
+    });
+
+    // QR tokens issued for this ticket (QR & Check-in tab)
+    const { data: qrTokens = [] } = useFrappeList("Cheese QR Token", {
+        filters: { ticket: id },
+        fields: ["name", "status", "expires_at", "creation"],
+        enabled: !!id,
+    });
+
+    // Survey responses: this ticket's review + the contact's history (Satisfacción tab)
+    const { data: ticketSurveys = [] } = useFrappeList("Cheese Survey Response", {
+        filters: { ticket: id },
+        fields: ["name", "rating", "comment", "sent_at", "answered_at"],
+        enabled: !!id,
+    });
+    const { data: contactSurveys = [] } = useFrappeList("Cheese Survey Response", {
+        filters: { contact: ticket?.contact || "__none__" },
+        fields: ["name", "ticket", "rating", "comment", "sent_at", "answered_at"],
+        enabled: !!ticket?.contact,
+    });
+
+    // Conversations of the contact — the reminder is sent through the bot on the
+    // conversation's channel (ticket's linked conversation, else the most recent).
+    const { data: contactConvos = [] } = useFrappeList("Conversation", {
+        filters: { contact: ticket?.contact || "__none__" },
+        fields: ["name", "channel", "modified"],
+        enabled: !!ticket?.contact,
     });
 
     // Local State for Edit Mode
@@ -134,6 +165,85 @@ export default function TicketDetail() {
         }
     };
 
+    // ─── Reminder (send as bot through the conversation's channel) ───
+    const sortedConvos = [...contactConvos].sort((a, b) => (b.modified || "").localeCompare(a.modified || ""));
+    const reminderConvo =
+        (ticket?.conversation && (sortedConvos.find((c) => c.name === ticket.conversation) || { name: ticket.conversation, channel: null })) ||
+        sortedConvos[0] || null;
+
+    const [reminderOpen, setReminderOpen] = useState(false);
+    const [reminderText, setReminderText] = useState("");
+    const [reminderSending, setReminderSending] = useState(false);
+
+    // WhatsApp 24h window check — the proxy returns applicable:false for other channels.
+    const { data: reminderWindow } = useQuery({
+        queryKey: ["ticket-reminder-window", reminderConvo?.name],
+        enabled: reminderOpen && !!reminderConvo?.name,
+        queryFn: async () => unwrapFrappeMethodData(
+            await apiRequest(`/api/method/cheese.api.v1.bot_control_controller.whatsapp_window?conversation_id=${encodeURIComponent(reminderConvo.name)}`), {}),
+    });
+    const windowBlocked = !!(reminderWindow?.applicable && !reminderWindow?.active);
+
+    const sendReminder = async () => {
+        if (!reminderText.trim() || !reminderConvo?.name) return;
+        try {
+            setReminderSending(true);
+            await apiRequest("/api/method/cheese.api.v1.bot_control_controller.send_message", {
+                method: "POST",
+                body: JSON.stringify({ conversation_id: reminderConvo.name, message: reminderText.trim() }),
+            });
+            toast.success(t("tickets.reminderSent", "Reminder sent"));
+            setReminderOpen(false);
+            setReminderText("");
+        } catch (err) {
+            toast.error(err?.message || t("common.failed", "Error"));
+        } finally {
+            setReminderSending(false);
+        }
+    };
+
+    // ─── Status flow actions ───
+    const [actionBusy, setActionBusy] = useState(false);
+    const callTicketAction = async (endpoint, body, successMsg) => {
+        try {
+            setActionBusy(true);
+            await apiRequest(`/api/method/cheese.api.v1.ticket_controller.${endpoint}`, {
+                method: "POST",
+                body: JSON.stringify(body),
+            });
+            toast.success(successMsg);
+            refetch();
+        } catch (err) {
+            toast.error(err?.message || t("common.failed", "Error"));
+        } finally {
+            setActionBusy(false);
+        }
+    };
+
+    // Advance to the next state in the flow: PENDING → CONFIRMED → CHECKED_IN → COMPLETED.
+    const handleAdvance = () => {
+        if (ticket?.status === "PENDING") {
+            callTicketAction("confirm_ticket", { ticket_id: id }, t("tickets.confirmedOk", "Reservation confirmed"));
+        } else if (ticket?.status === "CONFIRMED") {
+            callTicketAction("update_ticket_status", { ticket_id: id, new_status: "CHECKED_IN" }, t("tickets.checkedInOk", "Check-in registered"));
+        } else if (ticket?.status === "CHECKED_IN") {
+            callTicketAction("update_ticket_status", { ticket_id: id, new_status: "COMPLETED" }, t("tickets.completedOk", "Ticket completed"));
+        }
+    };
+
+    const handleReject = () => {
+        if (!window.confirm(t("tickets.rejectConfirm", "Reject this ticket? This cannot be undone."))) return;
+        callTicketAction("reject_ticket", { ticket_id: id }, t("tickets.rejectedOk", "Ticket rejected"));
+    };
+    const handleNoShow = () => {
+        if (!window.confirm(t("tickets.noShowConfirm", "Mark this ticket as no-show? This cannot be undone."))) return;
+        callTicketAction("mark_no_show", { ticket_id: id }, t("tickets.noShowOk", "Ticket marked as no-show"));
+    };
+    const handleCancel = () => {
+        if (!window.confirm(t("tickets.cancelConfirm", "Cancel this reservation? This cannot be undone."))) return;
+        callTicketAction("cancel_ticket", { ticket_id: id }, t("tickets.cancelledOk", "Reservation cancelled"));
+    };
+
     const getStatusBadge = (status) => {
         switch (status) {
             case "PENDING": return <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200">{t("status.PENDING", "Pending")}</Badge>;
@@ -167,6 +277,110 @@ export default function TicketDetail() {
 
     const hasAdvancePaid = depositAmount === 0 || deposits.some(d => d.status === "PAID" || d.status === "CONFIRMED");
     const hasNoPendingDeposit = !deposits.some(d => d.status === "PENDING" || d.status === "OVERDUE");
+    const totalPending = Math.max(totalPerTicket - totalDepositPaid, 0);
+
+    // ─── State-dependent ticket actions (new-UI flowbox) ───
+    // Disabled entries are visible per the mockup but not implemented yet.
+    const soon = t("tickets.comingSoon", "Not available yet");
+    const goContact = { key: "contact", icon: Users, label: t("tickets.viewContact", "View Contact"), onClick: () => ticket?.contact && navigate(`/cheese/contacts/${ticket.contact}`) };
+    const buildActions = () => {
+        switch (ticket?.status) {
+            case "PENDING":
+                return {
+                    primary: [
+                        ...(totalPending > 0 ? [{ key: "pay", icon: CreditCard, label: t("tickets.registerDepositPayment", "Register Payment"), onClick: () => navigate(`/cheese/deposits/new?ticket=${id}`) }] : []),
+                        { key: "advance", icon: CheckCircle, label: t("tickets.confirmReservation", "Confirm reservation"), onClick: handleAdvance },
+                    ],
+                    secondary: [
+                        { key: "reminder", icon: Bell, label: t("tickets.sendReminder", "Send reminder"), onClick: () => setReminderOpen(true), disabled: !reminderConvo, title: !reminderConvo ? t("tickets.noConversation", "The contact has no bot conversation") : undefined },
+                        { key: "convert", icon: Package, label: t("tickets.convertToFinalBooking", "Convert to Final Booking"), disabled: true, title: soon },
+                        { key: "modify", icon: FileEdit, label: t("tickets.modifySeePolicy", "Modify (see policy)"), disabled: true, title: soon },
+                        goContact,
+                    ],
+                    danger: [
+                        { key: "reject", icon: XCircle, label: t("tickets.rejectTicket", "Reject ticket"), onClick: handleReject },
+                        { key: "cancel", icon: Trash2, label: t("tickets.cancelReservation", "Cancel reservation"), onClick: handleCancel },
+                    ],
+                };
+            case "CONFIRMED":
+                return {
+                    primary: [{ key: "advance", icon: CheckCircle, label: t("tickets.markCheckIn", "Mark check-in"), onClick: handleAdvance }],
+                    secondary: [
+                        { key: "resendqr", icon: QrCode, label: t("tickets.resendQr", "Resend QR"), disabled: true, title: soon },
+                        ...(hasAdvancePaid && hasNoPendingDeposit && remainingPending > 0 ? [{ key: "remaining", icon: Wallet, label: t("tickets.payRemainingBalance", "Register remaining balance"), onClick: handleCreateRemainingDeposit }] : []),
+                        { key: "modify", icon: FileEdit, label: t("tickets.modifySeePolicy", "Modify (see policy)"), disabled: true, title: soon },
+                        goContact,
+                    ],
+                    danger: [
+                        { key: "noshow", icon: UserX, label: t("tickets.markNoShow", "Mark no-show"), onClick: handleNoShow },
+                        { key: "cancel", icon: Trash2, label: t("tickets.cancelReservation", "Cancel reservation"), onClick: handleCancel },
+                    ],
+                };
+            case "CHECKED_IN":
+                return {
+                    primary: [{ key: "advance", icon: CheckCircle, label: t("tickets.completeTicket", "Complete ticket"), onClick: handleAdvance }],
+                    secondary: [goContact],
+                    danger: [],
+                };
+            case "COMPLETED":
+                return {
+                    primary: [{ key: "review", icon: Star, label: t("tickets.requestReview", "Request review"), disabled: true, title: soon }],
+                    secondary: [
+                        { key: "receipt", icon: Receipt, label: t("tickets.resendReceipt", "Resend receipt"), disabled: true, title: soon },
+                        { key: "support", icon: LifeBuoy, label: t("tickets.createSupportCase", "Create support case"), disabled: true, title: soon },
+                        goContact,
+                    ],
+                    danger: [{ key: "refund", icon: Undo2, label: t("tickets.registerRefund", "Register refund"), disabled: true, title: soon }],
+                };
+            case "NO_SHOW":
+                return {
+                    primary: [totalPending > 0
+                        ? { key: "penalty", icon: CreditCard, label: t("tickets.chargePenalty", "Charge penalty"), disabled: true, title: soon }
+                        : { key: "reactivate", icon: RotateCcw, label: t("tickets.reactivate", "Reactivate reservation"), disabled: true, title: soon }],
+                    secondary: [
+                        { key: "support", icon: LifeBuoy, label: t("tickets.createSupportCase", "Create support case"), disabled: true, title: soon },
+                        goContact,
+                    ],
+                    danger: [{ key: "cancel", icon: Trash2, label: t("tickets.cancelPermanently", "Cancel permanently"), disabled: true, title: soon }],
+                };
+            default: // CANCELLED / EXPIRED / REJECTED
+                return {
+                    primary: [{ key: "reactivate", icon: RotateCcw, label: t("tickets.reactivateNew", "Reactivate / new reservation"), disabled: true, title: soon }],
+                    secondary: [goContact, { key: "history", icon: History, label: t("tickets.viewHistory", "View history"), disabled: true, title: soon }],
+                    danger: [],
+                };
+        }
+    };
+    const actions = ticket ? buildActions() : { primary: [], secondary: [], danger: [] };
+
+    const renderActionBtn = (a, variantClass) => {
+        const Icon = a.icon;
+        return (
+            <Button
+                key={a.key}
+                variant="outline"
+                size="sm"
+                className={`justify-start w-full ${variantClass || ""}`}
+                onClick={a.onClick}
+                disabled={a.disabled || actionBusy}
+                title={a.title}
+            >
+                <Icon className="w-4 h-4 mr-2" /> {a.label}
+            </Button>
+        );
+    };
+
+    // QR & survey derived state
+    const latestQr = [...qrTokens].sort((a, b) => (b.creation || "").localeCompare(a.creation || ""))[0] || null;
+    const checkInDone = ["CHECKED_IN", "COMPLETED"].includes(ticket?.status);
+    const thisReview = ticketSurveys.find((r) => r.rating != null) || null;
+    const answeredHistory = contactSurveys
+        .filter((r) => r.rating != null)
+        .sort((a, b) => (b.answered_at || b.sent_at || "").localeCompare(a.answered_at || a.sent_at || ""));
+    const avgRating = answeredHistory.length
+        ? (answeredHistory.reduce((s, r) => s + (r.rating || 0), 0) / answeredHistory.length).toFixed(1)
+        : null;
+    const ratingColor = (n) => (n <= 3 ? "text-red-600" : n === 4 ? "text-amber-600" : "text-emerald-600");
 
     return (
         <DetailPageLayout
@@ -186,6 +400,8 @@ export default function TicketDetail() {
                         <TabsList className="w-full justify-start h-12 bg-muted/50 p-1">
                             <TabsTrigger value="details" className="flex-1 max-w-[200px] h-full data-[state=active]:bg-background data-[state=active]:shadow-sm"><Ticket className="w-4 h-4 mr-2" /> {t("common.details", "Details")}</TabsTrigger>
                             <TabsTrigger value="financials" className="flex-1 max-w-[200px] h-full data-[state=active]:bg-background data-[state=active]:shadow-sm"><DollarSign className="w-4 h-4 mr-2" /> {t("tickets.financials", "Financials")}</TabsTrigger>
+                            <TabsTrigger value="qr" className="flex-1 max-w-[200px] h-full data-[state=active]:bg-background data-[state=active]:shadow-sm"><QrCode className="w-4 h-4 mr-2" /> {t("tickets.qrCheckin", "QR & Check-in")}</TabsTrigger>
+                            <TabsTrigger value="satisfaction" className="flex-1 max-w-[200px] h-full data-[state=active]:bg-background data-[state=active]:shadow-sm"><Star className="w-4 h-4 mr-2" /> {t("tickets.satisfaction", "Satisfaction")}</TabsTrigger>
                         </TabsList>
 
                         <TabsContent value="details" className="pt-4 space-y-6">
@@ -471,6 +687,131 @@ export default function TicketDetail() {
                                 </Card>
                             )}
                         </TabsContent>
+
+                        {/* ─── QR & Check-in Tab ─── */}
+                        <TabsContent value="qr" className="pt-4 space-y-6">
+                            <Card className="border-border/60 shadow-sm">
+                                <CardHeader className="border-b bg-muted/20 pb-4">
+                                    <CardTitle className="text-sm font-semibold text-muted-foreground uppercase flex items-center">
+                                        <QrCode className="w-4 h-4 mr-2" /> {t("tickets.qrAttendance", "QR & Attendance")}
+                                    </CardTitle>
+                                </CardHeader>
+                                <CardContent className="p-6 space-y-4">
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-4 gap-x-8">
+                                        <div className="space-y-1">
+                                            <Label className="text-xs text-muted-foreground">{t("tickets.qrStatus", "QR status")}</Label>
+                                            <p className="text-sm font-medium">
+                                                {latestQr
+                                                    ? `${t(`status.${latestQr.status}`, latestQr.status)}${latestQr.expires_at ? ` · ${t("tickets.qrExpires", "expires")} ${new Date(latestQr.expires_at).toLocaleString()}` : ""}`
+                                                    : t("tickets.qrNotIssued", "— not issued —")}
+                                            </p>
+                                        </div>
+                                        <div className="space-y-1">
+                                            <Label className="text-xs text-muted-foreground">{t("tickets.checkIn", "Check-in")}</Label>
+                                            <p className="text-sm font-medium">
+                                                {checkInDone ? t("tickets.checkInDone", "Done") : t("tickets.checkInNotDone", "— not registered —")}
+                                            </p>
+                                        </div>
+                                    </div>
+                                    {/* Visible per the mockup but intentionally inactive for now */}
+                                    <div className="flex items-center gap-2 flex-wrap pt-2">
+                                        <Button variant="outline" size="sm" disabled title={soon}>
+                                            <QrCode className="w-4 h-4 mr-2" /> {t("tickets.resendQr", "Resend QR")}
+                                        </Button>
+                                        <Button variant="outline" size="sm" disabled title={soon}>
+                                            <XCircle className="w-4 h-4 mr-2" /> {t("tickets.revokeQr", "Revoke")}
+                                        </Button>
+                                        <Button size="sm" className="bg-cheese-500 hover:bg-cheese-600 text-black" disabled title={soon}>
+                                            <CheckCircle className="w-4 h-4 mr-2" /> {t("tickets.markCheckIn", "Mark check-in")}
+                                        </Button>
+                                    </div>
+                                </CardContent>
+                            </Card>
+                        </TabsContent>
+
+                        {/* ─── Satisfaction Tab ─── */}
+                        <TabsContent value="satisfaction" className="pt-4 space-y-6">
+                            <Card className="border-border/60 shadow-sm">
+                                <CardHeader className="border-b bg-muted/20 pb-4">
+                                    <CardTitle className="text-sm font-semibold text-muted-foreground uppercase flex items-center">
+                                        <Star className="w-4 h-4 mr-2" /> {t("tickets.thisTicketReview", "This ticket's review")}
+                                    </CardTitle>
+                                </CardHeader>
+                                <CardContent className="p-6">
+                                    {thisReview ? (
+                                        <div className="flex items-start gap-4">
+                                            <div className={`text-3xl font-bold ${ratingColor(thisReview.rating)}`}>
+                                                {thisReview.rating}★
+                                            </div>
+                                            <div className="min-w-0">
+                                                <p className="text-xs text-muted-foreground">{t("tickets.thisVisitRating", "Rating for this visit")}
+                                                    {thisReview.answered_at ? ` · ${new Date(thisReview.answered_at).toLocaleDateString()}` : ""}</p>
+                                                {thisReview.comment ? (
+                                                    <p className="text-sm mt-1">"{thisReview.comment}"</p>
+                                                ) : (
+                                                    <p className="text-sm mt-1 text-muted-foreground italic">{t("tickets.noComment", "No comment")}</p>
+                                                )}
+                                            </div>
+                                        </div>
+                                    ) : ticket?.status === "COMPLETED" ? (
+                                        <div className="text-center py-6 space-y-3">
+                                            <p className="text-sm text-muted-foreground">
+                                                {t("tickets.surveyNotAnswered", "The customer has not answered this visit's survey yet.")}
+                                            </p>
+                                            <Button size="sm" className="bg-cheese-500 hover:bg-cheese-600 text-black" disabled title={soon}>
+                                                <Star className="w-4 h-4 mr-2" /> {t("tickets.requestReview", "Request review")}
+                                            </Button>
+                                        </div>
+                                    ) : (
+                                        <p className="text-sm text-muted-foreground text-center py-6">
+                                            {t("tickets.surveyPendingComplete", "The satisfaction survey is enabled automatically when the experience is completed.")}
+                                        </p>
+                                    )}
+                                </CardContent>
+                            </Card>
+
+                            <Card className="border-border/60 shadow-sm">
+                                <CardHeader className="border-b bg-muted/20 pb-4">
+                                    <CardTitle className="text-sm font-semibold text-muted-foreground uppercase flex items-center justify-between">
+                                        <span>{t("tickets.clientHistory", "Customer history")}</span>
+                                        {avgRating && (
+                                            <span className="normal-case font-normal text-xs">
+                                                {t("tickets.avgReviews", "average {{avg}}★ · {{n}} reviews", { avg: avgRating, n: answeredHistory.length })}
+                                            </span>
+                                        )}
+                                    </CardTitle>
+                                </CardHeader>
+                                <CardContent className="p-6">
+                                    {answeredHistory.length === 0 ? (
+                                        <p className="text-sm text-muted-foreground text-center py-4">
+                                            {t("tickets.noReviewsYet", "This customer has no answered surveys yet.")}
+                                        </p>
+                                    ) : (
+                                        <div className="space-y-3">
+                                            {answeredHistory.map((r) => (
+                                                <div key={r.name} className="flex items-start gap-3 text-sm">
+                                                    <span className={`font-bold shrink-0 ${ratingColor(r.rating)}`}>{r.rating}★</span>
+                                                    <div className="min-w-0">
+                                                        <p className="text-xs text-muted-foreground">
+                                                            {(r.answered_at || r.sent_at) ? new Date(r.answered_at || r.sent_at).toLocaleDateString() : "—"}
+                                                            {" · "}
+                                                            <button
+                                                                type="button"
+                                                                className="hover:text-cheese-600 underline-offset-2 hover:underline font-mono"
+                                                                onClick={() => r.ticket && navigate(`/cheese/tickets/${r.ticket}`)}
+                                                            >
+                                                                {r.ticket}
+                                                            </button>
+                                                        </p>
+                                                        {r.comment && <p className="truncate">"{r.comment}"</p>}
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                </CardContent>
+                            </Card>
+                        </TabsContent>
                     </Tabs>
                 </div>
 
@@ -498,40 +839,86 @@ export default function TicketDetail() {
 
                     <TicketRooms ticketId={id} isHotel={!!ticket?.check_in_date} />
 
+                    {/* State-dependent ticket actions (new-UI flowbox) */}
                     <Card className="border-border/60 shadow-sm bg-primary/5 border-primary/20">
                         <CardHeader className="pb-2">
-                            <CardTitle className="text-sm font-semibold text-primary">{t("tickets.ticketWorkflows", "Ticket Workflows")}</CardTitle>
+                            <CardTitle className="text-sm font-semibold text-primary">{t("tickets.ticketActions", "Ticket actions")}</CardTitle>
                         </CardHeader>
                         <CardContent className="space-y-2 p-4 pt-0">
                             <div className="flex flex-col gap-2">
-                                <Button variant="outline" size="sm" className="justify-start" onClick={() => navigate(`/cheese/deposits/new?ticket=${id}`)}>
-                                    <DollarSign className="w-4 h-4 mr-2" /> {t("tickets.registerDepositPayment", "Register Deposit Payment")}
-                                </Button>
-                                {hasAdvancePaid && hasNoPendingDeposit && remainingPending > 0 && (
-                                    <Button variant="outline" size="sm" className="justify-start text-cheese-700 border-cheese-300 hover:bg-cheese-50" onClick={handleCreateRemainingDeposit}>
-                                        <Wallet className="w-4 h-4 mr-2" /> {t("tickets.payRemainingBalance", "Pay Remaining Balance")}
-                                    </Button>
+                                {actions.primary.map((a) =>
+                                    a.disabled
+                                        ? renderActionBtn(a, "border-cheese-300")
+                                        : (() => {
+                                            const Icon = a.icon;
+                                            return (
+                                                <Button key={a.key} size="sm" className="justify-start w-full bg-cheese-500 hover:bg-cheese-600 text-black font-semibold" onClick={a.onClick} disabled={actionBusy}>
+                                                    <Icon className="w-4 h-4 mr-2" /> {a.label}
+                                                </Button>
+                                            );
+                                        })()
                                 )}
-                                {ticket?.status === "PENDING" && (
-                                    <Button variant="outline" size="sm" className="justify-start" onClick={() => navigate(`/cheese/bookings/new?ticket=${id}`)}>
-                                        <Briefcase className="w-4 h-4 mr-2" /> {t("tickets.convertToFinalBooking", "Convert to Final Booking")}
-                                    </Button>
+                                {actions.secondary.length > 0 && (
+                                    <>
+                                        <p className="text-[10px] uppercase font-semibold text-muted-foreground pt-1">{t("tickets.moreActions", "More actions")}</p>
+                                        {actions.secondary.map((a) => renderActionBtn(a))}
+                                    </>
                                 )}
-                                {ticket?.status === "PENDING" && (
-                                    <Button variant="outline" size="sm" className="justify-start text-emerald-700" onClick={() => updateMutation.mutate({ name: id, data: { status: "CONFIRMED" } })} disabled={updateMutation.isPending}>
-                                        <CheckCircle className="w-4 h-4 mr-2" /> {t("tickets.markAsConfirmed", "Mark as Confirmed")}
-                                    </Button>
-                                )}
-                                {ticket?.contact && (
-                                    <Button variant="outline" size="sm" className="justify-start" onClick={() => navigate(`/cheese/contacts/${ticket.contact}`)}>
-                                        <Users className="w-4 h-4 mr-2" /> {t("tickets.viewContact", "View Contact")}
-                                    </Button>
+                                {actions.danger.length > 0 && (
+                                    <>
+                                        <div className="border-t border-border/60 my-1" />
+                                        {actions.danger.map((a) => renderActionBtn(a, "text-red-600 border-red-200 hover:bg-red-50 dark:hover:bg-red-950/30"))}
+                                    </>
                                 )}
                             </div>
                         </CardContent>
                     </Card>
                 </div>
             </div>
+
+            {/* Send reminder as bot through the conversation's channel */}
+            <Dialog open={reminderOpen} onOpenChange={(o) => { if (!o) setReminderOpen(false); }}>
+                <DialogContent className="max-w-md">
+                    <DialogHeader>
+                        <DialogTitle className="flex items-center gap-2">
+                            <Bell className="w-4 h-4 text-cheese-600" /> {t("tickets.sendReminder", "Send reminder")}
+                        </DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-3">
+                        <p className="text-xs text-muted-foreground">
+                            {t("tickets.reminderHint", "The message is sent by the bot through the customer's conversation channel.")}
+                            {reminderConvo?.channel ? ` (${reminderConvo.channel})` : ""}
+                        </p>
+                        {windowBlocked && (
+                            <p className="text-xs font-medium text-red-600 bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 rounded-md px-3 py-2">
+                                {t("tickets.windowClosed", "The WhatsApp 24-hour window for this customer is closed — the message cannot be sent until the customer writes again.")}
+                            </p>
+                        )}
+                        {reminderWindow?.applicable && reminderWindow?.active && (
+                            <p className="text-xs font-medium text-emerald-700 bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 rounded-md px-3 py-2">
+                                {t("tickets.windowActive", "WhatsApp 24-hour window active.")}
+                            </p>
+                        )}
+                        <Textarea
+                            value={reminderText}
+                            onChange={(e) => setReminderText(e.target.value)}
+                            placeholder={t("tickets.reminderPlaceholder", "Reminder text for the customer…")}
+                            className="min-h-[110px]"
+                        />
+                    </div>
+                    <DialogFooter>
+                        <Button variant="ghost" onClick={() => setReminderOpen(false)}>{t("common.cancel", "Cancel")}</Button>
+                        <Button
+                            className="bg-cheese-500 hover:bg-cheese-600 text-black font-semibold"
+                            onClick={sendReminder}
+                            disabled={reminderSending || windowBlocked || !reminderText.trim()}
+                        >
+                            <Send className="w-4 h-4 mr-1.5" />
+                            {reminderSending ? t("common.sending", "Sending…") : t("common.send", "Send")}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </DetailPageLayout>
     );
 }
