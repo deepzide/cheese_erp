@@ -520,7 +520,7 @@ export default function ExperienceDetail() {
                                                         {!!form.differentiate_by_weekday && <span>{t("experiences.dayType", "Día")}</span>}
                                                         {!!form.differentiate_by_age_group && <span>{t("experiences.ageGroup", "Grupo etario")}</span>}
                                                         <span>{t("experiences.priceInd", "Precio")}</span>
-                                                        <span>{t("experiences.priceRoute", "Precio en ruta")}</span>
+                                                        <span>{t("experiences.priceRoute", "Precio en paquete")}</span>
                                                         <span />
                                                     </div>
                                                     {(form.price_lines || []).map((line, i) => (

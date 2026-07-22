@@ -63,7 +63,7 @@ export default function SurveyResponses() {
                 </div>
                 <div className="flex gap-2 flex-wrap">
                     <div className="relative"><Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" /><Input placeholder={t("surveyResponses.searchTicket", "Buscar ticket...")} value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-9 w-56 h-9" /></div>
-                    <div className="w-44"><FrappeSearchSelect doctype="Cheese Route" label="name" value={routeId} onChange={setRouteId} placeholder={t("surveyResponses.route", "Ruta...")} /></div>
+                    <div className="w-44"><FrappeSearchSelect doctype="Cheese Route" label="name" value={routeId} onChange={setRouteId} placeholder={t("surveyResponses.route", "Paquete...")} /></div>
                     <Input placeholder={t("surveyResponses.ratingRange", "Calificación 1-5")} value={ratingFilter === "all" ? "" : ratingFilter} onChange={(e) => setRatingFilter(e.target.value ? e.target.value : "all")} className="w-24 h-9" />
                     <Button variant="ghost" size="icon" onClick={() => refetch()} className="h-9 w-9"><RefreshCw className="w-4 h-4" /></Button>
                 </div>
@@ -139,7 +139,7 @@ export default function SurveyResponses() {
                         <div className="space-y-2 text-sm">
                             <p><span className="text-muted-foreground">{t("common.customer", "Cliente")}:</span> {selected.contact || "—"}</p>
                             <p><span className="text-muted-foreground">{t("ticket.newTicket", "Ticket")}:</span> {selected.ticket || "—"}</p>
-                            <p><span className="text-muted-foreground">{t("routes.route", "Ruta")}:</span> {selected.route || "—"}</p>
+                            <p><span className="text-muted-foreground">{t("routes.route", "Paquete")}:</span> {selected.route || "—"}</p>
                             <p><span className="text-muted-foreground">{t("nav.establishments", "Empresa")}:</span> {selected.company || "—"}</p>
                             <p><span className="text-muted-foreground">{t("surveyResponses.ratingLabel", "Calificacion")}:</span> {selected.rating || "—"}</p>
                             <p><span className="text-muted-foreground">{t("surveyResponses.commentLabel", "Comentario")}:</span> {selected.comment || t("survey.noComment", "Sin comentario")}</p>

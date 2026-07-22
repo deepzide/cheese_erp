@@ -118,7 +118,28 @@ export default function TicketDetail() {
         }
     }, [ticket]);
 
-    const isHotel = experienceDoc?.experience_type === "HOTEL";
+    const isHotel = experienceDoc?.experience_type === "HOTEL" || !!ticket?.check_in_date;
+
+    // Ticket type pill (mockup): Experiencia / Hotel / Paquete
+    const ticketType = isHotel ? "hotel" : ticket?.route ? "package" : "experience";
+    const typeBadge = ticket ? (
+        <Badge
+            variant="outline"
+            className={
+                ticketType === "hotel"
+                    ? "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/40 dark:text-blue-300 dark:border-blue-800"
+                    : ticketType === "package"
+                        ? "bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-950/40 dark:text-purple-300 dark:border-purple-800"
+                        : "bg-cheese-500/15 text-cheese-700 border-cheese-300 dark:text-cheese-400 dark:border-cheese-700"
+            }
+        >
+            {ticketType === "hotel"
+                ? t("tickets.typeHotel", "Hotel")
+                : ticketType === "package"
+                    ? t("tickets.typePackage", "Package")
+                    : t("tickets.typeExperience", "Experience")}
+        </Badge>
+    ) : null;
 
     const handleFieldChange = (field, value) => {
         setForm(prev => ({ ...prev, [field]: value }));
@@ -423,7 +444,7 @@ export default function TicketDetail() {
             subtitle={`${t("tickets.ticketFor", "Ticket for")} ${ticket?.contact || t("common.loading", "Loading...")}`}
             backPath="/cheese/tickets"
             isLoading={isLoading}
-            statusBadge={getStatusBadge(ticket?.status)}
+            statusBadge={<span className="inline-flex items-center gap-2">{getStatusBadge(ticket?.status)}{typeBadge}</span>}
             onEditToggle={() => setEditMode(!editMode)}
             editMode={editMode}
             onSave={handleSave}

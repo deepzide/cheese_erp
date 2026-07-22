@@ -122,7 +122,7 @@ export default function DocumentCreate() {
     return (
         <CreatePageLayout
             title={t("documents.uploadDocument", "Subir documento")}
-            description={t("documents.attachDocument", "Adjunta un documento a una ruta o experiencia")}
+            description={t("documents.attachDocument", "Adjunta un documento a un paquete o experiencia")}
             icon={FileText}
             backPath={backPath}
             onSubmit={() => handleSubmit({ keepGoing: false })}

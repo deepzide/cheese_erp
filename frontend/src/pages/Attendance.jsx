@@ -81,7 +81,7 @@ export default function Attendance() {
                         </SelectContent>
                     </Select>
                     <div className="w-48">
-                        <FrappeSearchSelect doctype="Cheese Route" label="name" value={routeId} onChange={setRouteId} placeholder={t("attendance.route", "Ruta...")} />
+                        <FrappeSearchSelect doctype="Cheese Route" label="name" value={routeId} onChange={setRouteId} placeholder={t("attendance.route", "Paquete...")} />
                     </div>
                     <Button variant="ghost" size="icon" onClick={() => refetch()} className="h-9 w-9"><RefreshCw className="w-4 h-4" /></Button>
                 </div>
@@ -107,7 +107,7 @@ export default function Attendance() {
                                     <p className="text-xs text-muted-foreground flex items-center gap-2">
                                         <Ticket className="w-3 h-3" /> {rec.ticket || '—'}
                                         <Clock className="w-3 h-3 ml-2" /> {rec.checked_in_at || '—'}
-                                        {rec.route_id && <> • {t("routes.route", "Ruta")}: {rec.route_id}</>}
+                                        {rec.route_id && <> • {t("routes.route", "Paquete")}: {rec.route_id}</>}
                                         {rec.company_id && <> • Est: {rec.company_id}</>}
                                     </p>
                                 </div>

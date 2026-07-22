@@ -387,7 +387,7 @@ export default function ExperiencePriceCalendar({ experienceId }) {
                                                         <span className="text-sm text-muted-foreground pt-0.5">{it.label}</span>
                                                         <span className="flex flex-col items-end gap-0.5 text-right">
                                                             {it.individual != null && amount(it.individualLabel, it.individual)}
-                                                            {it.route != null && amount(t("priceCalendar.inRoute", "En ruta"), it.route)}
+                                                            {it.route != null && amount(t("priceCalendar.inRoute", "En paquete"), it.route)}
                                                         </span>
                                                     </div>
                                                 ))}
@@ -483,7 +483,7 @@ export default function ExperiencePriceCalendar({ experienceId }) {
                                         </div>
                                     )}
                                     <div className="space-y-1">
-                                        <Label>{t("experiences.routePrice", "Precio en ruta")} ({currency})</Label>
+                                        <Label>{t("experiences.routePrice", "Precio en paquete")} ({currency})</Label>
                                         <Input type="number" step="0.01" value={form.route_price} onChange={(e) => setForm((f) => ({ ...f, route_price: e.target.value }))} />
                                     </div>
                                 </div>
@@ -497,7 +497,7 @@ export default function ExperiencePriceCalendar({ experienceId }) {
                                             <div key={i} className="grid grid-cols-[1.4fr_1fr_1fr] gap-2 items-center">
                                                 <span className="text-xs truncate">{lineLabel(l)}</span>
                                                 <Input type="number" step="0.01" placeholder={t("priceCalendar.individual", "Individual")} value={l.price} onChange={(e) => setLine(i, "price", e.target.value)} />
-                                                <Input type="number" step="0.01" placeholder={t("priceCalendar.inRoute", "En ruta")} value={l.route_price} onChange={(e) => setLine(i, "route_price", e.target.value)} />
+                                                <Input type="number" step="0.01" placeholder={t("priceCalendar.inRoute", "En paquete")} value={l.route_price} onChange={(e) => setLine(i, "route_price", e.target.value)} />
                                             </div>
                                         ))}
                                     </div>

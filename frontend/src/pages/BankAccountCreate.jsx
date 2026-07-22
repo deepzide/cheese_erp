@@ -191,7 +191,7 @@ export default function BankAccountCreate() {
             toast.error(
                 isCompany
                     ? t("bankAccounts.establishmentRequired", "La empresa es obligatoria")
-                    : t("bankAccounts.routeRequired", "La ruta es obligatoria")
+                    : t("bankAccounts.routeRequired", "El paquete es obligatorio")
             );
             return;
         }
@@ -225,7 +225,7 @@ export default function BankAccountCreate() {
     return (
         <CreatePageLayout
             title={t("bankAccounts.newBankAccount", "Nuevo Método de Pago")}
-            description={t("bankAccounts.linkDescription", "Vincular una cuenta bancaria a una ruta o empresa")}
+            description={t("bankAccounts.linkDescription", "Vincular una cuenta bancaria a un paquete o empresa")}
             icon={Landmark}
             backPath="/cheese/bank-accounts"
             onSubmit={handleSubmit}
@@ -239,14 +239,14 @@ export default function BankAccountCreate() {
                         <SelectTrigger><SelectValue /></SelectTrigger>
                         <SelectContent>
                             {!isScopedEstablishmentUser && (
-                                <SelectItem value="Cheese Route">{t("bankAccounts.route", "Ruta")}</SelectItem>
+                                <SelectItem value="Cheese Route">{t("bankAccounts.route", "Paquete")}</SelectItem>
                             )}
                             <SelectItem value="Company">{t("bankAccounts.establishment", "Empresa")}</SelectItem>
                         </SelectContent>
                     </Select>
                 </div>
                 <div className="space-y-2">
-                    <Label>{isCompany ? t("bankAccounts.establishmentLabel", "Empresa") : t("bankAccounts.routeLabel", "Ruta")} <span className="text-red-500">*</span></Label>
+                    <Label>{isCompany ? t("bankAccounts.establishmentLabel", "Empresa") : t("bankAccounts.routeLabel", "Paquete")} <span className="text-red-500">*</span></Label>
                     {isCompany ? (
                         <EstablishmentSearchSelect
                             value={form.entity_id}
@@ -260,7 +260,7 @@ export default function BankAccountCreate() {
                             label="name"
                             value={form.entity_id}
                             onChange={(v) => setForm(f => ({ ...f, entity_id: v }))}
-                            placeholder={t("bankAccounts.selectRoute", "Seleccionar ruta...")}
+                            placeholder={t("bankAccounts.selectRoute", "Seleccionar paquete...")}
                         />
                     )}
                 </div>

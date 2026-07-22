@@ -132,7 +132,7 @@ export default function Seasons() {
                         {t("seasons.title", "Temporadas")}
                     </h1>
                     <p className="text-sm text-muted-foreground mt-1">
-                        {t("seasons.description", "Ajuste de 2do nivel: el % se aplica sobre todos los precios definidos en las experiencias (lunes-viernes, fin de semana, grupos etarios y precios en ruta) durante el rango de fechas.")}
+                        {t("seasons.description", "Ajuste de 2do nivel: el % se aplica sobre todos los precios definidos en las experiencias (lunes-viernes, fin de semana, grupos etarios y precios en paquete) durante el rango de fechas.")}
                     </p>
                 </div>
                 <div className="flex gap-2">

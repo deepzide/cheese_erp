@@ -15,7 +15,7 @@ const PAGE_SIZE = 20;
 
 const TRIGGER_META = {
     TICKET_PRICING: { label: "Precio de ticket", icon: Ticket, cls: "bg-cheese-500/15 text-cheese-700" },
-    ROUTE_BOOKING_PRICING: { label: "Precio de reserva de ruta", icon: RouteIcon, cls: "bg-blue-500/15 text-blue-700 dark:text-blue-400" },
+    ROUTE_BOOKING_PRICING: { label: "Precio de reserva de paquete", icon: RouteIcon, cls: "bg-blue-500/15 text-blue-700 dark:text-blue-400" },
     DEPOSIT_PAYMENT: { label: "Pago de depósito", icon: Wallet, cls: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400" },
 };
 
@@ -63,7 +63,7 @@ export default function ConversionHistory() {
                         {t("conversionHistory.title", "Historial de Conversiones")}
                     </h1>
                     <p className="text-sm text-muted-foreground mt-1">
-                        {t("conversionHistory.description", "Cada conversión de moneda que el sistema realiza automáticamente (precios de tickets, reservas de ruta y pagos de depósitos) queda registrada aquí con su tasa y fecha.")}
+                        {t("conversionHistory.description", "Cada conversión de moneda que el sistema realiza automáticamente (precios de tickets, reservas de paquete y pagos de depósitos) queda registrada aquí con su tasa y fecha.")}
                     </p>
                 </div>
                 <Button variant="outline" size="icon" onClick={() => fetchLogs(page)} disabled={loading}>
