@@ -398,104 +398,54 @@ export default function TicketDetail() {
                 <div className="lg:col-span-2 space-y-6">
                     <Tabs defaultValue="details" className="w-full">
                         <TabsList className="w-full justify-start h-12 bg-muted/50 p-1">
-                            <TabsTrigger value="details" className="flex-1 max-w-[200px] h-full data-[state=active]:bg-background data-[state=active]:shadow-sm"><Ticket className="w-4 h-4 mr-2" /> {t("common.details", "Details")}</TabsTrigger>
+                            <TabsTrigger value="details" className="flex-1 max-w-[200px] h-full data-[state=active]:bg-background data-[state=active]:shadow-sm"><Ticket className="w-4 h-4 mr-2" /> {t("tickets.summaryTab", "Summary")}</TabsTrigger>
                             <TabsTrigger value="financials" className="flex-1 max-w-[200px] h-full data-[state=active]:bg-background data-[state=active]:shadow-sm"><DollarSign className="w-4 h-4 mr-2" /> {t("tickets.financials", "Financials")}</TabsTrigger>
                             <TabsTrigger value="qr" className="flex-1 max-w-[200px] h-full data-[state=active]:bg-background data-[state=active]:shadow-sm"><QrCode className="w-4 h-4 mr-2" /> {t("tickets.qrCheckin", "QR & Check-in")}</TabsTrigger>
                             <TabsTrigger value="satisfaction" className="flex-1 max-w-[200px] h-full data-[state=active]:bg-background data-[state=active]:shadow-sm"><Star className="w-4 h-4 mr-2" /> {t("tickets.satisfaction", "Satisfaction")}</TabsTrigger>
                         </TabsList>
 
                         <TabsContent value="details" className="pt-4 space-y-6">
-                            {/* Guest & Reservation Details Card */}
+                            {/* Reservation information (mockup fields) */}
                             <Card className="border-border/60 shadow-sm">
                                 <CardHeader className="border-b bg-muted/20 pb-4">
                                     <CardTitle className="text-sm font-semibold text-muted-foreground uppercase flex items-center">
-                                        <Users className="w-4 h-4 mr-2" /> {t("tickets.guestBookingInfo", "Guest & Booking Info")}
+                                        <Users className="w-4 h-4 mr-2" /> {t("tickets.reservationInfo", "Reservation Information")}
                                     </CardTitle>
                                 </CardHeader>
                                 <CardContent className="p-6">
                                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-6 gap-x-8">
-                                        <EditableField label={t("common.contact", "Contact")} value={form.contact} onChange={(v) => handleFieldChange("contact", v)} editMode={editMode} doctype="Cheese Contact" searchLabel="full_name" />
-                                        <EditableField label={t("common.company", "Company")} value={form.company} onChange={(v) => handleFieldChange("company", v)} editMode={editMode} doctype="Company" searchLabel="name" />
                                         {isHotel ? (
-                                            <EditableField label={t("hotelReservations.roomsRequested", "Rooms Requested")} type="number" value={form.rooms_requested} onChange={(v) => handleFieldChange("rooms_requested", v)} editMode={editMode} />
-                                        ) : (
-                                            <EditableField label={t("hotelReservations.partySize", "Party Size")} type="number" value={form.party_size} onChange={(v) => handleFieldChange("party_size", v)} editMode={editMode} />
-                                        )}
-                                        <div className="space-y-1">
-                                            {editMode ? (
-                                                <div className="space-y-1.5 animate-in fade-in zoom-in-95 duration-200">
-                                                    <label className="text-xs text-muted-foreground">{t("common.status", "Status")}</label>
-                                                    <select value={form.status} onChange={(e) => handleFieldChange("status", e.target.value)} className="flex h-9 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm ring-offset-background focus:outline-none focus:ring-1 focus:ring-ring">
-                                                        {["PENDING", "CONFIRMED", "CHECKED_IN", "COMPLETED", "EXPIRED", "REJECTED", "CANCELLED", "NO_SHOW"].map(s => (
-                                                            <option key={s} value={s}>{t(`status.${s}`, s)}</option>
-                                                        ))}
-                                                    </select>
-                                                </div>
-                                            ) : (
-                                                <EditableField label={t("common.status", "Status")} value={t(`status.${form.status}`, form.status)} editMode={false} />
-                                            )}
-                                        </div>
-                                    </div>
-                                </CardContent>
-                            </Card>
-
-                            {/* Experience Links Card */}
-                            <Card className="border-border/60 shadow-sm">
-                                <CardHeader className="border-b bg-muted/20 pb-4">
-                                    <CardTitle className="text-sm font-semibold text-muted-foreground uppercase flex items-center">
-                                        <MapPin className="w-4 h-4 mr-2" /> {t("tickets.experienceLinks", "Experience Links")}
-                                    </CardTitle>
-                                </CardHeader>
-                                <CardContent className="p-6">
-                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-6 gap-x-8">
-                                        <EditableField label={t("tickets.experience", "Experience")} value={form.experience} onChange={(v) => handleFieldChange("experience", v)} editMode={editMode} doctype="Cheese Experience" searchLabel="name" />
-                                        <EditableField label={t("tickets.route", "Route")} value={form.route} onChange={(v) => handleFieldChange("route", v)} editMode={editMode} doctype="Cheese Route" searchLabel="short_description" />
-                                        {editMode ? (
                                             <>
-                                                <EditableField label={t("tickets.slot", "Slot")} value={form.slot} onChange={(v) => handleFieldChange("slot", v)} editMode={editMode} doctype="Cheese Experience Slot" searchLabel="name" />
-                                                {isHotel ? (
-                                                    <>
-                                                        <div className="space-y-1.5 animate-in fade-in zoom-in-95 duration-200">
-                                                            <label className="text-xs text-muted-foreground">{t("hotelReservations.checkInDate", "Check-in Date")}</label>
-                                                            <input type="date" value={form.check_in_date || ""} onChange={(e) => handleFieldChange("check_in_date", e.target.value)} className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring" />
-                                                        </div>
-                                                        <div className="space-y-1.5 animate-in fade-in zoom-in-95 duration-200">
-                                                            <label className="text-xs text-muted-foreground">{t("hotelReservations.checkOutDate", "Check-out Date")}</label>
-                                                            <input type="date" value={form.check_out_date || ""} onChange={(e) => handleFieldChange("check_out_date", e.target.value)} className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring" />
-                                                        </div>
-                                                        <EditableField label={t("tickets.roomAssigned", "Room Assigned")} value={form.room_number_assigned} onChange={(v) => handleFieldChange("room_number_assigned", v)} editMode={editMode} />
-                                                    </>
-                                                ) : (
+                                                <EditableField label={t("tickets.guest", "Guest")} value={form.contact} onChange={(v) => handleFieldChange("contact", v)} editMode={editMode} doctype="Cheese Contact" searchLabel="full_name" />
+                                                <EditableField label={t("tickets.guests", "Guests")} type="number" value={form.party_size} onChange={(v) => handleFieldChange("party_size", v)} editMode={editMode} />
+                                                {editMode ? (
                                                     <div className="space-y-1.5 animate-in fade-in zoom-in-95 duration-200">
-                                                        <label className="text-xs text-muted-foreground">{t("tickets.selectedDate", "Selected Date")}</label>
+                                                        <label className="text-xs text-muted-foreground">{t("hotelReservations.checkInDate", "Check-in")}</label>
+                                                        <input type="date" value={form.check_in_date || ""} onChange={(e) => handleFieldChange("check_in_date", e.target.value)} className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring" />
+                                                    </div>
+                                                ) : (
+                                                    <EditableField label={t("hotelReservations.checkInDate", "Check-in")} value={form.check_in_date ? new Date(form.check_in_date + "T00:00:00").toLocaleDateString() : "—"} editMode={false} />
+                                                )}
+                                                <EditableField label={t("common.nights", "Nights")} value={form.nights} editMode={false} />
+                                                <EditableField label={t("tickets.room", "Room")} value={form.experience} onChange={(v) => handleFieldChange("experience", v)} editMode={editMode} doctype="Cheese Experience" searchLabel="name" />
+                                                <EditableField label={t("tickets.establishment", "Establishment")} value={form.company} onChange={(v) => handleFieldChange("company", v)} editMode={editMode} doctype="Company" searchLabel="name" />
+                                            </>
+                                        ) : (
+                                            <>
+                                                <EditableField label={t("common.contact", "Contact")} value={form.contact} onChange={(v) => handleFieldChange("contact", v)} editMode={editMode} doctype="Cheese Contact" searchLabel="full_name" />
+                                                <EditableField label={t("tickets.groupSize", "Group size")} type="number" value={form.party_size} onChange={(v) => handleFieldChange("party_size", v)} editMode={editMode} />
+                                                <EditableField label={t("tickets.experience", "Experience")} value={form.experience} onChange={(v) => handleFieldChange("experience", v)} editMode={editMode} doctype="Cheese Experience" searchLabel="name" />
+                                                <EditableField label={t("tickets.establishment", "Establishment")} value={form.company} onChange={(v) => handleFieldChange("company", v)} editMode={editMode} doctype="Company" searchLabel="name" />
+                                                {editMode ? (
+                                                    <div className="space-y-1.5 animate-in fade-in zoom-in-95 duration-200">
+                                                        <label className="text-xs text-muted-foreground">{t("common.date", "Date")}</label>
                                                         <input type="date" value={form.selected_date || ""} onChange={(e) => handleFieldChange("selected_date", e.target.value)} className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring" />
                                                     </div>
-                                                )}
-                                            </>
-                                        ) : (
-                                            <>
-                                                {isHotel ? (
-                                                    <>
-                                                        <EditableField label={t("hotelReservations.checkInDate", "Check-in")} value={form.check_in_date ? new Date(form.check_in_date + "T00:00:00").toLocaleDateString() : "—"} editMode={false} />
-                                                        <EditableField label={t("hotelReservations.checkOutDate", "Check-out")} value={form.check_out_date ? new Date(form.check_out_date + "T00:00:00").toLocaleDateString() : "—"} editMode={false} />
-                                                        <EditableField label={t("common.nights", "Nights")} value={form.nights} editMode={false} />
-                                                        <EditableField label={t("tickets.roomAssigned", "Room Assigned")} value={form.room_number_assigned || "—"} editMode={false} />
-                                                    </>
                                                 ) : (
-                                                    <>
-                                                        <EditableField label={t("common.date", "Date")} value={formatSlotDateTime(slotDoc, ticket?.selected_date).date} editMode={false} />
-                                                        <EditableField label={t("common.time", "Time")} value={formatSlotDateTime(slotDoc, ticket?.selected_date).time} editMode={false} />
-                                                    </>
+                                                    <EditableField label={t("common.date", "Date")} value={formatSlotDateTime(slotDoc, ticket?.selected_date).date} editMode={false} />
                                                 )}
+                                                <EditableField label={t("common.time", "Time")} value={formatSlotDateTime(slotDoc, ticket?.selected_date).time} editMode={false} />
                                             </>
-                                        )}
-                                        {editMode ? (
-                                            <div className="space-y-1.5 animate-in fade-in zoom-in-95 duration-200">
-                                                <label className="text-xs text-muted-foreground">{t("tickets.expiresAt", "Expires At")}</label>
-                                                <input type="datetime-local" value={form.expires_at ? form.expires_at.substring(0, 16) : ""} onChange={(e) => handleFieldChange("expires_at", e.target.value)} className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring" />
-                                            </div>
-                                        ) : (
-                                            <EditableField label={t("tickets.expiresAt", "Expires At")} value={form.expires_at ? new Date(form.expires_at).toLocaleString() : ""} editMode={false} />
                                         )}
                                     </div>
                                 </CardContent>
