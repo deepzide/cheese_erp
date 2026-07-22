@@ -20,7 +20,10 @@ Price resolution per person (all in the experience currency):
 import json
 
 import frappe
+from frappe import _
 from frappe.utils import cint, flt, getdate
+
+from cheese.cheese.doctype.cheese_day_range.cheese_day_range import day_range_set
 
 
 def get_day_type(date_value):
@@ -66,10 +69,27 @@ def resolve_age_group(company, age):
 	return row[0].name if row else None
 
 
-def _match_price_line(lines, day_type, age_group, in_route):
+def _company_day_ranges(company):
+	"""Custom day-range nomenclator of a company: {name: {day_from, day_to, range_name}}."""
+	if not company:
+		return {}
+	return {
+		r.name: r
+		for r in frappe.get_all(
+			"Cheese Day Range",
+			filters={"company": company},
+			fields=["name", "range_name", "day_from", "day_to"],
+		)
+	}
+
+
+def _match_price_line(lines, day_type, age_group, in_route, weekday=None, day_ranges=None):
 	"""Most specific matching layer-2 price line; None when nothing matches.
 
-	Specificity: exact day+age (3) > exact day (2) > exact age (1) > ALL/empty (0).
+	Day scope: a line with a custom ``day_range`` matches when the date's
+	weekday (0=Mon..6=Sun) falls in the range; a legacy WEEKDAY/WEEKEND line
+	matches the derived day type; ALL lines are day-generic. Specificity:
+	exact day+age (3) > exact day (2) > exact age (1) > ALL/empty (0).
 	A line with no age group matches any person's age (day-general price); an
 	age-specific line matches only that age group. When nothing matches (e.g. an
 	age-only matrix and an age outside every group) the caller falls back to the
@@ -78,22 +98,89 @@ def _match_price_line(lines, day_type, age_group, in_route):
 	best = None
 	best_score = -1
 	for line in lines or []:
+		line_range = line.get("day_range") or None
 		line_day = (line.get("day_type") or "ALL").upper()
 		line_age = line.get("age_group") or None
-		if line_day != "ALL" and day_type and line_day != day_type:
-			continue
-		if line_day != "ALL" and not day_type:
-			continue
+		if line_range:
+			rng = (day_ranges or {}).get(line_range)
+			if not rng or weekday is None:
+				continue
+			if weekday not in day_range_set(rng["day_from"], rng["day_to"]):
+				continue
+			day_specific = True
+		elif line_day != "ALL":
+			if not day_type or line_day != day_type:
+				continue
+			day_specific = True
+		else:
+			day_specific = False
 		if line_age and line_age != age_group:
 			continue
 		value = flt(line.get("route_price") if in_route else line.get("price"))
 		if not value:
 			continue
-		score = (2 if line_day != "ALL" else 0) + (1 if line_age else 0)
+		score = (2 if day_specific else 0) + (1 if line_age else 0)
 		if score > best_score:
 			best_score = score
 			best = value
 	return best
+
+
+def validate_price_lines_day_overlap(doc):
+	"""Reject price lines whose day scopes overlap for the same age group.
+
+	Applies to day-scoped lines only (a custom day range, or legacy
+	WEEKDAY/WEEKEND); ALL lines are the generic fallback and are exempt. Lines
+	of different age groups may share day scopes (specificity resolves them).
+	"""
+	lines = list(doc.get("price_lines") or [])
+	if not lines:
+		return
+	range_ids = [l.day_range for l in lines if l.get("day_range")]
+	ranges = {}
+	if range_ids:
+		for r in frappe.get_all(
+			"Cheese Day Range",
+			filters={"name": ["in", range_ids]},
+			fields=["name", "range_name", "day_from", "day_to"],
+		):
+			ranges[r.name] = r
+
+	def day_set(line):
+		if line.get("day_range"):
+			r = ranges.get(line.day_range)
+			if not r:
+				frappe.throw(_("Day range {0} not found").format(line.day_range))
+			return day_range_set(r.day_from, r.day_to)
+		dt = (line.get("day_type") or "ALL").upper()
+		if dt == "WEEKDAY":
+			return set(range(0, 5))
+		if dt == "WEEKEND":
+			return {5, 6}
+		return None
+
+	def label(line):
+		if line.get("day_range"):
+			r = ranges.get(line.day_range)
+			return r.range_name if r else line.day_range
+		return line.get("day_type") or "ALL"
+
+	by_age = {}
+	for idx, line in enumerate(lines, start=1):
+		days = day_set(line)
+		if days is None:
+			continue
+		key = line.get("age_group") or ""
+		for prev_idx, prev_label, prev_days in by_age.get(key, []):
+			if days & prev_days:
+				frappe.throw(
+					_(
+						"Price lines {0} and {1} overlap: the day ranges \"{2}\" and \"{3}\" "
+						"share days for the same age group. Pick non-overlapping ranges."
+					).format(prev_idx, idx, prev_label, label(line)),
+					frappe.ValidationError,
+				)
+		by_age.setdefault(key, []).append((idx, label(line), days))
 
 
 def get_active_season(company, experience_id, date_value):
@@ -155,6 +242,11 @@ def compute_party_prices(experience_doc, party_size, selected_date=None, guest_a
 	"""
 	company = experience_doc.company
 	day_type = get_day_type(selected_date)
+	try:
+		weekday = getdate(selected_date).weekday() if selected_date else None
+	except Exception:
+		weekday = None
+	day_ranges = _company_day_ranges(company)
 	ages = parse_guest_ages(guest_ages)
 	party_size = cint(party_size) or max(len(ages), 1)
 
@@ -168,6 +260,7 @@ def compute_party_prices(experience_doc, party_size, selected_date=None, guest_a
 	lines = [
 		{
 			"day_type": row.day_type,
+			"day_range": row.day_range,
 			"age_group": row.age_group,
 			"price": row.price,
 			"route_price": row.route_price,
@@ -202,7 +295,9 @@ def compute_party_prices(experience_doc, party_size, selected_date=None, guest_a
 			# with no age group. EXCEPTION: when the matrix carries only age-group
 			# prices and a person's age falls outside all groups (no matching line),
 			# the base price is used for that person.
-			unit = _match_price_line(lines, day_type, age_group, in_route)
+			unit = _match_price_line(
+				lines, day_type, age_group, in_route, weekday=weekday, day_ranges=day_ranges
+			)
 		if unit is None:
 			unit = base_price
 		unit_prices.append(flt(unit))
@@ -346,10 +441,16 @@ def get_pricing_catalog(experience_doc, date_value=None):
 			"max_age": g.max_age,
 		}
 
+	day_ranges = _company_day_ranges(company)
 	price_lines = []
 	for row in experience_doc.get("price_lines") or []:
+		rng = day_ranges.get(row.day_range) if row.day_range else None
 		line = {
 			"day_type": (row.day_type or "ALL").upper(),
+			"day_range": row.day_range,
+			"day_range_name": rng.range_name if rng else None,
+			"day_from": rng.day_from if rng else None,
+			"day_to": rng.day_to if rng else None,
 			"price": flt(row.price),
 			"route_price": flt(row.route_price),
 		}
@@ -538,7 +639,7 @@ def _custom_prices_in_range(experience_id, date_from, date_to):
 		cp_lines = frappe.get_all(
 			"Cheese Experience Price",
 			filters={"parent": r.name, "parenttype": "Cheese Custom Price"},
-			fields=["day_type", "age_group", "price", "route_price"],
+			fields=["day_type", "day_range", "age_group", "price", "route_price"],
 		)
 		out.append(
 			{
@@ -554,6 +655,7 @@ def _custom_prices_in_range(experience_id, date_from, date_to):
 				"lines": [
 					{
 						"day_type": l.day_type,
+						"day_range": l.day_range,
 						"age_group": l.age_group,
 						"price": l.price,
 						"route_price": l.route_price,
@@ -595,9 +697,11 @@ def get_experience_price_calendar(experience_doc, date_from, date_to):
 	]
 	group_map = {g["name"]: g for g in age_groups}
 
+	day_ranges = _company_day_ranges(company)
 	lines = [
 		{
 			"day_type": row.day_type,
+			"day_range": row.day_range,
 			"age_group": row.age_group,
 			"price": row.price,
 			"route_price": row.route_price,
@@ -621,14 +725,14 @@ def get_experience_price_calendar(experience_doc, date_from, date_to):
 	promotions = _promotions_in_range(company, experience_doc.name, d_from, d_to, group_map)
 	customs = _custom_prices_in_range(experience_doc.name, d_from, d_to)
 
-	def _l4(custom, day_type, age_group):
+	def _l4(custom, day_type, age_group, weekday=None):
 		"""Layer-4 (custom) resolved individual/route price for a variant, or
 		(None, None) when no custom price covers the day."""
 		if not custom:
 			return (None, None)
 		c_base_ind = custom["price_per_night"] if is_hotel else custom["individual_price"]
-		ci = _match_price_line(custom["lines"], day_type, age_group, False)
-		cr = _match_price_line(custom["lines"], day_type, age_group, True)
+		ci = _match_price_line(custom["lines"], day_type, age_group, False, weekday=weekday, day_ranges=day_ranges)
+		cr = _match_price_line(custom["lines"], day_type, age_group, True, weekday=weekday, day_ranges=day_ranges)
 		return (ci if ci is not None else c_base_ind, cr if cr is not None else custom["route_price"])
 
 	def _row(kind, group, l1_ind, l1_rte, l2_ind, l2_rte, l4_ind, l4_rte, factor):
@@ -669,6 +773,7 @@ def get_experience_price_calendar(experience_doc, date_from, date_to):
 	while cur <= d_to:
 		day_str = str(cur)
 		day_type = "WEEKEND" if cur.weekday() >= 5 else "WEEKDAY"
+		weekday = cur.weekday()
 
 		season = next((s for s in seasons if s["date_from"] <= day_str <= s["date_to"]), None)
 		custom = next((c for c in customs if c["date_from"] <= day_str <= c["date_to"]), None)
@@ -680,27 +785,27 @@ def get_experience_price_calendar(experience_doc, date_from, date_to):
 		rows = []
 		if use_matrix and diff_age and has_age_lines and age_groups:
 			for g in age_groups:
-				ci, cr = _l4(custom, day_type, g["name"])
+				ci, cr = _l4(custom, day_type, g["name"], weekday)
 				rows.append(
 					_row("age_group", g, base_ind, base_route,
-						_match_price_line(lines, day_type, g["name"], False),
-						_match_price_line(lines, day_type, g["name"], True), ci, cr, factor)
+						_match_price_line(lines, day_type, g["name"], False, weekday=weekday, day_ranges=day_ranges),
+						_match_price_line(lines, day_type, g["name"], True, weekday=weekday, day_ranges=day_ranges), ci, cr, factor)
 				)
-			ci, cr = _l4(custom, day_type, None)
+			ci, cr = _l4(custom, day_type, None, weekday)
 			rows.append(
 				_row("base_other", None, base_ind, base_route,
-					_match_price_line(lines, day_type, None, False),
-					_match_price_line(lines, day_type, None, True), ci, cr, factor)
+					_match_price_line(lines, day_type, None, False, weekday=weekday, day_ranges=day_ranges),
+					_match_price_line(lines, day_type, None, True, weekday=weekday, day_ranges=day_ranges), ci, cr, factor)
 			)
 		elif use_matrix:
-			ci, cr = _l4(custom, day_type, None)
+			ci, cr = _l4(custom, day_type, None, weekday)
 			rows.append(
 				_row("general", None, base_ind, base_route,
-					_match_price_line(lines, day_type, None, False),
-					_match_price_line(lines, day_type, None, True), ci, cr, factor)
+					_match_price_line(lines, day_type, None, False, weekday=weekday, day_ranges=day_ranges),
+					_match_price_line(lines, day_type, None, True, weekday=weekday, day_ranges=day_ranges), ci, cr, factor)
 			)
 		else:
-			ci, cr = _l4(custom, day_type, None)
+			ci, cr = _l4(custom, day_type, None, weekday)
 			rows.append(_row("base", None, base_ind, base_route, None, None, ci, cr, factor))
 
 		day_promos = [p for p in promotions if p["date_from"] <= day_str <= p["date_to"]]
@@ -741,6 +846,15 @@ def get_experience_price_calendar(experience_doc, date_from, date_to):
 		"date_from": str(d_from),
 		"date_to": str(d_to),
 		"age_groups": age_groups,
+		"day_ranges": [
+			{
+				"name": r.name,
+				"range_name": r.range_name,
+				"day_from": r.day_from,
+				"day_to": r.day_to,
+			}
+			for r in day_ranges.values()
+		],
 		# Raw current prices of the experience, so the "custom price" form can
 		# pre-fill each field with the value it overrides.
 		"experience": {
@@ -751,6 +865,12 @@ def get_experience_price_calendar(experience_doc, date_from, date_to):
 			"price_lines": [
 				{
 					"day_type": (l["day_type"] or "ALL"),
+					"day_range": l.get("day_range"),
+					"day_range_name": (
+						day_ranges[l["day_range"]].range_name
+						if l.get("day_range") and l["day_range"] in day_ranges
+						else None
+					),
 					"age_group": l["age_group"],
 					"age_group_name": (group_map.get(l["age_group"]) or {}).get("group_name"),
 					"price": flt(l["price"]),

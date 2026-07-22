@@ -76,6 +76,7 @@ def create_custom_price(
 				"price_lines": [
 					{
 						"day_type": (l.get("day_type") or "ALL"),
+						"day_range": l.get("day_range") or None,
 						"age_group": l.get("age_group") or None,
 						"price": flt(l.get("price")),
 						"route_price": flt(l.get("route_price")),

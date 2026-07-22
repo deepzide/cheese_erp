@@ -983,6 +983,10 @@ def cheese_age_group_query(user):
     return _build_company_condition("Cheese Age Group", user)
 
 
+def cheese_day_range_query(user):
+    return _build_company_condition("Cheese Day Range", user)
+
+
 def cheese_hotel_room_query(user):
     return _build_company_condition("Cheese Hotel Room", user)
 

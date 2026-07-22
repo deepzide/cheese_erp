@@ -51,6 +51,7 @@ import DepositDetail from './DepositDetail';
 import BankAccountDetail from './BankAccountDetail';
 import Promotions from './Promotions';
 import AgeGroups from './AgeGroups';
+import DayRanges from './DayRanges';
 import Seasons from './Seasons';
 import SupportDetail from './SupportDetail';
 import Establishments from './Establishments';
@@ -137,6 +138,7 @@ export default function Pages() {
                     <Route path="conversion-history" element={<ConversionHistory />} />
                     <Route path="promotions" element={<Promotions />} />
                     <Route path="age-groups" element={<AgeGroups />} />
+                    <Route path="day-ranges" element={<DayRanges />} />
                     <Route path="seasons" element={<Seasons />} />
                     <Route path="attendance" element={<Attendance />} />
                     <Route path="documents" element={<Documents />} />

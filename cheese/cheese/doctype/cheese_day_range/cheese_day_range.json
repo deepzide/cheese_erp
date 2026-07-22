@@ -1,0 +1,128 @@
+{
+ "actions": [],
+ "creation": "2026-07-22 00:00:00",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "links": [],
+ "modified": "2026-07-22 00:00:00",
+ "modified_by": "Administrator",
+ "module": "Cheese",
+ "owner": "Administrator",
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "name": "Cheese Day Range",
+ "autoname": "format:DAYR-{company}-{range_name}",
+ "naming_rule": "Expression",
+ "field_order": [
+  "company",
+  "range_name",
+  "day_from",
+  "day_to"
+ ],
+ "fields": [
+  {
+   "fieldname": "company",
+   "fieldtype": "Link",
+   "options": "Company",
+   "label": "Company",
+   "reqd": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "range_name",
+   "fieldtype": "Data",
+   "label": "Range Name",
+   "reqd": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "day_from",
+   "fieldtype": "Int",
+   "label": "Day From",
+   "reqd": 1,
+   "in_list_view": 1,
+   "description": "0 = Monday ... 6 = Sunday (inclusive)"
+  },
+  {
+   "fieldname": "day_to",
+   "fieldtype": "Int",
+   "label": "Day To",
+   "reqd": 1,
+   "in_list_view": 1,
+   "description": "0 = Monday ... 6 = Sunday (inclusive). day_to < day_from wraps around the week (e.g. Fri-Mon)."
+  }
+ ],
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Cheese Booking Manager",
+   "write": 1
+  },
+  {
+   "create": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Cheese Booking Agent",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Cheese Booking Operator",
+   "share": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Route Administrator",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Establishment User",
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Cheese Establishment User",
+   "write": 1
+  }
+ ],
+ "track_changes": 1
+}

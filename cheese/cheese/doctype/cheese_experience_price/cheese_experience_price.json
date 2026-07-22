@@ -15,6 +15,7 @@
  "istable": 1,
  "field_order": [
   "day_type",
+  "day_range",
   "age_group",
   "price",
   "route_price"
@@ -27,7 +28,15 @@
    "options": "ALL\nWEEKDAY\nWEEKEND",
    "default": "ALL",
    "in_list_view": 1,
-   "description": "WEEKDAY = Monday-Friday, WEEKEND = Saturday-Sunday, ALL = any day"
+   "description": "WEEKDAY = Monday-Friday, WEEKEND = Saturday-Sunday, ALL = any day. Ignored when a custom Day Range is set."
+  },
+  {
+   "fieldname": "day_range",
+   "fieldtype": "Link",
+   "options": "Cheese Day Range",
+   "label": "Day Range",
+   "in_list_view": 1,
+   "description": "Custom weekday range (nomenclator). Overrides Day Type when set."
   },
   {
    "fieldname": "age_group",

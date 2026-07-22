@@ -70,6 +70,7 @@ const navigationItems = [
     { titleKey: "nav.documents", url: createPageUrl("documents"), icon: FileText, section: "catalogo" },
     { titleKey: "nav.promotions", url: createPageUrl("promotions"), icon: BadgePercent, section: "catalogo" },
     { titleKey: "nav.ageGroups", url: createPageUrl("age-groups"), icon: Users2, section: "catalogo" },
+    { titleKey: "nav.dayRanges", url: createPageUrl("day-ranges"), icon: CalendarRange, section: "catalogo" },
     { titleKey: "nav.seasons", url: createPageUrl("seasons"), icon: CalendarRange, section: "catalogo" },
     { titleKey: "nav.semanticSearch", url: createPageUrl("semantic-search"), icon: FileSearch, section: "catalogo" },
     { titleKey: "nav.searchHistory", url: createPageUrl("search-history"), icon: History, section: "catalogo" },

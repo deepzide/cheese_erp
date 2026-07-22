@@ -77,8 +77,9 @@ export default function ExperiencePriceCalendar({ experienceId }) {
         const exp = data?.experience || {};
         const isHotel = exp.experience_type === "HOTEL";
         const caseLabel = (l) => {
-            const day = l.day_type === "WEEKDAY" ? t("priceCalendar.weekday", "Lunes a viernes")
-                : l.day_type === "WEEKEND" ? t("priceCalendar.weekend", "Fin de semana") : null;
+            const day = l.day_range_name ? l.day_range_name
+                : l.day_type === "WEEKDAY" ? t("priceCalendar.weekday", "Lunes a viernes")
+                    : l.day_type === "WEEKEND" ? t("priceCalendar.weekend", "Fin de semana") : null;
             let age = null;
             if (l.age_group) {
                 const g = ageGroupMap[l.age_group];
@@ -153,9 +154,10 @@ export default function ExperiencePriceCalendar({ experienceId }) {
 
     // ---- Custom price form ----
     const lineLabel = (l) => {
-        const day = l.day_type === "WEEKDAY" ? t("priceCalendar.weekday", "Lunes a viernes")
-            : l.day_type === "WEEKEND" ? t("priceCalendar.weekend", "Fin de semana")
-                : t("priceCalendar.anyDay", "Cualquier día");
+        const day = l.day_range_name ? l.day_range_name
+            : l.day_type === "WEEKDAY" ? t("priceCalendar.weekday", "Lunes a viernes")
+                : l.day_type === "WEEKEND" ? t("priceCalendar.weekend", "Fin de semana")
+                    : t("priceCalendar.anyDay", "Cualquier día");
         const age = l.age_group_name ? l.age_group_name : t("experiences.allAges", "Todas las edades");
         return `${day} · ${age}`;
     };
@@ -172,7 +174,8 @@ export default function ExperiencePriceCalendar({ experienceId }) {
             price_per_night: isHotel ? String(exp.price_per_night ?? "") : "",
             route_price: String(exp.route_price ?? ""),
             lines: (exp.price_lines || []).map((l) => ({
-                day_type: l.day_type, age_group: l.age_group, age_group_name: l.age_group_name,
+                day_type: l.day_type, day_range: l.day_range || null, day_range_name: l.day_range_name || null,
+                age_group: l.age_group, age_group_name: l.age_group_name,
                 price: String(l.price ?? ""), route_price: String(l.route_price ?? ""),
             })),
             participates_in_promotions: false,
@@ -199,7 +202,7 @@ export default function ExperiencePriceCalendar({ experienceId }) {
                     price_per_night: Number(form.price_per_night) || 0,
                     route_price: Number(form.route_price) || 0,
                     price_lines: form.lines.map((l) => ({
-                        day_type: l.day_type, age_group: l.age_group || null,
+                        day_type: l.day_type, day_range: l.day_range || null, age_group: l.age_group || null,
                         price: Number(l.price) || 0, route_price: Number(l.route_price) || 0,
                     })),
                     participates_in_promotions: form.participates_in_promotions ? 1 : 0,

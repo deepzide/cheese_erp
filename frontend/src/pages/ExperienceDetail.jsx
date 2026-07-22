@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { useFrappeDoc, useFrappeUpdate, useFrappeList } from "@/lib/useApiData";
@@ -97,6 +97,7 @@ export default function ExperienceDetail() {
                 differentiate_by_age_group: exp.differentiate_by_age_group || 0,
                 price_lines: (exp.price_lines || []).map(r => ({
                     day_type: r.day_type || "ALL",
+                    day_range: r.day_range || "",
                     age_group: r.age_group || "",
                     price: r.price ?? "",
                     route_price: r.route_price ?? "",
@@ -130,6 +131,57 @@ export default function ExperienceDetail() {
         pageSize: 100,
     });
 
+    // Custom weekday ranges of the company (nomenclator) for the price matrix.
+    const { data: companyDayRanges = [] } = useFrappeList("Cheese Day Range", {
+        enabled: !!form.company,
+        filters: { company: form.company },
+        fields: ["name", "range_name", "day_from", "day_to"],
+        pageSize: 100,
+    });
+    const DAY_LABELS = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"];
+    const dayRangeMap = useMemo(() => {
+        const m = {};
+        (Array.isArray(companyDayRanges) ? companyDayRanges : []).forEach((r) => { m[r.name] = r; });
+        return m;
+    }, [companyDayRanges]);
+
+    // Days covered by a price line (null = ALL, exempt from the overlap rule).
+    const lineDaySet = (line) => {
+        if (line.day_range) {
+            const r = dayRangeMap[line.day_range];
+            if (!r) return null;
+            const f = Number(r.day_from), t = Number(r.day_to);
+            const days = new Set();
+            if (f <= t) { for (let d = f; d <= t; d++) days.add(d); }
+            else { for (let d = f; d <= 6; d++) days.add(d); for (let d = 0; d <= t; d++) days.add(d); }
+            return days;
+        }
+        if (line.day_type === "WEEKDAY") return new Set([0, 1, 2, 3, 4]);
+        if (line.day_type === "WEEKEND") return new Set([5, 6]);
+        return null;
+    };
+    const lineDayLabel = (line) => {
+        if (line.day_range) return dayRangeMap[line.day_range]?.range_name || line.day_range;
+        return line.day_type === "WEEKDAY" ? t("experiences.weekday", "Lunes a viernes")
+            : line.day_type === "WEEKEND" ? t("experiences.weekend", "Fin de semana")
+                : t("experiences.anyDay", "Cualquier día");
+    };
+    // Mirror of the server rule: day scopes of two lines with the same age
+    // group must not overlap.
+    const findDayOverlap = (lines) => {
+        const byAge = {};
+        for (let i = 0; i < lines.length; i++) {
+            const days = lineDaySet(lines[i]);
+            if (!days) continue;
+            const key = lines[i].age_group || "";
+            for (const prev of byAge[key] || []) {
+                if ([...days].some((d) => prev.days.has(d))) return [prev.line, lines[i]];
+            }
+            (byAge[key] = byAge[key] || []).push({ line: lines[i], days });
+        }
+        return null;
+    };
+
     const handleFieldChange = (field, value) => {
         setForm(prev => ({ ...prev, [field]: value }));
     };
@@ -144,6 +196,7 @@ export default function ExperienceDetail() {
             price_lines: (prev.price_lines || []).map(line => ({
                 ...line,
                 day_type: !enabled && field === "differentiate_by_weekday" ? "ALL" : line.day_type,
+                day_range: !enabled && field === "differentiate_by_weekday" ? "" : line.day_range,
                 age_group: !enabled && field === "differentiate_by_age_group" ? "" : line.age_group,
             })),
         }));
@@ -193,6 +246,18 @@ export default function ExperienceDetail() {
             return;
         }
 
+        // Day scopes of two lines with the same age group must not overlap
+        // (same rule the server enforces).
+        const activeLines = (form.price_lines || [])
+            .filter(r => parseFloat(r.price) > 0 || parseFloat(r.route_price) > 0);
+        const overlap = findDayOverlap(activeLines);
+        if (overlap) {
+            toast.error(t("experiences.dayOverlap", "Los rangos de días \"{{a}}\" y \"{{b}}\" se solapan para el mismo grupo etario. Elige rangos que no se solapen.", {
+                a: lineDayLabel(overlap[0]), b: lineDayLabel(overlap[1]),
+            }));
+            return;
+        }
+
         const changes = {};
         Object.keys(form).forEach(key => {
             let newValue = form[key];
@@ -202,6 +267,7 @@ export default function ExperienceDetail() {
                     .filter(r => parseFloat(r.price) > 0 || parseFloat(r.route_price) > 0)
                     .map(r => ({
                         day_type: r.day_type || "ALL",
+                        day_range: r.day_range || null,
                         age_group: r.age_group || null,
                         price: parseFloat(r.price) || 0,
                         route_price: parseFloat(r.route_price) || 0,
@@ -526,12 +592,23 @@ export default function ExperienceDetail() {
                                                     {(form.price_lines || []).map((line, i) => (
                                                         <div key={i} className={`${priceGridClass} items-center`}>
                                                             {!!form.differentiate_by_weekday && (
-                                                                <select value={line.day_type} disabled={!editMode}
-                                                                    onChange={(e) => handleFieldChange("price_lines", form.price_lines.map((r, idx) => idx === i ? { ...r, day_type: e.target.value } : r))}
+                                                                <select value={line.day_range ? `dr:${line.day_range}` : line.day_type} disabled={!editMode}
+                                                                    onChange={(e) => {
+                                                                        const v = e.target.value;
+                                                                        const patch = v.startsWith("dr:")
+                                                                            ? { day_range: v.slice(3), day_type: "ALL" }
+                                                                            : { day_range: "", day_type: v };
+                                                                        handleFieldChange("price_lines", form.price_lines.map((r, idx) => idx === i ? { ...r, ...patch } : r));
+                                                                    }}
                                                                     className="flex h-8 rounded-md border border-input bg-background px-2 text-sm">
                                                                     <option value="ALL">{t("experiences.anyDay", "Cualquier día")}</option>
                                                                     <option value="WEEKDAY">{t("experiences.weekday", "Lunes a viernes")}</option>
                                                                     <option value="WEEKEND">{t("experiences.weekend", "Fin de semana")}</option>
+                                                                    {(Array.isArray(companyDayRanges) ? companyDayRanges : []).map((r) => (
+                                                                        <option key={r.name} value={`dr:${r.name}`}>
+                                                                            {r.range_name} ({DAY_LABELS[r.day_from]}–{DAY_LABELS[r.day_to]})
+                                                                        </option>
+                                                                    ))}
                                                                 </select>
                                                             )}
                                                             {!!form.differentiate_by_age_group && (
@@ -569,7 +646,7 @@ export default function ExperienceDetail() {
                                                     {editMode && (
                                                         <button type="button"
                                                             className="text-sm text-cheese-700 font-medium"
-                                                            onClick={() => handleFieldChange("price_lines", [...(form.price_lines || []), { day_type: "ALL", age_group: "", price: "", route_price: "" }])}>
+                                                            onClick={() => handleFieldChange("price_lines", [...(form.price_lines || []), { day_type: "ALL", day_range: "", age_group: "", price: "", route_price: "" }])}>
                                                             + {t("experiences.addPriceLine", "Agregar línea de precio")}
                                                         </button>
                                                     )}

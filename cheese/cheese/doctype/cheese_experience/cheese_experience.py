@@ -35,6 +35,11 @@ class CheeseExperience(Document):
 		if self.company and not frappe.db.exists("Company", self.company):
 			frappe.throw(_("Company {0} does not exist").format(self.company))
 
+		# Price lines: day scopes must not overlap for the same age group.
+		from cheese.cheese.utils.seasonal_pricing import validate_price_lines_day_overlap
+
+		validate_price_lines_day_overlap(self)
+
 		# Validate deposit settings
 		if self.deposit_required:
 			if not self.deposit_type:

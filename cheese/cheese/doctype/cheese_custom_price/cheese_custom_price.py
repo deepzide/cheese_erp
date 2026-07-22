@@ -17,3 +17,8 @@ class CheeseCustomPrice(Document):
 			frappe.throw("'To' date must be on or after 'From' date")
 		if self.experience and not self.company:
 			self.company = frappe.db.get_value("Cheese Experience", self.experience, "company")
+
+		# Price lines: day scopes must not overlap for the same age group.
+		from cheese.cheese.utils.seasonal_pricing import validate_price_lines_day_overlap
+
+		validate_price_lines_day_overlap(self)
