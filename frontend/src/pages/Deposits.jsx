@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { motion } from "framer-motion";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import { useFrappeDoc } from "@/lib/useApiData";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -31,10 +32,22 @@ export default function Deposits() {
     const navigate = useNavigate();
     const { t } = useTranslation();
     const queryClient = useQueryClient();
+    const [searchParams] = useSearchParams();
     const [searchTerm, setSearchTerm] = useState("");
     const [filterStatus, setFilterStatus] = useState("all");
     const [routeId, setRouteId] = useState("");
     const { activeEstablishment: companyId } = useActiveEstablishment();
+
+    // ?booking=RB-… → show only this package reservation's deposits (the
+    // booking-level ones plus each of its tickets').
+    const bookingFilter = searchParams.get("booking") || "";
+    const { data: bookingDoc } = useFrappeDoc("Cheese Route Booking", bookingFilter, { enabled: !!bookingFilter });
+    const bookingEntityIds = React.useMemo(() => {
+        if (!bookingFilter) return null;
+        const ids = new Set([bookingFilter]);
+        (bookingDoc?.tickets || []).forEach((row) => row?.ticket && ids.add(row.ticket));
+        return ids;
+    }, [bookingFilter, bookingDoc]);
 
     const { data: depositsRaw, isLoading, error, refetch } = useQuery({
         queryKey: ['deposits', filterStatus, routeId, companyId],
@@ -58,6 +71,7 @@ export default function Deposits() {
     });
 
     const filtered = deposits.filter(d => {
+        if (bookingEntityIds && !bookingEntityIds.has(d.entity_id)) return false;
         if (searchTerm) {
             const term = searchTerm.toLowerCase();
             return (d.name || '').toLowerCase().includes(term)
@@ -86,6 +100,17 @@ export default function Deposits() {
                 <div>
                     <h1 className="text-2xl font-bold text-foreground flex items-center gap-2"><Wallet className="w-6 h-6 text-cheese-600" /> {t("nav.deposits", "Deposits")}</h1>
                     <p className="text-sm text-muted-foreground mt-1">{isLoading ? '...' : `${filtered.length} ${t("deposits.items", "deposits")}`}</p>
+                    {bookingFilter && (
+                        <button
+                            type="button"
+                            onClick={() => navigate("/cheese/deposits")}
+                            className="mt-1 inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full border border-cheese-500/50 bg-cheese-500/10 text-cheese-700 dark:text-cheese-400 hover:bg-cheese-500/20 transition-colors"
+                            title={t("common.clear", "Limpiar")}
+                        >
+                            {t("deposits.filteredByBooking", "Filtrado por reserva")}: {bookingFilter}
+                            <XCircle className="w-3 h-3" />
+                        </button>
+                    )}
                 </div>
                 <div className="flex gap-2">
                     <div className="relative"><Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" /><Input placeholder={t("common.search", "Search") + "..."} value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-9 w-56 h-9" /></div>

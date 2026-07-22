@@ -9,7 +9,7 @@ import frappe
 from frappe import _
 from frappe.utils import add_to_date, get_datetime, getdate, now_datetime
 
-from cheese.api.common.responses import created, error, not_found, success, validation_error
+from cheese.api.common.responses import created, error, not_found, paginated_response, success, validation_error
 from cheese.api.v1.ticket_controller import create_pending_ticket
 from cheese.api.v1.user_controller import _get_current_user_company
 from cheese.cheese.utils.access import assert_route_access, assert_record_access
@@ -1140,6 +1140,7 @@ def get_route_summary(route_booking_id):
 						"party_size": ticket.party_size,
 						"notes": ticket.notes if ticket.notes else None,
 						# Financial fields
+						"establishment": experience.company,
 						"unit_cost": unit_cost,
 						"total_per_ticket": total_per_ticket,
 						"deposit_amount": deposit_amount,
@@ -1183,6 +1184,115 @@ def get_route_summary(route_booking_id):
 	except Exception as e:
 		frappe.log_error(f"Error in get_route_summary: {e!s}")
 		return error("Failed to get route summary", "SERVER_ERROR", {"error": str(e)}, 500)
+
+
+@frappe.whitelist()
+def list_route_bookings(page=1, page_size=50, status=None, search=None):
+	"""Package-reservation list for the SPA (mockup "Reservas" table).
+
+	One row per Cheese Route Booking with the aggregates the list needs: stop
+	count and confirmed stops, the establishments involved, and the pending
+	amount (total minus every payment registered against the booking or its
+	tickets). Tenant scoping comes from the standard permission query conditions
+	via frappe.get_list.
+	"""
+	try:
+		from frappe.utils import cint
+
+		page = cint(page) or 1
+		page_size = min(cint(page_size) or 50, 200)
+
+		filters = {}
+		if status:
+			filters["status"] = status
+		or_filters = None
+		if search:
+			like = f"%{search}%"
+			or_filters = [
+				["name", "like", like],
+				["contact", "like", like],
+				["route", "like", like],
+			]
+
+		rows = frappe.get_list(
+			"Cheese Route Booking",
+			filters=filters,
+			or_filters=or_filters,
+			fields=["name", "contact", "route", "status", "total_price", "expires_at", "creation"],
+			limit_start=(page - 1) * page_size,
+			limit_page_length=page_size,
+			order_by="creation desc",
+		)
+		total = len(
+			frappe.get_list(
+				"Cheese Route Booking",
+				filters=filters,
+				or_filters=or_filters,
+				pluck="name",
+				limit_page_length=0,
+			)
+		)
+
+		names = [r.name for r in rows]
+		child_rows = frappe.get_all(
+			"Cheese Route Booking Ticket",
+			filters={"parenttype": "Cheese Route Booking", "parent": ["in", names or ["__none__"]]},
+			fields=["parent", "ticket"],
+		)
+		ticket_ids = [c.ticket for c in child_rows if c.ticket]
+		tickets = {
+			tk.name: tk
+			for tk in frappe.get_all(
+				"Cheese Ticket",
+				filters={"name": ["in", ticket_ids or ["__none__"]]},
+				fields=["name", "status", "company", "total_price"],
+			)
+		}
+		paid_by_entity = {}
+		for dep in frappe.get_all(
+			"Cheese Deposit",
+			filters={
+				"entity_id": ["in", (ticket_ids + names) or ["__none__"]],
+				"status": ["not in", ["CANCELLED", "REFUNDED"]],
+			},
+			fields=["entity_id", "amount_paid"],
+		):
+			paid_by_entity[dep.entity_id] = paid_by_entity.get(dep.entity_id, 0) + (dep.amount_paid or 0)
+
+		by_parent = {}
+		for c in child_rows:
+			if c.ticket:
+				by_parent.setdefault(c.parent, []).append(c.ticket)
+
+		data = []
+		for r in rows:
+			tks = [tickets[tid] for tid in by_parent.get(r.name, []) if tid in tickets]
+			active = [tk for tk in tks if tk.status not in ("CANCELLED", "EXPIRED", "REJECTED")]
+			confirmed = [tk for tk in tks if tk.status in ("CONFIRMED", "CHECKED_IN", "COMPLETED")]
+			paid = paid_by_entity.get(r.name, 0) + sum(paid_by_entity.get(tk.name, 0) for tk in tks)
+			total_price = r.total_price or sum((tk.total_price or 0) for tk in active)
+			data.append(
+				{
+					"booking_id": r.name,
+					"contact": r.contact,
+					"route": r.route,
+					"status": r.status,
+					"stops": len(tks),
+					"confirmed_stops": len(confirmed),
+					"establishments": sorted({tk.company for tk in tks if tk.company}),
+					"total_price": total_price,
+					"pending": max(0, (total_price or 0) - paid),
+					"expires_at": str(r.expires_at) if r.expires_at else None,
+					"creation": str(r.creation),
+				}
+			)
+
+		return paginated_response(
+			data, "Route bookings retrieved successfully", page=page, page_size=page_size, total=total
+		)
+	except Exception as e:
+		frappe.log_error(f"Error in list_route_bookings: {e!s}")
+		return error("Failed to list route bookings", "SERVER_ERROR", {"error": str(e)}, 500)
 
 
 @frappe.whitelist()

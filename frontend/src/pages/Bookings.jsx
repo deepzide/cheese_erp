@@ -1,134 +1,85 @@
-import React, { useState, useMemo } from "react";
-import { useAutoFillCompany } from "@/lib/useHotelAccess";
-import { useActiveEstablishment } from "@/lib/ActiveEstablishmentContext";
+import React, { useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
+import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ShoppingCart, Search, Filter, DollarSign, AlertCircle, RefreshCw, Users, Route, Ticket, MoreHorizontal, Eye, Wallet, Building2, TicketIcon, Plus } from "lucide-react";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
-import { useFrappeList } from "@/lib/useApiData";
-import { useHotelAccess } from "@/lib/useHotelAccess";
+import { ShoppingCart, Search, Filter, AlertCircle, RefreshCw, Plus, Download } from "lucide-react";
+import { apiRequest } from "@/api/client";
+
+/**
+ * Reservas (package reservations) — mockup list: search + status filter +
+ * "hide cancelled" chip + export, and a table with Código | Contacto | Paquete
+ * | Paradas | Estado | Total | Pendiente. Row click opens the detail.
+ */
 
 const STATUS_CONFIG = {
-    PENDING: { label: "Pending", badge: "bg-yellow-500/15 text-yellow-700 dark:text-yellow-400" },
-    PARTIALLY_CONFIRMED: { label: "Partial", badge: "bg-blue-500/15 text-blue-700 dark:text-blue-400" },
-    CONFIRMED: { label: "Confirmed", badge: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400" },
-    CHECKED_IN: { label: "Checked In", badge: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400" },
-    CANCELLED: { label: "Cancelled", badge: "bg-red-500/15 text-red-700 dark:text-red-400" },
-    COMPLETED: { label: "Completed", badge: "bg-purple-500/15 text-purple-700 dark:text-purple-400" },
-    EXPIRED: { label: "Expired", badge: "bg-gray-500/15 text-gray-600 dark:text-gray-400" },
+    PENDING: { label: "Pendiente", dot: "bg-amber-500" },
+    PARTIALLY_CONFIRMED: { label: "Parcial", dot: "bg-blue-500" },
+    CONFIRMED: { label: "Confirmado", dot: "bg-emerald-500" },
+    CANCELLED: { label: "Cancelado", dot: "bg-gray-400" },
+    EXPIRED: { label: "Expirado", dot: "bg-gray-400" },
 };
+
+const fmt = (v) => `$${Number(v || 0).toLocaleString(undefined, { minimumFractionDigits: 0 })}`;
 
 export default function Bookings() {
     const navigate = useNavigate();
     const { t } = useTranslation();
-    const { isAdmin, userCompanies, companyLocked } = useHotelAccess();
     const [searchTerm, setSearchTerm] = useState("");
     const [filterStatus, setFilterStatus] = useState("all");
-    const { activeEstablishment } = useActiveEstablishment();
-    const [filterEstablishment, setFilterEstablishment] = useState("all");
-    React.useEffect(() => { setFilterEstablishment(activeEstablishment || "all"); }, [activeEstablishment]);
+    const [hideCancelled, setHideCancelled] = useState(false);
 
-    useAutoFillCompany(
-        filterEstablishment === "all" ? "" : filterEstablishment,
-        (v) => setFilterEstablishment(v)
-    );
-
-    // Fetch Establishments (Companies)
-    const { data: companies = [] } = useFrappeList("Company", {
-        fields: ["name", "company_name"],
-        pageSize: 100,
-        enabled: isAdmin,
+    const { data: bookingsRaw, isLoading, error, refetch } = useQuery({
+        queryKey: ["route-bookings-list"],
+        queryFn: async () => {
+            const res = await apiRequest("/api/method/cheese.api.v1.route_booking_controller.list_route_bookings", {
+                method: "POST",
+                body: JSON.stringify({ page: 1, page_size: 200 }),
+            });
+            const payload = res?.data?.message || res?.data || {};
+            return payload?.data || [];
+        },
     });
+    const bookings = Array.isArray(bookingsRaw) ? bookingsRaw : [];
 
-    const companyOptions = useMemo(() => {
-        if (isAdmin) return Array.isArray(companies) ? companies : [];
-        return (Array.isArray(userCompanies) ? userCompanies : []).map((name) => ({
-            name,
-            company_name: name,
-        }));
-    }, [isAdmin, companies, userCompanies]);
-
-    // 1. Fetch Route Bookings
-    const { data: routeBookings = [], isLoading: rbLoading, error: rbError, refetch: rbRefetch } = useFrappeList("Cheese Route Booking", {
-        fields: ["name", "contact", "route", "status", "total_price", "deposit_required", "deposit_amount", "expires_at", "creation"],
-        pageSize: 200,
-        orderBy: "creation desc"
-    });
-
-    // 2. Fetch Tickets (representing single experiences)
-    const { data: tickets = [], isLoading: tLoading, error: tError, refetch: tRefetch } = useFrappeList("Cheese Ticket", {
-        filters: { status: "CONFIRMED" },
-        fields: ["name", "contact", "experience", "route", "company", "status", "deposit_amount", "creation"],
-        pageSize: 200,
-        orderBy: "creation desc"
-    });
-
-    const isLoading = rbLoading || tLoading;
-    const error = rbError || tError;
-
-    const refetchAll = () => {
-        rbRefetch();
-        tRefetch();
-    };
-
-    // Combine and Normalize the Bookings
-    const allBookings = useMemo(() => {
-        const rb = (Array.isArray(routeBookings) ? routeBookings : []).map(b => ({
-            _type: "route_booking",
-            name: b.name,
-            contact: b.contact,
-            entityInfo: b.route ? `${t("routes.route", "Route")}: ${b.route}` : t("bookings.customRoute", "Custom Route"),
-            entityLink: b.route,
-            company: null,
-            status: b.status,
-            price: b.total_price,
-            creation: b.creation
-        }));
-
-        const tkts = (Array.isArray(tickets) ? tickets : []).map(ticketItem => ({
-            _type: "ticket",
-            name: ticketItem.name,
-            contact: ticketItem.contact,
-            entityInfo: ticketItem.experience ? `${t("routes.experiences", "Experience")}: ${ticketItem.experience}` : (ticketItem.route ? `${t("routes.route", "Route")}: ${ticketItem.route}` : t("nav.tickets", "Ticket")),
-            entityLink: ticketItem.experience,
-            company: ticketItem.company,
-            status: ticketItem.status,
-            price: ticketItem.deposit_amount, // fallback if price not explicitly available
-            creation: ticketItem.creation
-        }));
-
-        // Merge and sort
-        return [...rb, ...tkts].sort((a, b) => new Date(b.creation) - new Date(a.creation));
-    }, [routeBookings, tickets]);
-
-    // Apply client-side filters
-    const filtered = allBookings.filter(b => {
-        // Status filter
+    const filtered = useMemo(() => bookings.filter((b) => {
+        if (hideCancelled && (b.status === "CANCELLED" || b.status === "EXPIRED")) return false;
         if (filterStatus !== "all" && b.status !== filterStatus) return false;
-
-        // Establishment filter
-        if (filterEstablishment !== "all") {
-            // For route bookings, if they don't have a company mapped, they are hidden if an establishment is selected.
-            if (b.company !== filterEstablishment) return false;
-        }
-
-        // Search filter
         if (searchTerm) {
             const term = searchTerm.toLowerCase();
-            return (b.name || '').toLowerCase().includes(term) ||
-                (b.contact || '').toLowerCase().includes(term) ||
-                (b.entityInfo || '').toLowerCase().includes(term);
+            const hay = `${b.booking_id} ${b.contact || ""} ${b.route || ""} ${(b.establishments || []).join(" ")}`.toLowerCase();
+            if (!hay.includes(term)) return false;
         }
-
         return true;
-    });
+    }), [bookings, hideCancelled, filterStatus, searchTerm]);
+
+    const statusLabel = (b) => {
+        const cfg = STATUS_CONFIG[b.status] || { label: b.status, dot: "bg-gray-400" };
+        if (b.status === "PARTIALLY_CONFIRMED") {
+            return `${t("status.PARTIALLY_CONFIRMED", cfg.label)} (${b.confirmed_stops}/${b.stops})`;
+        }
+        return t(`status.${b.status}`, cfg.label);
+    };
+
+    const exportCsv = () => {
+        const header = ["Codigo", "Contacto", "Paquete", "Establecimientos", "Paradas", "Estado", "Total", "Pendiente"];
+        const lines = filtered.map((b) => [
+            b.booking_id, b.contact || "", b.route || "", (b.establishments || []).join(" · "),
+            b.stops, statusLabel(b), b.total_price || 0, b.pending || 0,
+        ].map((v) => `"${String(v).replace(/"/g, '""')}"`).join(","));
+        const blob = new Blob([[header.join(","), ...lines].join("\n")], { type: "text/csv;charset=utf-8" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = "reservas_paquetes.csv";
+        a.click();
+        URL.revokeObjectURL(url);
+    };
 
     if (error) {
         return (
@@ -136,150 +87,137 @@ export default function Bookings() {
                 <AlertCircle className="w-12 h-12 text-red-400 mb-4" />
                 <h2 className="text-lg font-semibold mb-2">{t("bookings.loadFailed", "Failed to load bookings data")}</h2>
                 <p className="text-sm text-muted-foreground mb-4">{error?.message}</p>
-                <Button onClick={refetchAll} variant="outline"><RefreshCw className="w-4 h-4 mr-2" /> {t("common.retry", "Retry")}</Button>
+                <Button onClick={() => refetch()} variant="outline"><RefreshCw className="w-4 h-4 mr-2" /> {t("common.retry", "Retry")}</Button>
             </div>
         );
     }
 
     return (
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="p-6 space-y-6">
+            {/* Header */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
                     <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
-                        <ShoppingCart className="w-6 h-6 text-cheese-600" /> {t("bookings.title", "Bookings & Reservations")}
+                        <ShoppingCart className="w-6 h-6 text-cheese-600" /> {t("bookings.title", "Reservas")}
                     </h1>
                     <p className="text-sm text-muted-foreground mt-1">
-                        {isLoading ? '...' : `${t("common.showing", "Showing")} ${filtered.length} ${t("bookings.reservations", "reservations")}`}
+                        {isLoading ? "..." : t("bookings.countPackages", "{{n}} reservas de paquete", { n: filtered.length })}
                     </p>
                 </div>
-                <div className="flex flex-wrap gap-2 items-center">
-                    <div className="relative">
-                        <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-                        <Input placeholder={t("bookings.search", "Search bookings...")} value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-9 w-48 h-9" />
-                    </div>
+                <Button className="h-9 bg-cheese-500 hover:bg-cheese-600 text-black font-semibold" onClick={() => navigate("/cheese/bookings/new-route")}>
+                    <Plus className="w-4 h-4 mr-1.5" /> {t("bookings.newRouteBooking", "Nueva Reserva de Paquete")}
+                </Button>
+            </div>
 
-                    <Select value={filterEstablishment} onValueChange={setFilterEstablishment} disabled={companyLocked}>
-                        <SelectTrigger className="w-48 h-9">
-                            <Building2 className="w-3 h-3 mr-1 text-muted-foreground" />
-                            <SelectValue placeholder={t("bookings.allEstablishments", "All Companies")} />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="all">{t("bookings.allEstablishments", "All Companies")}</SelectItem>
-                            {Array.isArray(companyOptions) && companyOptions.map(c => (
-                                <SelectItem key={c.name} value={c.name}>{c.company_name || c.name}</SelectItem>
-                            ))}
-                        </SelectContent>
-                    </Select>
-
-                    <Select value={filterStatus} onValueChange={setFilterStatus}>
-                        <SelectTrigger className="w-36 h-9">
-                            <Filter className="w-3 h-3 mr-1 text-muted-foreground" />
-                            <SelectValue placeholder={t("common.allStatus", "All Status")} />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="all">{t("common.allStatus", "All Status")}</SelectItem>
-                            {Object.entries(STATUS_CONFIG).map(([k, v]) => <SelectItem key={k} value={k}>{t(`status.${k}`, v.label)}</SelectItem>)}
-                        </SelectContent>
-                    </Select>
-
-                    <Button variant="ghost" size="icon" onClick={refetchAll} className="h-9 w-9">
-                        <RefreshCw className="w-4 h-4" />
-                    </Button>
-
-                    <Button className="h-9 bg-cheese-500 hover:bg-cheese-600 text-black font-semibold" onClick={() => navigate("/cheese/bookings/new-route")}>
-                        <Plus className="w-4 h-4 mr-1.5" /> {t("bookings.newRouteBooking", "New Route Reservation")}
-                    </Button>
+            {/* Toolbar (mockup) */}
+            <div className="flex flex-wrap items-center gap-2">
+                <div className="relative">
+                    <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                    <Input
+                        placeholder={t("bookings.searchPlaceholder", "Buscar reserva, contacto, paquete…")}
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        className="pl-9 w-60 h-9"
+                    />
                 </div>
+                <Select value={filterStatus} onValueChange={setFilterStatus}>
+                    <SelectTrigger className="w-44 h-9">
+                        <Filter className="w-3 h-3 mr-1 text-muted-foreground" />
+                        <SelectValue placeholder={t("common.allStatus", "Todos los estados")} />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="all">{t("common.allStatus", "Todos los estados")}</SelectItem>
+                        {Object.entries(STATUS_CONFIG).map(([k, v]) => (
+                            <SelectItem key={k} value={k}>{t(`status.${k}`, v.label)}</SelectItem>
+                        ))}
+                    </SelectContent>
+                </Select>
+                <button
+                    type="button"
+                    onClick={() => setHideCancelled((v) => !v)}
+                    className={`h-9 px-3 rounded-md border text-xs font-medium transition-colors ${hideCancelled
+                        ? "border-cheese-500 bg-cheese-500/10 text-cheese-700 dark:text-cheese-400"
+                        : "border-border text-muted-foreground hover:bg-muted/50"}`}
+                >
+                    {t("bookings.hideCancelled", "Ocultar canceladas")}
+                </button>
+                <span className="flex-1" />
+                <Button variant="outline" size="sm" className="h-9" onClick={exportCsv} disabled={filtered.length === 0}>
+                    <Download className="w-3.5 h-3.5 mr-1.5" /> {t("common.export", "Exportar")}
+                </Button>
+                <Button variant="ghost" size="icon" onClick={() => refetch()} className="h-9 w-9">
+                    <RefreshCw className="w-4 h-4" />
+                </Button>
             </div>
 
-            <div className="space-y-3">
-                {isLoading ? Array.from({ length: 5 }).map((_, i) => (
-                    <Card key={i} className="border border-border"><CardContent className="p-4 flex items-center gap-4">
-                        <Skeleton className="w-10 h-10 rounded-lg" /><div className="flex-1"><Skeleton className="h-4 w-40 mb-2" /><Skeleton className="h-3 w-24" /></div><Skeleton className="h-6 w-20" />
-                    </CardContent></Card>
-                )) : filtered.map((booking) => {
-                    const config = STATUS_CONFIG[booking.status] || STATUS_CONFIG.PENDING;
-                    const isTicket = booking._type === "ticket";
-
-                    return (
-                        <motion.div key={booking.name} whileHover={{ x: 4 }}>
-                            <Card
-                                className="border border-border shadow-sm hover:shadow-md transition-all group cursor-pointer"
-                                onClick={() => {
-                                    if (isTicket) navigate(`/cheese/tickets/${booking.name}`);
-                                    else navigate(`/cheese/bookings/${booking.name}`);
-                                }}
-                            >
-                                <CardContent className="p-4 flex items-center gap-4">
-                                    <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${isTicket
-                                        ? "bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400"
-                                        : "bg-cheese-100 dark:bg-cheese-900/30 text-cheese-700 dark:text-cheese-400"
-                                        }`}>
-                                        {isTicket ? <TicketIcon className="w-5 h-5" /> : <ShoppingCart className="w-5 h-5" />}
-                                    </div>
-                                    <div className="flex-1 min-w-0">
-                                        <div className="flex items-center gap-2">
-                                            <h3 className="font-semibold text-sm text-foreground">{booking.name}</h3>
-                                            {booking.company && <Badge variant="outline" className="text-[10px] font-normal px-1.5 py-0 h-4">{booking.company}</Badge>}
-                                        </div>
-                                        <p className="text-xs text-muted-foreground mt-0.5">
-                                            {t("nav.contacts", "Contact")}: {booking.contact || '—'} • {booking.entityInfo}
-                                        </p>
-                                    </div>
-                                    <div className="text-right flex flex-col items-end gap-1">
-                                        <Badge className={config.badge}>{t(`status.${booking.status}`, config.label)}</Badge>
-                                        {booking.price != null && (
-                                            <p className="font-semibold text-xs text-foreground flex items-center">
-                                                <DollarSign className="w-3 h-3 text-muted-foreground mr-0.5" />
-                                                {Number(booking.price || 0).toLocaleString()}
-                                            </p>
-                                        )}
-                                    </div>
-
-                                    {/* Action Menu */}
-                                    <DropdownMenu>
-                                        <DropdownMenuTrigger asChild>
-                                            <Button variant="ghost" size="icon" className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity" onClick={(e) => e.stopPropagation()}>
-                                                <MoreHorizontal className="w-4 h-4" />
-                                            </Button>
-                                        </DropdownMenuTrigger>
-                                        <DropdownMenuContent align="end">
-                                            <DropdownMenuItem onClick={(e) => {
-                                                e.stopPropagation();
-                                                navigate(isTicket ? `/cheese/tickets/${booking.name}` : `/cheese/bookings/${booking.name}`);
-                                            }}>
-                                                <Eye className="w-3 h-3 mr-2" /> {t("common.viewDetails", "View Details")}
-                                            </DropdownMenuItem>
-                                            <DropdownMenuItem onClick={(e) => { e.stopPropagation(); booking?.contact && navigate(`/cheese/contacts/${booking.contact}`); }}>
-                                                <Users className="w-3 h-3 mr-2" /> {t("bookings.contactRecord", "Contact Record")}
-                                            </DropdownMenuItem>
-
-                                            {booking._type === "route_booking" && booking.entityLink && (
-                                                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); navigate(`/cheese/routes/${booking.entityLink}`); }}>
-                                                    <Route className="w-3 h-3 mr-2" /> {t("bookings.routeDefinition", "Route Definition")}
-                                                </DropdownMenuItem>
-                                            )}
-
-                                            <DropdownMenuItem onClick={(e) => {
-                                                e.stopPropagation();
-                                                navigate(`/cheese/deposits/new?entity_type=${encodeURIComponent(isTicket ? "Cheese Ticket" : "Cheese Route Booking")}&entity_id=${encodeURIComponent(booking.name || "")}`);
-                                            }}>
-                                                <Wallet className="w-3 h-3 mr-2" /> {t("experiences.registerDeposit", "Register Deposit")}
-                                            </DropdownMenuItem>
-                                        </DropdownMenuContent>
-                                    </DropdownMenu>
-                                </CardContent>
-                            </Card>
-                        </motion.div>
-                    );
-                })}
-            </div>
-
-            {!isLoading && filtered.length === 0 && (
+            {/* Table (mockup) */}
+            {isLoading ? (
+                <Card className="border border-border"><CardContent className="p-4 space-y-3">
+                    {Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-10 w-full" />)}
+                </CardContent></Card>
+            ) : filtered.length === 0 ? (
                 <div className="text-center py-16">
                     <ShoppingCart className="w-16 h-16 text-muted-foreground/20 mx-auto mb-4" />
-                    <p className="text-muted-foreground">{t("bookings.noReservations", "No reservations found for the selected filters")}</p>
+                    <p className="text-muted-foreground">{t("bookings.emptyPackages", "Sin reservas de paquete con estos filtros")}</p>
+                    <p className="text-xs text-muted-foreground mt-1">{t("bookings.emptyHint", "Ajustá los filtros o quitá \"ocultar canceladas\" para ver más.")}</p>
                 </div>
+            ) : (
+                <Card className="border-border/60 shadow-sm overflow-hidden">
+                    <div className="flex items-center px-4 py-3 border-b border-border bg-muted/20">
+                        <span className="text-[13px] font-bold">{t("bookings.tableCount", "{{n}} reservas de paquete", { n: filtered.length })}</span>
+                        <span className="flex-1" />
+                        <span className="text-xs text-muted-foreground">{t("bookings.clickRow", "clic en una fila para abrir")}</span>
+                    </div>
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-sm">
+                            <thead>
+                                <tr className="bg-muted/30 text-muted-foreground text-xs uppercase">
+                                    <th className="text-left px-4 py-3 font-semibold">{t("bookings.code", "Código")}</th>
+                                    <th className="text-left px-4 py-3 font-semibold">{t("common.contact", "Contacto")}</th>
+                                    <th className="text-left px-4 py-3 font-semibold">{t("routes.route", "Paquete")}</th>
+                                    <th className="text-right px-4 py-3 font-semibold">{t("bookings.stops", "Paradas")}</th>
+                                    <th className="text-left px-4 py-3 font-semibold">{t("common.status", "Estado")}</th>
+                                    <th className="text-right px-4 py-3 font-semibold">{t("common.total", "Total")}</th>
+                                    <th className="text-right px-4 py-3 font-semibold">{t("tickets.pending", "Pendiente")}</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-border/50">
+                                {filtered.map((b) => {
+                                    const cfg = STATUS_CONFIG[b.status] || { dot: "bg-gray-400" };
+                                    return (
+                                        <tr
+                                            key={b.booking_id}
+                                            className="hover:bg-muted/10 cursor-pointer transition-colors"
+                                            onClick={() => navigate(`/cheese/bookings/${b.booking_id}`)}
+                                        >
+                                            <td className="px-4 py-3 font-mono text-xs">{b.booking_id}</td>
+                                            <td className="px-4 py-3 font-medium">{b.contact || "—"}</td>
+                                            <td className="px-4 py-3">
+                                                {b.route || t("bookings.customRoute", "Paquete Personalizado")}
+                                                {(b.establishments || []).length > 0 && (
+                                                    <span className="block text-xs text-muted-foreground">
+                                                        {b.establishments.length} {t("bookings.establishmentsShort", "establec.")} · {b.establishments.join(" · ")}
+                                                    </span>
+                                                )}
+                                            </td>
+                                            <td className="px-4 py-3 text-right tabular-nums">{b.stops}</td>
+                                            <td className="px-4 py-3">
+                                                <span className="inline-flex items-center gap-1.5 text-xs font-medium">
+                                                    <span className={`w-2 h-2 rounded-full ${cfg.dot}`} />
+                                                    {statusLabel(b)}
+                                                </span>
+                                            </td>
+                                            <td className="px-4 py-3 text-right tabular-nums font-mono">{fmt(b.total_price)}</td>
+                                            <td className={`px-4 py-3 text-right tabular-nums font-mono ${b.pending > 0 ? "text-red-600 font-semibold" : ""}`}>
+                                                {fmt(b.pending)}
+                                            </td>
+                                        </tr>
+                                    );
+                                })}
+                            </tbody>
+                        </table>
+                    </div>
+                </Card>
             )}
         </motion.div>
     );
