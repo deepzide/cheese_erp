@@ -36,6 +36,7 @@ export default function Experiences() {
     const [companyFilter, setCompanyFilter] = useState("all");
     const [selectedExperience, setSelectedExperience] = useState(null);
     const [view, setView] = useState("cards"); // "cards" | "table"
+    const [showRoomTypes, setShowRoomTypes] = useState(false);
 
     useAutoFillCompany(companyFilter === "all" ? "" : companyFilter, (v) => setCompanyFilter(v));
 
@@ -49,8 +50,9 @@ export default function Experiences() {
         },
     });
 
-    // Room types (HOTEL experiences) live in their own menu, not here.
-    const experiences = (Array.isArray(expRaw) ? expRaw : []).filter((e) => e.experience_type !== "HOTEL");
+    // Room types (HOTEL experiences) live in their own menu; hidden here unless
+    // the "show room types" checkbox is enabled.
+    const experiences = (Array.isArray(expRaw) ? expRaw : []).filter((e) => showRoomTypes || e.experience_type !== "HOTEL");
 
     // All price-matrix lines of the experiences in scope (weekday/range x age group).
     const experienceNames = useMemo(() => experiences.map((e) => e.name), [experiences]);
@@ -199,6 +201,15 @@ export default function Experiences() {
                             ))}
                         </SelectContent>
                     </Select>
+                    <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer whitespace-nowrap">
+                        <input
+                            type="checkbox"
+                            checked={showRoomTypes}
+                            onChange={(e) => setShowRoomTypes(e.target.checked)}
+                            className="rounded border-gray-300 text-primary focus:ring-primary"
+                        />
+                        {t("experiences.showRoomTypes", "Mostrar tipos de habitación")}
+                    </label>
                     {/* Card / table view toggle */}
                     <div className="inline-flex rounded-md border border-input overflow-hidden h-9">
                         <button

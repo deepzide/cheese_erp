@@ -306,7 +306,9 @@ export default function BookingPolicy() {
                                             <DropdownMenuItem onClick={() => openEdit(policy)}>
                                                 <Clock className="w-3 h-3 mr-2" /> {t("bookingPolicy.editTimes", "Edit Times")}
                                             </DropdownMenuItem>
-                                            <DropdownMenuItem onClick={() => navigate(`/cheese/experiences?search=${primaryExperience}`)}><Sparkles className="w-3 h-3 mr-2" /> {t("documents.viewExperience", "View Experience")}</DropdownMenuItem>
+                                            {primaryExperience && (
+                                                <DropdownMenuItem onClick={() => navigate(`/cheese/experiences/${encodeURIComponent(primaryExperience)}`)}><Sparkles className="w-3 h-3 mr-2" /> {t("documents.viewExperience", "View Experience")}</DropdownMenuItem>
+                                            )}
                                         </DropdownMenuContent>
                                     </DropdownMenu>
                                 </div>

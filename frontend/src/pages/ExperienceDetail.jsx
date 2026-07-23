@@ -12,7 +12,7 @@ import EditableField from "@/components/EditableField";
 import { Label } from "@/components/ui/label";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Building2, DollarSign, Settings, MapPin, Info, Link as LinkIcon, Trash2, FileText, ImagePlus, Loader2 } from "lucide-react";
+import { Building2, DollarSign, Settings, MapPin, Info, Link as LinkIcon, Trash2, FileText, ImagePlus, Loader2, Shield } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
@@ -31,6 +31,9 @@ export default function ExperienceDetail() {
     // Fetch Data
     const { data: exp, isLoading } = useFrappeDoc("Cheese Experience", id);
     const updateMutation = useFrappeUpdate("Cheese Experience");
+
+    // Assigned booking policy (new model: Experience.booking_policy)
+    const { data: bookingPolicy } = useFrappeDoc("Cheese Booking Policy", exp?.booking_policy || "");
 
     const { data: expDocs = [], isLoading: expDocsLoading } = useFrappeList("Cheese Document", {
         enabled: !!id,
@@ -940,6 +943,30 @@ export default function ExperienceDetail() {
                                     <div className="font-medium text-sm py-2 px-0 flex items-center gap-2">
                                         <span className={`w-3 h-3 rounded-full ${form.manual_confirmation ? 'bg-amber-500' : 'bg-emerald-500'}`}></span>
                                         {form.manual_confirmation ? t("experiences.manualConfReq", "Manual Confirmation Required") : t("experiences.instantAutoBooking", "Instant Auto-Booking Enabled")}
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Assigned booking policy */}
+                            {exp?.booking_policy && (
+                                <div className="pt-3 border-t border-border/60 space-y-2">
+                                    <button
+                                        type="button"
+                                        onClick={() => navigate(`/cheese/booking-policy?experience=${encodeURIComponent(id)}`)}
+                                        className="text-sm font-medium text-primary hover:underline flex items-center gap-2"
+                                    >
+                                        <Shield className="w-4 h-4" /> {bookingPolicy?.policy_name || exp.booking_policy}
+                                    </button>
+                                    <div className="grid grid-cols-1 gap-1 text-xs text-muted-foreground">
+                                        {bookingPolicy?.cancel_until_hours_before != null && (
+                                            <span>{t("experiences.cancelUntil", "Cancelación hasta")}: {bookingPolicy.cancel_until_hours_before} h {t("experiences.beforeStart", "antes del inicio")}</span>
+                                        )}
+                                        {bookingPolicy?.modify_until_hours_before != null && (
+                                            <span>{t("experiences.modifyUntil", "Modificación hasta")}: {bookingPolicy.modify_until_hours_before} h {t("experiences.beforeStart", "antes del inicio")}</span>
+                                        )}
+                                        {bookingPolicy?.min_hours_before_booking != null && (
+                                            <span>{t("experiences.minLeadTime", "Anticipación mínima")}: {bookingPolicy.min_hours_before_booking} h</span>
+                                        )}
                                     </div>
                                 </div>
                             )}
