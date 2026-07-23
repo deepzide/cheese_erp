@@ -20,6 +20,8 @@ import { Input } from "@/components/ui/input";
 import { apiRequest } from "@/api/client";
 import { experienceService } from "@/api/experienceService";
 import ExperiencePriceCalendar from "@/components/ExperiencePriceCalendar";
+import ExperienceReservationCalendar from "@/components/ExperienceReservationCalendar";
+import HotelAvailability from "./HotelAvailability";
 import { useHotelAccess } from "@/lib/useHotelAccess";
 
 export default function ExperienceDetail() {
@@ -62,6 +64,8 @@ export default function ExperienceDetail() {
 
     // Local State for Edit Mode
     const [editMode, setEditMode] = useState(false);
+    // Pricing tab calendar: "prices" (price calendar) vs "reservations".
+    const [calMode, setCalMode] = useState("prices");
     const [form, setForm] = useState({});
     const [renameOpen, setRenameOpen] = useState(false);
     const [newId, setNewId] = useState("");
@@ -802,8 +806,26 @@ export default function ExperienceDetail() {
                                 </CardContent>
                             </Card>
 
-                            {/* Per-day price calendar (issue: precios por día) */}
-                            <ExperiencePriceCalendar experienceId={id} />
+                            {/* Calendar: toggle between the price calendar and the
+                                reservation calendar (hotels show the per-room-type
+                                availability calendar, activities the month reservations). */}
+                            <div className="space-y-3">
+                                <div className="flex justify-end">
+                                    <Tabs value={calMode} onValueChange={setCalMode}>
+                                        <TabsList className="h-9">
+                                            <TabsTrigger value="prices" className="text-xs px-3">{t("experiences.priceCalendarTab", "Calendario de precios")}</TabsTrigger>
+                                            <TabsTrigger value="reservations" className="text-xs px-3">{t("experiences.reservationCalendarTab", "Calendario de reservas")}</TabsTrigger>
+                                        </TabsList>
+                                    </Tabs>
+                                </div>
+                                {calMode === "prices" ? (
+                                    <ExperiencePriceCalendar experienceId={id} />
+                                ) : form.experience_type === "HOTEL" ? (
+                                    <HotelAvailability experienceId={id} hotelId={form.company} embedded />
+                                ) : (
+                                    <ExperienceReservationCalendar experienceId={id} />
+                                )}
+                            </div>
 
                             {/* Policies & Deposits */}
                             {form.experience_type === "HOTEL" && (

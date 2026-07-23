@@ -192,11 +192,11 @@ export default function HotelAvailabilityGrid() {
                                             </div>
                                         ))}
                                         {/* Rate row */}
-                                        <div className="py-1.5 px-3 pl-6 text-xs text-muted-foreground border-b border-border/60">
-                                            {t("hotelAvailGrid.rateRow", "Tarifa/noche")} <span className="opacity-60">({rt.currency})</span>
+                                        <div className="py-1.5 px-3 pl-6 text-xs font-medium text-foreground border-b border-border/60">
+                                            {t("hotelAvailGrid.rateRow", "Tarifa/noche")} <span className="text-muted-foreground">({rt.currency})</span>
                                         </div>
                                         {rt.days.map((day) => (
-                                            <div key={day.date} className={`py-1.5 text-center text-[11px] tabular-nums text-muted-foreground border-b border-border/60 ${isWeekend(day.date) ? "bg-cheese-50/60 dark:bg-cheese-950/10" : ""}`}>
+                                            <div key={day.date} className={`py-1.5 text-center text-[11px] tabular-nums font-medium text-foreground border-b border-border/60 ${isWeekend(day.date) ? "bg-cheese-50/60 dark:bg-cheese-950/10" : ""}`}>
                                                 {fmtRate(day.rate, rt.currency)}
                                             </div>
                                         ))}

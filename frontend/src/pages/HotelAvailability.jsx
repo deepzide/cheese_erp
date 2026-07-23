@@ -40,10 +40,10 @@ const addDaysStr = (dateStr, n) => {
     return d.toISOString().split("T")[0];
 };
 
-export default function HotelAvailability({ hotelId = null, embedded = false }) {
+export default function HotelAvailability({ hotelId = null, embedded = false, experienceId = null }) {
     const { t } = useTranslation();
     const queryClient = useQueryClient();
-    const [selectedExperience, setSelectedExperience] = useState("");
+    const [selectedExperience, setSelectedExperience] = useState(experienceId || "");
     const [dateFrom, setDateFrom] = useState(() => new Date().toISOString().split("T")[0]);
     const [dateTo, setDateTo] = useState(() => {
         const d = new Date();
@@ -89,9 +89,16 @@ export default function HotelAvailability({ hotelId = null, embedded = false }) 
     });
     const experiences = Array.isArray(expPayload) ? expPayload : [];
 
+    // When locked to a single room type (experience detail), keep the selection
+    // pinned to it and never show the selector.
+    useEffect(() => {
+        if (experienceId) setSelectedExperience(experienceId);
+    }, [experienceId]);
+
     // Default to the first room type once the list loads (or when the current
     // selection is no longer in the list, e.g. the hotel changed).
     useEffect(() => {
+        if (experienceId) return;
         if (!experiences.length) return;
         if (!selectedExperience || !experiences.some((e) => e.name === selectedExperience)) {
             setSelectedExperience(experiences[0].name);
@@ -273,16 +280,18 @@ export default function HotelAvailability({ hotelId = null, embedded = false }) 
                     <p className="text-sm text-muted-foreground mt-1">{t("hotelAvailability.subtitleRooms", "Habitaciones disponibles por tipo, derivadas del inventario físico")}</p>
                 </div>
                 <div className="flex flex-wrap gap-2 items-center">
-                    <Select value={selectedExperience} onValueChange={setSelectedExperience}>
-                        <SelectTrigger className="w-56 h-9">
-                            <SelectValue placeholder={t("hotelAvailability.selectRoomType", "Selecciona un tipo de habitación…")} />
-                        </SelectTrigger>
-                        <SelectContent>
-                            {experiences.map((exp) => (
-                                <SelectItem key={exp.name} value={exp.name}>{exp.name}</SelectItem>
-                            ))}
-                        </SelectContent>
-                    </Select>
+                    {!experienceId && (
+                        <Select value={selectedExperience} onValueChange={setSelectedExperience}>
+                            <SelectTrigger className="w-56 h-9">
+                                <SelectValue placeholder={t("hotelAvailability.selectRoomType", "Selecciona un tipo de habitación…")} />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {experiences.map((exp) => (
+                                    <SelectItem key={exp.name} value={exp.name}>{exp.name}</SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    )}
                     <Input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} className="h-9 w-40" />
                     <Input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} className="h-9 w-40" />
                     <Button variant="ghost" size="icon" onClick={() => refetch()} className="h-9 w-9">
@@ -310,19 +319,19 @@ export default function HotelAvailability({ hotelId = null, embedded = false }) 
                         <Card className="border border-border">
                             <CardContent className="p-4 text-center">
                                 <p className="text-2xl font-bold text-foreground">{nights[0]?.max_capacity ?? 0}</p>
-                                <p className="text-xs text-muted-foreground">{t("hotelAvailability.roomsOfType", "Habitaciones del tipo")}</p>
+                                <p className="text-xs text-muted-foreground">{t("hotelAvailability.roomsOfType", "Tipos de habitación")}</p>
                             </CardContent>
                         </Card>
                         <Card className="border border-border">
                             <CardContent className="p-4 text-center">
                                 <p className="text-2xl font-bold text-emerald-600">{nights.filter(n => n.available > 0).length}</p>
-                                <p className="text-xs text-muted-foreground">{t("hotelAvailability.nightsAvailable", "Noches con disponibilidad")}</p>
+                                <p className="text-xs text-muted-foreground">{t("hotelAvailability.nightsAvailable", "Noches con habitación")}</p>
                             </CardContent>
                         </Card>
                         <Card className="border border-border">
                             <CardContent className="p-4 text-center">
                                 <p className="text-2xl font-bold text-red-500">{nights.filter(n => n.status !== "NO_ROOMS" && n.available === 0).length}</p>
-                                <p className="text-xs text-muted-foreground">{t("hotelAvailability.nightsFull", "Noches completas")}</p>
+                                <p className="text-xs text-muted-foreground">{t("hotelAvailability.nightsFull", "Noches sin habitación")}</p>
                             </CardContent>
                         </Card>
                         <Card className="border border-border">
