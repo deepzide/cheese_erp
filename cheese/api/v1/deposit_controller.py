@@ -431,6 +431,7 @@ def get_payment_link_or_instructions(ticket_id=None, deposit_id=None, payment_ty
 			return not_found("Deposit", deposit_id or f"for ticket {ticket_id}")
 
 		bank_account = []
+		ticket_doc = None
 		if ticket_id and frappe.db.exists("Cheese Ticket", ticket_id):
 			ticket_doc = frappe.get_doc("Cheese Ticket", ticket_id)
 			bank_account = _bank_accounts_for_ticket(ticket_doc)
@@ -474,7 +475,7 @@ def get_payment_link_or_instructions(ticket_id=None, deposit_id=None, payment_ty
 				"status": deposit_doc.status,
 				"payment_type": effective_payment_type,
 				"bank_account": bank_account,
-					"accepted_currencies": _accepted_currencies_for_ticket(ticket),
+				"accepted_currencies": _accepted_currencies_for_ticket(ticket_doc) if ticket_doc else [],
 				"instructions": instructions,
 			},
 		)
