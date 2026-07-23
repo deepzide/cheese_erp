@@ -506,30 +506,23 @@ def _sim_activity_availability(experience_id, date_value, needed):
 
 
 def _sim_hotel_availability(experience_id, check_in, check_out, rooms_needed):
-	"""Bottleneck room availability across the nights of a stay."""
+	"""Bottleneck room availability across the nights of a stay.
+
+	Derived 100% from physical rooms (Cheese Hotel Room + active stays) —
+	legacy Cheese Experience Slots are never consulted for hotels.
+	"""
 	from frappe.utils import getdate, add_days
-	from cheese.cheese.utils.capacity import get_available_capacity
+	from cheese.api.v1.availability_controller import _hotel_nightly_availability
 
 	ci, co = getdate(check_in), getdate(check_out)
-	slots = frappe.get_all(
-		"Cheese Experience Slot",
-		filters={
-			"experience": experience_id,
-			"date_from": ["<", co],
-			"date_to": [">=", ci],
-			"slot_status": ["in", ["OPEN", "CLOSED"]],
-		},
-		fields=["name", "date_from", "date_to"],
-	)
+	# Nights of a stay are [check_in, check_out); the helper's range is inclusive.
+	rows, total_rooms = _hotel_nightly_availability(experience_id, ci, add_days(co, -1))
 	nights = []
 	bottleneck = None
-	cur = ci
-	while cur < co:
-		slot = next((s for s in slots if getdate(s.date_from) <= cur <= getdate(s.date_to)), None)
-		avail = get_available_capacity(slot.name, selected_date=cur) if slot else 0
-		nights.append({"date": str(cur), "available_rooms": avail, "has_slot": bool(slot)})
+	for row in rows:
+		avail = row.get("available") or 0
+		nights.append({"date": row.get("date"), "available_rooms": avail, "has_slot": total_rooms > 0})
 		bottleneck = avail if bottleneck is None else min(bottleneck, avail)
-		cur = add_days(cur, 1)
 	bottleneck = bottleneck or 0
 	return {"checked": True, "nights": nights, "available_rooms": bottleneck, "enough": bottleneck >= rooms_needed}
 

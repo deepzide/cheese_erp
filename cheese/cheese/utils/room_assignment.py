@@ -177,6 +177,7 @@ def reserve_rooms_for_ticket(ticket, room_ids=None):
 	existing = stays_for_ticket(ticket.name)
 	missing = needed - len(existing)
 	if missing <= 0:
+		sync_room_label(ticket.name)
 		return []
 
 	free = find_free_rooms(
@@ -222,6 +223,7 @@ def reserve_rooms_for_ticket(ticket, room_ids=None):
 	for rid in chosen:
 		stay = create_stay(rid, ticket.name, "RESERVED", ticket.check_in_date, ticket.check_out_date)
 		created.append(stay.name)
+	sync_room_label(ticket.name)
 	return created
 
 
@@ -263,6 +265,21 @@ def resync_stays_for_ticket(ticket):
 
 	# Reserve replacements / additions
 	reserve_rooms_for_ticket(ticket)
+
+
+def sync_room_label(ticket_name):
+	"""Mirror the assigned room numbers onto ticket.room_number_assigned.
+
+	Recomputed from the ACTIVE stays so the ticket always displays which
+	physical room(s) it holds (e.g. "101, 102")."""
+	rooms = [s.room for s in stays_for_ticket(ticket_name)]
+	numbers = []
+	for r in rooms:
+		numbers.append(frappe.db.get_value("Cheese Hotel Room", r, "room_number") or r)
+	frappe.db.set_value(
+		"Cheese Ticket", ticket_name, "room_number_assigned",
+		", ".join(sorted(numbers)), update_modified=False,
+	)
 
 
 def stays_for_ticket(ticket_name, only_active=True):
