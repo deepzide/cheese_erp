@@ -18,7 +18,7 @@ import {
     Ticket, DollarSign, Calendar, Users, MapPin, Clock, MessageSquare,
     Briefcase, CreditCard, Wallet, CheckCircle, XCircle, QrCode, Star,
     Bell, Send, Package, FileEdit, RotateCcw, LifeBuoy, Receipt, Undo2,
-    History, UserX, Trash2
+    History, UserX, Trash2, BadgePercent
 } from "lucide-react";
 import { apiRequest, unwrapFrappeMethodData } from "@/api/client";
 
@@ -139,6 +139,31 @@ export default function TicketDetail() {
                     ? t("tickets.typePackage", "Package")
                     : t("tickets.typeExperience", "Experience")}
         </Badge>
+    ) : null;
+
+    // Price adjustments recorded on the ticket: seasonal surcharge (from the
+    // price snapshot) and automatic promotion (ticket fields).
+    const priceSnapshot = React.useMemo(() => {
+        try { return JSON.parse(ticket?.price_snapshot || "{}") || {}; } catch { return {}; }
+    }, [ticket?.price_snapshot]);
+    const seasonInfo = priceSnapshot?.season || null;
+    const seasonName = seasonInfo?.season_name || seasonInfo?.name;
+    const seasonPercent = Number(seasonInfo?.percent || 0);
+    const hasSeason = !!seasonInfo && (seasonPercent !== 0 || !!seasonName);
+    const hasPromo = !!ticket?.promotion;
+    const adjustmentBadges = (hasSeason || hasPromo) ? (
+        <>
+            {hasSeason && (
+                <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800">
+                    {t("tickets.seasonBadge", "Temporada")}{seasonPercent ? ` ${seasonPercent > 0 ? "+" : ""}${seasonPercent}%` : ""}
+                </Badge>
+            )}
+            {hasPromo && (
+                <Badge variant="outline" className="bg-pink-50 text-pink-700 border-pink-200 dark:bg-pink-950/40 dark:text-pink-300 dark:border-pink-800">
+                    {t("tickets.promoBadge", "Promoción")}
+                </Badge>
+            )}
+        </>
     ) : null;
 
     const handleFieldChange = (field, value) => {
@@ -450,7 +475,7 @@ export default function TicketDetail() {
             subtitle={`${t("tickets.ticketFor", "Ticket for")} ${ticket?.contact || t("common.loading", "Loading...")}`}
             backPath="/cheese/tickets"
             isLoading={isLoading}
-            statusBadge={<span className="inline-flex items-center gap-2">{getStatusBadge(ticket?.status)}{typeBadge}</span>}
+            statusBadge={<span className="inline-flex items-center gap-2 flex-wrap">{getStatusBadge(ticket?.status)}{typeBadge}{adjustmentBadges}</span>}
             onEditToggle={() => setEditMode(!editMode)}
             editMode={editMode}
             onSave={handleSave}
@@ -577,6 +602,67 @@ export default function TicketDetail() {
                                     </div>
                                 </CardContent>
                             </Card>
+
+                            {/* Price adjustments (season / promotion) */}
+                            {(hasSeason || hasPromo) && (
+                                <Card className="border-border/60 shadow-sm">
+                                    <CardHeader className="border-b bg-muted/20 pb-4">
+                                        <CardTitle className="text-sm font-semibold text-muted-foreground uppercase flex items-center">
+                                            <BadgePercent className="w-4 h-4 mr-2" /> {t("tickets.priceAdjustments", "Ajustes de precio aplicados")}
+                                        </CardTitle>
+                                    </CardHeader>
+                                    <CardContent className="p-6 space-y-3">
+                                        {hasSeason && (
+                                            <div className="flex items-start justify-between gap-4 text-sm">
+                                                <div>
+                                                    <p className="font-medium text-foreground">
+                                                        {t("tickets.seasonApplied", "Precio de temporada")}{seasonName ? `: ${seasonName}` : ""}
+                                                    </p>
+                                                    <p className="text-xs text-muted-foreground">
+                                                        {t("tickets.seasonAppliedHint", "La tarifa base se ajustó por la temporada activa en la fecha de la reserva.")}
+                                                    </p>
+                                                </div>
+                                                <div className="text-right shrink-0">
+                                                    {seasonPercent !== 0 && (
+                                                        <p className="font-semibold tabular-nums text-amber-700 dark:text-amber-400">
+                                                            {seasonPercent > 0 ? "+" : ""}{seasonPercent}%
+                                                        </p>
+                                                    )}
+                                                    {priceSnapshot?.price_before_season != null && (
+                                                        <p className="text-xs text-muted-foreground tabular-nums">
+                                                            {t("tickets.before", "Antes")}: {fmt(priceSnapshot.price_before_season)}
+                                                        </p>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        )}
+                                        {hasPromo && (
+                                            <div className="flex items-start justify-between gap-4 text-sm">
+                                                <div>
+                                                    <p className="font-medium text-foreground">
+                                                        {t("tickets.promoApplied", "Promoción aplicada")}: {ticket?.promotion}
+                                                    </p>
+                                                    <p className="text-xs text-muted-foreground">
+                                                        {t("tickets.promoAppliedHint", "Descuento automático aplicado al total del ticket.")}
+                                                    </p>
+                                                </div>
+                                                <div className="text-right shrink-0">
+                                                    {(ticket?.promotion_discount || 0) > 0 && (
+                                                        <p className="font-semibold tabular-nums text-pink-700 dark:text-pink-400">
+                                                            −{fmt(ticket.promotion_discount)}
+                                                        </p>
+                                                    )}
+                                                    {ticket?.price_before_discount != null && (
+                                                        <p className="text-xs text-muted-foreground tabular-nums">
+                                                            {t("tickets.before", "Antes")}: {fmt(ticket.price_before_discount)}
+                                                        </p>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        )}
+                                    </CardContent>
+                                </Card>
+                            )}
 
                             {/* Payment Information Table */}
                             <Card className="border-border/60 shadow-sm overflow-hidden">
