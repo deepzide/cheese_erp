@@ -130,6 +130,17 @@ def _find_valid_combinations_for_date(
 		experience_id = exp_row.experience if hasattr(exp_row, "experience") else exp_row.get("experience")
 		sequence = exp_row.sequence if hasattr(exp_row, "sequence") else exp_row.get("sequence", 0)
 
+		# Hotel rooms have no time slot: they don't join the time-overlap
+		# combinatorics, but the date must have enough free physical rooms —
+		# otherwise the whole route has no combinations that day.
+		if frappe.db.get_value("Cheese Experience", experience_id, "experience_type") == "HOTEL":
+			from cheese.cheese.utils.room_assignment import find_free_rooms
+
+			free = find_free_rooms(experience_id, date_obj, getdate(target_date) + timedelta(days=1))
+			if len(free) < party_size:
+				return []
+			continue
+
 		slots = frappe.get_all(
 			"Cheese Experience Slot",
 			filters={
@@ -1782,6 +1793,38 @@ def get_available_slots_for_route(route_id, selected_date=None, date_from=None, 
 				continue
 
 			experience = frappe.get_doc("Cheese Experience", experience_id)
+
+			# Hotel rooms derive availability from physical rooms; their entries
+			# carry no time (time_from None marks them as hotel rooms for the bot).
+			if experience.experience_type == "HOTEL":
+				from cheese.api.v1.availability_controller import _hotel_nightly_availability
+
+				nightly, total_rooms = _hotel_nightly_availability(experience_id, start_date, end_date)
+				available_slots = [
+					{
+						"slot_id": f"NIGHT-{row['date']}",
+						"selected_date": row["date"],
+						"calendar_date": row["date"],
+						"date_from": row["date"],
+						"date_to": row["date"],
+						"time_from": None,
+						"time_to": None,
+						"max_capacity": total_rooms,
+						"available_capacity": row["available"],
+					}
+					for row in nightly
+					if row["available"] >= party_size
+				]
+				experiences_result.append(
+					{
+						"experience_id": experience_id,
+						"experience_name": experience.name,
+						"sequence": exp_row.sequence if hasattr(exp_row, "sequence") else exp_row.idx,
+						"available_slots": available_slots,
+						"available_count": len(available_slots),
+					}
+				)
+				continue
 
 			slot_filters = {
 				"experience": experience_id,

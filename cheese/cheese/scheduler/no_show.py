@@ -26,7 +26,7 @@ def process_no_shows():
 	confirmed = frappe.get_all(
 		"Cheese Ticket",
 		filters={"status": "CONFIRMED"},
-		fields=["name", "slot", "selected_date"],
+		fields=["name", "slot", "selected_date", "check_in_date"],
 	)
 
 	no_show_count = 0
@@ -37,29 +37,39 @@ def process_no_shows():
 		if frappe.db.exists("Cheese Attendance", {"ticket": row.name}):
 			continue
 		if not row.slot:
-			continue
-		slot = frappe.db.get_value(
-			"Cheese Experience Slot",
-			row.slot,
-			["date_from", "date_to", "time_from"],
-			as_dict=True,
-		)
-		if not slot:
-			continue
+			# Hotel tickets carry no slot: no-show once the whole check-in day
+			# passed without a check-in.
+			if not row.check_in_date:
+				continue
+			try:
+				slot_start = get_datetime(f"{getdate(row.check_in_date)} 23:59:59")
+			except Exception:
+				continue
+			if slot_start >= now:
+				continue
+		else:
+			slot = frappe.db.get_value(
+				"Cheese Experience Slot",
+				row.slot,
+				["date_from", "date_to", "time_from"],
+				as_dict=True,
+			)
+			if not slot:
+				continue
 
-		event_date = row.selected_date or slot.date_from
-		if not event_date:
-			continue
-		time_part = str(slot.time_from).split(".")[0] if slot.time_from else "00:00:00"
-		if len(time_part) == 5:
-			time_part = f"{time_part}:00"
-		try:
-			slot_start = get_datetime(f"{getdate(event_date)} {time_part}")
-		except Exception:
-			continue
+			event_date = row.selected_date or slot.date_from
+			if not event_date:
+				continue
+			time_part = str(slot.time_from).split(".")[0] if slot.time_from else "00:00:00"
+			if len(time_part) == 5:
+				time_part = f"{time_part}:00"
+			try:
+				slot_start = get_datetime(f"{getdate(event_date)} {time_part}")
+			except Exception:
+				continue
 
-		if slot_start >= now:
-			continue
+			if slot_start >= now:
+				continue
 
 		try:
 			# If deposit is still unpaid, cancellation takes precedence over no-show.

@@ -55,11 +55,23 @@ class CheeseSupportCase(Document):
 			if ticket.status != "CONFIRMED":
 				return
 			
+			# Hotel tickets carry no slot: the stay window comes from check-in.
+			if not ticket.slot:
+				if ticket.check_in_date and getdate(ticket.check_in_date) == getdate(today()):
+					from cheese.cheese.utils.notifications import send_support_notification_to_establishment
+
+					send_support_notification_to_establishment(
+						ticket.company,
+						self.name,
+						{"ticket_id": ticket.name, "slot_date": str(ticket.check_in_date), "slot_time": None},
+					)
+				return
+
 			# Get slot information
 			slot = frappe.get_doc("Cheese Experience Slot", ticket.slot)
 			slot_date = getdate(slot.date_from)
 			today_date = getdate(today())
-			
+
 			# Check if slot is today or in the next few hours
 			if slot_date == today_date:
 				# Check if slot time is upcoming (within next 6 hours)

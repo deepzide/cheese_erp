@@ -3,10 +3,97 @@
 
 import frappe
 from frappe import _
-from frappe.utils import getdate, cint
+from frappe.utils import add_days, getdate, cint
 from cheese.cheese.utils.capacity import get_available_capacity, slot_calendar_days_in_range
 from cheese.api.common.responses import success, error, not_found, validation_error
 from cheese.api.v1.user_controller import _get_current_user_company
+
+
+def _hotel_nightly_availability(experience_id, date_from_obj, date_to_obj):
+	"""Room-derived availability per day for a HOTEL experience.
+
+	Hotel capacity comes from physical rooms (ACTIVE Cheese Hotel Rooms minus
+	rooms taken by an active stay that night) — Cheese Experience Slots are
+	never consulted. Returns (rows, total_active_rooms) where each row is
+	{"date": "YYYY-MM-DD", "available": int}.
+	"""
+	from cheese.cheese.utils.room_assignment import ACTIVE_STAY_STATUSES
+
+	active_rooms = frappe.get_all(
+		"Cheese Hotel Room",
+		filters={"room_type": experience_id, "status": "ACTIVE"},
+		pluck="name",
+	)
+	total = len(active_rooms)
+	end_excl = add_days(date_to_obj, 1)
+	stays = (
+		frappe.get_all(
+			"Cheese Room Stay",
+			filters={
+				"room": ["in", active_rooms],
+				"status": ["in", list(ACTIVE_STAY_STATUSES)],
+				"check_in": ["<", str(end_excl)],
+				"check_out": [">", str(date_from_obj)],
+			},
+			fields=["room", "check_in", "check_out"],
+		)
+		if active_rooms
+		else []
+	)
+	rows = []
+	cal_day = date_from_obj
+	while cal_day <= date_to_obj:
+		d = str(cal_day)
+		busy = {s.room for s in stays if str(s.check_in) <= d < str(s.check_out)}
+		rows.append({"date": d, "available": max(0, total - len(busy))})
+		cal_day = add_days(cal_day, 1)
+	return rows, total
+
+
+def _hotel_slot_rows(experience_doc, date_from_obj, date_to_obj, rooms_requested=1, guests=None, include_experience_cols=False):
+	"""Room-derived rows shaped like get_available_slots slot entries."""
+	rooms_requested = cint(rooms_requested) or 1
+	guests = cint(guests) if guests is not None else None
+	room_size = cint(
+		getattr(experience_doc, "room_size", 0) or getattr(experience_doc, "max_occupancy_per_unit", 0) or 0
+	)
+	nightly, total = _hotel_nightly_availability(experience_doc.name, date_from_obj, date_to_obj)
+	rows = []
+	for entry in nightly:
+		available = entry["available"]
+		fits_guests = True
+		if guests:
+			fits_guests = room_size > 0 and guests <= room_size * rooms_requested
+		is_available = available >= rooms_requested and fits_guests
+		row = {
+			# Always a string id: bot-side TimeSlot requires slot_id even for
+			# full nights (is_available already carries the availability).
+			"slot_id": f"NIGHT-{entry['date']}",
+			"selected_date": entry["date"],
+			"calendar_date": entry["date"],
+			"date_from": entry["date"],
+			"date_to": entry["date"],
+			"time_from": None,
+			"time_to": None,
+			"max_capacity": total,
+			"available_capacity": available,
+			"available_rooms": available,
+			"room_size": room_size or None,
+			"max_guests_available": available * room_size,
+			"requested_rooms": rooms_requested,
+			"requested_guests": guests,
+			"experience_type": "HOTEL",
+			"is_room": True,
+			"slot_status": "OPEN" if is_available else "CLOSED",
+			"is_available": is_available,
+			"date": entry["date"],
+			"time": None,
+		}
+		if include_experience_cols:
+			row["experience_id"] = experience_doc.name
+			row["experience_name"] = experience_doc.name
+		rows.append(row)
+	return rows
 
 
 @frappe.whitelist()
@@ -75,6 +162,25 @@ def get_available_slots(experience_id=None, date=None, date_from=None, date_to=N
 					return error("Unauthorized", "UNAUTHORIZED", {}, 403)
 			slot_filters["experience"] = experience_id
 			experience = frappe.get_doc("Cheese Experience", experience_id)
+			# Hotels never use slots: availability derives from physical rooms.
+			if experience.experience_type == "HOTEL":
+				hotel_rows = (
+					_hotel_slot_rows(experience, date_from_obj, date_to_obj, rooms_requested, guests)
+					if date_to_obj >= today_obj
+					else []
+				)
+				return success(
+					f"Found {len(hotel_rows)} nights for {experience.name} from {date_from} to {date_to}",
+					{
+						"experience_id": experience_id,
+						"experience_name": experience.name,
+						"date_from": date_from,
+						"date_to": date_to,
+						"slots": hotel_rows,
+						"total_slots": len(hotel_rows),
+						"available_slots": len([s for s in hotel_rows if s["is_available"]]),
+					},
+				)
 		elif user_company:
 			allowed_experience_ids = frappe.get_all(
 				"Cheese Experience",
@@ -96,7 +202,22 @@ def get_available_slots(experience_id=None, date=None, date_from=None, date_to=N
 			slot_filters["experience"] = ["in", allowed_experience_ids]
 		rooms_requested = cint(rooms_requested) or 1
 		guests = cint(guests) if guests is not None else None
-		
+
+		# Hotels never use slots: exclude their (legacy) slots from the listing;
+		# room-derived rows are appended per hotel experience further below.
+		hotel_scope_filters = {"experience_type": "HOTEL"}
+		if user_company:
+			hotel_scope_filters["company"] = user_company
+		hotel_ids = [] if experience_id else frappe.get_all(
+			"Cheese Experience", filters=hotel_scope_filters, pluck="name"
+		)
+		if hotel_ids:
+			current = slot_filters.get("experience")
+			if isinstance(current, list) and current and current[0] == "in":
+				slot_filters["experience"] = ["in", [x for x in current[1] if x not in hotel_ids] or ["__none__"]]
+			else:
+				slot_filters["experience"] = ["not in", hotel_ids]
+
 		# Get slots
 		slots = frappe.get_all(
 			"Cheese Experience Slot",
@@ -148,6 +269,23 @@ def get_available_slots(experience_id=None, date=None, date_from=None, date_to=N
 					slot_data["experience_name"] = exp_name
 
 				slots_with_availability.append(slot_data)
+
+		# Append room-derived nightly rows for the hotel experiences in scope
+		# (multi-experience listing only; single hotel returns above).
+		if not experience_id and date_to_obj >= today_obj:
+			online_hotels = frappe.get_all(
+				"Cheese Experience",
+				filters={**hotel_scope_filters, "status": "ONLINE"},
+				pluck="name",
+			)
+			for hotel_exp_id in online_hotels:
+				hotel_doc = frappe.get_doc("Cheese Experience", hotel_exp_id)
+				slots_with_availability.extend(
+					_hotel_slot_rows(
+						hotel_doc, date_from_obj, date_to_obj, rooms_requested, guests,
+						include_experience_cols=True,
+					)
+				)
 
 		# Build response
 		if experience_id:
@@ -259,37 +397,21 @@ def get_hotel_availability(experience_id, check_in_date, check_out_date, guests=
 				f"Cannot book {guests} guests. This room allows {room_size} guests per room ({room_size * rooms_requested} total for {rooms_requested} rooms)."
 			)
 			
-		# Check availability for each night from check_in to check_out - 1
+		# Check availability for each night from check_in to check_out - 1.
+		# Derived from physical rooms — Cheese Experience Slots are not used.
 		current_date = check_in_obj
 		bottleneck_capacity = float("inf")
 		daily_availability = []
-		
-		# Get slots for the date range
-		slots = frappe.get_all(
-			"Cheese Experience Slot",
-			filters={
-				"experience": experience_id,
-				"date_from": ["<", check_out_obj],
-				"date_to": [">=", check_in_obj],
-				"slot_status": ["in", ["OPEN", "CLOSED"]]
-			},
-			fields=["name", "date_from", "date_to", "max_capacity"]
+
+		nightly, _total_rooms = _hotel_nightly_availability(
+			experience_id, check_in_obj, add_days(check_out_obj, -1)
 		)
-		
+		nightly_by_date = {row["date"]: row["available"] for row in nightly}
+
 		while current_date < check_out_obj:
-			slot = next(
-				(s for s in slots if getdate(s.date_from) <= current_date <= getdate(s.date_to)),
-				None,
-			)
-			
-			if not slot:
-				# No slot defined for this night
-				available = 0
-				slot_id = None
-			else:
-				slot_id = slot.name
-				available = get_available_capacity(slot_id, selected_date=current_date)
-				
+			available = nightly_by_date.get(str(current_date), 0)
+			slot_id = f"NIGHT-{current_date}" if available > 0 else None
+
 			daily_availability.append({
 				"date": str(current_date),
 				"available_capacity": available,
@@ -454,7 +576,43 @@ def get_route_availability(route_id, date=None, date_from=None, date_to=None, pa
 						"reason": f"Experience status is {exp['status']}"
 					})
 					continue
-				
+
+				# Hotel segments derive availability from physical rooms.
+				exp_type = frappe.db.get_value(
+					"Cheese Experience", exp["experience_id"], "experience_type"
+				)
+				if exp_type == "HOTEL":
+					nightly, _total = _hotel_nightly_availability(
+						exp["experience_id"], date_from_obj, date_to_obj
+					)
+					available_slots = [
+						{
+							"slot_id": f"NIGHT-{row['date']}",
+							"selected_date": row["date"],
+							"calendar_date": row["date"],
+							"date_from": row["date"],
+							"date_to": row["date"],
+							"time_from": None,
+							"time_to": None,
+							"available_capacity": row["available"],
+							"date": row["date"],
+							"time": None,
+						}
+						for row in nightly
+						if row["available"] >= party_size
+					]
+					if not available_slots:
+						all_available = False
+					availability_by_experience.append({
+						"experience_id": exp["experience_id"],
+						"experience_name": exp["experience_name"],
+						"sequence": exp["sequence"],
+						"available": bool(available_slots),
+						"available_slots": available_slots,
+						"available_slots_count": len(available_slots),
+					})
+					continue
+
 				# Get slots for this experience that overlap with the date range
 				# Slots have date_from and date_to fields, so we need to check for overlap
 				# A slot overlaps if: slot.date_from <= date_to AND slot.date_to >= date_from

@@ -239,7 +239,27 @@ def get_experience_detail(experience_id, include_next_availability=True):
 
 		if include_next:
 			today = getdate()
-			slots = frappe.get_all(
+
+			# Hotels: next availability = first upcoming night with a free
+			# physical room (60-day horizon) — slots are not consulted.
+			if experience.experience_type == "HOTEL":
+				from cheese.api.v1.availability_controller import _hotel_nightly_availability
+
+				nightly, _total = _hotel_nightly_availability(
+					experience_id, today, add_days(today, 60)
+				)
+				for row in nightly:
+					if row["available"] > 0:
+						next_availability = {
+							"slot_id": f"NIGHT-{row['date']}",
+							"date": row["date"],
+							"selected_date": row["date"],
+							"time": None,
+							"available_capacity": row["available"],
+						}
+						break
+
+			slots = [] if experience.experience_type == "HOTEL" else frappe.get_all(
 				"Cheese Experience Slot",
 				filters={
 					"experience": experience_id,

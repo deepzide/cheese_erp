@@ -50,7 +50,7 @@ def expire_pending_tickets():
 	pending_without_ttl = frappe.get_all(
 		"Cheese Ticket",
 		filters={"status": "PENDING"},
-		fields=["name", "slot", "selected_date"],
+		fields=["name", "slot", "selected_date", "check_in_date"],
 	)
 	for ticket_data in pending_without_ttl:
 		try:
@@ -59,6 +59,10 @@ def expire_pending_tickets():
 			slot_end = None
 			if ticket_data.slot:
 				slot_end = frappe.db.get_value("Cheese Experience Slot", ticket_data.slot, "date_to")
+			elif ticket_data.check_in_date:
+				# Hotel tickets carry no slot: a PENDING stay whose check-in
+				# already passed can no longer be honored.
+				slot_end = ticket_data.check_in_date
 			effective_date = getdate(ticket_data.selected_date or slot_end) if (ticket_data.selected_date or slot_end) else None
 			if effective_date and effective_date < current_date:
 				expired_slot = _expire_ticket(ticket_data.name)

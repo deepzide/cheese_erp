@@ -31,7 +31,7 @@ def send_ticket_notification(ticket_id, notification_type, **kwargs):
 		
 		# Get experience and slot details
 		experience = frappe.get_doc("Cheese Experience", ticket.experience)
-		slot = frappe.get_doc("Cheese Experience Slot", ticket.slot)
+		slot = _slot_or_stay_shim(ticket)
 		
 		# Build message based on notification type
 		message = _build_notification_message(notification_type, ticket, experience, slot, **kwargs)
@@ -50,7 +50,7 @@ def send_reservation_email_to_establishment(ticket_id):
 	try:
 		ticket = frappe.get_doc("Cheese Ticket", ticket_id)
 		experience = frappe.get_doc("Cheese Experience", ticket.experience)
-		slot = frappe.get_doc("Cheese Experience Slot", ticket.slot)
+		slot = _slot_or_stay_shim(ticket)
 		contact = frappe.get_doc("Cheese Contact", ticket.contact)
 		
 		# Get establishment company email
@@ -172,6 +172,20 @@ def send_deposit_notification(deposit_id, notification_type, **kwargs):
 		
 	except Exception as e:
 		frappe.log_error(f"Failed to send deposit notification for deposit {deposit_id}: {e}", "Notification Error")
+
+
+def _slot_or_stay_shim(ticket):
+	"""Slot doc for activities; a stay-shaped stand-in for hotel tickets (no slot)."""
+	if ticket.slot:
+		return frappe.get_doc("Cheese Experience Slot", ticket.slot)
+	return frappe._dict(
+		name=None,
+		date_from=ticket.get("check_in_date"),
+		date_to=ticket.get("check_out_date"),
+		time_from=None,
+		time_to=None,
+		max_capacity=None,
+	)
 
 
 def _build_notification_message(notification_type, ticket, experience, slot, **kwargs):
