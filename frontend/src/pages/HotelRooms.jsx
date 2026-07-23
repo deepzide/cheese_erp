@@ -35,8 +35,35 @@ export default function HotelRooms() {
     const { isAdmin, userCompanies } = useHotelAccess();
     const ownCompany = (Array.isArray(userCompanies) && userCompanies[0]) || "";
     const [company, setCompany] = useState("");
-    const { activeEstablishment } = useActiveEstablishment();
-    React.useEffect(() => { setCompany(activeEstablishment); }, [activeEstablishment]);
+    const { activeEstablishment, establishments } = useActiveEstablishment();
+
+    // Hotel-only selector: follows the global establishment selector when it
+    // points at a hotel; otherwise it clears and asks the user to pick one.
+    const hotels = useMemo(
+        () => (Array.isArray(establishments) ? establishments.filter((e) => e.is_hotel) : []),
+        [establishments]
+    );
+    const globalIsHotel = !!activeEstablishment && hotels.some((h) => h.company_id === activeEstablishment);
+    const notifiedRef = React.useRef(null);
+    React.useEffect(() => {
+        if (!isAdmin) return;
+        if (!establishments?.length) return; // wait for profiles to load
+        if (globalIsHotel) {
+            setCompany(activeEstablishment);
+            notifiedRef.current = null;
+            return;
+        }
+        setCompany("");
+        const key = activeEstablishment || "__all__";
+        if (notifiedRef.current !== key) {
+            notifiedRef.current = key;
+            toast.info(
+                activeEstablishment
+                    ? t("rooms.pickHotelNoticeNonHotel", "La empresa seleccionada globalmente no es un hotel. Selecciona un hotel en el selector de Habitaciones.")
+                    : t("rooms.pickHotelNoticeAll", "El selector global está en \"Toda la ruta\". Selecciona un hotel en el selector de Habitaciones.")
+            );
+        }
+    }, [isAdmin, establishments?.length, globalIsHotel, activeEstablishment, t]);
 
     const effectiveCompany = isAdmin ? company : ownCompany;
 
@@ -219,7 +246,20 @@ export default function HotelRooms() {
                         {t("rooms.description", "Habitaciones físicas por tipo, con su ocupación de hoy. La reserva sigue siendo por tipo; la habitación se asigna en el check-in o manualmente.")}
                     </p>
                 </div>
-                <div className="flex gap-2">
+                <div className="flex flex-wrap items-center gap-2">
+                    {isAdmin && (
+                        <select
+                            value={company}
+                            onChange={(e) => setCompany(e.target.value)}
+                            className={`flex h-9 rounded-md border bg-background px-3 text-sm shadow-sm ${company ? "border-input" : "border-cheese-500 text-muted-foreground"}`}
+                            aria-label={t("rooms.pickHotelPlaceholder", "Selecciona un hotel")}
+                        >
+                            <option value="">{t("rooms.pickHotelPlaceholder", "— Selecciona un hotel —")}</option>
+                            {hotels.map((h) => (
+                                <option key={h.company_id} value={h.company_id}>🏨 {h.company_name}</option>
+                            ))}
+                        </select>
+                    )}
                     <Button variant="ghost" size="icon" onClick={() => refetch()} disabled={isLoading}>
                         <RefreshCw className={`w-4 h-4 ${isLoading ? "animate-spin" : ""}`} />
                     </Button>
@@ -238,7 +278,7 @@ export default function HotelRooms() {
 
             {!effectiveCompany ? (
                 <Card><CardContent className="py-12 text-center text-muted-foreground">
-                    {t("rooms.selectHotel", "Selecciona un hotel para ver sus habitaciones")}
+                    {t("rooms.selectHotelInPage", "Selecciona un hotel en el selector de esta página para ver sus habitaciones")}
                 </CardContent></Card>
             ) : rooms.length === 0 && !isLoading ? (
                 <Card><CardContent className="py-12 text-center text-muted-foreground">
