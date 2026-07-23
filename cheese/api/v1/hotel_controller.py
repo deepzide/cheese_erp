@@ -213,7 +213,16 @@ def get_hotel_availability(experience_id, date_from=None, date_to=None, guests=N
             order_by="date_from asc",
         )
 
-        # Build nightly availability
+        # Build nightly availability. Each night carries ITS OWN rate (day
+        # matrix / custom price / season resolved per date), not a flat price.
+        from cheese.cheese.utils.seasonal_pricing import compute_night_prices
+
+        total_nights = (end_date - start_date).days
+        nightly_rates = (
+            compute_night_prices(experience, start_date, total_nights)["night_prices"]
+            if total_nights > 0
+            else []
+        )
         nights = []
         current_date = start_date
         while current_date < end_date:
@@ -235,7 +244,7 @@ def get_hotel_availability(experience_id, date_from=None, date_to=None, guests=N
                     "room_size": room_size,
                     "max_guests_available": available * room_size,
                     "status": matching_slot.slot_status,
-                    "price_per_night": flt(experience.price_per_night),
+                    "price_per_night": flt(nightly_rates[len(nights)]) if len(nights) < len(nightly_rates) else flt(experience.price_per_night),
                 })
             else:
                 nights.append({
@@ -244,7 +253,7 @@ def get_hotel_availability(experience_id, date_from=None, date_to=None, guests=N
                     "max_capacity": 0,
                     "available": 0,
                     "status": "NO_SLOT",
-                    "price_per_night": flt(experience.price_per_night),
+                    "price_per_night": flt(nightly_rates[len(nights)]) if len(nights) < len(nightly_rates) else flt(experience.price_per_night),
                 })
 
             current_date = add_days(current_date, 1)
@@ -677,7 +686,9 @@ def bot_check_hotel_availability(room_id, date_from, date_to=None, guests=None, 
         if min_available == float('inf'):
             min_available = 0
             
-        total_price = flt(data.get("price_per_night")) * len(nights)
+        # Sum the per-night rates (weekday/weekend and other day-scoped
+        # tariffs differ), never flat rate x nights.
+        total_price = flt(sum(flt(n.get("price_per_night")) for n in nights), 2)
         
         return success("Availability checked", {
             "room_id": room_id,

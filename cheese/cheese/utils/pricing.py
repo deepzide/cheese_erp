@@ -96,31 +96,49 @@ def calculate_ticket_price(experience_id, party_size, route_id=None, ticket=None
 		return result
 
 	if experience.experience_type == "HOTEL":
-		nights = ticket.nights if ticket else 1
+		from cheese.cheese.utils.seasonal_pricing import compute_night_prices
+
+		nights = cint(ticket.nights) if ticket and ticket.get("nights") else 1
 		rooms = party_size  # For HOTEL, party_size passed is actually rooms_requested
-		# Layer 4: a custom price overrides the per-night / route price for the date.
-		custom = get_active_custom_price(experience_id, selected_date)
-		custom_doc = frappe.get_doc("Cheese Custom Price", custom.name) if custom else None
-		src = custom_doc or experience
-		if route_id:
-			per_night = src.route_price if src.route_price is not None else 0
-		else:
-			per_night = src.get("price_per_night") or 0
+		# Each night is priced by its own date (day matrix / custom price /
+		# season per night), then summed — never flat rate x nights.
+		night = compute_night_prices(
+			experience, selected_date, nights, in_route=bool(route_id)
+		)
+		night_prices = night["night_prices"]
+		nightly_sum = flt(sum(night_prices), 2)
+		distinct_rates = {flt(r) for r in night_prices}
 		result = {
-			"total_price": per_night * nights * rooms,
-			"price_per_night": per_night,
+			"total_price": flt(nightly_sum * rooms, 2),
+			# Uniform stays keep the single nightly rate; mixed stays carry the
+			# average (the true detail lives in night_breakdown).
+			"price_per_night": (
+				night_prices[0]
+				if len(distinct_rates) == 1 and night_prices
+				else (flt(nightly_sum / nights, 2) if nights else 0)
+			),
+			"night_breakdown": night["breakdown"],
 			"nights": nights,
 			"rooms": rooms,
-			"individual_price": src.get("price_per_night"),
-			"route_price": src.route_price,
-			"custom_price": custom_doc.name if custom_doc else None,
+			"individual_price": experience.get("price_per_night"),
+			"route_price": experience.route_price,
+			"custom_price": night["custom_price"],
 		}
-		season = get_active_season(experience.company, experience_id, selected_date)
-		if season and season.percent and (custom_doc is None or cint(custom_doc.affected_by_seasons)):
-			result["price_before_season"] = result["total_price"]
-			result["season"] = dict(season)
-			result["total_price"] = flt(result["total_price"] * (1 + flt(season.percent) / 100.0), 2)
-		return _convert_extras(_localize_price_result(result, experience, log_context=log_context))
+		if night["season"]:
+			base_total = flt(
+				sum(e.get("base_rate", e["rate"]) for e in night["breakdown"]) * rooms, 2
+			)
+			if base_total != result["total_price"]:
+				result["price_before_season"] = base_total
+			result["season"] = night["season"]
+		result = _convert_extras(_localize_price_result(result, experience, log_context=log_context))
+		rate = result.get("exchange_rate")
+		if rate:
+			result["price_per_night"] = flt(result["price_per_night"] * rate, 2)
+			for entry in result.get("night_breakdown") or []:
+				entry["rate"] = flt(entry["rate"] * rate, 2)
+				entry["base_rate"] = flt(entry["base_rate"] * rate, 2)
+		return result
 
 	party = compute_party_prices(
 		experience,

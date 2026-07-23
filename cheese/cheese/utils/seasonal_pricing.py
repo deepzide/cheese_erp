@@ -21,7 +21,7 @@ import json
 
 import frappe
 from frappe import _
-from frappe.utils import cint, flt, getdate
+from frappe.utils import add_days, cint, flt, getdate
 
 from cheese.cheese.doctype.cheese_day_range.cheese_day_range import day_range_set
 
@@ -328,6 +328,99 @@ def compute_party_prices(experience_doc, party_size, selected_date=None, guest_a
 		"uses_price_matrix": use_matrix,
 		"custom_price": custom_doc.name if custom_doc else None,
 		"allow_promotions": allow_promotions,
+	}
+
+
+def compute_night_prices(experience_doc, check_in_date, nights, in_route=False):
+	"""Per-night rates for a hotel stay: each night is priced by its own date.
+
+	For each night (check-in + i, i in 0..nights-1) the usual layers apply to
+	THAT night's date: an active custom price (layer 4) overrides the matrix
+	and base, the day matrix (layer 2) matched by the night's weekday
+	overrides the base per-night price (layer 1), and the date's active
+	season (layer 3) adjusts the night. A Wed→Sun stay therefore charges the
+	Wed/Thu/Fri nights at the weekday rate and the Sat night at the weekend
+	rate, instead of a flat rate for every night.
+
+	Returns dict: night_prices (list, experience currency), breakdown (one
+	entry per night with date/day_type/rate), season (first one applied, for
+	display), custom_price (first one applied), uses_price_matrix.
+	"""
+	company = experience_doc.company
+	day_ranges = _company_day_ranges(company)
+	nights = cint(nights) or 1
+	try:
+		check_in = getdate(check_in_date) if check_in_date else None
+	except Exception:
+		check_in = None
+
+	night_prices = []
+	breakdown = []
+	first_season = None
+	first_custom = None
+	any_matrix = False
+	for i in range(nights):
+		date_value = add_days(check_in, i) if check_in else None
+		day_type = get_day_type(date_value)
+		weekday = getdate(date_value).weekday() if date_value else None
+
+		custom = get_active_custom_price(experience_doc.name, date_value) if date_value else None
+		custom_doc = frappe.get_doc("Cheese Custom Price", custom.name) if custom else None
+		source = custom_doc or experience_doc
+
+		lines = [
+			{
+				"day_type": row.day_type,
+				"day_range": row.day_range,
+				"age_group": row.age_group,
+				"price": row.price,
+				"route_price": row.route_price,
+			}
+			for row in (source.get("price_lines") or [])
+		]
+		if custom_doc is not None:
+			use_matrix = bool(lines)
+		else:
+			use_matrix = bool(lines) and bool(
+				cint(experience_doc.get("differentiate_by_weekday"))
+			)
+
+		rate = None
+		if use_matrix:
+			# Nights have no age dimension: only day-scoped/general lines match.
+			rate = _match_price_line(
+				lines, day_type, None, in_route, weekday=weekday, day_ranges=day_ranges
+			)
+			if rate is not None:
+				any_matrix = True
+		if rate is None:
+			rate = flt(source.get("route_price")) if in_route else flt(source.get("price_per_night"))
+
+		entry = {
+			"date": str(date_value) if date_value else None,
+			"day_type": day_type,
+			"base_rate": flt(rate),
+		}
+		if custom_doc is not None:
+			entry["custom_price"] = custom_doc.name
+			first_custom = first_custom or custom_doc.name
+
+		season = get_active_season(company, experience_doc.name, date_value) if date_value else None
+		if season and season.percent and (custom_doc is None or cint(custom_doc.affected_by_seasons)):
+			rate = flt(flt(rate) * (1 + flt(season.percent) / 100.0), 2)
+			entry["season_percent"] = flt(season.percent)
+			first_season = first_season or season
+
+		entry["rate"] = flt(rate)
+		night_prices.append(flt(rate))
+		breakdown.append(entry)
+
+	return {
+		"night_prices": night_prices,
+		"breakdown": breakdown,
+		"season": dict(first_season) if first_season else None,
+		"custom_price": first_custom,
+		"uses_price_matrix": any_matrix,
 	}
 
 
