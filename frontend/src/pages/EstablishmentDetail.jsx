@@ -13,6 +13,7 @@ import { Textarea } from "@/components/ui/textarea";
 import DocumentGallery from "@/components/DocumentGallery";
 import InlineDocumentUploadDialog from "@/components/InlineDocumentUploadDialog";
 import { useFrappeList } from "@/lib/useApiData";
+import { hotelService } from "@/api/hotelService";
 import {
     Building2,
     ArrowLeft,
@@ -28,6 +29,7 @@ import {
     FileText,
     BedDouble,
     DoorOpen,
+    CalendarDays,
 } from "lucide-react";
 import { toast } from "sonner";
 import { establishmentService } from "@/api/establishmentService";
@@ -77,6 +79,16 @@ export default function EstablishmentDetail() {
         pageSize: 100,
     });
     const roomTypeNames = new Set((roomTypes || []).map((rt) => rt.name));
+
+    // Operational hotel stats (arrivals/departures today, rooms, occupancy)
+    const { data: hotelStatsRes } = useQuery({
+        queryKey: ["hotel-stats", companyId],
+        enabled: !!companyId,
+        queryFn: async () => {
+            const res = await hotelService.getHotelStats(companyId);
+            return res?.data?.message?.data || res?.data?.data || null;
+        },
+    });
 
     const { data: payload, isLoading, error, refetch } = useQuery({
         queryKey: ["establishment", companyId],
@@ -528,21 +540,55 @@ export default function EstablishmentDetail() {
 
                     {(payload?.is_hotel || payload?.cheese_is_hotel) && (
                         <Card>
-                            <CardHeader className="flex flex-row items-center justify-between">
+                            <CardHeader className="flex flex-row items-center justify-between flex-wrap gap-2">
                                 <CardTitle className="text-base flex items-center gap-2">
                                     <DoorOpen className="w-4 h-4 text-cheese-600" />
                                     {t("roomTypes.title", "Tipos de Habitaciones")}
                                 </CardTitle>
-                                <Button
-                                    size="sm"
-                                    variant="outline"
-                                    onClick={() => navigate(`/cheese/hotel-reservations?establishment=${encodeURIComponent(companyId)}`)}
-                                >
-                                    <BedDouble className="w-4 h-4 mr-1" />
-                                    {t("establishments.viewHotelReservations", "Ver reservaciones")}
-                                </Button>
+                                <div className="flex gap-2">
+                                    <Button
+                                        size="sm"
+                                        variant="outline"
+                                        onClick={() => navigate(`/cheese/hotel-availability-grid?hotel=${encodeURIComponent(companyId)}`)}
+                                    >
+                                        <CalendarDays className="w-4 h-4 mr-1" />
+                                        {t("establishments.viewHotelAvailability", "Disponibilidad hotelera")}
+                                    </Button>
+                                    <Button
+                                        size="sm"
+                                        variant="outline"
+                                        onClick={() => navigate(`/cheese/hotel-reservations?establishment=${encodeURIComponent(companyId)}`)}
+                                    >
+                                        <BedDouble className="w-4 h-4 mr-1" />
+                                        {t("establishments.viewHotelReservations", "Ver reservaciones")}
+                                    </Button>
+                                </div>
                             </CardHeader>
                             <CardContent className="space-y-2">
+                                {hotelStatsRes && (
+                                    <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 pb-3 mb-1 border-b border-border/60">
+                                        <div className="text-center">
+                                            <p className="text-lg font-bold text-foreground">{hotelStatsRes.arrivals_today}</p>
+                                            <p className="text-[11px] text-muted-foreground">{t("hotels.arrivalsToday", "Llegadas hoy")}</p>
+                                        </div>
+                                        <div className="text-center">
+                                            <p className="text-lg font-bold text-foreground">{hotelStatsRes.departures_today}</p>
+                                            <p className="text-[11px] text-muted-foreground">{t("hotels.departuresToday", "Salidas hoy")}</p>
+                                        </div>
+                                        <div className="text-center">
+                                            <p className="text-lg font-bold text-foreground">{hotelStatsRes.room_types_count}</p>
+                                            <p className="text-[11px] text-muted-foreground">{t("hotels.roomTypes", "Tipos de hab.")}</p>
+                                        </div>
+                                        <div className="text-center">
+                                            <p className="text-lg font-bold text-foreground">{hotelStatsRes.rooms_count}</p>
+                                            <p className="text-[11px] text-muted-foreground">{t("hotels.rooms", "Habitaciones")}</p>
+                                        </div>
+                                        <div className="text-center">
+                                            <p className="text-lg font-bold text-cheese-700 dark:text-cheese-400">{hotelStatsRes.occupancy_7d}%</p>
+                                            <p className="text-[11px] text-muted-foreground">{t("hotels.occupancy7d", "Ocupación 7 días")}</p>
+                                        </div>
+                                    </div>
+                                )}
                                 {(roomTypes || []).length === 0 ? (
                                     <p className="text-sm text-muted-foreground">{t("roomTypes.empty", "No hay tipos de habitación registrados para este alcance.")}</p>
                                 ) : (

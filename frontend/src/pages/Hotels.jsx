@@ -97,6 +97,30 @@ export default function Hotels() {
                                         </div>
                                         <Badge className="bg-indigo-500/15 text-indigo-600">{t("hotels.hotelBadge", "Hotel")}</Badge>
                                     </div>
+                                    {hotel.stats && (
+                                        <div className="grid grid-cols-5 gap-1 mb-3 pb-3 border-b border-border/60 text-center">
+                                            <div>
+                                                <p className="text-sm font-bold text-foreground">{hotel.stats.arrivals_today}</p>
+                                                <p className="text-[10px] text-muted-foreground leading-tight">{t("hotels.arrivalsToday", "Llegadas hoy")}</p>
+                                            </div>
+                                            <div>
+                                                <p className="text-sm font-bold text-foreground">{hotel.stats.departures_today}</p>
+                                                <p className="text-[10px] text-muted-foreground leading-tight">{t("hotels.departuresToday", "Salidas hoy")}</p>
+                                            </div>
+                                            <div>
+                                                <p className="text-sm font-bold text-foreground">{hotel.stats.room_types_count}</p>
+                                                <p className="text-[10px] text-muted-foreground leading-tight">{t("hotels.roomTypes", "Tipos de hab.")}</p>
+                                            </div>
+                                            <div>
+                                                <p className="text-sm font-bold text-foreground">{hotel.stats.rooms_count}</p>
+                                                <p className="text-[10px] text-muted-foreground leading-tight">{t("hotels.rooms", "Habitaciones")}</p>
+                                            </div>
+                                            <div>
+                                                <p className="text-sm font-bold text-cheese-700 dark:text-cheese-400">{hotel.stats.occupancy_7d}%</p>
+                                                <p className="text-[10px] text-muted-foreground leading-tight">{t("hotels.occupancy7d", "Ocup. 7 días")}</p>
+                                            </div>
+                                        </div>
+                                    )}
                                     <div className="space-y-1.5 text-xs text-muted-foreground">
                                         <div className="flex items-center gap-2">
                                             <BedDouble className="w-3.5 h-3.5" />

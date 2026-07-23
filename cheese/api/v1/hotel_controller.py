@@ -69,12 +69,16 @@ def list_hotels(page=1, page_size=20, search=None):
             order_by="company_name asc",
         )
 
-        # Enrich with experience count
+        # Enrich with experience count + operational stats for the cards
         for hotel in hotels:
             hotel["experience_count"] = frappe.db.count(
                 "Cheese Experience",
                 {"company": hotel.name, "experience_type": "HOTEL"},
             )
+            try:
+                hotel["stats"] = _hotel_stats(hotel.name)
+            except Exception:
+                hotel["stats"] = None
 
         total = frappe.db.count("Company", filters=filters)
 
@@ -665,3 +669,151 @@ def get_hotel_reservation_details(ticket_id):
     except Exception as e:
         frappe.log_error(f"Error in get_hotel_reservation_details: {str(e)}")
         return error("Failed to get reservation details", "SERVER_ERROR", {"error": str(e)}, 500)
+
+
+def _hotel_stats(hotel_id):
+    """Operational stats for a hotel card/detail: today arrivals/departures,
+    room-type and room counts, and room occupancy for the next 7 nights."""
+    from frappe.utils import date_diff, nowdate
+
+    from cheese.cheese.utils.room_assignment import ACTIVE_STAY_STATUSES
+
+    today = nowdate()
+    arrivals_today = frappe.db.count(
+        "Cheese Ticket",
+        {"company": hotel_id, "check_in_date": today, "status": ["in", ["PENDING", "CONFIRMED", "CHECKED_IN"]]},
+    )
+    departures_today = frappe.db.count(
+        "Cheese Ticket",
+        {"company": hotel_id, "check_out_date": today, "status": ["in", ["CONFIRMED", "CHECKED_IN", "COMPLETED"]]},
+    )
+    room_types_count = frappe.db.count(
+        "Cheese Experience", {"company": hotel_id, "experience_type": "HOTEL"}
+    )
+    rooms_count = frappe.db.count("Cheese Hotel Room", {"company": hotel_id})
+
+    active_rooms = frappe.get_all(
+        "Cheese Hotel Room", filters={"company": hotel_id, "status": "ACTIVE"}, pluck="name"
+    )
+    horizon_end = add_days(getdate(today), 7)
+    occupied_nights = 0
+    if active_rooms:
+        stays = frappe.get_all(
+            "Cheese Room Stay",
+            filters={
+                "room": ["in", active_rooms],
+                "status": ["in", list(ACTIVE_STAY_STATUSES)],
+                "check_in": ["<", str(horizon_end)],
+                "check_out": [">", today],
+            },
+            fields=["check_in", "check_out"],
+        )
+        for s in stays:
+            start = max(getdate(s.check_in), getdate(today))
+            end = min(getdate(s.check_out), horizon_end)
+            occupied_nights += max(0, date_diff(end, start))
+    capacity_nights = len(active_rooms) * 7
+    occupancy_7d = round(occupied_nights * 100.0 / capacity_nights) if capacity_nights else 0
+    return {
+        "arrivals_today": arrivals_today,
+        "departures_today": departures_today,
+        "room_types_count": room_types_count,
+        "rooms_count": rooms_count,
+        "occupancy_7d": occupancy_7d,
+    }
+
+
+@frappe.whitelist()
+def get_hotel_stats(hotel_id):
+    """Stats block for the hotel detail page."""
+    try:
+        if not hotel_id:
+            return validation_error("hotel_id is required")
+        user_company = _get_current_user_company()
+        if user_company and hotel_id != user_company:
+            return error("Unauthorized", "UNAUTHORIZED", {}, 403)
+        if not frappe.db.exists("Company", hotel_id):
+            return not_found("Hotel", hotel_id)
+        return success("Hotel stats retrieved successfully", _hotel_stats(hotel_id))
+    except Exception as e:
+        frappe.log_error(f"Error in get_hotel_stats: {str(e)}")
+        return error("Failed to get hotel stats", "SERVER_ERROR", {"error": str(e)}, 500)
+
+
+@frappe.whitelist()
+def get_hotel_availability_matrix(hotel_id, date_from=None, days=14):
+    """PMS-style grid: per room type of the hotel, available rooms and the
+    nightly rate for the next `days` days starting at date_from (inclusive)."""
+    try:
+        if not hotel_id:
+            return validation_error("hotel_id is required")
+        user_company = _get_current_user_company()
+        if user_company and hotel_id != user_company:
+            return error("Unauthorized", "UNAUTHORIZED", {}, 403)
+        if not frappe.db.exists("Company", hotel_id):
+            return not_found("Hotel", hotel_id)
+
+        days = max(1, min(cint(days) or 14, 31))
+        start = getdate(date_from) if date_from else getdate(now_datetime())
+        dates = [str(add_days(start, i)) for i in range(days)]
+
+        from cheese.cheese.utils.room_assignment import ACTIVE_STAY_STATUSES
+        from cheese.cheese.utils.seasonal_pricing import compute_night_prices
+
+        room_types = frappe.get_all(
+            "Cheese Experience",
+            filters={"company": hotel_id, "experience_type": "HOTEL"},
+            fields=["name", "min_nights_stay", "room_size", "currency", "price_per_night", "status"],
+            order_by="name asc",
+        )
+        out = []
+        for rt in room_types:
+            exp_doc = frappe.get_doc("Cheese Experience", rt.name)
+            rates = compute_night_prices(exp_doc, start, days)["night_prices"]
+            active_rooms = frappe.get_all(
+                "Cheese Hotel Room", filters={"room_type": rt.name, "status": "ACTIVE"}, pluck="name"
+            )
+            total = len(active_rooms)
+            stays = (
+                frappe.get_all(
+                    "Cheese Room Stay",
+                    filters={
+                        "room": ["in", active_rooms],
+                        "status": ["in", list(ACTIVE_STAY_STATUSES)],
+                        "check_in": ["<", dates[-1]],
+                        "check_out": [">", dates[0]],
+                    },
+                    fields=["room", "check_in", "check_out"],
+                )
+                if active_rooms
+                else []
+            )
+            day_entries = []
+            for i, d in enumerate(dates):
+                busy = {s.room for s in stays if str(s.check_in) <= d < str(s.check_out)}
+                day_entries.append(
+                    {
+                        "date": d,
+                        "available": max(0, total - len(busy)),
+                        "rate": flt(rates[i]) if i < len(rates) else flt(rt.price_per_night),
+                    }
+                )
+            out.append(
+                {
+                    "room_type": rt.name,
+                    "status": rt.status,
+                    "total_rooms": frappe.db.count("Cheese Hotel Room", {"room_type": rt.name}),
+                    "active_rooms": total,
+                    "min_nights_stay": rt.min_nights_stay,
+                    "room_size": rt.room_size,
+                    "currency": rt.currency or "UYU",
+                    "days": day_entries,
+                }
+            )
+        return success(
+            "Hotel availability matrix retrieved successfully",
+            {"hotel_id": hotel_id, "date_from": str(start), "days": days, "dates": dates, "room_types": out},
+        )
+    except Exception as e:
+        frappe.log_error(f"Error in get_hotel_availability_matrix: {str(e)}")
+        return error("Failed to get availability matrix", "SERVER_ERROR", {"error": str(e)}, 500)

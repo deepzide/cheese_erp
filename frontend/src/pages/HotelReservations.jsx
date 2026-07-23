@@ -30,14 +30,38 @@ export default function HotelReservations() {
     const hotelId = searchParams.get("establishment") || searchParams.get("hotel") || activeEstablishment || null;
     const { t } = useTranslation();
     const [statusFilter, setStatusFilter] = useState("all");
+    const [roomTypeFilter, setRoomTypeFilter] = useState("all");
     const [dateFrom, setDateFrom] = useState("");
     const [dateTo, setDateTo] = useState("");
 
+    // Room types in scope, to filter reservations by type
+    const { data: roomTypesPayload } = useQuery({
+        queryKey: ["hotel-room-types", hotelId],
+        queryFn: async () => {
+            if (hotelId) {
+                const res = await hotelService.getHotelExperiences(hotelId, { page_size: 200 });
+                const d = res?.data?.message || res?.data || {};
+                return Array.isArray(d.data) ? d.data : [];
+            }
+            const hotelsRes = await hotelService.listHotels({ page: 1, page_size: 200 });
+            const hotels = (hotelsRes?.data?.message || hotelsRes?.data || {})?.data || [];
+            const all = [];
+            for (const h of hotels) {
+                const res = await hotelService.getHotelExperiences(h.name, { page_size: 200 });
+                const d = res?.data?.message || res?.data || {};
+                if (Array.isArray(d.data)) all.push(...d.data);
+            }
+            return all;
+        },
+    });
+    const roomTypes = Array.isArray(roomTypesPayload) ? roomTypesPayload : [];
+
     const { data: payload, isLoading, error, refetch } = useQuery({
-        queryKey: ["hotel-reservations", hotelId, statusFilter, dateFrom, dateTo],
+        queryKey: ["hotel-reservations", hotelId, statusFilter, roomTypeFilter, dateFrom, dateTo],
         queryFn: async () => {
             const params = { page: 1, page_size: 100 };
             if (hotelId) params.hotel_id = hotelId;
+            if (roomTypeFilter && roomTypeFilter !== "all") params.experience_id = roomTypeFilter;
             if (statusFilter && statusFilter !== "all") params.status = statusFilter;
             if (dateFrom) params.date_from = dateFrom;
             if (dateTo) params.date_to = dateTo;
@@ -73,6 +97,17 @@ export default function HotelReservations() {
                     </p>
                 </div>
                 <div className="flex flex-wrap gap-2 items-center">
+                    <Select value={roomTypeFilter} onValueChange={setRoomTypeFilter}>
+                        <SelectTrigger className="w-52 h-9">
+                            <SelectValue placeholder={t("hotelReservations.roomType", "Tipo de habitación")} />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="all">{t("hotelReservations.allRoomTypes", "Todos los tipos")}</SelectItem>
+                            {roomTypes.map((rt) => (
+                                <SelectItem key={rt.name} value={rt.name}>{rt.name}</SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
                     <Input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} className="h-9 w-40" placeholder={t("common.from", "From")} />
                     <Input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} className="h-9 w-40" placeholder={t("common.to", "To")} />
                     <Select value={statusFilter} onValueChange={setStatusFilter}>

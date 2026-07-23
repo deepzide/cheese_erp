@@ -63,6 +63,7 @@ import HotelReservations from './HotelReservations';
 import HotelAvailability from './HotelAvailability';
 import HotelRooms from './HotelRooms';
 import RoomTypes from './RoomTypes';
+import HotelAvailabilityGrid from './HotelAvailabilityGrid';
 import UsersPage from './Users';
 import BotUsers from './BotUsers';
 import EmailServer from './EmailServer';
@@ -161,6 +162,7 @@ export default function Pages() {
                     <Route path="hotel-availability" element={<HotelRouteGuard><HotelAvailability /></HotelRouteGuard>} />
                     <Route path="hotel-rooms" element={<HotelRouteGuard><HotelRooms /></HotelRouteGuard>} />
                     <Route path="room-types" element={<HotelRouteGuard><RoomTypes /></HotelRouteGuard>} />
+                    <Route path="hotel-availability-grid" element={<HotelRouteGuard><HotelAvailabilityGrid /></HotelRouteGuard>} />
                     <Route path="users" element={<UsersPage />} />
                     <Route path="bot-users" element={<BotUsers />} />
                     <Route path="email-server" element={<EmailServer />} />

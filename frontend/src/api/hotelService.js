@@ -31,6 +31,16 @@ export const hotelService = {
         return apiRequest(`/api/method/cheese.api.v1.room_controller.list_free_rooms?${searchParams}`);
     },
 
+    getHotelStats: async (hotelId) => {
+        return apiRequest(`${BASE}.get_hotel_stats?hotel_id=${encodeURIComponent(hotelId)}`);
+    },
+
+    getHotelAvailabilityMatrix: async (hotelId, params = {}) => {
+        const searchParams = new URLSearchParams({ hotel_id: hotelId });
+        Object.entries(params).forEach(([k, v]) => { if (v != null) searchParams.append(k, v); });
+        return apiRequest(`${BASE}.get_hotel_availability_matrix?${searchParams}`);
+    },
+
     getHotelReservations: async (params = {}) => {
         const searchParams = new URLSearchParams();
         Object.entries(params).forEach(([k, v]) => { if (v != null) searchParams.append(k, v); });
