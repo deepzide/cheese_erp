@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { CalendarDays, RefreshCw, Hotel, ChevronLeft, ChevronRight, BedDouble, AlertCircle } from "lucide-react";
 import { hotelService } from "@/api/hotelService";
 import { useActiveEstablishment } from "@/lib/ActiveEstablishmentContext";
+import HotelAvailability from "./HotelAvailability";
 
 const DOW = ["DOM", "LUN", "MAR", "MIÉ", "JUE", "VIE", "SÁB"];
 const DAYS = 14;
@@ -168,7 +169,7 @@ export default function HotelAvailabilityGrid() {
                                 {roomTypes.map((rt) => (
                                     <React.Fragment key={rt.room_type}>
                                         {/* Group header */}
-                                        <div className="py-2 px-3 text-xs font-semibold text-cheese-700 dark:text-cheese-400 bg-cheese-50/60 dark:bg-cheese-950/20 border-b border-border/60 flex items-center gap-1" style={{ gridColumn: `1 / span ${dates.length + 1}` }}>
+                                        <div className="py-2 px-3 text-xs font-semibold text-foreground bg-cheese-50/60 dark:bg-cheese-950/20 border-b border-border/60 flex items-center gap-1" style={{ gridColumn: `1 / span ${dates.length + 1}` }}>
                                             <BedDouble className="w-3.5 h-3.5" />
                                             {rt.room_type} · {rt.total_rooms} {t("hotelAvailGrid.rooms", "hab")}
                                             {rt.min_nights_stay > 1 ? ` · ${t("hotelAvailGrid.minNights", "mín {{n}} noches", { n: rt.min_nights_stay })}` : ""}
@@ -211,6 +212,14 @@ export default function HotelAvailabilityGrid() {
                         </div>
                     </CardContent>
                 </Card>
+            )}
+
+            {/* Per-room-type calendar (merged from the former "Calendario por Tipo"
+                view): day states, range selection and quick booking. */}
+            {hotelId && (
+                <div className="pt-2 border-t border-border">
+                    <HotelAvailability hotelId={hotelId} embedded />
+                </div>
             )}
         </motion.div>
     );

@@ -40,7 +40,7 @@ const addDaysStr = (dateStr, n) => {
     return d.toISOString().split("T")[0];
 };
 
-export default function HotelAvailability() {
+export default function HotelAvailability({ hotelId = null, embedded = false }) {
     const { t } = useTranslation();
     const queryClient = useQueryClient();
     const [selectedExperience, setSelectedExperience] = useState("");
@@ -69,7 +69,10 @@ export default function HotelAvailability() {
 
     const { activeEstablishment } = useActiveEstablishment();
     const allHotels = Array.isArray(hotelsPayload?.data) ? hotelsPayload.data : [];
-    const hotels = activeEstablishment ? allHotels.filter((h) => h.name === activeEstablishment) : allHotels;
+    // Embedded (inside the grid): scope to the hotel selected there; standalone: global selector.
+    const hotels = hotelId
+        ? allHotels.filter((h) => h.name === hotelId)
+        : (activeEstablishment ? allHotels.filter((h) => h.name === activeEstablishment) : allHotels);
 
     const { data: expPayload } = useQuery({
         queryKey: ["hotel-experiences", hotels.map(h => h.name).join(",")],
@@ -245,12 +248,18 @@ export default function HotelAvailability() {
     }
 
     return (
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="p-6 space-y-6">
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className={embedded ? "space-y-6" : "p-6 space-y-6"}>
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
-                    <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
-                        <CalendarDays className="w-6 h-6 text-indigo-500" /> {t("hotelAvailability.title", "Disponibilidad de Hotel")}
-                    </h1>
+                    {embedded ? (
+                        <h2 className="text-lg font-bold text-foreground flex items-center gap-2">
+                            <CalendarDays className="w-5 h-5 text-indigo-500" /> {t("hotelAvailability.titleEmbedded", "Calendario por tipo de habitación")}
+                        </h2>
+                    ) : (
+                        <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
+                            <CalendarDays className="w-6 h-6 text-indigo-500" /> {t("hotelAvailability.title", "Disponibilidad de Hotel")}
+                        </h1>
+                    )}
                     <p className="text-sm text-muted-foreground mt-1">{t("hotelAvailability.subtitleRooms", "Habitaciones disponibles por tipo, derivadas del inventario físico")}</p>
                 </div>
                 <div className="flex flex-wrap gap-2 items-center">

@@ -57,7 +57,6 @@ const navigationItems = [
     { titleKey: "nav.roomTypes", url: createPageUrl("room-types"), icon: BedDouble, section: "hotel" },
     { titleKey: "nav.hotelReservations", url: createPageUrl("hotel-reservations"), icon: BedDouble, section: "hotel" },
     { titleKey: "nav.hotelAvailabilityGrid", url: createPageUrl("hotel-availability-grid"), icon: CalendarDays, section: "hotel" },
-    { titleKey: "nav.hotelAvailability", url: createPageUrl("hotel-availability"), icon: CalendarDays, section: "hotel" },
     { titleKey: "nav.hotelRooms", url: createPageUrl("hotel-rooms"), icon: DoorOpen, section: "hotel" },
     // CLIENTES
     { titleKey: "nav.contacts", url: createPageUrl("contacts"), icon: Users, section: "clientes" },
