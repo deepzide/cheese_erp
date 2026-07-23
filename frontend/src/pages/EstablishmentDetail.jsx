@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, useLocation } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { motion } from "framer-motion";
@@ -48,6 +48,9 @@ export default function EstablishmentDetail() {
     const { id } = useParams();
     const companyId = id ? decodeURIComponent(id) : "";
     const navigate = useNavigate();
+    const location = useLocation();
+    // Return to wherever we came from (e.g. /cheese/hotels), else the establishments list.
+    const backTarget = location.state?.from || "/cheese/establishments";
     const queryClient = useQueryClient();
     const { t } = useTranslation();
     const [editMode, setEditMode] = useState(false);
@@ -201,7 +204,7 @@ export default function EstablishmentDetail() {
             toast.success(t("common.deleted", "Deleted"));
             setDeleteOpen(false);
             queryClient.invalidateQueries({ queryKey: ["establishments"] });
-            navigate("/cheese/establishments");
+            navigate(backTarget);
         },
         onError: (err) => toast.error(err?.message || t("common.failed", "Failed")),
     });
@@ -228,7 +231,7 @@ export default function EstablishmentDetail() {
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="p-6 max-w-4xl mx-auto space-y-6">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div className="flex items-center gap-3">
-                    <Button variant="ghost" size="icon" onClick={() => navigate("/cheese/establishments")}>
+                    <Button variant="ghost" size="icon" onClick={() => navigate(backTarget)}>
                         <ArrowLeft className="w-5 h-5" />
                     </Button>
                     <div>

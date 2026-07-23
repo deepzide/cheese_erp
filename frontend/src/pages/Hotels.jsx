@@ -83,7 +83,7 @@ export default function Hotels() {
                     ))
                     : filtered.map((hotel) => (
                         <motion.div key={hotel.name} whileHover={{ y: -3 }}>
-                            <Card className="border border-border shadow-sm hover:shadow-md transition-all cursor-pointer" onClick={() => navigate(`/cheese/establishments/${encodeURIComponent(hotel.name)}`)}>
+                            <Card className="border border-border shadow-sm hover:shadow-md transition-all cursor-pointer" onClick={() => navigate(`/cheese/establishments/${encodeURIComponent(hotel.name)}`, { state: { from: "/cheese/hotels" } })}>
                                 <CardContent className="p-5">
                                     <div className="flex items-start justify-between mb-3">
                                         <div className="flex items-center gap-3">
