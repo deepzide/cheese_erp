@@ -14,13 +14,20 @@ export default function EditableField({
     doctype = null, // If provided, uses FrappeSearchSelect
     searchLabel = "name",
     hint = null, // Extra read-only line under the value (view mode only)
+    onDoubleClick = null, // View mode only: double-click the value to navigate
+    doubleClickTitle = null, // Tooltip shown when the value is double-clickable
 }) {
     // When not editing, show the display value
     if (!editMode) {
+        const interactive = typeof onDoubleClick === "function" && !!value;
         return (
             <div className="space-y-1">
                 <Label className="text-xs text-muted-foreground">{label}</Label>
-                <div className="font-medium text-sm border-b border-transparent py-2 min-h-[38px] break-words">
+                <div
+                    className={`font-medium text-sm border-b border-transparent py-2 min-h-[38px] break-words ${interactive ? "cursor-pointer select-none hover:text-cheese-600 transition-colors" : ""}`}
+                    onDoubleClick={interactive ? onDoubleClick : undefined}
+                    title={interactive ? (doubleClickTitle || undefined) : undefined}
+                >
                     {value || <span className="text-muted-foreground italic">Empty</span>}
                 </div>
                 {hint}

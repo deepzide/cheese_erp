@@ -196,10 +196,9 @@ export default function Tickets() {
         if (dateFrom && (!tk.ticket_date || tk.ticket_date < dateFrom)) return false;
         if (dateTo && (!tk.ticket_date || tk.ticket_date > dateTo)) return false;
         if (searchTerm) {
+            // Search by ticket number only.
             const term = searchTerm.toLowerCase();
-            const hit = [tk.contact_name, tk.contact, tk.name, tk.experience, tk.route]
-                .some((v) => (v || '').toLowerCase().includes(term));
-            if (!hit) return false;
+            if (!(tk.name || '').toLowerCase().includes(term)) return false;
         }
         return true;
     }), [allTickets, activeEstablishment, experienceUrlFilter, routeUrlFilter, bookingFilter, bookingTicketIds, slotFilter, contactFilter, filterStatus, filterType, filterExperience, hideTerminal, dateFrom, dateTo, searchTerm]);
@@ -349,7 +348,7 @@ export default function Tickets() {
             <div className="flex flex-wrap gap-2 items-center">
                 <div className="relative">
                     <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-                    <Input placeholder={t("tickets.searchPlaceholder", "Buscar código, cliente, experiencia…")} value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-9 w-60 h-9" />
+                    <Input placeholder={t("tickets.searchPlaceholder", "Buscar por número de ticket…")} value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-9 w-60 h-9" />
                 </div>
                 <Select value={filterStatus} onValueChange={setFilterStatus}>
                     <SelectTrigger className="w-44 h-9"><Filter className="w-3 h-3 mr-1" /><SelectValue /></SelectTrigger>

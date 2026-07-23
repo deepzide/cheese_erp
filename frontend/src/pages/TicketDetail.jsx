@@ -339,6 +339,12 @@ export default function TicketDetail() {
     // Disabled entries are visible per the mockup but not implemented yet.
     const soon = t("tickets.comingSoon", "Not available yet");
     const goContact = { key: "contact", icon: Users, label: t("tickets.viewContact", "View Contact"), onClick: () => ticket?.contact && navigate(`/cheese/contacts/${ticket.contact}`) };
+
+    // Double-click a value in "Reservation Information" to open its record.
+    const openHint = t("common.doubleClickToOpen", "Doble clic para abrir");
+    const goToContact = () => ticket?.contact && navigate(`/cheese/contacts/${encodeURIComponent(ticket.contact)}`);
+    const goToExperience = () => ticket?.experience && navigate(`/cheese/experiences/${encodeURIComponent(ticket.experience)}`);
+    const goToEstablishment = () => ticket?.company && navigate(`/cheese/establishments/${encodeURIComponent(ticket.company)}`);
     const buildActions = () => {
         switch (ticket?.status) {
             case "PENDING":
@@ -472,7 +478,7 @@ export default function TicketDetail() {
                                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-6 gap-x-8">
                                         {isHotel ? (
                                             <>
-                                                <EditableField label={t("tickets.guest", "Guest")} value={form.contact} onChange={(v) => handleFieldChange("contact", v)} editMode={editMode} doctype="Cheese Contact" searchLabel="full_name" />
+                                                <EditableField label={t("tickets.guest", "Guest")} value={form.contact} onChange={(v) => handleFieldChange("contact", v)} editMode={editMode} doctype="Cheese Contact" searchLabel="full_name" onDoubleClick={goToContact} doubleClickTitle={openHint} />
                                                 <EditableField label={t("tickets.guests", "Guests")} type="number" value={form.party_size} onChange={(v) => handleFieldChange("party_size", v)} editMode={editMode} />
                                                 {editMode ? (
                                                     <div className="space-y-1.5 animate-in fade-in zoom-in-95 duration-200">
@@ -483,15 +489,15 @@ export default function TicketDetail() {
                                                     <EditableField label={t("hotelReservations.checkInDate", "Check-in")} value={form.check_in_date ? new Date(form.check_in_date + "T00:00:00").toLocaleDateString() : "—"} editMode={false} />
                                                 )}
                                                 <EditableField label={t("common.nights", "Nights")} value={form.nights} editMode={false} />
-                                                <EditableField label={t("tickets.room", "Room")} value={form.experience} onChange={(v) => handleFieldChange("experience", v)} editMode={editMode} doctype="Cheese Experience" searchLabel="name" />
-                                                <EditableField label={t("tickets.establishment", "Establishment")} value={form.company} onChange={(v) => handleFieldChange("company", v)} editMode={editMode} doctype="Company" searchLabel="name" />
+                                                <EditableField label={t("tickets.room", "Room")} value={form.experience} onChange={(v) => handleFieldChange("experience", v)} editMode={editMode} doctype="Cheese Experience" searchLabel="name" onDoubleClick={goToExperience} doubleClickTitle={openHint} />
+                                                <EditableField label={t("tickets.establishment", "Establishment")} value={form.company} onChange={(v) => handleFieldChange("company", v)} editMode={editMode} doctype="Company" searchLabel="name" onDoubleClick={goToEstablishment} doubleClickTitle={openHint} />
                                             </>
                                         ) : (
                                             <>
-                                                <EditableField label={t("common.contact", "Contact")} value={form.contact} onChange={(v) => handleFieldChange("contact", v)} editMode={editMode} doctype="Cheese Contact" searchLabel="full_name" />
+                                                <EditableField label={t("common.contact", "Contact")} value={form.contact} onChange={(v) => handleFieldChange("contact", v)} editMode={editMode} doctype="Cheese Contact" searchLabel="full_name" onDoubleClick={goToContact} doubleClickTitle={openHint} />
                                                 <EditableField label={t("tickets.groupSize", "Group size")} type="number" value={form.party_size} onChange={(v) => handleFieldChange("party_size", v)} editMode={editMode} />
-                                                <EditableField label={t("tickets.experience", "Experience")} value={form.experience} onChange={(v) => handleFieldChange("experience", v)} editMode={editMode} doctype="Cheese Experience" searchLabel="name" />
-                                                <EditableField label={t("tickets.establishment", "Establishment")} value={form.company} onChange={(v) => handleFieldChange("company", v)} editMode={editMode} doctype="Company" searchLabel="name" />
+                                                <EditableField label={t("tickets.experience", "Experience")} value={form.experience} onChange={(v) => handleFieldChange("experience", v)} editMode={editMode} doctype="Cheese Experience" searchLabel="name" onDoubleClick={goToExperience} doubleClickTitle={openHint} />
+                                                <EditableField label={t("tickets.establishment", "Establishment")} value={form.company} onChange={(v) => handleFieldChange("company", v)} editMode={editMode} doctype="Company" searchLabel="name" onDoubleClick={goToEstablishment} doubleClickTitle={openHint} />
                                                 {editMode ? (
                                                     <div className="space-y-1.5 animate-in fade-in zoom-in-95 duration-200">
                                                         <label className="text-xs text-muted-foreground">{t("common.date", "Date")}</label>
