@@ -223,3 +223,20 @@ def send_message(conversation_id, message):
 	contact_id = info["contact"] if channel == "whatsapp" else info["phone"]
 	resp, e = _bot_post(f"/send-{channel}", {"contact_id": contact_id, "message": message})
 	return _forward(resp, e, "Mensaje enviado")
+
+
+@frappe.whitelist()
+def get_bot_llm_metrics(days=7):
+	"""LLM usage metrics from the bot (superadmin only).
+
+	Proxies POST /erp/metrics: median TTFT (p50), TTFT p95, latency, token
+	usage and USD cost per model request, grouped by day/model/agent/channel.
+	"""
+	if frappe.session.user != "Administrator" and "System Manager" not in frappe.get_roles():
+		return error("No tienes permisos para ver las métricas del bot.", "UNAUTHORIZED", {}, 403)
+	try:
+		days = max(1, min(int(days), 365))
+	except (TypeError, ValueError):
+		days = 7
+	resp, e = _bot_post("/metrics", {"days": days})
+	return _forward(resp, e, "Métricas obtenidas")

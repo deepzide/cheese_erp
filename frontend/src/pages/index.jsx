@@ -65,6 +65,7 @@ import HotelRooms from './HotelRooms';
 import UsersPage from './Users';
 import BotUsers from './BotUsers';
 import EmailServer from './EmailServer';
+import BotMetrics from './BotMetrics';
 import WebhookSettings from './WebhookSettings';
 import SemanticSearchTest from './SemanticSearchTest';
 import SemanticSearchLogs from './SemanticSearchLogs';
@@ -161,6 +162,7 @@ export default function Pages() {
                     <Route path="users" element={<UsersPage />} />
                     <Route path="bot-users" element={<BotUsers />} />
                     <Route path="email-server" element={<EmailServer />} />
+                    <Route path="bot-metrics" element={<BotMetrics />} />
                     <Route path="webhook-settings" element={<WebhookSettings />} />
                     <Route path="semantic-search" element={<SemanticSearchTest />} />
                     <Route path="search-history" element={<SemanticSearchLogs />} />

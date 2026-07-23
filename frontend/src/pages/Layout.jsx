@@ -7,7 +7,7 @@ import {
     Users, UserPlus, FileText, Wallet, ShoppingCart,
     Bell, Menu, LogOut, ChevronDown, ChevronRight, X, Search,
     Zap, Sun, Moon, Globe,
-    Shield, Landmark, UserCheck, QrCode, Star, Activity, MessageSquare, Building2, ScanLine, Hotel, BedDouble, Database, Webhook, FileSearch, History, Bot, Mail, BadgePercent, Users2, CalendarRange, DoorOpen, ArrowLeftRight, Calculator
+    Shield, Landmark, UserCheck, QrCode, Star, Activity, MessageSquare, Building2, ScanLine, Hotel, BedDouble, Database, Webhook, FileSearch, History, Bot, Mail, BadgePercent, Users2, CalendarRange, DoorOpen, ArrowLeftRight, Calculator, BarChart3
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -92,6 +92,7 @@ const navigationItems = [
     { titleKey: "nav.backups", url: createPageUrl("backups"), icon: Database, section: "sistema" },
     { titleKey: "nav.webhookSettings", url: createPageUrl("webhook-settings"), icon: Webhook, section: "sistema" },
     { titleKey: "nav.emailServer", url: createPageUrl("email-server"), icon: Mail, section: "sistema" },
+    { titleKey: "nav.botMetrics", url: createPageUrl("bot-metrics"), icon: BarChart3, section: "sistema" },
     { titleKey: "nav.dataTransfer", url: createPageUrl("data-transfer"), icon: Database, section: "sistema" },
 ];
 
@@ -107,7 +108,7 @@ const sectionDefs = {
     sistema: { labelKey: "sections.system", icon: Activity },
 };
 
-const ADMIN_ONLY_PAGES = ["backups", "events", "users", "bot-users", "email-server", "webhook-settings", "data-transfer"];
+const ADMIN_ONLY_PAGES = ["backups", "events", "users", "bot-users", "email-server", "bot-metrics", "webhook-settings", "data-transfer"];
 
 /**
  * Sidebar content, hoisted to module scope (NOT defined inside Layout's
