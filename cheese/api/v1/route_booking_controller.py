@@ -770,30 +770,14 @@ def create_route_reservation(
 			rooms = party_size if is_hotel else None
 
 			if is_hotel:
-				# Auto-resolve the slot for the check_in night
+				# Hotels derive availability from physical rooms — no slot.
+				# The ticket itself validates room availability and reserves rooms.
 				if not start_date:
 					frappe.db.rollback()
 					return validation_error(
 						"date_from (check-in) is required when the route includes hotel experiences"
 					)
-				night_slots = frappe.get_all(
-					"Cheese Experience Slot",
-					filters={
-						"experience": experience_id,
-						"date_from": ["<=", start_date],
-						"date_to": [">=", start_date],
-						"slot_status": ["in", ["OPEN", "CLOSED"]],
-					},
-					fields=["name"],
-					order_by="date_from asc",
-					limit=1,
-				)
-				if not night_slots:
-					frappe.db.rollback()
-					return validation_error(
-						f"No available slot found for hotel {experience_id} on check-in date {start_date}"
-					)
-				slot_id = night_slots[0].name
+				slot_id = None
 			else:
 				slot_id = slot_map.get(experience_id)
 				if not slot_id:
@@ -995,10 +979,15 @@ def get_route_status(route_booking_id):
 		for ticket_row in route_booking.tickets:
 			if ticket_row.ticket:
 				ticket = frappe.get_doc("Cheese Ticket", ticket_row.ticket)
-				slot = frappe.get_doc("Cheese Experience Slot", ticket.slot)
+				slot = frappe.get_doc("Cheese Experience Slot", ticket.slot) if ticket.slot else None
 
-				# Use selected_date if available, otherwise fall back to slot.date_from
-				display_date = str(ticket.selected_date) if ticket.selected_date else str(slot.date_from)
+				# Use selected_date if available; hotel tickets carry no slot
+				# and fall back to their check-in date.
+				display_date = (
+					str(ticket.selected_date)
+					if ticket.selected_date
+					else (str(slot.date_from) if slot else str(ticket.check_in_date or ""))
+				)
 
 				tickets.append(
 					{
@@ -1077,13 +1066,18 @@ def get_route_summary(route_booking_id):
 		for ticket_row in route_booking.tickets:
 			if ticket_row.ticket:
 				ticket = frappe.get_doc("Cheese Ticket", ticket_row.ticket)
-				slot = frappe.get_doc("Cheese Experience Slot", ticket.slot)
+				slot = frappe.get_doc("Cheese Experience Slot", ticket.slot) if ticket.slot else None
 				experience = frappe.get_doc("Cheese Experience", ticket.experience)
 
-				# Use selected_date if available, otherwise fall back to slot.date_from
-				display_date = str(ticket.selected_date) if ticket.selected_date else str(slot.date_from)
-				display_time = str(slot.time_from) if slot.time_from else None
-				display_time_to = str(slot.time_to) if slot.time_to else None
+				# Use selected_date if available; hotel tickets carry no slot
+				# and fall back to their check-in date.
+				display_date = (
+					str(ticket.selected_date)
+					if ticket.selected_date
+					else (str(slot.date_from) if slot else str(ticket.check_in_date or ""))
+				)
+				display_time = str(slot.time_from) if slot and slot.time_from else None
+				display_time_to = str(slot.time_to) if slot and slot.time_to else None
 
 				# Financial data: rely on ticket total so HOTEL/nightly pricing is preserved.
 				total_per_ticket = ticket.total_price or 0

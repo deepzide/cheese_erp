@@ -54,6 +54,7 @@ const navigationItems = [
     { titleKey: "nav.conversations", url: createPageUrl("conversations"), icon: MessageSquare, section: "operacion" },
     // HOTEL (solo si la empresa tiene hotel)
     { titleKey: "nav.hotels", url: createPageUrl("hotels"), icon: Hotel, section: "hotel" },
+    { titleKey: "nav.roomTypes", url: createPageUrl("room-types"), icon: BedDouble, section: "hotel" },
     { titleKey: "nav.hotelReservations", url: createPageUrl("hotel-reservations"), icon: BedDouble, section: "hotel" },
     { titleKey: "nav.hotelAvailability", url: createPageUrl("hotel-availability"), icon: CalendarDays, section: "hotel" },
     { titleKey: "nav.hotelRooms", url: createPageUrl("hotel-rooms"), icon: DoorOpen, section: "hotel" },

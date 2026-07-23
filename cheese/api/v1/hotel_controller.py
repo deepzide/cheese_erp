@@ -199,22 +199,11 @@ def get_hotel_availability(experience_id, date_from=None, date_to=None, guests=N
         if start_date > end_date:
             return validation_error("date_from must be before or equal to date_to")
 
-        from cheese.cheese.utils.capacity import get_available_capacity
-
-        # Get all slots for this experience in the date range
-        slots = frappe.get_all(
-            "Cheese Experience Slot",
-            filters={
-                "experience": experience_id,
-                "date_from": ["<=", end_date],
-                "date_to": [">=", start_date],
-            },
-            fields=["name", "date_from", "date_to", "max_capacity", "reserved_capacity", "slot_status"],
-            order_by="date_from asc",
-        )
-
-        # Build nightly availability. Each night carries ITS OWN rate (day
-        # matrix / custom price / season resolved per date), not a flat price.
+        # Availability derives from physical rooms: ACTIVE Cheese Hotel Rooms
+        # of the type minus rooms taken by an active stay (RESERVED/OCCUPIED/
+        # BLOCKED) that night. Cheese Experience Slots are no longer involved.
+        # Each night carries ITS OWN rate (day matrix / custom price / season).
+        from cheese.cheese.utils.room_assignment import ACTIVE_STAY_STATUSES
         from cheese.cheese.utils.seasonal_pricing import compute_night_prices
 
         total_nights = (end_date - start_date).days
@@ -223,39 +212,47 @@ def get_hotel_availability(experience_id, date_from=None, date_to=None, guests=N
             if total_nights > 0
             else []
         )
+
+        active_rooms = frappe.get_all(
+            "Cheese Hotel Room",
+            filters={"room_type": experience_id, "status": "ACTIVE"},
+            pluck="name",
+        )
+        total_rooms = len(active_rooms)
+        stays = (
+            frappe.get_all(
+                "Cheese Room Stay",
+                filters={
+                    "room": ["in", active_rooms],
+                    "status": ["in", list(ACTIVE_STAY_STATUSES)],
+                    "check_in": ["<", str(end_date)],
+                    "check_out": [">", str(start_date)],
+                },
+                fields=["room", "check_in", "check_out"],
+            )
+            if active_rooms
+            else []
+        )
+
         nights = []
         current_date = start_date
         while current_date < end_date:
-            # Find the slot that covers this night
-            matching_slot = None
-            for slot in slots:
-                if getdate(slot.date_from) <= current_date <= getdate(slot.date_to):
-                    matching_slot = slot
-                    break
-
-            if matching_slot:
-                available = get_available_capacity(matching_slot.name, current_date)
-                nights.append({
-                    "date": str(current_date),
-                    "slot_id": matching_slot.name,
-                    "max_capacity": matching_slot.max_capacity,
-                    "available": available,
-                    "available_rooms": available,
-                    "room_size": room_size,
-                    "max_guests_available": available * room_size,
-                    "status": matching_slot.slot_status,
-                    "price_per_night": flt(nightly_rates[len(nights)]) if len(nights) < len(nightly_rates) else flt(experience.price_per_night),
-                })
-            else:
-                nights.append({
-                    "date": str(current_date),
-                    "slot_id": None,
-                    "max_capacity": 0,
-                    "available": 0,
-                    "status": "NO_SLOT",
-                    "price_per_night": flt(nightly_rates[len(nights)]) if len(nights) < len(nightly_rates) else flt(experience.price_per_night),
-                })
-
+            night_str = str(current_date)
+            busy = {s.room for s in stays if str(s.check_in) <= night_str < str(s.check_out)}
+            available = max(0, total_rooms - len(busy))
+            nights.append({
+                "date": night_str,
+                # Synthetic per-night id: bot/API consumers treat a null
+                # slot_id as "not bookable", so only free nights carry one.
+                "slot_id": f"NIGHT-{night_str}" if available > 0 else None,
+                "max_capacity": total_rooms,
+                "available": available,
+                "available_rooms": available,
+                "room_size": room_size,
+                "max_guests_available": available * room_size,
+                "status": ("OPEN" if available > 0 else "CLOSED") if total_rooms > 0 else "NO_ROOMS",
+                "price_per_night": flt(nightly_rates[len(nights)]) if len(nights) < len(nightly_rates) else flt(experience.price_per_night),
+            })
             current_date = add_days(current_date, 1)
 
         return success(
@@ -276,224 +273,6 @@ def get_hotel_availability(experience_id, date_from=None, date_to=None, guests=N
     except Exception as e:
         frappe.log_error(f"Error in get_hotel_availability: {str(e)}")
         return error("Failed to get hotel availability", "SERVER_ERROR", {"error": str(e)}, 500)
-
-
-def _room_capacity_warning(experience_id, rooms_available):
-    """Soft warning when slot capacity exceeds the physical ACTIVE rooms of the type.
-
-    Returns None when no rooms are registered yet (phase-1 compatibility).
-    """
-    active_rooms = frappe.db.count(
-        "Cheese Hotel Room", {"room_type": experience_id, "status": "ACTIVE"}
-    )
-    if active_rooms and cint(rooms_available) > active_rooms:
-        return (
-            f"Slot capacity ({rooms_available}) exceeds the {active_rooms} ACTIVE "
-            f"physical room(s) registered for this type"
-        )
-    return None
-
-
-@frappe.whitelist()
-def create_hotel_slots(experience_id, date_from, date_to, rooms_available, price_override=None):
-    """
-    Bulk create nightly slots for a hotel experience.
-
-    Creates one Cheese Experience Slot per night in the range.
-
-    Args:
-        experience_id: Hotel Experience ID
-        date_from: Start date (YYYY-MM-DD)
-        date_to: End date (YYYY-MM-DD)
-        rooms_available: Number of rooms available per night
-        price_override: Optional price override per night
-
-    Returns:
-        Created response with count of slots
-    """
-    try:
-        if not experience_id:
-            return validation_error("experience_id is required")
-        if not date_from or not date_to:
-            return validation_error("date_from and date_to are required")
-
-        rooms_available = cint(rooms_available)
-        if rooms_available < 1:
-            return validation_error("rooms_available must be at least 1")
-
-        if not frappe.db.exists("Cheese Experience", experience_id):
-            return not_found("Experience", experience_id)
-
-        experience = frappe.get_doc("Cheese Experience", experience_id)
-        if experience.experience_type != "HOTEL":
-            return validation_error("Experience is not a HOTEL type")
-
-        try:
-            assert_experience_access(experience_id)
-        except frappe.PermissionError:
-            return error("Unauthorized", "UNAUTHORIZED", {}, 403)
-
-        start_date = getdate(date_from)
-        end_date = getdate(date_to)
-        today = getdate(now_datetime())
-
-        if start_date > end_date:
-            return validation_error("date_from must be before or equal to date_to")
-        if start_date < today:
-            return validation_error("Cannot create slots in the past")
-
-        created_slots = []
-        current_date = start_date
-
-        while current_date <= end_date:
-            # Check if slot already exists for this night
-            existing = frappe.db.exists(
-                "Cheese Experience Slot",
-                {"experience": experience_id, "date_from": current_date, "date_to": current_date}
-            )
-            if existing:
-                current_date = add_days(current_date, 1)
-                continue
-
-            slot = frappe.get_doc({
-                "doctype": "Cheese Experience Slot",
-                "experience": experience_id,
-                "company": experience.company,
-                "date_from": current_date,
-                "date_to": current_date,
-                "max_capacity": rooms_available,
-                "slot_status": "OPEN",
-                "reserved_capacity": 0,
-            })
-            slot.insert(ignore_permissions=True)
-            created_slots.append(slot.name)
-            current_date = add_days(current_date, 1)
-
-        frappe.db.commit()
-
-        return created(
-            f"Created {len(created_slots)} hotel slot(s) successfully",
-            {
-                "slots_created": len(created_slots),
-                "slot_ids": created_slots,
-                "experience_id": experience_id,
-                "date_range": {"from": str(start_date), "to": str(end_date)},
-                "rooms_available": rooms_available,
-                "capacity_warning": _room_capacity_warning(experience_id, rooms_available),
-            },
-        )
-    except frappe.ValidationError as e:
-        return validation_error(str(e))
-    except Exception as e:
-        frappe.log_error(f"Error in create_hotel_slots: {str(e)}")
-        return error("Failed to create hotel slots", "SERVER_ERROR", {"error": str(e)}, 500)
-
-
-@frappe.whitelist()
-def update_hotel_slot(slot_id, rooms_available=None, status=None):
-    """
-    Update a hotel slot's available rooms or status.
-
-    Args:
-        slot_id: Slot ID
-        rooms_available: New number of available rooms
-        status: New status (OPEN/CLOSED/BLOCKED)
-
-    Returns:
-        Success response with updated slot
-    """
-    try:
-        if not slot_id:
-            return validation_error("slot_id is required")
-
-        if not frappe.db.exists("Cheese Experience Slot", slot_id):
-            return not_found("Slot", slot_id)
-
-        try:
-            slot = assert_slot_access(slot_id)
-        except frappe.PermissionError:
-            return error("Unauthorized", "UNAUTHORIZED", {}, 403)
-
-        if rooms_available is not None:
-            rooms_available = cint(rooms_available)
-            if rooms_available < (slot.reserved_capacity or 0):
-                return validation_error(
-                    f"Cannot reduce rooms below reserved count ({slot.reserved_capacity})"
-                )
-            slot.max_capacity = rooms_available
-
-        if status is not None:
-            if status not in ["OPEN", "CLOSED", "BLOCKED"]:
-                return validation_error(f"Invalid status: {status}")
-            slot.slot_status = status
-
-        slot.save(ignore_permissions=True)
-        frappe.db.commit()
-
-        return success(
-            "Hotel slot updated successfully",
-            {
-                "slot_id": slot.name,
-                "date": str(slot.date_from),
-                "max_capacity": slot.max_capacity,
-                "reserved_capacity": slot.reserved_capacity,
-                "slot_status": slot.slot_status,
-            },
-        )
-    except frappe.ValidationError as e:
-        return validation_error(str(e))
-    except Exception as e:
-        frappe.log_error(f"Error in update_hotel_slot: {str(e)}")
-        return error("Failed to update hotel slot", "SERVER_ERROR", {"error": str(e)}, 500)
-
-
-@frappe.whitelist()
-def delete_hotel_slot(slot_id):
-    """
-    Delete a hotel nightly slot when it has no active reservations.
-
-    Args:
-        slot_id: Cheese Experience Slot name
-
-    Returns:
-        Success response
-    """
-    try:
-        if not slot_id:
-            return validation_error("slot_id is required")
-
-        if not frappe.db.exists("Cheese Experience Slot", slot_id):
-            return not_found("Slot", slot_id)
-
-        try:
-            slot = assert_slot_access(slot_id)
-        except frappe.PermissionError:
-            return error("Unauthorized", "UNAUTHORIZED", {}, 403)
-
-        blocking = frappe.db.count(
-            "Cheese Ticket",
-            {
-                "slot": slot_id,
-                "status": ["in", ["PENDING", "CONFIRMED", "CHECKED_IN"]],
-            },
-        )
-        if blocking:
-            return validation_error(
-                f"Cannot delete slot with {blocking} active reservation(s). Cancel them first."
-            )
-
-        frappe.delete_doc("Cheese Experience Slot", slot_id, force=True, ignore_permissions=True)
-        frappe.db.commit()
-
-        return success(
-            "Hotel slot deleted successfully",
-            {"slot_id": slot_id, "date": str(slot.date_from)},
-        )
-    except frappe.ValidationError as e:
-        return validation_error(str(e))
-    except Exception as e:
-        frappe.log_error(f"Error in delete_hotel_slot: {str(e)}")
-        return error("Failed to delete hotel slot", "SERVER_ERROR", {"error": str(e)}, 500)
 
 
 @frappe.whitelist()
@@ -724,29 +503,12 @@ def bot_book_hotel_room(contact_phone, room_id, date_from, date_to, rooms_reques
 
         contact_id = contact_res.get("data", {}).get("contact_id")
 
-        # We need the slot ID for the first night to satisfy ticket creation
-        availability = get_hotel_availability(
-            room_id,
-            date_from,
-            date_to,
-            guests=guests,
-            rooms_requested=rooms_requested,
-        )
-        if not availability.get("success"):
-            return availability
-
-        nights = availability.get("data", {}).get("nights", [])
-        if not nights or any(night["available"] < cint(rooms_requested) for night in nights):
-            return validation_error(f"Not enough rooms available for requested dates.")
-
-        slot_id = nights[0]["slot_id"]
-        if not slot_id:
-            return validation_error("No booking slot available for this date.")
-
+        # Availability is validated (with a clear reason: no rooms created /
+        # not enough free rooms for the whole range) by the ticket itself,
+        # which also auto-assigns the physical rooms. No slot involved.
         ticket_res = create_pending_reservation(
             contact_id=contact_id,
             experience_id=room_id,
-            slot_id=slot_id,
             party_size=cint(guests) or 1,
             check_in_date=date_from,
             check_out_date=date_to,

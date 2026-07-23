@@ -27,7 +27,7 @@ const STATUS_COLORS = {
 export default function HotelReservations() {
     const [searchParams] = useSearchParams();
     const { activeEstablishment } = useActiveEstablishment();
-    const hotelId = searchParams.get("hotel") || activeEstablishment || null;
+    const hotelId = searchParams.get("establishment") || searchParams.get("hotel") || activeEstablishment || null;
     const { t } = useTranslation();
     const [statusFilter, setStatusFilter] = useState("all");
     const [dateFrom, setDateFrom] = useState("");

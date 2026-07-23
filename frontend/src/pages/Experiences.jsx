@@ -46,7 +46,8 @@ export default function Experiences() {
         },
     });
 
-    const experiences = Array.isArray(expRaw) ? expRaw : [];
+    // Room types (HOTEL experiences) live in their own menu, not here.
+    const experiences = (Array.isArray(expRaw) ? expRaw : []).filter((e) => e.experience_type !== "HOTEL");
 
     const uniqueCompanies = Array.from(
         new Set(

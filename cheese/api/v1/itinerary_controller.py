@@ -47,7 +47,8 @@ def get_customer_itinerary(contact_id):
 		route_bookings = {}
 		
 		for ticket in tickets:
-			slot = frappe.get_doc("Cheese Experience Slot", ticket.slot)
+			# Hotel tickets carry no slot; their dates come from check-in/out.
+			slot = frappe.get_doc("Cheese Experience Slot", ticket.slot) if ticket.slot else None
 			experience = frappe.get_doc("Cheese Experience", ticket.experience)
 			
 			# Get QR status
@@ -88,17 +89,25 @@ def get_customer_itinerary(contact_id):
 			else:
 				deposit_status = deposits[-1].status
 			
+			# Hotel tickets carry no slot: their stay window is check-in/out.
+			base_date = (
+				str(ticket.selected_date)
+				if ticket.selected_date
+				else (str(slot.date_from) if slot else str(ticket.check_in_date or ""))
+			)
+			time_from = str(slot.time_from) if slot and slot.time_from else None
+			time_to = str(slot.time_to) if slot and slot.time_to else None
 			item = {
 				"reservation_id": ticket.name,
 				"type": "route" if ticket.route else "individual",
 				"experience_id": experience.name,
 				"experience_name": experience.name,
-				"date": str(ticket.selected_date) if ticket.selected_date else str(slot.date_from),
-				"time": str(slot.time_from) if slot.time_from else "",
-				"time_from": str(slot.time_from) if slot.time_from else None,
-				"time_to": str(slot.time_to) if slot.time_to else None,
-				"scheduled_start": f"{str(ticket.selected_date) if ticket.selected_date else str(slot.date_from)} {slot.time_from}" if slot.time_from else str(ticket.selected_date) if ticket.selected_date else str(slot.date_from),
-				"scheduled_end": f"{str(ticket.selected_date) if ticket.selected_date else str(slot.date_from)} {slot.time_to}" if slot.time_to else None,
+				"date": base_date,
+				"time": time_from or "",
+				"time_from": time_from,
+				"time_to": time_to,
+				"scheduled_start": f"{base_date} {time_from}" if time_from else base_date,
+				"scheduled_end": f"{base_date} {time_to}" if time_to else None,
 				"status": ticket.status,
 				"party_size": ticket.party_size,
 				"qr_status": qr_token.status if qr_token else None,

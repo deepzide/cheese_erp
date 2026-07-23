@@ -78,6 +78,10 @@ class CheeseTicket(Document):
 				frappe.throw(_("Check-in and Check-out dates are required for Hotel reservations"))
 			if not self.rooms_requested or self.rooms_requested < 1:
 				frappe.throw(_("Rooms requested must be at least 1 for Hotel reservations"))
+		elif not self.slot:
+			# Hotel stays derive availability from physical rooms and need no
+			# slot; every other ticket still requires one.
+			frappe.throw(_("Slot is required"), frappe.ValidationError)
 
 		# Validate capacity
 		self.validate_capacity(experience_doc)
@@ -118,8 +122,9 @@ class CheeseTicket(Document):
 		If selected_date is set, two tickets on the same slot but different dates are allowed
 		(e.g. multi-day or recurring slots where the user picks a specific date).
 		"""
-		if not (self.contact and self.experience and self.slot):
+		if not (self.contact and self.experience):
 			return
+		# Hotel stays have no slot; their overlap check below is date-based.
 
 		# Only consider tickets that are not terminal/cancelled
 		excluded_statuses = ["CANCELLED", "EXPIRED", "REJECTED", "NO_SHOW"]
@@ -182,19 +187,12 @@ class CheeseTicket(Document):
 			)
 
 	def validate_capacity(self, experience_doc=None):
-		"""Validate slot capacity for the ticket's selected calendar day (multi-day slots) or across check-in/out range."""
-		if not self.slot:
-			return
-
-		from cheese.cheese.utils.capacity import get_available_capacity
-
-		slot = frappe.get_doc("Cheese Experience Slot", self.slot)
-
-		if not experience_doc:
+		"""Validate availability: physical rooms for hotels, slot capacity for activities."""
+		if not experience_doc and self.experience:
 			experience_doc = frappe.get_doc("Cheese Experience", self.experience)
 
-		if experience_doc.experience_type == "HOTEL":
-			from frappe.utils import add_days, cint
+		if experience_doc and experience_doc.experience_type == "HOTEL":
+			from frappe.utils import cint
 
 			room_size = cint(
 				getattr(experience_doc, "room_size", 0)
@@ -211,40 +209,22 @@ class CheeseTicket(Document):
 					),
 					frappe.ValidationError,
 				)
-			current_date = getdate(self.check_in_date)
-			end_date = getdate(self.check_out_date)
+			# Availability = physical rooms: the type must have rooms created and
+			# at least rooms_requested rooms free for the whole stay. Terminal
+			# transitions (cancel, no-show...) release rooms and never re-check.
+			if self.status not in ("CANCELLED", "EXPIRED", "REJECTED", "NO_SHOW", "COMPLETED"):
+				from cheese.cheese.utils.room_assignment import validate_hotel_room_availability
 
-			while current_date < end_date:
-				# Find the slot that covers this specific night to get its max_capacity
-				night_slots = frappe.get_all(
-					"Cheese Experience Slot",
-					filters={
-						"experience": self.experience,
-						"date_from": ["<=", current_date],
-						"date_to": [">=", current_date],
-						"slot_status": ["in", ["OPEN", "CLOSED"]],
-					},
-					fields=["name"],
-					order_by="date_from asc",
-					limit=1,
+				validate_hotel_room_availability(
+					self.experience,
+					self.check_in_date,
+					self.check_out_date,
+					cint(self.rooms_requested or 1),
+					exclude_ticket=self.name,
 				)
-				if not night_slots:
-					frappe.throw(
-						_("No available slot found for night {0}").format(current_date),
-						frappe.ValidationError,
-					)
-				night_slot_name = night_slots[0].name
-				available_capacity = get_available_capacity(
-					night_slot_name, current_date, exclude_ticket=self.name
-				)
-				if self.rooms_requested > available_capacity:
-					frappe.throw(
-						_("Not enough rooms available on {0}. Requested: {1}, Available: {2}").format(
-							current_date, self.rooms_requested, available_capacity
-						),
-						frappe.ValidationError,
-					)
-				current_date = add_days(current_date, 1)
+			return
+
+		if not self.slot:
 			return
 
 		from cheese.cheese.utils.capacity import get_available_capacity
@@ -413,8 +393,41 @@ class CheeseTicket(Document):
 		slot.update_slot_status()
 		slot.save()
 
+	def after_insert(self):
+		"""Reserve the physical rooms at booking time (hotel tickets only).
+
+		One RESERVED Cheese Room Stay per requested room, honoring a manual
+		selection passed via ``flags.requested_rooms`` (ERP UI) or auto-picking
+		free rooms. A shortage raises so the whole creation rolls back.
+		"""
+		if self.status in ("CANCELLED", "EXPIRED", "REJECTED", "NO_SHOW"):
+			return
+		try:
+			from cheese.cheese.utils.room_assignment import reserve_rooms_for_ticket
+
+			reserve_rooms_for_ticket(self, room_ids=self.flags.get("requested_rooms"))
+		except frappe.ValidationError:
+			raise
+		except Exception as e:
+			frappe.log_error(f"reserve_rooms failed for {self.name}: {e}", "Room Assignment")
+
 	def on_update(self):
 		"""Handle post-update logic"""
+		# Re-align reserved rooms when the stay window or room count changes
+		if not self.is_new() and (
+			self.has_value_changed("check_in_date")
+			or self.has_value_changed("check_out_date")
+			or self.has_value_changed("rooms_requested")
+		):
+			try:
+				from cheese.cheese.utils.room_assignment import resync_stays_for_ticket
+
+				resync_stays_for_ticket(self)
+			except frappe.ValidationError:
+				raise
+			except Exception as e:
+				frappe.log_error(f"resync_stays failed for {self.name}: {e}", "Room Assignment")
+
 		# Log status changes to System Event
 		if self.has_value_changed("status"):
 			self.log_status_change()

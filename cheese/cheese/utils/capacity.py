@@ -166,8 +166,10 @@ def update_slot_capacity(slot_name):
 	Update slot capacity calculations
 
 	Args:
-		slot_name: Name of the slot
+		slot_name: Name of the slot (None-safe: hotel tickets carry no slot)
 	"""
+	if not slot_name:
+		return
 	slot = frappe.get_doc("Cheese Experience Slot", slot_name)
 	slot.calculate_reserved_capacity()
 	slot.update_slot_status()

@@ -375,3 +375,59 @@ def bulk_delete_rooms(room_ids):
 	except Exception as e:
 		frappe.log_error(f"Error in bulk_delete_rooms: {e}")
 		return error("Failed to delete rooms", "SERVER_ERROR", {"error": str(e)}, 500)
+
+
+@frappe.whitelist()
+def get_room_day_states(room_type, date_from, date_to):
+	"""Per-room daily slot states for the availability calendar detail.
+
+	States: AVAILABLE / RESERVED / OCCUPIED / BLOCKED / MAINTENANCE /
+	OUT_OF_SERVICE, one per room per day in [date_from, date_to].
+	"""
+	try:
+		if not room_type or not date_from or not date_to:
+			return validation_error("room_type, date_from and date_to are required")
+		if not frappe.db.exists("Cheese Experience", room_type):
+			return not_found("Experience", room_type)
+		company = frappe.db.get_value("Cheese Experience", room_type, "company")
+		if not _company_allowed(company):
+			return error("Unauthorized", "UNAUTHORIZED", {}, 403)
+		from cheese.cheese.utils.room_assignment import room_day_states
+
+		data = room_day_states(room_type, date_from, date_to)
+		data["room_type"] = room_type
+		return success("Room day states retrieved successfully", data)
+	except Exception as e:
+		frappe.log_error(f"Error in get_room_day_states: {str(e)}")
+		return error("Failed to get room day states", "SERVER_ERROR", {"error": str(e)}, 500)
+
+
+@frappe.whitelist()
+def list_free_rooms(room_type, check_in, check_out):
+	"""Rooms of the type free for the whole [check_in, check_out) range.
+
+	Backs the manual room selection in the ERP booking modal.
+	"""
+	try:
+		if not room_type or not check_in or not check_out:
+			return validation_error("room_type, check_in and check_out are required")
+		if not frappe.db.exists("Cheese Experience", room_type):
+			return not_found("Experience", room_type)
+		company = frappe.db.get_value("Cheese Experience", room_type, "company")
+		if not _company_allowed(company):
+			return error("Unauthorized", "UNAUTHORIZED", {}, 403)
+		free = find_free_rooms(room_type, check_in, check_out)
+		return success(
+			"Free rooms retrieved successfully",
+			{
+				"room_type": room_type,
+				"check_in": str(check_in),
+				"check_out": str(check_out),
+				"total_rooms": frappe.db.count("Cheese Hotel Room", {"room_type": room_type}),
+				"free_rooms": free,
+				"free_count": len(free),
+			},
+		)
+	except Exception as e:
+		frappe.log_error(f"Error in list_free_rooms: {str(e)}")
+		return error("Failed to list free rooms", "SERVER_ERROR", {"error": str(e)}, 500)

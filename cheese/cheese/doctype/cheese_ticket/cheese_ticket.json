@@ -80,13 +80,13 @@
             "options": "Cheese Route"
         },
         {
+            "description": "Required for activities; hotel stays derive availability from physical rooms and carry no slot.",
             "fieldname": "slot",
             "fieldtype": "Link",
             "in_list_view": 1,
             "in_standard_filter": 1,
             "label": "Slot",
-            "options": "Cheese Experience Slot",
-            "reqd": 1
+            "options": "Cheese Experience Slot"
         },
         {
             "fieldname": "selected_date",

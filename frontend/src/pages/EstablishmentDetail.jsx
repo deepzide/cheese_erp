@@ -26,6 +26,8 @@ import {
     MapPin,
     ExternalLink,
     FileText,
+    BedDouble,
+    DoorOpen,
 } from "lucide-react";
 import { toast } from "sonner";
 import { establishmentService } from "@/api/establishmentService";
@@ -66,6 +68,15 @@ export default function EstablishmentDetail() {
         queryClient.invalidateQueries({ queryKey: ["frappe-list", "Cheese Document"] });
         queryClient.invalidateQueries({ queryKey: ["establishment", companyId] });
     };
+
+    // Room types of this hotel (shown in their own card, not under Experiences)
+    const { data: roomTypes = [] } = useFrappeList("Cheese Experience", {
+        enabled: !!companyId,
+        filters: { company: companyId, experience_type: "HOTEL" },
+        fields: ["name", "status", "price_per_night", "room_size", "min_nights_stay", "currency"],
+        pageSize: 100,
+    });
+    const roomTypeNames = new Set((roomTypes || []).map((rt) => rt.name));
 
     const { data: payload, isLoading, error, refetch } = useQuery({
         queryKey: ["establishment", companyId],
@@ -498,10 +509,10 @@ export default function EstablishmentDetail() {
                             <CardTitle className="text-base">{t("nav.experiences", "Experiences")}</CardTitle>
                         </CardHeader>
                         <CardContent className="space-y-2">
-                            {(payload?.experiences || []).length === 0 ? (
+                            {(payload?.experiences || []).filter((ex) => !roomTypeNames.has(ex.name)).length === 0 ? (
                                 <p className="text-sm text-muted-foreground">{t("experiences.noneLinked", "None linked.")}</p>
                             ) : (
-                                (payload.experiences || []).map((ex) => (
+                                (payload.experiences || []).filter((ex) => !roomTypeNames.has(ex.name)).map((ex) => (
                                     <button
                                         key={ex.name}
                                         type="button"
@@ -514,6 +525,45 @@ export default function EstablishmentDetail() {
                             )}
                         </CardContent>
                     </Card>
+
+                    {(payload?.is_hotel || payload?.cheese_is_hotel) && (
+                        <Card>
+                            <CardHeader className="flex flex-row items-center justify-between">
+                                <CardTitle className="text-base flex items-center gap-2">
+                                    <DoorOpen className="w-4 h-4 text-cheese-600" />
+                                    {t("roomTypes.title", "Tipos de Habitaciones")}
+                                </CardTitle>
+                                <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => navigate(`/cheese/hotel-reservations?establishment=${encodeURIComponent(companyId)}`)}
+                                >
+                                    <BedDouble className="w-4 h-4 mr-1" />
+                                    {t("establishments.viewHotelReservations", "Ver reservaciones")}
+                                </Button>
+                            </CardHeader>
+                            <CardContent className="space-y-2">
+                                {(roomTypes || []).length === 0 ? (
+                                    <p className="text-sm text-muted-foreground">{t("roomTypes.empty", "No hay tipos de habitación registrados para este alcance.")}</p>
+                                ) : (
+                                    roomTypes.map((rt) => (
+                                        <button
+                                            key={rt.name}
+                                            type="button"
+                                            className="w-full flex items-center justify-between text-left text-sm py-2 px-3 rounded-md hover:bg-muted"
+                                            onClick={() => navigate(`/cheese/experiences/${encodeURIComponent(rt.name)}`)}
+                                        >
+                                            <span className="font-medium">{rt.name}</span>
+                                            <span className="text-xs text-muted-foreground">
+                                                {rt.price_per_night ? `${rt.currency || "UYU"} ${Number(rt.price_per_night).toLocaleString("es-UY")}/noche` : ""}
+                                                {rt.status ? ` · ${rt.status}` : ""}
+                                            </span>
+                                        </button>
+                                    ))
+                                )}
+                            </CardContent>
+                        </Card>
+                    )}
 
                     <div className="flex flex-wrap gap-2 pt-4 border-t border-border">
                         {payload?.status === "ARCHIVED" ? (

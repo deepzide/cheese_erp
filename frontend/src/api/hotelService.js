@@ -21,16 +21,14 @@ export const hotelService = {
         return apiRequest(`${BASE}.get_hotel_availability?${searchParams}`);
     },
 
-    createHotelSlots: async (data) => {
-        return apiRequest(`${BASE}.create_hotel_slots`, { method: 'POST', body: JSON.stringify(data) });
+    getRoomDayStates: async (roomType, dateFrom, dateTo) => {
+        const searchParams = new URLSearchParams({ room_type: roomType, date_from: dateFrom, date_to: dateTo });
+        return apiRequest(`/api/method/cheese.api.v1.room_controller.get_room_day_states?${searchParams}`);
     },
 
-    updateHotelSlot: async (slotId, data) => {
-        return apiRequest(`${BASE}.update_hotel_slot`, { method: 'POST', body: JSON.stringify({ slot_id: slotId, ...data }) });
-    },
-
-    deleteHotelSlot: async (slotId) => {
-        return apiRequest(`${BASE}.delete_hotel_slot`, { method: 'POST', body: JSON.stringify({ slot_id: slotId }) });
+    listFreeRooms: async (roomType, checkIn, checkOut) => {
+        const searchParams = new URLSearchParams({ room_type: roomType, check_in: checkIn, check_out: checkOut });
+        return apiRequest(`/api/method/cheese.api.v1.room_controller.list_free_rooms?${searchParams}`);
     },
 
     getHotelReservations: async (params = {}) => {

@@ -129,7 +129,7 @@ def _recalculate_ticket_financials(ticket):
 
 
 @frappe.whitelist()
-def create_pending_reservation(contact_id, experience_id, slot_id, party_size=1, selected_date=None, route_id=None, check_in_date=None, check_out_date=None, rooms_requested=None, notes=None, guest_ages=None):
+def create_pending_reservation(contact_id, experience_id, slot_id=None, party_size=1, selected_date=None, route_id=None, check_in_date=None, check_out_date=None, rooms_requested=None, notes=None, guest_ages=None, room_ids=None):
 	"""
 	Create pending reservation (individual) - alias for create_pending_ticket
 	
@@ -149,7 +149,7 @@ def create_pending_reservation(contact_id, experience_id, slot_id, party_size=1,
 		Success response with reservation data
 	"""
 	route_id = _read_route_id_input(route_id)
-	return create_pending_ticket(contact_id, experience_id, slot_id, party_size, selected_date=selected_date, route_id=route_id, check_in_date=check_in_date, check_out_date=check_out_date, rooms_requested=rooms_requested, notes=notes, guest_ages=guest_ages)
+	return create_pending_ticket(contact_id, experience_id, slot_id, party_size, selected_date=selected_date, route_id=route_id, check_in_date=check_in_date, check_out_date=check_out_date, rooms_requested=rooms_requested, notes=notes, guest_ages=guest_ages, room_ids=room_ids)
 
 
 @frappe.whitelist()
@@ -167,7 +167,7 @@ def get_reservation_status(reservation_id):
 
 
 @frappe.whitelist()
-def create_pending_ticket(contact_id, experience_id, slot_id, party_size=1, selected_date=None, route_id=None, check_in_date=None, check_out_date=None, rooms_requested=None, notes=None, commit=True, guest_ages=None):
+def create_pending_ticket(contact_id, experience_id, slot_id=None, party_size=1, selected_date=None, route_id=None, check_in_date=None, check_out_date=None, rooms_requested=None, notes=None, commit=True, guest_ages=None, room_ids=None):
 	"""
 	Create a pending ticket with TTL
 
@@ -198,17 +198,12 @@ def create_pending_ticket(contact_id, experience_id, slot_id, party_size=1, sele
 			return validation_error("contact_id is required")
 		if not experience_id:
 			return validation_error("experience_id is required")
-		if not slot_id:
-			return validation_error("slot_id is required")
 
 		if not frappe.db.exists("Cheese Contact", contact_id):
 			return not_found("Contact", contact_id)
-		
+
 		if not frappe.db.exists("Cheese Experience", experience_id):
 			return not_found("Experience", experience_id)
-		
-		if not frappe.db.exists("Cheese Experience Slot", slot_id):
-			return not_found("Slot", slot_id)
 
 		# Tenant isolation: a scoped user may only book their own establishment's experiences.
 		try:
@@ -216,18 +211,31 @@ def create_pending_ticket(contact_id, experience_id, slot_id, party_size=1, sele
 		except frappe.PermissionError:
 			return error("Unauthorized", "UNAUTHORIZED", {}, 403)
 
-		# Get slot and experience
-		slot = frappe.get_doc("Cheese Experience Slot", slot_id)
 		experience = frappe.get_doc("Cheese Experience", experience_id)
+		is_hotel = experience.experience_type == "HOTEL"
 
-		try:
-			selected_date_obj, slot_datetime, event_end_datetime = _resolve_slot_policy_datetimes(
-				slot_doc=slot,
-				selected_date=selected_date,
-				allow_past_date=False,
-			)
-		except frappe.ValidationError as e:
-			return validation_error(str(e))
+		# Hotels: availability derives from physical rooms — no slot involved.
+		# Callers may still send a (synthetic or legacy) slot id; it is ignored.
+		if is_hotel:
+			slot_id = None
+			slot = None
+			selected_date_obj = None
+			slot_datetime = None
+			event_end_datetime = None
+		else:
+			if not slot_id:
+				return validation_error("slot_id is required")
+			if not frappe.db.exists("Cheese Experience Slot", slot_id):
+				return not_found("Slot", slot_id)
+			slot = frappe.get_doc("Cheese Experience Slot", slot_id)
+			try:
+				selected_date_obj, slot_datetime, event_end_datetime = _resolve_slot_policy_datetimes(
+					slot_doc=slot,
+					selected_date=selected_date,
+					allow_past_date=False,
+				)
+			except frappe.ValidationError as e:
+				return validation_error(str(e))
 
 		# Validation 1: Capacity check
 		if experience.experience_type == "HOTEL":
@@ -315,10 +323,24 @@ def create_pending_ticket(contact_id, experience_id, slot_id, party_size=1, sele
 				ticket_data["notes"] = notes_clean
 
 		ticket = frappe.get_doc(ticket_data)
+
+		# Manual room selection from the ERP UI (hotels): honored on insert by
+		# CheeseTicket.after_insert → reserve_rooms_for_ticket.
+		if room_ids:
+			if isinstance(room_ids, str):
+				try:
+					room_ids = json.loads(room_ids)
+				except Exception:
+					room_ids = [r.strip() for r in room_ids.split(",") if r.strip()]
+			if not isinstance(room_ids, list):
+				return validation_error("room_ids must be a list of Cheese Hotel Room ids")
+			ticket.flags.requested_rooms = room_ids
+
 		ticket.insert()
 
-		# Update slot capacity
-		update_slot_capacity(slot_id)
+		# Update slot capacity (activities only; hotels carry no slot)
+		if slot_id:
+			update_slot_capacity(slot_id)
 
 		if commit:
 			frappe.db.commit()
@@ -650,10 +672,14 @@ def cancel_ticket(ticket_id):
 			)
 
 		if ticket.status == "CONFIRMED":
-			# Validate cancellation policy
+			# Validate cancellation policy (hotel tickets carry no slot: the
+			# stay's check-in date anchors the policy window)
 			try:
-				slot = frappe.get_doc("Cheese Experience Slot", ticket.slot)
-				slot_datetime = get_datetime(f"{slot.date_from} {slot.time_from}")
+				if ticket.slot:
+					slot = frappe.get_doc("Cheese Experience Slot", ticket.slot)
+					slot_datetime = get_datetime(f"{slot.date_from} {slot.time_from}")
+				else:
+					slot_datetime = get_datetime(f"{ticket.check_in_date} 00:00:00")
 				validate_booking_policy(ticket.experience, slot_datetime, action="cancel")
 			except frappe.ValidationError as e:
 				return validation_error(str(e))
@@ -708,14 +734,19 @@ def get_ticket_summary(ticket_id):
 			return error("Unauthorized", "UNAUTHORIZED", {}, 403)
 
 		ticket = frappe.get_doc("Cheese Ticket", ticket_id)
-		slot = frappe.get_doc("Cheese Experience Slot", ticket.slot)
+		slot = frappe.get_doc("Cheese Experience Slot", ticket.slot) if ticket.slot else None
 		experience = frappe.get_doc("Cheese Experience", ticket.experience)
 		contact = frappe.get_doc("Cheese Contact", ticket.contact)
 
-		# Use selected_date if available, otherwise fall back to slot.date_from
-		display_date = str(ticket.selected_date) if ticket.selected_date else str(slot.date_from)
-		display_time_from = str(slot.time_from) if slot.time_from else None
-		display_time_to = str(slot.time_to) if slot.time_to else None
+		# Use selected_date if available; hotel tickets carry no slot and
+		# fall back to their check-in date.
+		display_date = (
+			str(ticket.selected_date)
+			if ticket.selected_date
+			else (str(slot.date_from) if slot else str(ticket.check_in_date or ""))
+		)
+		display_time_from = str(slot.time_from) if slot and slot.time_from else None
+		display_time_to = str(slot.time_to) if slot and slot.time_to else None
 
 		return success(
 			"Ticket details retrieved successfully",
@@ -734,14 +765,14 @@ def get_ticket_summary(ticket_id):
 					"description": experience.description
 				},
 				"slot": {
-					"slot_id": slot.name,
+					"slot_id": slot.name if slot else None,
 					"date": display_date,
 					"time": display_time_from,
 					"time_from": display_time_from,
 					"time_to": display_time_to,
 					"scheduled_start": f"{display_date} {display_time_from}" if display_time_from else display_date,
 					"scheduled_end": f"{display_date} {display_time_to}" if display_time_to else None,
-					"max_capacity": slot.max_capacity
+					"max_capacity": slot.max_capacity if slot else None
 				},
 				"party_size": ticket.party_size,
 				"deposit_required": ticket.deposit_required,
