@@ -40,41 +40,8 @@ class CheeseBankAccount(Document):
 
 		self.validate_immutable_fields()
 
-		# Ensure only one active payment method per entity, category AND currency,
-		# so an entity can hold e.g. one active PayPal in USD plus one in UYU.
-		if self.status == "ACTIVE":
-			current_category = self.category or "BANK_ACCOUNT"
-			current_currency = (self.currency or "").strip().upper()
-			active_siblings = frappe.get_all(
-				"Cheese Bank Account",
-				filters={
-					"entity_type": self.entity_type,
-					"entity_id": self.entity_id,
-					"status": "ACTIVE",
-					"name": ["!=", self.name],
-				},
-				fields=["category", "currency"],
-			)
-			# Legacy rows created before the category field are treated as bank accounts.
-			if any(
-				(sib.category or "BANK_ACCOUNT") == current_category
-				and (sib.currency or "").strip().upper() == current_currency
-				for sib in active_siblings
-			):
-				labels = {
-					"BANK_ACCOUNT": _("bank account"),
-					"PAYPAL": "PayPal",
-					"MERCADO_PAGO": "Mercado Pago",
-					"DLOCAL": "dLocal",
-				}
-				frappe.throw(
-					_("{0} {1} already has an active {2} payment method in {3}").format(
-						self.entity_type,
-						self.entity_id,
-						labels.get(current_category, current_category),
-						current_currency or _("that currency"),
-					)
-				)
+		# No uniqueness restriction: an entity may hold any number of active
+		# payment methods, of any category and currency.
 
 	def validate_required_by_category(self):
 		"""Bank name/number are required only for actual bank accounts. Other
