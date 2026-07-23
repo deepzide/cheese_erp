@@ -30,6 +30,7 @@ import {
     BedDouble,
     DoorOpen,
     CalendarDays,
+    ImagePlus,
 } from "lucide-react";
 import { toast } from "sonner";
 import { establishmentService } from "@/api/establishmentService";
@@ -78,7 +79,7 @@ export default function EstablishmentDetail() {
     const { data: roomTypes = [] } = useFrappeList("Cheese Experience", {
         enabled: !!companyId,
         filters: { company: companyId, experience_type: "HOTEL" },
-        fields: ["name", "status", "price_per_night", "room_size", "min_nights_stay", "currency"],
+        fields: ["name", "status", "image", "price_per_night", "room_size", "min_nights_stay", "currency"],
         pageSize: 100,
     });
     const roomTypeNames = new Set((roomTypes || []).map((rt) => rt.name));
@@ -254,6 +255,16 @@ export default function EstablishmentDetail() {
                     )}
                 </div>
                 <div className="flex flex-wrap gap-2">
+                    {(payload?.is_hotel || payload?.cheese_is_hotel) && (
+                        <>
+                            <Button variant="outline" size="sm" onClick={() => navigate(`/cheese/hotel-availability-grid?hotel=${encodeURIComponent(companyId)}`)}>
+                                <CalendarDays className="w-4 h-4 mr-1" /> {t("establishments.viewHotelAvailability", "Disponibilidad hotelera")}
+                            </Button>
+                            <Button variant="outline" size="sm" onClick={() => navigate(`/cheese/hotel-reservations?establishment=${encodeURIComponent(companyId)}`)}>
+                                <BedDouble className="w-4 h-4 mr-1" /> {t("establishments.viewHotelReservations", "Ver reservaciones")}
+                            </Button>
+                        </>
+                    )}
                     <Button variant="outline" size="sm" onClick={() => refetch()}>
                         <RefreshCw className="w-4 h-4 mr-1" /> {t("common.refresh", "Refresh")}
                     </Button>
@@ -288,11 +299,73 @@ export default function EstablishmentDetail() {
                 <Skeleton className="h-40 w-full" />
             ) : (
                 <>
+                    {(payload?.is_hotel || payload?.cheese_is_hotel) && (
+                        <Card>
+                            <CardHeader>
+                                <CardTitle className="text-base flex items-center gap-2">
+                                    <DoorOpen className="w-4 h-4 text-cheese-600" />
+                                    {t("roomTypes.title", "Tipos de Habitaciones")}
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent className="space-y-2">
+                                {(roomTypes || []).length === 0 ? (
+                                    <p className="text-sm text-muted-foreground">{t("roomTypes.empty", "No hay tipos de habitación registrados para este alcance.")}</p>
+                                ) : (
+                                    roomTypes.map((rt) => (
+                                        <button
+                                            key={rt.name}
+                                            type="button"
+                                            className="w-full flex items-center gap-3 text-left text-sm py-2 px-3 rounded-md hover:bg-muted"
+                                            onClick={() => navigate(`/cheese/experiences/${encodeURIComponent(rt.name)}`)}
+                                        >
+                                            <span className="w-14 h-10 rounded border border-border bg-muted/40 overflow-hidden flex items-center justify-center shrink-0">
+                                                {rt.image ? (
+                                                    <img src={rt.image} alt={rt.name} className="w-full h-full object-cover" />
+                                                ) : (
+                                                    <ImagePlus className="w-4 h-4 text-muted-foreground/40" />
+                                                )}
+                                            </span>
+                                            <span className="font-medium flex-1 truncate">{rt.name}</span>
+                                            <span className="text-xs text-muted-foreground whitespace-nowrap">
+                                                {rt.price_per_night ? `${rt.currency || "UYU"} ${Number(rt.price_per_night).toLocaleString("es-UY")}/noche` : ""}
+                                                {rt.status ? ` · ${rt.status}` : ""}
+                                            </span>
+                                        </button>
+                                    ))
+                                )}
+                            </CardContent>
+                        </Card>
+                    )}
+
                     <Card>
                         <CardHeader>
                             <CardTitle className="text-base">{t("support.caseDetails", "Details")}</CardTitle>
                         </CardHeader>
                         <CardContent className="grid gap-4 sm:grid-cols-2">
+                            {(payload?.is_hotel || payload?.cheese_is_hotel) && hotelStatsRes && (
+                                <div className="sm:col-span-2 grid grid-cols-2 sm:grid-cols-5 gap-2 pb-4 mb-1 border-b border-border/60">
+                                    <div className="text-center">
+                                        <p className="text-lg font-bold text-foreground">{hotelStatsRes.arrivals_today}</p>
+                                        <p className="text-[11px] text-muted-foreground">{t("hotels.arrivalsToday", "Llegadas hoy")}</p>
+                                    </div>
+                                    <div className="text-center">
+                                        <p className="text-lg font-bold text-foreground">{hotelStatsRes.departures_today}</p>
+                                        <p className="text-[11px] text-muted-foreground">{t("hotels.departuresToday", "Salidas hoy")}</p>
+                                    </div>
+                                    <div className="text-center">
+                                        <p className="text-lg font-bold text-foreground">{hotelStatsRes.room_types_count}</p>
+                                        <p className="text-[11px] text-muted-foreground">{t("hotels.roomTypes", "Tipos de hab.")}</p>
+                                    </div>
+                                    <div className="text-center">
+                                        <p className="text-lg font-bold text-foreground">{hotelStatsRes.rooms_count}</p>
+                                        <p className="text-[11px] text-muted-foreground">{t("hotels.rooms", "Habitaciones")}</p>
+                                    </div>
+                                    <div className="text-center">
+                                        <p className="text-lg font-bold text-cheese-700 dark:text-cheese-400">{hotelStatsRes.occupancy_7d}%</p>
+                                        <p className="text-[11px] text-muted-foreground">{t("hotels.occupancy7d", "Ocupación 7 días")}</p>
+                                    </div>
+                                </div>
+                            )}
                             <div className="space-y-2 sm:col-span-2">
                                 <Label>{t("experiences.providerCompany", "Company name")}</Label>
                                 {editMode ? (
@@ -541,78 +614,6 @@ export default function EstablishmentDetail() {
                         </CardContent>
                     </Card>
 
-                    {(payload?.is_hotel || payload?.cheese_is_hotel) && (
-                        <Card>
-                            <CardHeader className="flex flex-row items-center justify-between flex-wrap gap-2">
-                                <CardTitle className="text-base flex items-center gap-2">
-                                    <DoorOpen className="w-4 h-4 text-cheese-600" />
-                                    {t("roomTypes.title", "Tipos de Habitaciones")}
-                                </CardTitle>
-                                <div className="flex gap-2">
-                                    <Button
-                                        size="sm"
-                                        variant="outline"
-                                        onClick={() => navigate(`/cheese/hotel-availability-grid?hotel=${encodeURIComponent(companyId)}`)}
-                                    >
-                                        <CalendarDays className="w-4 h-4 mr-1" />
-                                        {t("establishments.viewHotelAvailability", "Disponibilidad hotelera")}
-                                    </Button>
-                                    <Button
-                                        size="sm"
-                                        variant="outline"
-                                        onClick={() => navigate(`/cheese/hotel-reservations?establishment=${encodeURIComponent(companyId)}`)}
-                                    >
-                                        <BedDouble className="w-4 h-4 mr-1" />
-                                        {t("establishments.viewHotelReservations", "Ver reservaciones")}
-                                    </Button>
-                                </div>
-                            </CardHeader>
-                            <CardContent className="space-y-2">
-                                {hotelStatsRes && (
-                                    <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 pb-3 mb-1 border-b border-border/60">
-                                        <div className="text-center">
-                                            <p className="text-lg font-bold text-foreground">{hotelStatsRes.arrivals_today}</p>
-                                            <p className="text-[11px] text-muted-foreground">{t("hotels.arrivalsToday", "Llegadas hoy")}</p>
-                                        </div>
-                                        <div className="text-center">
-                                            <p className="text-lg font-bold text-foreground">{hotelStatsRes.departures_today}</p>
-                                            <p className="text-[11px] text-muted-foreground">{t("hotels.departuresToday", "Salidas hoy")}</p>
-                                        </div>
-                                        <div className="text-center">
-                                            <p className="text-lg font-bold text-foreground">{hotelStatsRes.room_types_count}</p>
-                                            <p className="text-[11px] text-muted-foreground">{t("hotels.roomTypes", "Tipos de hab.")}</p>
-                                        </div>
-                                        <div className="text-center">
-                                            <p className="text-lg font-bold text-foreground">{hotelStatsRes.rooms_count}</p>
-                                            <p className="text-[11px] text-muted-foreground">{t("hotels.rooms", "Habitaciones")}</p>
-                                        </div>
-                                        <div className="text-center">
-                                            <p className="text-lg font-bold text-cheese-700 dark:text-cheese-400">{hotelStatsRes.occupancy_7d}%</p>
-                                            <p className="text-[11px] text-muted-foreground">{t("hotels.occupancy7d", "Ocupación 7 días")}</p>
-                                        </div>
-                                    </div>
-                                )}
-                                {(roomTypes || []).length === 0 ? (
-                                    <p className="text-sm text-muted-foreground">{t("roomTypes.empty", "No hay tipos de habitación registrados para este alcance.")}</p>
-                                ) : (
-                                    roomTypes.map((rt) => (
-                                        <button
-                                            key={rt.name}
-                                            type="button"
-                                            className="w-full flex items-center justify-between text-left text-sm py-2 px-3 rounded-md hover:bg-muted"
-                                            onClick={() => navigate(`/cheese/experiences/${encodeURIComponent(rt.name)}`)}
-                                        >
-                                            <span className="font-medium">{rt.name}</span>
-                                            <span className="text-xs text-muted-foreground">
-                                                {rt.price_per_night ? `${rt.currency || "UYU"} ${Number(rt.price_per_night).toLocaleString("es-UY")}/noche` : ""}
-                                                {rt.status ? ` · ${rt.status}` : ""}
-                                            </span>
-                                        </button>
-                                    ))
-                                )}
-                            </CardContent>
-                        </Card>
-                    )}
 
                     <div className="flex flex-wrap gap-2 pt-4 border-t border-border">
                         {payload?.status === "ARCHIVED" ? (

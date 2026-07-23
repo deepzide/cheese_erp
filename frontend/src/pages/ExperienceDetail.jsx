@@ -12,7 +12,7 @@ import EditableField from "@/components/EditableField";
 import { Label } from "@/components/ui/label";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Building2, DollarSign, Settings, MapPin, Info, Link as LinkIcon, Trash2, FileText } from "lucide-react";
+import { Building2, DollarSign, Settings, MapPin, Info, Link as LinkIcon, Trash2, FileText, ImagePlus, Loader2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
@@ -80,6 +80,33 @@ export default function ExperienceDetail() {
         queryClient.invalidateQueries({ queryKey: ["frappe-list", "Cheese Document"] });
     };
 
+    const [imageUploading, setImageUploading] = useState(false);
+    const handleImageUpload = async (e) => {
+        const file = e.target.files?.[0];
+        e.target.value = "";
+        if (!file) return;
+        setImageUploading(true);
+        try {
+            const formData = new FormData();
+            formData.append("file", file);
+            formData.append("is_private", "0");
+            formData.append("doctype", "Cheese Experience");
+            formData.append("docname", id);
+            const res = await apiRequest("/api/method/upload_file", { method: "POST", body: formData });
+            const url = res?.data?.message?.file_url || res?.data?.file_url;
+            if (url) {
+                handleFieldChange("image", url);
+                toast.success(t("experiences.imageUploaded", "Imagen subida"));
+            } else {
+                toast.error(t("experiences.imageUploadError", "No se pudo subir la imagen"));
+            }
+        } catch (err) {
+            toast.error(err?.message || t("experiences.imageUploadError", "No se pudo subir la imagen"));
+        } finally {
+            setImageUploading(false);
+        }
+    };
+
     // Reset local form when fetched data changes
     useEffect(() => {
         if (exp) {
@@ -87,6 +114,7 @@ export default function ExperienceDetail() {
             setForm({
                 experience_type: exp.experience_type || "ACTIVITY",
                 company: exp.company || "",
+                image: exp.image || "",
                 google_maps_link: exp.google_maps_link || "",
                 description: exp.description || "",
                 // Backend stores duration in seconds; convert to hours for UI and round for readability
@@ -405,6 +433,34 @@ export default function ExperienceDetail() {
                                     </CardTitle>
                                 </CardHeader>
                                 <CardContent className="p-6">
+                                    <div className="mb-6 flex items-start gap-4">
+                                        <div className="w-32 h-24 rounded-lg border border-border bg-muted/30 overflow-hidden flex items-center justify-center shrink-0">
+                                            {form.image ? (
+                                                <img src={form.image} alt={id} className="w-full h-full object-cover" />
+                                            ) : (
+                                                <ImagePlus className="w-7 h-7 text-muted-foreground/40" />
+                                            )}
+                                        </div>
+                                        <div className="space-y-1.5">
+                                            <label className="text-xs text-muted-foreground">{t("experiences.image", "Imagen")}</label>
+                                            {editMode ? (
+                                                <div className="flex flex-wrap items-center gap-2">
+                                                    <label className="inline-flex items-center gap-2 h-9 px-3 rounded-md border border-input bg-background text-sm cursor-pointer hover:bg-muted">
+                                                        {imageUploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <ImagePlus className="w-4 h-4" />}
+                                                        {form.image ? t("experiences.changeImage", "Cambiar imagen") : t("experiences.uploadImage", "Subir imagen")}
+                                                        <input type="file" accept="image/*" className="hidden" onChange={handleImageUpload} disabled={imageUploading} />
+                                                    </label>
+                                                    {form.image && (
+                                                        <Button variant="ghost" size="sm" className="text-red-600" onClick={() => handleFieldChange("image", "")}>
+                                                            {t("common.remove", "Quitar")}
+                                                        </Button>
+                                                    )}
+                                                </div>
+                                            ) : (
+                                                <p className="text-xs text-muted-foreground">{form.image ? t("experiences.imageSet", "Imagen cargada") : t("experiences.noImage", "Sin imagen")}</p>
+                                            )}
+                                        </div>
+                                    </div>
                                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-6 gap-x-8">
                                         <EditableField label={t("experiences.providerCompany", "Provider Company")} value={form.company} onChange={(v) => handleFieldChange("company", v)} editMode={editMode} doctype="Company" searchLabel="name" />
 

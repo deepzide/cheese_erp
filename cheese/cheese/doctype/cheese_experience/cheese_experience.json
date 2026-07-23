@@ -7,9 +7,11 @@
  "doctype": "DocType",
  "document_type": "Document",
  "engine": "InnoDB",
+ "image_field": "image",
  "field_order": [
   "experience_type",
   "experience_info",
+  "image",
   "company",
   "google_maps_link",
   "description",
@@ -59,6 +61,11 @@
    "fieldname": "experience_info",
    "fieldtype": "Section Break",
    "label": "Experience Information"
+  },
+  {
+   "fieldname": "image",
+   "fieldtype": "Attach Image",
+   "label": "Image"
   },
   {
    "fieldname": "company",
