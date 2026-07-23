@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import { useAutoFillCompany, useHotelAccess } from "@/lib/useHotelAccess";
 import { useActiveEstablishment } from "@/lib/ActiveEstablishmentContext";
 import { motion } from "framer-motion";
@@ -13,11 +13,13 @@ import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Sparkles, Search, Plus, DollarSign, Calendar, Ticket, Shield, FileText, MoreHorizontal, AlertCircle, RefreshCw, Loader2, Eye, BedDouble } from "lucide-react";
+import { Sparkles, Search, Plus, DollarSign, Calendar, Ticket, Shield, FileText, MoreHorizontal, AlertCircle, RefreshCw, Loader2, Eye, BedDouble, LayoutGrid, Table2 } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
 import { experienceService } from "@/api/experienceService";
-import { useFrappeUpdate } from "@/lib/useApiData";
+import { useFrappeUpdate, useFrappeList } from "@/lib/useApiData";
+
+const DAY_TYPE_LABEL = { ALL: "Cualquier día", WEEKDAY: "Lun-Vie", WEEKEND: "Fin de semana" };
 
 const STATUS_BADGE = {
     ACTIVE: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400",
@@ -33,6 +35,7 @@ export default function Experiences() {
     const { companyLocked } = useHotelAccess();
     const [companyFilter, setCompanyFilter] = useState("all");
     const [selectedExperience, setSelectedExperience] = useState(null);
+    const [view, setView] = useState("cards"); // "cards" | "table"
 
     useAutoFillCompany(companyFilter === "all" ? "" : companyFilter, (v) => setCompanyFilter(v));
 
@@ -48,6 +51,54 @@ export default function Experiences() {
 
     // Room types (HOTEL experiences) live in their own menu, not here.
     const experiences = (Array.isArray(expRaw) ? expRaw : []).filter((e) => e.experience_type !== "HOTEL");
+
+    // All price-matrix lines of the experiences in scope (weekday/range x age group).
+    const experienceNames = useMemo(() => experiences.map((e) => e.name), [experiences]);
+    const { data: priceLines = [] } = useFrappeList("Cheese Experience Price", {
+        enabled: experienceNames.length > 0,
+        filters: { parenttype: "Cheese Experience", parent: ["in", experienceNames.length ? experienceNames : ["__none__"]] },
+        fields: ["parent", "day_type", "day_range", "age_group", "price", "route_price"],
+        pageSize: 2000,
+    });
+    const { data: ageGroups = [] } = useFrappeList("Cheese Age Group", {
+        filters: activeEstablishment ? { company: activeEstablishment } : {},
+        fields: ["name", "group_name"],
+        pageSize: 1000,
+    });
+    const { data: dayRanges = [] } = useFrappeList("Cheese Day Range", {
+        filters: activeEstablishment ? { company: activeEstablishment } : {},
+        fields: ["name", "range_name"],
+        pageSize: 1000,
+    });
+
+    const ageLabel = useMemo(() => Object.fromEntries((ageGroups || []).map((g) => [g.name, g.group_name || g.name])), [ageGroups]);
+    const rangeLabel = useMemo(() => Object.fromEntries((dayRanges || []).map((r) => [r.name, r.range_name || r.name])), [dayRanges]);
+    const linesByExp = useMemo(() => {
+        const map = {};
+        (priceLines || []).forEach((l) => {
+            if (!(Number(l.price) > 0 || Number(l.route_price) > 0)) return;
+            (map[l.parent] = map[l.parent] || []).push(l);
+        });
+        return map;
+    }, [priceLines]);
+
+    const money = (v, cur) => `${cur || "UYU"} ${Number(v).toLocaleString("es-UY")}`;
+    const dayLabel = (l) => (l.day_range ? (rangeLabel[l.day_range] || l.day_range) : (DAY_TYPE_LABEL[l.day_type] || l.day_type || "Cualquier día"));
+    const lineLabel = (l) => `${dayLabel(l)}${l.age_group ? ` · ${ageLabel[l.age_group] || l.age_group}` : ""}`;
+    // Full price list for an experience: base + package + every matrix line.
+    const allPrices = (exp) => {
+        const cur = exp.currency;
+        const out = [];
+        if (exp.individual_price) out.push({ label: t("experiences.individualPrice", "Precio individual"), value: money(exp.individual_price, cur) });
+        if (exp.route_price) out.push({ label: t("experiences.routePrice", "Precio en ruta"), value: money(exp.route_price, cur) });
+        (linesByExp[exp.name] || []).forEach((l) => {
+            const parts = [];
+            if (Number(l.price) > 0) parts.push(money(l.price, cur));
+            if (Number(l.route_price) > 0) parts.push(`${money(l.route_price, cur)} ${t("experiences.inRouteShort", "ruta")}`);
+            out.push({ label: lineLabel(l), value: parts.join(" · ") });
+        });
+        return out;
+    };
 
     const uniqueCompanies = Array.from(
         new Set(
@@ -148,6 +199,25 @@ export default function Experiences() {
                             ))}
                         </SelectContent>
                     </Select>
+                    {/* Card / table view toggle */}
+                    <div className="inline-flex rounded-md border border-input overflow-hidden h-9">
+                        <button
+                            type="button"
+                            onClick={() => setView("cards")}
+                            className={`px-2.5 flex items-center gap-1 text-xs ${view === "cards" ? "bg-cheese-500 text-black font-semibold" : "bg-background text-muted-foreground hover:bg-muted"}`}
+                            title={t("experiences.viewCards", "Tarjetas")}
+                        >
+                            <LayoutGrid className="w-4 h-4" /> {t("experiences.viewCards", "Tarjetas")}
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => setView("table")}
+                            className={`px-2.5 flex items-center gap-1 text-xs border-l border-input ${view === "table" ? "bg-cheese-500 text-black font-semibold" : "bg-background text-muted-foreground hover:bg-muted"}`}
+                            title={t("experiences.viewTable", "Tabla")}
+                        >
+                            <Table2 className="w-4 h-4" /> {t("experiences.viewTable", "Tabla")}
+                        </button>
+                    </div>
                     <Button
                         variant="ghost"
                         size="icon"
@@ -165,6 +235,7 @@ export default function Experiences() {
                 </div>
             </div>
 
+            {view === "cards" ? (
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
                 {isLoading ? Array.from({ length: 6 }).map((_, i) => (
                     <Card key={i} className="border border-border"><CardContent className="p-5 space-y-3">
@@ -224,25 +295,19 @@ export default function Experiences() {
                                     </DropdownMenu>
                                 </div>
                                 {exp.description && <p className="text-xs text-muted-foreground mb-3 line-clamp-2">{exp.description}</p>}
-                                <div className="flex items-center gap-3 mb-3 flex-wrap">
-                                    <div className="flex items-center gap-1 text-sm">
-                                        <DollarSign className="w-3.5 h-3.5 text-muted-foreground" />
-                                        <span className="font-semibold">
-                                            {exp.experience_type === "HOTEL"
-                                                ? (exp.price_per_night || 0)
-                                                : (exp.individual_price || 0)}
-                                        </span>
-                                        <span className="text-xs text-muted-foreground">
-                                            {exp.experience_type === "HOTEL"
-                                                ? t("experiences.perNightShort", "/night")
-                                                : t("experiences.individualShort", "ind.")}
-                                        </span>
-                                    </div>
-                                    {exp.route_price != null && (
-                                        <div className="flex items-center gap-1 text-sm">
-                                            <span className="text-xs text-muted-foreground">{t("ticket.route", "Route")}:</span>
-                                            <span className="font-semibold">{exp.route_price}</span>
+                                {/* All entered prices: base + package + matrix lines */}
+                                <div className="rounded-md border border-border/60 divide-y divide-border/40 text-xs mb-3">
+                                    {allPrices(exp).length === 0 ? (
+                                        <div className="flex items-center gap-1.5 px-2.5 py-1.5 text-muted-foreground">
+                                            <DollarSign className="w-3.5 h-3.5" /> {t("experiences.noPrices", "Sin precios ingresados")}
                                         </div>
+                                    ) : (
+                                        allPrices(exp).map((p, i) => (
+                                            <div key={i} className="flex items-center justify-between px-2.5 py-1.5">
+                                                <span className="text-muted-foreground truncate pr-2">{p.label}</span>
+                                                <span className="font-medium text-foreground whitespace-nowrap">{p.value}</span>
+                                            </div>
+                                        ))
                                     )}
                                 </div>
                                 <div className="flex items-center justify-between">
@@ -267,6 +332,59 @@ export default function Experiences() {
                     </motion.div>
                 ))}
             </div>
+            ) : (
+                <Card className="border border-border overflow-hidden">
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-sm">
+                            <thead>
+                                <tr className="bg-muted/30 text-muted-foreground text-xs uppercase">
+                                    <th className="text-left px-4 py-3 font-semibold">{t("experiences.colExperience", "Experiencia")}</th>
+                                    <th className="text-left px-4 py-3 font-semibold">{t("experiences.company", "Establecimiento")}</th>
+                                    <th className="text-left px-4 py-3 font-semibold">{t("experiences.colPrices", "Precios")}</th>
+                                    <th className="text-center px-4 py-3 font-semibold">{t("common.status", "Estado")}</th>
+                                    <th className="text-center px-4 py-3 font-semibold">{t("experiences.depositShort", "Depósito")}</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-border/50">
+                                {isLoading ? (
+                                    <tr><td colSpan={5} className="px-4 py-6"><Skeleton className="h-6 w-full" /></td></tr>
+                                ) : filtered.map((exp) => {
+                                    const prices = allPrices(exp);
+                                    return (
+                                        <tr key={exp.name} className="hover:bg-muted/10 cursor-pointer" onClick={() => navigate(`/cheese/experiences/${exp.name}`)}>
+                                            <td className="px-4 py-3">
+                                                <div className="font-medium text-foreground">{exp.experience_info || exp.name}</div>
+                                                <div className="text-[11px] font-mono text-muted-foreground">{exp.name}</div>
+                                            </td>
+                                            <td className="px-4 py-3 text-muted-foreground">{exp.company || "—"}</td>
+                                            <td className="px-4 py-3">
+                                                {prices.length === 0 ? (
+                                                    <span className="text-muted-foreground">—</span>
+                                                ) : (
+                                                    <div className="flex flex-col gap-0.5">
+                                                        {prices.map((p, i) => (
+                                                            <span key={i} className="whitespace-nowrap">
+                                                                <span className="text-muted-foreground">{p.label}:</span>{" "}
+                                                                <span className="font-medium text-foreground">{p.value}</span>
+                                                            </span>
+                                                        ))}
+                                                    </div>
+                                                )}
+                                            </td>
+                                            <td className="px-4 py-3 text-center">
+                                                <Badge className={STATUS_BADGE[exp.status] || STATUS_BADGE.DRAFT}>{exp.status ? t(`status.${exp.status}`, exp.status) : t("status.DRAFT", "DRAFT")}</Badge>
+                                            </td>
+                                            <td className="px-4 py-3 text-center text-muted-foreground">
+                                                {exp.deposit_required ? t("common.yes", "Sí") : "—"}
+                                            </td>
+                                        </tr>
+                                    );
+                                })}
+                            </tbody>
+                        </table>
+                    </div>
+                </Card>
+            )}
 
             {!isLoading && filtered.length === 0 && (
                 <div className="text-center py-16"><Sparkles className="w-16 h-16 text-muted-foreground/20 mx-auto mb-4" /><p className="text-muted-foreground">{t("experiences.noneFound", "No experiences found")}</p></div>
