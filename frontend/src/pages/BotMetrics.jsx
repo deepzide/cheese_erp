@@ -38,9 +38,9 @@ function SummaryCard({ icon: Icon, label, value, sub }) {
                         <Icon className="w-5 h-5 text-cheese-600" />
                     </div>
                     <div className="min-w-0">
-                        <p className="text-xs text-muted-foreground truncate">{label}</p>
+                        <p className="text-xs text-muted-foreground truncate cursor-help" title={typeof label === "string" ? label : undefined}>{label}</p>
                         <p className="text-xl font-bold text-foreground">{value}</p>
-                        {sub && <p className="text-[11px] text-muted-foreground truncate">{sub}</p>}
+                        {sub && <p className="text-[11px] text-muted-foreground truncate cursor-help" title={typeof sub === "string" ? sub : undefined}>{sub}</p>}
                     </div>
                 </div>
             </CardContent>
