@@ -117,6 +117,11 @@ export default function ExperienceDetail() {
                 image: exp.image || "",
                 google_maps_link: exp.google_maps_link || "",
                 description: exp.description || "",
+                includes: exp.includes || "",
+                not_includes: exp.not_includes || "",
+                schedule_info: exp.schedule_info || "",
+                location_info: exp.location_info || "",
+                target_audience: exp.target_audience || "",
                 // Backend stores duration in seconds; convert to hours for UI and round for readability
                 event_duration: Number(hours.toFixed(2)),
                 individual_price: exp.individual_price || 0,
@@ -543,11 +548,44 @@ export default function ExperienceDetail() {
                                 </CardContent>
                             </Card>
 
+                            {/* Content for the assistant (bot) */}
+                            <Card className="border-border/60 shadow-sm">
+                                <CardHeader className="border-b bg-muted/20 pb-4">
+                                    <CardTitle className="text-sm font-semibold text-muted-foreground uppercase flex items-center">
+                                        <Info className="w-4 h-4 mr-2" /> {t("experiences.assistantContent", "Contenido para el asistente")}
+                                    </CardTitle>
+                                </CardHeader>
+                                <CardContent className="p-6 grid grid-cols-1 sm:grid-cols-2 gap-5">
+                                    {[
+                                        ["includes", t("experiences.includes", "Qué incluye")],
+                                        ["not_includes", t("experiences.notIncludes", "Qué NO incluye")],
+                                        ["schedule_info", t("experiences.scheduleInfo", "Horarios y duración")],
+                                        ["location_info", t("experiences.locationInfo", "Cómo llegar / ubicación")],
+                                        ["target_audience", t("experiences.targetAudience", "Para quién es")],
+                                    ].map(([field, label]) => (
+                                        <div key={field} className="space-y-1.5">
+                                            <label className="text-xs text-muted-foreground">{label}</label>
+                                            {editMode ? (
+                                                <textarea
+                                                    value={form[field] || ""}
+                                                    onChange={(e) => handleFieldChange(field, e.target.value)}
+                                                    className="w-full min-h-[70px] p-2.5 text-sm border rounded-md focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary"
+                                                />
+                                            ) : (
+                                                <p className="text-sm whitespace-pre-wrap">
+                                                    {form[field] || <span className="text-muted-foreground italic">{t("common.empty", "Sin completar")}</span>}
+                                                </p>
+                                            )}
+                                        </div>
+                                    ))}
+                                </CardContent>
+                            </Card>
+
                             {/* Experience Documents */}
                             <Card className="border-border/60 shadow-sm">
                                 <CardHeader className="border-b bg-muted/20 pb-4">
                                     <CardTitle className="text-sm font-semibold text-muted-foreground uppercase flex items-center">
-                                        <FileText className="w-4 h-4 mr-2" /> {t("common.attachedDocuments", "Attached Documents")}
+                                        <FileText className="w-4 h-4 mr-2" /> {t("experiences.photosAndDocs", "Fotos y documentos")}
                                     </CardTitle>
                                 </CardHeader>
                                 <CardContent className="p-0">

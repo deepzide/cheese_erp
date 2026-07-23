@@ -15,6 +15,11 @@
   "company",
   "google_maps_link",
   "description",
+  "includes",
+  "not_includes",
+  "schedule_info",
+  "location_info",
+  "target_audience",
   "is_room",
   "room_size",
   "max_occupancy_per_unit",
@@ -85,6 +90,31 @@
    "fieldname": "description",
    "fieldtype": "Text Editor",
    "label": "Description"
+  },
+  {
+   "fieldname": "includes",
+   "fieldtype": "Small Text",
+   "label": "What's Included"
+  },
+  {
+   "fieldname": "not_includes",
+   "fieldtype": "Small Text",
+   "label": "What's Not Included"
+  },
+  {
+   "fieldname": "schedule_info",
+   "fieldtype": "Small Text",
+   "label": "Schedule and Duration"
+  },
+  {
+   "fieldname": "location_info",
+   "fieldtype": "Small Text",
+   "label": "How to Arrive / Location"
+  },
+  {
+   "fieldname": "target_audience",
+   "fieldtype": "Small Text",
+   "label": "Who It's For"
   },
   {
    "fieldname": "is_room",
