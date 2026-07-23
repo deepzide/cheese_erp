@@ -501,7 +501,9 @@ def bot_book_hotel_room(contact_phone, room_id, date_from, date_to, rooms_reques
         from cheese.api.v1.contact_controller import find_or_create_contact
         from cheese.api.v1.ticket_controller import create_pending_reservation
         
-        contact_res = find_or_create_contact(contact_phone, contact_phone)
+        # Positional args are (phone, email, name): the phone must never land
+        # in the email slot or new contacts fail email validation.
+        contact_res = find_or_create_contact(phone=contact_phone, name=contact_phone)
         if not contact_res.get("success"):
             return contact_res
 

@@ -395,8 +395,16 @@ def get_route_details(route_id):
 
 		# Get experiences with details
 		experiences = []
+		any_price_variants = False
 		for exp_row in route.experiences:
 			exp_doc = frappe.get_doc("Cheese Experience", exp_row.experience)
+			# Base prices are not the whole story when a weekday/day-range or
+			# age-group matrix applies — date-specific totals come from the
+			# pricing preview/simulation endpoints.
+			has_variants = bool(
+				exp_doc.get("differentiate_by_weekday") or exp_doc.get("differentiate_by_age_group")
+			)
+			any_price_variants = any_price_variants or has_variants
 			experiences.append(
 				{
 					"experience_id": exp_row.experience,
@@ -413,6 +421,11 @@ def get_route_details(route_id):
 					else None,
 					"status": exp_doc.status,
 					"company": exp_doc.company,
+					"route_price": exp_doc.route_price,
+					"individual_price": exp_doc.individual_price,
+					"price_per_night": exp_doc.get("price_per_night"),
+					"experience_type": exp_doc.experience_type,
+					"has_price_variants": has_variants,
 				}
 			)
 
@@ -440,6 +453,7 @@ def get_route_details(route_id):
 				"google_maps_link": getattr(route, "google_maps_link", None),
 				"price_mode": route.price_mode,
 				"price": route.price,
+				"has_price_variants": any_price_variants,
 				"deposit_required": route.deposit_required,
 				"deposit_type": route.deposit_type,
 				"deposit_value": route.deposit_value,

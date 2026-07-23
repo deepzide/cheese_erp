@@ -120,10 +120,23 @@ def _run_booking_policy(experience_id, slot_datetime, action, event_end_datetime
 
 
 def _recalculate_ticket_financials(ticket):
-	price_data = calculate_ticket_price(ticket.experience, ticket.party_size, route_id=ticket.route)
+	"""Re-price a ticket after a modification.
+
+	Passing the ticket itself makes the engine use its (possibly new)
+	selected_date / check-in and guest ages, so weekday/day-range prices,
+	age-group prices, seasons and promotions all apply to the new values.
+	"""
+	experience_type = frappe.db.get_value("Cheese Experience", ticket.experience, "experience_type")
+	quantity = (ticket.rooms_requested or 1) if experience_type == "HOTEL" else ticket.party_size
+	price_data = calculate_ticket_price(
+		ticket.experience, quantity, route_id=ticket.route, ticket=ticket
+	)
 	total_price = price_data.get("total_price", 0)
 	deposit_amount = calculate_deposit_amount(ticket.experience, total_price, route_id=ticket.route)
 	ticket.total_price = total_price
+	ticket.promotion = price_data.get("promotion")
+	ticket.promotion_discount = price_data.get("promotion_discount") or 0
+	ticket.price_before_discount = price_data.get("price_before_discount")
 	ticket.deposit_required = bool(deposit_amount > 0)
 	ticket.deposit_amount = deposit_amount
 
@@ -279,9 +292,22 @@ def create_pending_ticket(contact_id, experience_id, slot_id=None, party_size=1,
 			except frappe.ValidationError as e:
 				return validation_error(str(e))
 
-		# Calculate price
+		# Calculate price with full date/ages context so weekday/day-range,
+		# age-group, season and promotion pricing match what the ticket stores.
+		from frappe.utils import date_diff
+
 		party_size_for_price = rooms_requested if experience.experience_type == "HOTEL" else party_size
-		price_data = calculate_ticket_price(experience_id, party_size_for_price, route_id=route_id)
+		pricing_context = frappe._dict(
+			selected_date=selected_date_obj,
+			check_in_date=check_in_date,
+			check_out_date=check_out_date,
+			nights=date_diff(check_out_date, check_in_date) if (check_in_date and check_out_date) else None,
+			rooms_requested=rooms_requested,
+			guest_ages=guest_ages,
+		)
+		price_data = calculate_ticket_price(
+			experience_id, party_size_for_price, route_id=route_id, ticket=pricing_context
+		)
 		
 		# Calculate deposit
 		deposit_amount = calculate_deposit_amount(experience_id, price_data["total_price"], route_id=route_id)
@@ -354,7 +380,11 @@ def create_pending_ticket(contact_id, experience_id, slot_id=None, party_size=1,
 				"experience_id": experience_id,
 				"slot_id": slot_id,
 				"party_size": party_size,
-				"total_price": price_data["total_price"],
+				# The inserted ticket is the pricing source of truth (its doc
+				# hooks applied dates, ages, seasons and promotions).
+				"total_price": ticket.total_price,
+				"promotion": ticket.get("promotion"),
+				"promotion_discount": ticket.get("promotion_discount") or 0,
 				"deposit_required": ticket.deposit_required,
 				"deposit_amount": ticket.deposit_amount,
 				"expires_at": str(ticket.expires_at) if ticket.expires_at else None,
@@ -448,11 +478,28 @@ def modify_reservation_preview(reservation_id, new_slot=None, party_size=None, s
 				preview["new_party_size"] = party_size
 				preview["party_size_change_allowed"] = True
 		
-		# Calculate price impact
+		# Calculate price impact with date/ages context: the new price uses the
+		# NEW date (selected_date or the new slot's day) so weekday/day-range,
+		# age-group, season and promotion pricing reflect the change.
 		if new_slot or party_size:
 			new_party_size = party_size if party_size else ticket.party_size
-			price_data = calculate_ticket_price(ticket.experience, new_party_size, route_id=ticket.route)
-			current_price_data = calculate_ticket_price(ticket.experience, ticket.party_size, route_id=ticket.route)
+			new_date = preview.get("selected_date") or (
+				preview.get("new_slot_date") if new_slot else None
+			) or ticket.selected_date
+			new_context = frappe._dict(
+				selected_date=new_date,
+				check_in_date=ticket.check_in_date,
+				check_out_date=ticket.check_out_date,
+				nights=ticket.nights,
+				rooms_requested=ticket.rooms_requested,
+				guest_ages=ticket.guest_ages,
+			)
+			price_data = calculate_ticket_price(
+				ticket.experience, new_party_size, route_id=ticket.route, ticket=new_context
+			)
+			current_price_data = calculate_ticket_price(
+				ticket.experience, ticket.party_size, route_id=ticket.route, ticket=ticket
+			)
 			
 			preview["price_impact"] = {
 				"current_price": current_price_data.get("total_price", 0),
@@ -595,9 +642,11 @@ def modify_ticket(ticket_id, new_slot=None, party_size=None, selected_date=None)
 		if not changes:
 			return validation_error("No changes provided. Specify new_slot or party_size")
 
-		if "party_size" in changes:
-			_recalculate_ticket_financials(ticket)
-			changes.extend(["total_price", "deposit_amount"])
+		# Any change re-prices the ticket: a slot/date change can move the
+		# booking across weekday/weekend, day-range, season or promotion
+		# windows, not just a party-size change.
+		_recalculate_ticket_financials(ticket)
+		changes.extend(["total_price", "deposit_amount"])
 
 		ticket.save()
 		

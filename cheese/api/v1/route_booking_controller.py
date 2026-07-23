@@ -891,12 +891,15 @@ def create_route_reservation(
 		booked_schedule = []
 		for ticket_id in tickets:
 			ticket_doc = frappe.get_doc("Cheese Ticket", ticket_id)
-			slot_doc = frappe.get_doc("Cheese Experience Slot", ticket_doc.slot)
+			# Hotel tickets carry no slot: the stay window comes from check-in.
+			slot_doc = frappe.get_doc("Cheese Experience Slot", ticket_doc.slot) if ticket_doc.slot else None
 			schedule_date = (
-				str(ticket_doc.selected_date) if ticket_doc.selected_date else str(slot_doc.date_from)
+				str(ticket_doc.selected_date)
+				if ticket_doc.selected_date
+				else (str(slot_doc.date_from) if slot_doc else str(ticket_doc.check_in_date or ""))
 			)
-			time_from_value = str(slot_doc.time_from) if slot_doc.time_from else None
-			time_to_value = str(slot_doc.time_to) if slot_doc.time_to else None
+			time_from_value = str(slot_doc.time_from) if slot_doc and slot_doc.time_from else None
+			time_to_value = str(slot_doc.time_to) if slot_doc and slot_doc.time_to else None
 			booked_schedule.append(
 				{
 					"ticket_id": ticket_doc.name,
@@ -1417,6 +1420,25 @@ def confirm_route_modification(route_booking_id, changes):
 				modified_tickets.append(ticket_id)
 			else:
 				return result
+
+		# Resync booking financials: modified tickets were re-priced with the
+		# current engine (weekday/day-range, age groups, seasons, promotions),
+		# so the parent totals must follow.
+		if modified_tickets and frappe.db.exists("Cheese Route Booking", route_booking_id):
+			booking = frappe.get_doc("Cheese Route Booking", route_booking_id)
+			deposit_total = 0
+			for row in booking.tickets:
+				if not row.ticket:
+					continue
+				tk = frappe.db.get_value(
+					"Cheese Ticket", row.ticket, ["status", "deposit_amount"], as_dict=True
+				)
+				if tk and tk.status not in ("CANCELLED", "EXPIRED", "REJECTED"):
+					deposit_total += tk.deposit_amount or 0
+			booking.deposit_amount = deposit_total
+			booking.deposit_required = deposit_total > 0
+			# validate() recalculates total_price from the ticket totals
+			booking.save(ignore_permissions=True)
 
 		frappe.db.commit()
 
