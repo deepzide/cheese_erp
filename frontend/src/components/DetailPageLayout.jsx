@@ -1,5 +1,5 @@
 import React from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { ArrowLeft, Edit2, Save, X } from "lucide-react";
@@ -18,13 +18,20 @@ export default function DetailPageLayout({
     statusBadge
 }) {
     const navigate = useNavigate();
+    const location = useLocation();
+    // Return to the actual page we came from; fall back to backPath on a
+    // direct load (no in-app history: location.key === "default").
+    const goBack = () => {
+        if (location.key && location.key !== "default") navigate(-1);
+        else navigate(backPath);
+    };
 
     return (
         <div className="flex-1 space-y-6 max-w-7xl mx-auto w-full pb-10">
             {/* Header / Actions */}
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-card p-4 rounded-xl border border-border shadow-sm">
                 <div className="flex items-center gap-3">
-                    <Button variant="ghost" size="icon" onClick={() => navigate(backPath)} className="mr-2 hidden sm:flex">
+                    <Button variant="ghost" size="icon" onClick={goBack} className="mr-2 hidden sm:flex">
                         <ArrowLeft className="w-5 h-5 text-muted-foreground" />
                     </Button>
                     <div>

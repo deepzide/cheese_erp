@@ -166,8 +166,8 @@ export default function CalendarPage() {
                         </TabsList>
                     </Tabs>
 
-                    {/* Capacity lens (day/week views) */}
-                    {view !== "month" && (
+                    {/* Capacity lens (day / week / month views) */}
+                    {(
                         <Tabs value={lens} onValueChange={setLens}>
                             <TabsList className="h-8">
                                 <TabsTrigger value="ocup" className="text-xs px-3 h-6">
@@ -273,6 +273,7 @@ export default function CalendarPage() {
                         <CalendarMonthView
                             date={currentDate}
                             slots={slots}
+                            lens={lens}
                             onDayClick={handleDayClick}
                         />
                     )}

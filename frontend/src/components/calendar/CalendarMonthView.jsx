@@ -1,31 +1,32 @@
 import React from "react";
 import { useTranslation } from "react-i18next";
 import {
-    format, isToday, getMonthGrid, getOccupancy, getOccupancyColor,
+    format, isToday, getMonthGrid, getHeatCellColor,
 } from "./calendarUtils";
 
 /**
- * Month view — enhanced month grid with slot indicators.
- * Clicking a day switches to Day view.
+ * Month view — one aggregated occupancy/availability cell per day (like the
+ * week heatmap), NOT individual slot times. Each day sums the reserved and
+ * max capacity of that day's slots and shows both totals (occupancy res/cap
+ * and available spots), colored by occupancy. Clicking a day opens Day view.
  */
-export default function CalendarMonthView({ date, slots, onDayClick }) {
+export default function CalendarMonthView({ date, slots, lens = "ocup", onDayClick }) {
     const { t } = useTranslation();
-    const { blanks, days, monthStart, monthEnd } = getMonthGrid(date);
+    const { blanks, days } = getMonthGrid(date);
 
-    // Group slots by date
-    const slotsByDate = {};
+    // Aggregate per day: reserved, capacity, slot count.
+    const byDate = {};
     slots.forEach((slot) => {
         if (!slot.date_from || !slot.date_to) return;
         const from = new Date(slot.date_from);
         const to = new Date(slot.date_to);
         for (let cur = new Date(from); cur <= to; cur.setDate(cur.getDate() + 1)) {
             const key = format(cur, "yyyy-MM-dd");
-            if (!slotsByDate[key]) slotsByDate[key] = [];
-            slotsByDate[key].push(slot);
+            const cell = (byDate[key] = byDate[key] || { res: 0, cap: 0, count: 0 });
+            cell.res += slot.reserved_capacity || 0;
+            cell.cap += slot.max_capacity || 0;
+            cell.count += 1;
         }
-    });
-    Object.keys(slotsByDate).forEach((key) => {
-        slotsByDate[key].sort((a, b) => (a.time_from || "").localeCompare(b.time_from || ""));
     });
 
     return (
@@ -46,10 +47,10 @@ export default function CalendarMonthView({ date, slots, onDayClick }) {
                 ))}
                 {days.map((day) => {
                     const key = format(day, "yyyy-MM-dd");
-                    const daySlots = slotsByDate[key] || [];
+                    const cell = byDate[key];
                     const today = isToday(day);
-                    const maxShow = 3;
-                    const overflow = daySlots.length > maxShow ? daySlots.length - maxShow : 0;
+                    const free = cell ? Math.max(0, cell.cap - cell.res) : 0;
+                    const colors = cell ? getHeatCellColor(cell.res, cell.cap) : null;
 
                     return (
                         <button
@@ -69,53 +70,41 @@ export default function CalendarMonthView({ date, slots, onDayClick }) {
                                 >
                                     {format(day, "d")}
                                 </span>
-                                {daySlots.length > 0 && (
+                                {cell && (
                                     <span className="text-[9px] text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity">
-                                        {daySlots.length} {t("calendar.slots", "slots")}
+                                        {t("calendar.slotsCount", "{{n}} franjas", { n: cell.count })}
                                     </span>
                                 )}
                             </div>
 
-                            {/* Slot indicators */}
-                            <div className="space-y-0.5">
-                                {daySlots.slice(0, maxShow).map((slot) => {
-                                    const colors = getOccupancyColor(slot.reserved_capacity, slot.max_capacity, slot.slot_status);
-                                    return (
-                                        <div
-                                            key={slot.name}
-                                            className={`flex items-center gap-1 px-1 py-0.5 rounded text-[10px] truncate
-                                                ${colors.bg} border-l-2 ${colors.border}`}
-                                        >
-                                            <span className={`font-medium truncate ${colors.text}`}>
-                                                {slot.time_from ? slot.time_from.substring(0, 5) : ""} {slot.experience || t("calendar.slot", "Slot")}
-                                            </span>
-                                        </div>
-                                    );
-                                })}
-                                {overflow > 0 && (
-                                    <div className="text-[10px] text-muted-foreground font-medium pl-1">
-                                        +{overflow} {t("calendar.more", "more")}
+                            {/* Aggregated occupancy / availability for the day */}
+                            {cell ? (
+                                <div className={`rounded-md px-2 py-1.5 ${colors.bg}`}>
+                                    <div className={`text-sm font-bold ${colors.text}`}>
+                                        {lens === "disp"
+                                            ? t("calendar.free", "{{n}} libres", { n: free })
+                                            : `${cell.res}/${cell.cap}`}
                                     </div>
-                                )}
-                            </div>
+                                    <div className="text-[10px] text-muted-foreground">
+                                        {lens === "disp"
+                                            ? t("calendar.occupancyShort", "Ocup. {{res}}/{{cap}}", { res: cell.res, cap: cell.cap })
+                                            : t("calendar.freeShort", "{{n}} libres", { n: free })}
+                                    </div>
+                                </div>
+                            ) : null}
                         </button>
                     );
                 })}
             </div>
 
-            {/* Legend */}
-            <div className="flex items-center justify-center gap-6 py-3 border-t border-border">
-                {[
-                    { color: "bg-emerald-500", label: t("hotelAvailability.available", "Available") },
-                    { color: "bg-amber-500", label: t("calendar.filling", "Filling") },
-                    { color: "bg-red-500", label: t("hotelAvailability.full", "Full") },
-                    { color: "bg-gray-400", label: t("hotelAvailability.blocked", "Blocked") },
-                ].map((l) => (
-                    <div key={l.label} className="flex items-center gap-1.5">
-                        <div className={`w-2.5 h-2.5 rounded-full ${l.color}`} />
-                        <span className="text-[10px] text-muted-foreground">{l.label}</span>
-                    </div>
-                ))}
+            {/* Occupancy legend */}
+            <div className="flex items-center gap-3 flex-wrap px-3 py-2 border-t border-border text-[11px] text-muted-foreground">
+                <span className="font-medium">{t("calendar.legendTitle", "Ocupación:")}</span>
+                <span className="flex items-center gap-1"><i className="inline-block w-3 h-3 rounded-sm bg-muted/60 border border-border" /> {t("calendar.legendEmpty", "vacío")}</span>
+                <span className="flex items-center gap-1"><i className="inline-block w-3 h-3 rounded-sm bg-emerald-100 dark:bg-emerald-950/50" /> 1–59%</span>
+                <span className="flex items-center gap-1"><i className="inline-block w-3 h-3 rounded-sm bg-amber-100 dark:bg-amber-950/50" /> 60–89%</span>
+                <span className="flex items-center gap-1"><i className="inline-block w-3 h-3 rounded-sm bg-red-100 dark:bg-red-950/50" /> 90–100%</span>
+                <span className="ml-auto">{t("calendar.clickDayHint", "Clic en un día para ver sus horarios")}</span>
             </div>
         </div>
     );

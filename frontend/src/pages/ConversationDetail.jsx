@@ -1,5 +1,5 @@
 import React, { useMemo, useRef, useEffect, useState } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { useFrappeDoc } from "@/lib/useApiData";
@@ -60,6 +60,11 @@ export default function ConversationDetail() {
     const { t } = useTranslation();
     const { id } = useParams();
     const navigate = useNavigate();
+    const location = useLocation();
+    const goBack = () => {
+        if (location.key && location.key !== "default") navigate(-1);
+        else navigate("/cheese/conversations");
+    };
     const messagesEndRef = useRef(null);
     const containerRef = useRef(null);
     const didInitialScrollRef = useRef(false);
@@ -202,7 +207,7 @@ export default function ConversationDetail() {
         <div className="flex flex-col h-full">
             <div className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 p-4">
                 <div className="flex items-center gap-4">
-                    <Button variant="ghost" size="icon" onClick={() => navigate("/cheese/conversations")}>
+                    <Button variant="ghost" size="icon" onClick={goBack}>
                         <ArrowLeft className="w-5 h-5" />
                     </Button>
                     <div className="flex-1 min-w-0">

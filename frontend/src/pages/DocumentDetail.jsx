@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { motion } from "framer-motion";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, useLocation } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import {
@@ -33,6 +33,11 @@ function Field({ label, children }) {
 export default function DocumentDetail() {
     const { id } = useParams();
     const navigate = useNavigate();
+    const location = useLocation();
+    const goBack = () => {
+        if (location.key && location.key !== "default") navigate(-1);
+        else navigate("/cheese/documents");
+    };
     const { t } = useTranslation();
 
     const [doc, setDoc] = useState(null);
@@ -145,7 +150,7 @@ export default function DocumentDetail() {
             {/* Header */}
             <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
                 <div className="flex items-start gap-3 min-w-0">
-                    <Button variant="ghost" size="icon" onClick={() => navigate("/cheese/documents")} className="shrink-0 mt-0.5">
+                    <Button variant="ghost" size="icon" onClick={goBack} className="shrink-0 mt-0.5">
                         <ArrowLeft className="w-5 h-5" />
                     </Button>
                     <div className="min-w-0">

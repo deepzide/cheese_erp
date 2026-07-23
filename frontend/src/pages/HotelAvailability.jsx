@@ -89,6 +89,16 @@ export default function HotelAvailability({ hotelId = null, embedded = false }) 
     });
     const experiences = Array.isArray(expPayload) ? expPayload : [];
 
+    // Default to the first room type once the list loads (or when the current
+    // selection is no longer in the list, e.g. the hotel changed).
+    useEffect(() => {
+        if (!experiences.length) return;
+        if (!selectedExperience || !experiences.some((e) => e.name === selectedExperience)) {
+            setSelectedExperience(experiences[0].name);
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [experiences.map((e) => e.name).join(",")]);
+
     // Nightly availability derived from physical rooms
     const { data: availPayload, isLoading, error, refetch } = useQuery({
         queryKey: ["hotel-availability", selectedExperience, dateFrom, dateTo],
