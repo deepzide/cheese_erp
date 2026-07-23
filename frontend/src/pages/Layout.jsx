@@ -125,9 +125,11 @@ function SidebarContent({
     isAdmin, establishments, activeEstablishment, setActiveEstablishment,
 }) {
     const [menuQuery, setMenuQuery] = useState("");
-    const q = menuQuery.trim().toLowerCase();
+    // Case- and accent-insensitive menu matching ("metodos" finds "Métodos").
+    const normalizeText = (s) => (s || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+    const q = normalizeText(menuQuery.trim());
     const searching = q.length > 0;
-    const matches = (item) => !searching || t(item.titleKey).toLowerCase().includes(q);
+    const matches = (item) => !searching || normalizeText(t(item.titleKey)).includes(q);
     const anyMatch = searching && visibleNavigationItems.some(matches);
     return (
         <>
