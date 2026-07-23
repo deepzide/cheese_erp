@@ -171,6 +171,7 @@ export default function CalendarCreateSlotDialog({ open, onClose, prefillDate, p
                             onChange={setExperience}
                             placeholder={t("tickets.selectExperience", "Seleccionar experiencia...")}
                             labelField="experience_info"
+                            filters={{ experience_type: ["!=", "HOTEL"] }}
                         />
                     </div>
 

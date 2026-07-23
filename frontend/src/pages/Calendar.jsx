@@ -65,11 +65,22 @@ export default function CalendarPage() {
 
     const { from, to } = getDateRange();
 
-    // Fetch experiences
+    // Fetch experiences — hotel room types have no time slots and are excluded.
     const { data: experiences = [] } = useFrappeList("Cheese Experience", {
+        filters: { experience_type: ["!=", "HOTEL"] },
         fields: ["name", "experience_info"],
-        pageSize: 100,
+        pageSize: 500,
     });
+    // Hotel experience names — used to drop any legacy hotel slots from the calendar.
+    const { data: hotelExps = [] } = useFrappeList("Cheese Experience", {
+        filters: { experience_type: "HOTEL" },
+        fields: ["name"],
+        pageSize: 500,
+    });
+    const hotelNames = React.useMemo(
+        () => new Set((Array.isArray(hotelExps) ? hotelExps : []).map((e) => e.name)),
+        [hotelExps]
+    );
 
     // Fetch slots for current range
     const { activeEstablishment } = useActiveEstablishment();
@@ -87,7 +98,7 @@ export default function CalendarPage() {
         pageSize: 500,
     });
 
-    const slots = (Array.isArray(slotsRaw) ? slotsRaw : []).slice().sort((a, b) => {
+    const slots = (Array.isArray(slotsRaw) ? slotsRaw : []).filter((s) => !hotelNames.has(s.experience)).slice().sort((a, b) => {
         const dateCmp = (a.date_from || "").localeCompare(b.date_from || "");
         if (dateCmp !== 0) return dateCmp;
         const timeCmp = (a.time_from || "").localeCompare(b.time_from || "");
