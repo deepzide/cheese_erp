@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { motion } from "framer-motion";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -307,7 +307,13 @@ export default function BookingPolicy() {
                                                 <Clock className="w-3 h-3 mr-2" /> {t("bookingPolicy.editTimes", "Edit Times")}
                                             </DropdownMenuItem>
                                             {primaryExperience && (
-                                                <DropdownMenuItem onClick={() => navigate(`/cheese/experiences/${encodeURIComponent(primaryExperience)}`)}><Sparkles className="w-3 h-3 mr-2" /> {t("documents.viewExperience", "View Experience")}</DropdownMenuItem>
+                                                /* Real <Link> via asChild: programmatic navigate() gets lost
+                                                   in the menu-close event ordering, an anchor does not. */
+                                                <DropdownMenuItem asChild>
+                                                    <Link to={`/cheese/experiences/${encodeURIComponent(primaryExperience)}`} className="cursor-pointer">
+                                                        <Sparkles className="w-3 h-3 mr-2" /> {t("documents.viewExperience", "View Experience")}
+                                                    </Link>
+                                                </DropdownMenuItem>
                                             )}
                                         </DropdownMenuContent>
                                     </DropdownMenu>
